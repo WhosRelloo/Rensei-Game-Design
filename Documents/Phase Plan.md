@@ -58,6 +58,11 @@ Rensei is developed on two tracks that share one codebase (the Roblox place **Ye
 4. **Publish animations** to the group. Several weapon animations are still unpublished copies that only play in Studio.
 5. Mobile buttons, then the ranked arena when the owner wants it.
 
+## Visual status page
+
+A visual version of this plan (tracks, alchemy matrix, open decisions) is kept at
+https://claude.ai/artifact/LZdftKv8ZzySTLPd6uEovy (private to the owner) and is republished after every phase.
+
 ## How to update this file
 
 After each phase, move its row to ✅ and add the date. Record what was built and tested in `Changelog.md`, and decisions in `Decisions.md`.
