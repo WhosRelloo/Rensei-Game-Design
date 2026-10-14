@@ -4,6 +4,17 @@
 **Platform:** Roblox  
 **Purpose:** Central design reference and implementation guide for Rensei.
 
+## Start here (current state of the game)
+
+Read these first; they are updated after every development phase:
+
+- **Project Status.md:** what is built and working right now, and the known gaps.
+- **Phase Plan.md:** the roadmap (combat commission + master plan phases) with status, and the next steps.
+- **Changelog.md:** what each phase changed and how it was tested.
+- **Decisions.md:** confirmed owner decisions and the open questions.
+- **ARCHITECTURE.md:** where every system lives in the Roblox place (Ye), plus coding conventions and testing gotchas.
+- **COMBAT_SYSTEM.md / ALCHEMY_SYSTEM.md:** how combat and alchemy work today.
+
 ## Project Vision
 
 Rensei is an open-world action RPG built around alchemy, fast-paced combat, industrial-era military structures, political conflict, suppressed history, and morally complex decisions.
