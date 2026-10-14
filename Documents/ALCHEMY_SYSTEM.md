@@ -41,8 +41,6 @@ A light hit earns 4. Alchemy hits never refill the meter.
 
 ## Built abilities
 
-| Path | Slot | Ability | Status |
-|---|---|---|---|
 | Path | Slot | Ability | Release + animation | Status |
 |---|---|---|---|---|
 | Flame | Z | **Ignite**: fireball (60 dmg, 8s CD, BLOCKABLE) + burn 4×5 over 4s | Arm Extend + "Fire 2" | ✅ playtested |
@@ -63,6 +61,12 @@ A light hit earns 4. Alchemy hits never refill the meter.
   - The caster has 1.2s of recovery after the cast (the sheet's "vulnerable after cast").
 
 **Animation note:** `infernolance` is the owner's local animation and not yet published (it plays only in Studio; live falls back to a punch). The published Fire 5 can't stand in: it moves the body 11 studs inside the animation, which snaps back in Roblox.
+
+## Status effects
+
+Alchemy hits apply status effects through `StatusManager` (see COMBAT_SYSTEM.md): the owner's Fire / Freeze / Bleed / Shock VFX on the victim, with real effects.
+- Flame burns (damage scaled by the caster's alchemy damage).
+- Freeze (Ice) and Shock are built and ready for their kits.
 
 ## UI
 

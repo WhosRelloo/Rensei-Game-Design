@@ -27,6 +27,7 @@ Rensei is developed on two tracks that share one codebase (the Roblox place **Ye
 | A8 Weapon position audit | ✅ 2026-10-14 | Grips, holsters, hold poses, greatsword carry, smooth holster↔hand swaps, joint-leak fix. |
 | A9 Alchemy (Z/X/C/V) | 🟡 2026-10-14 | **Flame kit complete:** Ignite, Scorching Wave, Inferno Lance, Phoenix Drive. Clap (holdable) → arm extend (projectiles) or ground slam → move, on the owner's FireElement VFX, with the Z/X/C/V slot bar. Ice, Wind and Metal kits next; Earth has no design. |
 | A10 Combat fluidity vs Devil Hunter | ✅ 2026-10-14 | DH hitstun, combo-reset window and movement speeds. Hold F re-raises the guard. Shift-lock side dashes fixed. |
+| A10b Status effects + hit-parry | ✅ 2026-10-14 | Burn / Freeze / Bleed / Shock with real effects on the owner's VFX (`StatusManager`). Parry while getting hit, with a posture cost and the cooldown. |
 | A11 Ranked PvP arena | 💤 | Doc: "can be added later". |
 | A12 Mobile buttons | ⬜ | |
 

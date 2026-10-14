@@ -17,7 +17,8 @@ Updated **2026-10-14**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
   - 4-hit light combo with hit confirm, held-LMB chaining and a click buffer.
   - Heavy (R) with a crit telegraph; feint (RMB during a light's windup).
   - Uppercut (Ctrl+LMB) with an air juggle, aerial dive, dash attack.
-  - Block (hold F, re-raises by itself while held) and parry (tap F, Devil Hunter rules).
+  - Block (hold F, re-raises by itself while held) and parry (tap F, Devil Hunter rules), including parrying while getting hit (posture cost, cooldown).
+  - Status effects: Burn, Freeze, Bleed, Shock, on the owner's VFX.
   - Posture and guard break, hitstop, knockbacks.
 - **Movement:**
   - Devil Hunter dash in 8 directions, including shift lock and sprint.

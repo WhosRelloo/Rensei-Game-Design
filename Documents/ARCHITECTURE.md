@@ -17,7 +17,7 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
 - **`ServerHandler`:** routes `Remotes.RequestRemote(Module, ...)` to `ServerHandler.Requests.<Module>`, behind a token-bucket rate limiter. Starts the services.
   - Requests: Stat, Gate, Sync, Party, Quest, Dialogue, Settings, Equip, HoldItem, CombatMode, Uppercut, Feint, JumpAttack, WeaponSkill, Aim, Downed, **Alchemy**.
 - **`ProgressionService`:** the only writer of stats, EXP, Mastery Points and Truth/Gate. Records hits (training), and writes the character multipliers PhysicalMultiplier, AlchemyMultiplier and SpeedMultiplier.
-- **`AlchemyService`:** alchemy casting (validation, meter, cooldown, clan rule, clap → slam → move prelude, projectiles, burn). Publishes the `Player` attribute `Affinity`.
+- **`AlchemyService`:** alchemy casting (validation, meter, cooldown, clan rule, clap → slam → move prelude, projectiles, cone / lunge / phoenix). Burns go through `StatusManager`. Publishes the `Player` attribute `Affinity`.
 - **`EnemyService`:** PvE spawns (parts tagged `RenseiEnemySpawn`), Grunt/Elite AI using the players' combat rules.
 - **`UIService`:** server → client UI events (Toast, LevelUp, Area, Party, Dialogue…).
 - **`PartyService`, `QuestService`, `WorldService`, `DialogueService`:** frameworks wired; quest and dialogue content are empty on purpose.
@@ -33,6 +33,7 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
 - **`DamageManager`:** resolves a hit.
   - Classes BLOCKABLE/PARRYABLE/UNBLOCKABLE; block (facing the attack's source) and parry; posture.
   - Stun, knockback types, hitstop, meter gain, weapon passives.
+- **`StatusManager`:** status effects (Burn / Freeze / Bleed / Shock). `Apply(Victim, Name, {Duration, Every, Damage, Mult})` refreshes, ticks damage, freezes and jolts; it shows `Effects.Status.StatusVFX` and sets the `Status<Name>` attribute.
 - **`DownedManager`:** all combat damage goes through `DownedManager.Damage`. Knocked state, Grip, Carry.
 - **`WeaponManager`:** weapon tools.
   - Server: grip Motor6Ds; HolsterWeld while holstered; draw/sheathe; guns; passives.
@@ -48,7 +49,7 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
 
 - **`Combat.Fist`:** holdable M1. Click buffer and hold-to-chain → `Fist.FistSwing`, which picks Uppercut / Aerial / Dash Attack / gunshot / light combo.
 - **`Combat.Heavy`:** R; also the feint.
-- **`Combat.Block`:** F tap = parry, hold = block.
+- **`Combat.Block`:** F tap = parry, hold = block. Starts with `Fresh = true` only on a real key press; in hitstun it opens a hit-parry, then raises the guard once the stun ends if F is still held.
 - **States:** Stun, Attacking, Blocking, PerfectParry, IFrame, Dodge, AirCombo, Climbing…
 
 ## Client
@@ -65,7 +66,8 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
 - **`Combat.*`:** hit, block, parry, roll, knockback, crit telegraph…
 - **`Alchemy.Transmute`:** clap circle + hand fire + ground flash.
 - **`Alchemy.Fireball`:** server-timed; `:Impact`.
-- **`Alchemy.Burning`.**
+- **`Alchemy.Burst`, `Phoenix`, `Warning`, `Sigil`:** Flame kit effects.
+- **`Status.StatusVFX`:** welds the owner's status VFX part (Assets.VFX.StatusEffects) to the victim for the status's duration; Freeze adds an ice Highlight. (The old `Alchemy.Burning` is retired to backups.)
 
 ## Assets — `ReplicatedStorage.Assets`
 
@@ -75,6 +77,7 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
   - Grip parts carry attributes Arm, MotorC0/MotorC1, HolsterC0.
 - **`VFX.FireElement`:** the owner's Flame VFX, copied from the Assets place.
   - ignite, infernolance, scorchingwave, phoenixdrive, Hands.
+- **`VFX.StatusEffects`:** the owner's status VFX parts (Fire, Freeze, Bleed, Shock), copied from the Assets place.
 - **`RELLO IMPORTED ASSETS`:** the owner's imports (FireElement rig animations, books, armour…).
 - **Transmutation circle texture:** `rbxassetid://132299053523633`, a custom white circle tinted per element.
 

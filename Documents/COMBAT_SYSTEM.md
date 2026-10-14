@@ -10,7 +10,7 @@ Target feel (controls doc): **Devil Hunter.** Fast and responsive, smooth flowin
 | Ctrl + LMB | Uppercut (launch + air juggle) |
 | RMB | Feint (cancels a light's windup) |
 | R | Heavy (crit telegraph during the windup) |
-| F | Tap = Parry, hold = Block (holding re-raises the guard after a stun) |
+| F | Tap = Parry, hold = Block (holding re-raises the guard after a stun). A fresh press parries even while you're being hit. |
 | Q | Dash (8 directions, camera-relative in shift lock) |
 | Shift / Ctrl / Space | Run / slide (outside Combat Mode) / jump, climb, wall run |
 | Alt | Shift lock |
@@ -40,11 +40,39 @@ Target feel (controls doc): **Devil Hunter.** Fast and responsive, smooth flowin
   - 0.22s window; +0.04s if your last parry landed; ping-scaled above 100ms.
   - 1.3s cooldown per attempt unless it lands.
   - Attacker: −10 posture, 0.7s stun, pushback. Parrier pays 5 posture.
+  - Only a **fresh press** opens a window. The guard re-raising itself while F is held never parries.
+- **Parry while getting hit (owner, 2026-10-14, "like VV and Devil Hunter"):**
+  - Devil Hunter's block gate doesn't include hitstun, so a fresh F press during hitstun still opens the parry window. The hit reaction keeps playing.
+  - It **costs 10 posture up front** (PROPOSAL) and needs that much posture left.
+  - It **always starts the 1.3s cooldown, even if it lands** (PROPOSAL), so it can't be chained out of every combo.
+  - Not allowed while guard-broken, parry-stunned, frozen or knocked (Devil Hunter's gate excludes posture-broken and parry-stunned too).
+  - Keep holding F and the guard comes up as soon as the stun ends.
+  - Numbers: `TuningConfig.Parry.HitParry`.
 - **Classes:**
   - **PARRYABLE** (the default): block mitigates, parry counters.
   - **BLOCKABLE:** a parry window only blocks.
   - **UNBLOCKABLE:** ignores both; dodge it.
 - **Dash:** 110 → 24 speed over 0.325s, i-frames, 20 stamina, 1s cooldown.
+
+## Status effects (`StatusManager`)
+
+Owner request (2026-10-14): alchemy hits apply the owner's status effects (Assets place "Status Effects": Fire, Freeze, Bleed, Shock) with real effects. Numbers are in `TuningConfig.Status`; a move can override them.
+
+| Status | VFX | Effect | Default numbers |
+|---|---|---|---|
+| Burn | Fire | Damage every tick, scaled by the caster's alchemy damage | 5 every 1s for 4s (sheet: Ignite / Phoenix Drive) |
+| Freeze | Freeze + ice glaze | Frozen solid: stunned, can't move or jump, pose locked | 1.5s (the sheet's per-move durations) |
+| Bleed | Bleed | Damage every tick | 2 every 0.5s for 1.5s (daggers' Lacerate) |
+| Shock | Shock | Damage every tick plus a 0.15s jolt stun each tick (interrupts windups) | 2 every 0.5s for 1.5s (PROPOSAL) |
+
+- Re-applying refreshes the status instead of stacking it.
+- Death or knock ends it early.
+- The victim gets the attribute `Status<Name>` (server time it ends) for UI.
+- While frozen, no other walk-speed change (e.g. hitstun's 4) can let the victim move.
+- **Who applies what today:**
+  - Burn: Ignite, Phoenix Drive (sheet), plus Scorching Wave and Inferno Lance (2 ticks; PROPOSAL).
+  - Bleed: daggers.
+  - Freeze and Shock: built, and wait for the Ice kit and whichever element gets Shock.
 
 ## Resources
 

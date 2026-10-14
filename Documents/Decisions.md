@@ -35,6 +35,10 @@ This document records established project decisions to keep development consiste
   - Combat Mode on E (draw/sheathe).
   - Weapon skill on T; Lock Target on G.
 - **Parry:** Devil Hunter's rules. 0.22s window, ping-scaled; 1.3s cooldown unless the parry lands.
+- **Parry while getting hit (owner, 2026-10-14, "like VV and Devil Hunter"):** allowed on a fresh F press during hitstun, with a slight cooldown and a posture cost.
+  - Built as: 10 posture per attempt (PROPOSAL); always the 1.3s cooldown, even when it lands (PROPOSAL).
+  - Never out of a guard break, parry stun, freeze or knock.
+- **Status effects (owner, 2026-10-14):** alchemy hits apply the owner's status effects (Fire / Freeze / Bleed / Shock VFX) with real effects. See COMBAT_SYSTEM.md.
 - **Combat fluidity matched to Devil Hunter (owner, 2026-10-14):**
   - Light hitstun 0.6s; combo resets after 2s.
   - Walk speed while swinging, blocking or stunned close to Devil Hunter's.
@@ -68,6 +72,9 @@ This document records established project decisions to keep development consiste
 ## Open questions (not decided; don't invent answers)
 - **Affinity:** how a player gets an affinity (character creation flow, rolls?).
 - **Earth:** abilities (no sheet rows).
+- **Shock:** which element / moves apply it (built, unused). Bleed beyond daggers (Metal?).
+- **Flame X/C burn:** Scorching Wave and Inferno Lance burn for 2 ticks (PROPOSAL; the sheet lists burn only on Ignite and Phoenix Drive).
+- **Hit-parry numbers:** posture cost 10 and "always cooldown" are PROPOSALS; "VV" wasn't available to check, so they follow Devil Hunter's code.
 - **Alchemy numbers:** meter costs (PROPOSAL: Z25 / X35 / C35 / V70); whether interrupted casts refund anything (currently no refund).
 - **Skill tree:** nodes, costs, prerequisites, and whether alchemy slots unlock through it.
 - **Grip:** PvP / permadeath / anti-gank consequences of a grip finisher.

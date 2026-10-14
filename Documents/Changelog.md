@@ -2,6 +2,30 @@
 
 What each phase built and how it was tested. Newest first. All work is in the Studio place **Ye**. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-14 — Status effects; parry while getting hit
+
+**Built:**
+- **Status effects** (`StatusManager` + `Effects.Status.StatusVFX`), using the owner's Status Effects VFX (Fire, Freeze, Bleed, Shock), copied from the Assets place.
+  - Burn: damage ticks. Freeze: stunned, rooted, pose locked, ice glaze. Bleed: damage ticks. Shock: damage ticks plus jolt stuns.
+  - Refresh instead of stacking; ended by death or knock.
+  - Alchemy burns and the daggers' bleed now go through it. The old Burning effect is retired.
+- **Parry while getting hit (owner request):** a fresh F press in hitstun opens the parry window for 10 posture (PROPOSAL) and always starts the 1.3s cooldown (PROPOSAL). Holding F raises the guard when the stun ends.
+  - Only a real key press parries now; the hold-to-re-guard retry never opens a window.
+
+**Tested (Studio Play):**
+- **Burn:** 5 damage every 1.0s, 4 ticks.
+- **Freeze:** walk speed 0, stunned, restored afterwards (Grunt 14, player 12). A hit while frozen didn't free the player.
+- **Shock:** 3 jolt stuns plus ticks in 1.5s.
+- **Bleed:** daggers hit → 3 ticks of 2 at 0.5s intervals.
+- **Visuals:** welded on every client, then cleaned up (screenshot checked).
+- **Hit-parry (real F presses during a hit stun):**
+  - Window opened mid-stun; posture 100 → 90; the next hit was **PerfectParried** and the attacker stunned.
+  - The cooldown stayed after the landed parry.
+  - A second press on cooldown did nothing and cost nothing.
+  - With F held, the guard came up 0.12s after the stun ended.
+  - Guard-broken: no window.
+- No console errors.
+
 ## 2026-10-14 — Flame kit complete
 
 **Built:**
