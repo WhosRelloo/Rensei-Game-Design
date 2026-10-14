@@ -2,6 +2,29 @@
 
 What each phase built and how it was tested. Newest first. All work is in the Studio place **Ye**. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-14 — Flame kit complete
+
+**Built:**
+- **Scorching Wave (X):** cone.
+- **Inferno Lance (C):** burning dash with i-frames.
+- **Phoenix Drive (V):** flying phoenix, crash + burn, delayed explosion.
+  - Unblockable, so its landing spot gets a red danger ring for everyone.
+  - The alchemy circle opens under the caster.
+- **Visuals:** all built on the owner's FireElement VFX (cone fire, ground impact, dash burst, phoenix model, explosion).
+- **Release rule (owner):** projectile moves use Clap → **Arm Extend** → animation; Ignite switched to it. Ground and body moves keep the Ground Slam.
+- **New shared effects:**
+  - `Burst`: plays any authored VFX part with its own EmitCount/EmitDelay;
+  - `Phoenix`, `Warning`, `Sigil`.
+
+**Tested (Studio Play, real key presses, against passive Bandits):**
+- **Scorching Wave:** hit the grunt inside the cone for 90 at 1.72s. The grunt outside the cone took nothing. Meter 100 → 65.
+- **Inferno Lance:** 85 the moment the dash starts; 12.8-stud dash in open space; stops on contact.
+- **Phoenix Drive:**
+  - Danger ring at 0.55s; crash 70 on both grunts in range, explosion 170 0.8s later, burn 4×5. That's 260 total, matching the sheet.
+  - A steeply downward aim still lands 12 studs out.
+- **Ignite:** confirmed Clap → Arm Extend → throw.
+- **Cleanup:** every effect cleaned up; no console errors.
+
 ## 2026-10-14 — Alchemy cast flow, Fire VFX, slot bar, combat fluidity
 
 **Built:**
