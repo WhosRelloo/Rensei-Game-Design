@@ -54,6 +54,14 @@ Target feel (controls doc): **Devil Hunter.** Fast and responsive, smooth flowin
   - **UNBLOCKABLE:** ignores both; dodge it.
 - **Dash:** 110 → 24 speed over 0.325s, i-frames, 20 stamina, 1s cooldown.
 
+## Shields, counters and true damage
+
+- **Shields** (`ShieldManager`, Steel Guard) soak damage from the front until their absorb runs out.
+  - A `BreaksShields` strike (Coldsteel Smash) shatters one outright and lands.
+  - UNBLOCKABLE and TrueDamage attacks ignore shields.
+- **Counters** (`CounterManager`, Cryo Shift) catch the first hit that isn't UNBLOCKABLE.
+- **True damage** (Alloy Divider) ignores damage resist and shields; i-frames and dodges still avoid it.
+
 ## Enemies (PvE)
 
 - Enemies never damage each other (`DamageManager`). Before this fix their swings could kill the enemies beside them.

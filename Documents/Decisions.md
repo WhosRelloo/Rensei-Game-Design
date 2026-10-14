@@ -76,6 +76,9 @@ This document records established project decisions to keep development consiste
 - **Flame X/C burn:** Scorching Wave and Inferno Lance burn for 2 ticks (PROPOSAL; the sheet lists burn only on Ignite and Phoenix Drive).
 - **Hit-parry numbers:** posture cost 10 and "always cooldown" are PROPOSALS; "VV" wasn't available to check, so they follow Devil Hunter's code.
 - **Ice kit PROPOSALS:** Cryo Shift window 1.0s; Coldsteel Smash freezes 0.6s; Ice Shards as a placed trap (4–22 studs, radius 6, arms 0.3s, lasts 8s, one per caster); Absolute Zero radius 20 and recovery 1.0s.
+- **Wind PROPOSALS:** Air Slash 160 studs/s, 75 range; Gale Burst radius 12, 3 blasts 0.2s apart, push 55; Rising Wind uses the Uppercut launch; Tempest Break 10–35 studs, radius 9 / pull 18, pull 18, lift 9, 1.0s recovery.
+- **Metal PROPOSALS:** Steel Guard arc ~78°; Crushing Anvil 42 studs/s, 36 range, homing 540°/s after 0.25s, slam radius 5; Metal Bind 15 studs; Alloy Divider line 30×6, 1.2s recovery.
+- **Wind, Metal and Ice animations / VFX** are placeholders until the owner provides them.
 - **Ice animations / VFX:** placeholders until the owner makes Ice animations and an Ice VFX folder.
 - **Alchemy numbers:** meter costs (PROPOSAL: Z25 / X35 / C35 / V70); whether interrupted casts refund anything (currently no refund).
 - **Skill tree:** nodes, costs, prerequisites, and whether alchemy slots unlock through it.

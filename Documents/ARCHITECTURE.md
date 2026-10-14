@@ -17,7 +17,7 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
 - **`ServerHandler`:** routes `Remotes.RequestRemote(Module, ...)` to `ServerHandler.Requests.<Module>`, behind a token-bucket rate limiter. Starts the services.
   - Requests: Stat, Gate, Sync, Party, Quest, Dialogue, Settings, Equip, HoldItem, CombatMode, Uppercut, Feint, JumpAttack, WeaponSkill, Aim, Downed, **Alchemy**.
 - **`ProgressionService`:** the only writer of stats, EXP, Mastery Points and Truth/Gate. Records hits (training), and writes the character multipliers PhysicalMultiplier, AlchemyMultiplier and SpeedMultiplier.
-- **`AlchemyService`:** alchemy casting (kinds: Projectile, Cone, Lunge, Phoenix, Counter, Melee, Trap, Nova; on-hit statuses via `ApplyOnHit`) (validation, meter, cooldown, clan rule, clap → slam → move prelude, projectiles, cone / lunge / phoenix). Burns go through `StatusManager`. Publishes the `Player` attribute `Affinity`.
+- **`AlchemyService`:** alchemy casting (kinds: Projectile [Visual Fireball/AirSlash], Cone, Lunge, Phoenix, Counter, Melee, Trap, Nova, Burst, Tornado, Shield, Tracker, Thrust, Cleave; on-hit statuses via `ApplyOnHit`; windup = sheet Cast + CastDelay) (validation, meter, cooldown, clan rule, clap → slam → move prelude, projectiles, cone / lunge / phoenix). Burns go through `StatusManager`. Publishes the `Player` attribute `Affinity`.
 - **`EnemyService`:** PvE spawns (parts tagged `RenseiEnemySpawn`), Grunt/Elite AI using the players' combat rules.
 - **`UIService`:** server → client UI events (Toast, LevelUp, Area, Party, Dialogue…).
 - **`PartyService`, `QuestService`, `WorldService`, `DialogueService`:** frameworks wired; quest and dialogue content are empty on purpose.
@@ -35,6 +35,7 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
   - Stun, knockback types, hitstop, meter gain, weapon passives.
 - **`StatusManager`:** status effects (Burn / Freeze / Bleed / Shock). `Apply(Victim, Name, {Duration, Every, Damage, Mult})` refreshes, ticks damage, freezes and jolts; it shows `Effects.Status.StatusVFX` and sets the `Status<Name>` attribute.
 - **`CounterManager`:** reactive counters (Cryo Shift). `Open(Character, Duration, Handler)`; DamageManager hands the first non-UNBLOCKABLE hit to the handler and returns "Countered".
+- **`ShieldManager`:** damage-absorbing shields (Steel Guard): `Open(Character, {Duration, Absorb, Arc, OnAbsorb, OnBreak})`; DamageManager returns "Shielded".
 - **`DownedManager`:** all combat damage goes through `DownedManager.Damage`. Knocked state, Grip, Carry.
 - **`WeaponManager`:** weapon tools.
   - Server: grip Motor6Ds; HolsterWeld while holstered; draw/sheathe; guns; passives.
@@ -69,6 +70,8 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
 - **`Alchemy.Fireball`:** server-timed; `:Impact`.
 - **`Alchemy.Burst`, `Phoenix`, `Warning`, `Sigil`:** Flame kit effects.
 - **Ice kit:** `Alchemy.IceShapes` (part-built crystals + greataxe, `Emit`), `IceSpikes` (crystals erupting), `IceAxe`, `IceTrap` (`:Trigger`), `FrostNova`, `IceGuard` (`:Trigger`).
+- **Wind kit:** `Alchemy.WindShapes` (textured plates, beams, `Emit`), `AirSlash` (projectile, Fireball contract), `GaleBurst` (`:Pulse`), `Updraft`, `Tornado`.
+- **Metal kit:** `Alchemy.MetalShapes` (spike, wall, anvil, blade, `Emit`), `SteelGuard` (`:Absorb`/`:Break`/`:Lower`), `SteelSpikes` (Trail/Bind), `AnvilDrop`, `SteelLance`, `AlloyBlade` (`:Slam`), `LineWarning` (line telegraph).
 - **`Status.StatusVFX`:** welds the owner's status VFX part (Assets.VFX.StatusEffects) to the victim for the status's duration; Freeze adds an ice Highlight. (The old `Alchemy.Burning` is retired to backups.)
 
 ## Assets — `ReplicatedStorage.Assets`
@@ -79,6 +82,7 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
   - Grip parts carry attributes Arm, MotorC0/MotorC1, HolsterC0.
 - **`VFX.FireElement`:** the owner's Flame VFX, copied from the Assets place.
   - ignite, infernolance, scorchingwave, phoenixdrive, Hands.
+- **`VFX.WindElement`, `VFX.MetalElement`:** built for the Wind and Metal kits (same layout).
 - **`VFX.IceElement`:** built for the Ice kit from the owner's Freeze textures (Hands, shatter, mist); same layout as FireElement.
 - **Animations with a `Save` child + attribute `StudioPrefersSave`:** published animation plus a corrected unpublished copy (the climb animations). Studio plays the copy; live plays the id.
 - **`VFX.StatusEffects`:** the owner's status VFX parts (Fire, Freeze, Bleed, Shock), copied from the Assets place.

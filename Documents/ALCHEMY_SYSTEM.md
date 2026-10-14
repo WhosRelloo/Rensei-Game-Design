@@ -51,10 +51,21 @@ A light hit earns 4. Alchemy hits never refill the meter.
 | Ice | X | **Coldsteel Smash**: an ice greataxe forms in the hand, heavy swing (110 dmg, 9s CD, 0.7s cast, PARRYABLE), freezes 0.6s (PROPOSAL) | Ground Slam + greatsword heavy (PLACEHOLDER) | ✅ playtested |
 | Ice | C | **Ice Shards**: a frost-circle trap sent to the aimed spot (4–22 studs, PROPOSAL); arms after 0.3s, lasts 8s, radius 6. The first enemy to step in springs it: shards erupt, 30 dmg + frozen 1.5s (sheet) | Ground Slam + "Fire 1" (PLACEHOLDER) | ✅ playtested |
 | Ice | V | **Absolute Zero**: area freeze around the caster (200 dmg, 28s CD, 1.2s cast, UNBLOCKABLE), radius 20 (PROPOSAL), frozen 3s (sheet); circle under the caster + red danger ring | Ground Slam + "Fire 4" (PLACEHOLDER) | ✅ playtested |
-| Wind / Metal | all | Sheet rows recorded | | ⬜ next |
+| Wind | Z | **Air Slash**: a fast crescent of air (50 dmg, 7s CD, 0.5s cast, BLOCKABLE); 160 studs/s, 75 range (PROPOSAL) | Arm Extend + "Fire 3" (PLACEHOLDER) | ✅ playtested |
+| Wind | X | **Gale Burst**: three blasts around the caster, 25 + 25 + 35 = 85 (sheet), radius 12; every blast stuns (breaks casts), the last shoves everyone away | Ground Slam + "Fire 4" (PLACEHOLDER) | ✅ playtested |
+| Wind | C | **Rising Wind**: an uppercut on a column of wind (70 dmg, 11s CD, 0.6s cast, PARRYABLE); launches the target and the caster for an air juggle, like the Uppercut | Ground Slam + "Uppercut" (PLACEHOLDER) | ✅ playtested |
+| Wind | V | **Tempest Break**: a tornado at the aimed spot (10–35 studs); pulls everyone within 18 in and lifts those inside; 3 hits 60 + 60 + 115 = 235 (sheet), the last throws them up and out; UNBLOCKABLE, danger ring | Ground Slam + "Fire 1" (PLACEHOLDER) | ✅ playtested |
+| Metal | Z | **Steel Guard**: a steel wall rises in front at the clap and stays 1.5s (sheet); absorbs 70 damage from the front, melee and projectiles (sheet), then breaks; Coldsteel Smash shatters it outright | Clap held (no slam) | ✅ playtested |
+| Metal | X | **Crushing Anvil**: steel races along the ground (42 studs/s, 36 range), homes on the nearest enemy ahead after 0.25s, then an anvil drops: 100 dmg (sheet), radius 5 | Ground Slam + a second slam (PLACEHOLDER) | ✅ playtested |
+| Metal | C | **Metal Bind**: a steel lance to the first enemy in line (15 studs): 75 dmg and pinned 1s (sheet; stunned, can't move or jump) | Arm Extend + "Fire 1" (PLACEHOLDER) | ✅ playtested |
+| Metal | V | **Alloy Divider**: a giant blade forms overhead while a 30×6 line ahead is marked; after the cast + the sheet's 0.4s delay it cleaves the line: 300 **true damage** (ignores damage resist and shields; dodging still works); UNBLOCKABLE | Ground Slam + greatsword heavy (PLACEHOLDER) | ✅ playtested |
 | Earth | all | **No design yet** | | ⬜ |
 
 **Ice VFX:** `Assets.VFX.IceElement` was built for the kit from the owner's Freeze status textures, plus part-built ice: crystals, the greataxe, frost sheet, trap circle. It has the same layout as FireElement (Hands / shatter / mist), so the owner's own Ice VFX can replace it. **Ice animations are placeholders** from the existing set until real Ice animations exist.
+
+**Wind VFX:** `Assets.VFX.WindElement` plus three textures made and uploaded for the kit (crescent `rbxassetid://112975276475052`, streaks `115359771901722`, ring `114110531684635`).
+**Metal VFX:** `Assets.VFX.MetalElement` (sparks) plus part-built steel (spikes, wall, anvil, giant blade).
+Both have the same layout as FireElement, so the owner's own VFX can replace them. **Wind and Metal animations are placeholders.**
 
 **Implementation numbers (PROPOSAL):**
 - **Ignite:** 110 studs/s, 90 range, radius 1.5. Hits characters or walls; fizzles at max range.

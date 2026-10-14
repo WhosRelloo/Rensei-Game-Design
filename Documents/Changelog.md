@@ -2,6 +2,29 @@
 
 What each phase built and how it was tested. Newest first. All work is in the Studio place **Ye**. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-14 — Wind and Metal kits (all four designed kits complete)
+
+**Built:**
+- **Wind:** Air Slash, Gale Burst, Rising Wind, Tempest Break.
+- **Metal:** Steel Guard, Crushing Anvil, Metal Bind, Alloy Divider.
+- New `ShieldManager` and true damage.
+- `WindElement` / `MetalElement` VFX, plus three uploaded wind textures.
+- Placeholder animations.
+
+**Tested (Studio Play):**
+- **Air Slash:** 50, windup 0.92s.
+- **Gale Burst:** 25 / 25 / 35 with stuns, push 24 studs; a blocking dummy took chip only.
+- **Rising Wind:** 70; target and caster launched 11 studs.
+- **Tempest Break:** 60 / 60 / 115 (= 235) to every dummy, through block and parry; lifted, then thrown up to 18–26 studs.
+- **Steel Guard:** 4 frontal hits absorbed, the 5th broke it and ended the stance; a hit from behind landed; Coldsteel Smash shattered it and landed 110.
+- **Crushing Anvil:** homed onto an off-axis target: 100.
+- **Metal Bind:** 75, pinned 0.98s (walk speed 0, stunned), then released.
+- **Alloy Divider:** 300 through a 20% resist buff; windup 2.42s (clap + slam + 1.2 cast + 0.4 delay).
+
+**Fixed while testing:**
+- Tempest Break's last hit missed lifted targets (sphere check); it now uses a column.
+- Crushing Anvil turned too slowly to reach close targets (220°/s → 540°/s, plus a passed-by check).
+
 ## 2026-10-14 — Ice kit; climbing and combat bug pass; full audit
 
 **Ice kit (A9):**
