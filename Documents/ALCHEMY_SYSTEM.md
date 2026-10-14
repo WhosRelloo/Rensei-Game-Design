@@ -47,13 +47,19 @@ A light hit earns 4. Alchemy hits never refill the meter.
 | Flame | X | **Scorching Wave**: cone (90 dmg, 10s CD, 0.8s cast, BLOCKABLE), small knockback | Ground Slam + "Fire 1" | ✅ playtested |
 | Flame | C | **Inferno Lance**: burning dash (85 dmg, 12s CD, 0.4s cast, PARRYABLE), 0.2s i-frames at the start | Ground Slam + `infernolance` | ✅ playtested |
 | Flame | V | **Phoenix Drive**: ultimate (70 crash + 20 burn + 170 explosion, 25s CD, 1.5s cast, UNBLOCKABLE) | Arm Extend + "Fire 4" | ✅ playtested |
-| Ice / Wind / Metal | all | Sheet rows recorded | | ⬜ next |
+| Ice | Z | **Cryo Shift**: reactive counter (40 dmg, 12s CD, cast 0). Up from the clap for 1.0s (PROPOSAL), caster glazed in frost. The first hit that isn't UNBLOCKABLE is cancelled: the attacker takes 40 and is frozen 1.5s; the caster gets 20% damage resist for 2s (sheet) | Clap held as the stance (no slam) | ✅ playtested |
+| Ice | X | **Coldsteel Smash**: an ice greataxe forms in the hand, heavy swing (110 dmg, 9s CD, 0.7s cast, PARRYABLE), freezes 0.6s (PROPOSAL) | Ground Slam + greatsword heavy (PLACEHOLDER) | ✅ playtested |
+| Ice | C | **Ice Shards**: a frost-circle trap sent to the aimed spot (4–22 studs, PROPOSAL); arms after 0.3s, lasts 8s, radius 6. The first enemy to step in springs it: shards erupt, 30 dmg + frozen 1.5s (sheet) | Ground Slam + "Fire 1" (PLACEHOLDER) | ✅ playtested |
+| Ice | V | **Absolute Zero**: area freeze around the caster (200 dmg, 28s CD, 1.2s cast, UNBLOCKABLE), radius 20 (PROPOSAL), frozen 3s (sheet); circle under the caster + red danger ring | Ground Slam + "Fire 4" (PLACEHOLDER) | ✅ playtested |
+| Wind / Metal | all | Sheet rows recorded | | ⬜ next |
 | Earth | all | **No design yet** | | ⬜ |
+
+**Ice VFX:** `Assets.VFX.IceElement` was built for the kit from the owner's Freeze status textures, plus part-built ice: crystals, the greataxe, frost sheet, trap circle. It has the same layout as FireElement (Hands / shatter / mist), so the owner's own Ice VFX can replace it. **Ice animations are placeholders** from the existing set until real Ice animations exist.
 
 **Implementation numbers (PROPOSAL):**
 - **Ignite:** 110 studs/s, 90 range, radius 1.5. Hits characters or walls; fizzles at max range.
 - **Scorching Wave:** 18-stud cone, 40° either side of the aim; knockback 40 for 0.4s (the sheet's 0.4s); no hitting through walls.
-- **Inferno Lance:** a 75-speed lunge for 0.25s (about 13 studs); stops on contact; the attack hitbox sweeps the whole dash.
+- **Inferno Lance:** a 75-speed lunge for 0.25s (about 13 studs); stops on contact. The dash runs on the client, so the server sees it late; the hitbox keeps sweeping for LungeTime + HitLag (0.35s). Before this fix it missed targets more than ~8 studs away. Its 2-tick burn (and Scorching Wave's) is now actually applied.
 - **Phoenix Drive:**
   - The **alchemy circle opens under the caster** while the phoenix is summoned (owner request).
   - The crash point is fixed when the key is released, 12–45 studs out, and marked for everyone with a red danger ring that fills up. It's unblockable, so it must be dodged.

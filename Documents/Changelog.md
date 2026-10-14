@@ -2,6 +2,40 @@
 
 What each phase built and how it was tested. Newest first. All work is in the Studio place **Ye**. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-14 — Ice kit; climbing and combat bug pass; full audit
+
+**Ice kit (A9):**
+- Cryo Shift (counter), Coldsteel Smash (ice greataxe), Ice Shards (trap), Absolute Zero (area freeze).
+- New `CounterManager`, damage-resist window, `IceElement` VFX, six Ice effects.
+- Placeholder animations.
+
+**Tested (Studio Play):**
+- **Cryo Shift:** countered a light hit (no damage taken); the attacker took 40 and was frozen 1.55s; the next hit did 13.6 instead of 17 (20% resist).
+- **Coldsteel Smash:** 110, then frozen 0.66s; windup 1.54s; full 0.5s recovery.
+- **Ice Shards:** the trap sprang when the Dummy stepped in: 30 and frozen 1.57s.
+- **Absolute Zero:** 200 to all four training dummies, straight through block, parry and perfect-parry; frozen 3.03s.
+
+**Fixes found while testing:**
+- Scorching Wave and Inferno Lance never applied their burn (it was configured but unused). Both now burn (2×5 verified).
+- Inferno Lance missed targets more than ~8 studs away because the server sees the client's dash late. The hitbox now sweeps the whole dash; verified from 11 studs: 85 + burn.
+
+**Climbing (owner report: "super bugged"):**
+- Grab reach 3 → 5.
+- Mantle onto the top instead of a launch; verified: you stand on top at the right height.
+- New ledge pull-up; verified on an 11.5-stud block.
+- Cleaned climb poses (they used to twist the body away from the wall).
+- No fall animation under the hang; no stuck hang pose.
+- Black arm cloud and duplicate attachments removed.
+
+**Combat:**
+- Enemies no longer hurt each other.
+- Enemies spread out instead of stacking; first version froze them in place, fixed and re-tested: all three attack.
+- Elite parries restored (verified).
+- Feint queue for network ordering.
+- Verified: 4-hit M1 combo, held M1 chain, heavy, feint, block chip (2.7–4.0), dash in all four directions.
+
+**Audit:** see `Audit 2026-10-14.md`. 248 scripts syntax-checked (no errors); 13 debug prints removed; an unused PlayerModule copy moved out of StarterCharacterScripts. The console is clean in Play.
+
 ## 2026-10-14 — Status effects; parry while getting hit
 
 **Built:**

@@ -75,6 +75,8 @@ This document records established project decisions to keep development consiste
 - **Shock:** which element / moves apply it (built, unused). Bleed beyond daggers (Metal?).
 - **Flame X/C burn:** Scorching Wave and Inferno Lance burn for 2 ticks (PROPOSAL; the sheet lists burn only on Ignite and Phoenix Drive).
 - **Hit-parry numbers:** posture cost 10 and "always cooldown" are PROPOSALS; "VV" wasn't available to check, so they follow Devil Hunter's code.
+- **Ice kit PROPOSALS:** Cryo Shift window 1.0s; Coldsteel Smash freezes 0.6s; Ice Shards as a placed trap (4–22 studs, radius 6, arms 0.3s, lasts 8s, one per caster); Absolute Zero radius 20 and recovery 1.0s.
+- **Ice animations / VFX:** placeholders until the owner makes Ice animations and an Ice VFX folder.
 - **Alchemy numbers:** meter costs (PROPOSAL: Z25 / X35 / C35 / V70); whether interrupted casts refund anything (currently no refund).
 - **Skill tree:** nodes, costs, prerequisites, and whether alchemy slots unlock through it.
 - **Grip:** PvP / permadeath / anti-gank consequences of a grip finisher.

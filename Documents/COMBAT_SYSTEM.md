@@ -54,6 +54,24 @@ Target feel (controls doc): **Devil Hunter.** Fast and responsive, smooth flowin
   - **UNBLOCKABLE:** ignores both; dodge it.
 - **Dash:** 110 → 24 speed over 0.325s, i-frames, 20 stamina, 1s cooldown.
 
+## Enemies (PvE)
+
+- Enemies never damage each other (`DamageManager`). Before this fix their swings could kill the enemies beside them.
+- They spread out around a target (4.5-stud spacing, PROPOSAL) instead of piling into one spot. Crowding only steers them; an enemy in range and ready still attacks.
+- The Elite's block presses count as real presses again (`Block:Start(true)`), so it parries. That had broken with the hit-parry change.
+
+## Feint timing
+
+- RMB right after LMB can reach the server before the light's windup starts. The feint is held for 0.15s and applied as the windup begins (`FeintQueuedAt`).
+
+## Climbing (controls doc: tap Space at a wall, WASD on it)
+
+- **Grab** reach 5 studs (Devil Hunter's climb ray). It used to be 3 from your centre, so you had to touch the wall.
+- **Top of a wall:** a clean pull-up onto the ledge (`JumpManager:Mantle`, 0.32s, Devil Hunter-style vault tween). It used to be a velocity launch that threw you ~8 studs over the top, or dropped you when the ledge check missed.
+- **Ledge pull-up:** tap Space at a ledge just above jump height (below hand height) to climb straight onto it (Devil Hunter's ledge climb).
+- **Poses:** cleaned copies of the climb animations (head faces the wall, torso twist cut). Studio plays them; live keeps the published originals until the owner publishes the cleaned ones (`StudioPrefersSave`). The fall animation no longer plays under the hang. The looping hang pose can no longer get stuck after letting go.
+- **Grip dust:** HangFX now adds only light dust at the hand. It used to add a black particle cloud around the arm, plus duplicate shoulder/grip attachments that were never removed.
+
 ## Status effects (`StatusManager`)
 
 Owner request (2026-10-14): alchemy hits apply the owner's status effects (Assets place "Status Effects": Fire, Freeze, Bleed, Shock) with real effects. Numbers are in `TuningConfig.Status`; a move can override them.
@@ -61,7 +79,7 @@ Owner request (2026-10-14): alchemy hits apply the owner's status effects (Asset
 | Status | VFX | Effect | Default numbers |
 |---|---|---|---|
 | Burn | Fire | Damage every tick, scaled by the caster's alchemy damage | 5 every 1s for 4s (sheet: Ignite / Phoenix Drive) |
-| Freeze | Freeze + ice glaze | Frozen solid: stunned, can't move or jump, pose locked | 1.5s (the sheet's per-move durations) |
+| Freeze | Freeze + ice glaze | Frozen solid: stunned, can't move or jump, pose locked | 1.5s (the sheet's per-move durations); applied by the Ice kit |
 | Bleed | Bleed | Damage every tick | 2 every 0.5s for 1.5s (daggers' Lacerate) |
 | Shock | Shock | Damage every tick plus a 0.15s jolt stun each tick (interrupts windups) | 2 every 0.5s for 1.5s (PROPOSAL) |
 
