@@ -43,7 +43,10 @@ This document records established project decisions to keep development consiste
   - Light hitstun 0.6s; combo resets after 2s.
   - Walk speed while swinging, blocking or stunned close to Devil Hunter's.
   - Holding F re-raises the guard.
-- **Hit confirm stays** (controls doc): a whiff adds recovery and resets the combo.
+- **Hit confirm (owner, 2026-10-14, replaces the controls-doc rule):** a whiff still adds recovery, but no longer resets the combo. Holding LMB plays the full string into the air.
+- **Heavies mid-combo (owner, 2026-10-14):** R during an M1 swing doesn't cancel it; the heavy comes out right after that swing.
+- **Weapons are equipped from the inventory (owner, 2026-10-14):** never on the hotbar. The hotbar is for items. Items are held outside Combat Mode only (PROPOSAL).
+- **Holster spots (PROPOSAL):** Katana/Rapier left hip, Greatsword back, Daggers crossed on the lower back, pistols right thigh.
 - **Weapons:** six (Sword, Rapier, Gauntlets, Greatsword, Daggers, Guns). Passives were proposed and accepted as PROPOSALS.
 - **Greatsword (owner):** must feel heavy. Shoulder carry with the blade just behind the head when idle, walking or running; slower movement; a step into each swing; longer hit-pause.
 - **Guns:** no reload button, automatic only.

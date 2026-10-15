@@ -30,6 +30,7 @@ Rensei is developed on two tracks that share one codebase (the Roblox place **Ye
 | A10b Status effects + hit-parry | ✅ 2026-10-14 | Burn / Freeze / Bleed / Shock with real effects on the owner's VFX (`StatusManager`). Parry while getting hit, with a posture cost and the cooldown. |
 | A13 Movement & combat bug pass + audit | ✅ 2026-10-14 | Climbing rebuilt (grab, mantle, ledge pull-up, poses). Enemy friendly fire and stacking fixed, Elite parries restored, feint queue, Inferno Lance hit lag. Full audit (`Audit 2026-10-14.md`). |
 | A11 Ranked PvP arena | 💤 | Doc: "can be added later". |
+| A14 Weapons + inventory pass | ✅ 2026-10-14 | Weapons equip from the inventory (saved, restored on spawn, old hotbar weapons migrated); hotbar = items only. Heavies queue mid-M1-string; full M1 string on whiffs. Holsters fixed (katana was through the right arm, daggers loose). Draw no longer freezes the legs. Respawn animation-loading bug fixed. Climb Space nil error fixed. |
 | A12 Mobile buttons | ✅ 2026-10-14 | Touch cluster bottom-right in Rensei's slot art: Attack (hold), Heavy, Block (hold / tap = parry), Feint, Upper, Skill, Dash, Jump (hold = wall run; climb at walls), Fight/Calm, Run (toggle), Slide, Grip, Z/X/C/V with cooldowns. Same code as the keyboard (`ClientActions`). Thumbstick works on walls. |
 
 ## Track B — Master implementation plan

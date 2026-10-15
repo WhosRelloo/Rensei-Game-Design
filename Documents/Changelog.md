@@ -2,6 +2,39 @@
 
 What each phase built and how it was tested. Newest first. All work is in the Studio place **Ye**. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-14 — Weapons + inventory pass (A14)
+
+**Changed (owner requests):**
+- **Weapons come off the hotbar.** Click a weapon in the inventory to equip it, click again to unequip.
+  - The choice is saved (`EquippedWeapon`) and given back on every spawn.
+  - A save with a weapon on the hotbar is migrated: it's taken off and becomes the equipped weapon.
+  - The equipped weapon shows a gold "E" and highlight; the tooltip says what a click will do.
+- **Heavies inside the M1 string.** R during a swing queues the heavy; it comes out as soon as that swing ends, with no cancel. It also works while LMB is held. R no longer feints (RMB does).
+- **Full M1 string on whiffs.** Holding or clicking into the air plays Light 1–4 instead of repeating Light 1.
+
+**Fixed:**
+- **"Character moves weird after unsheathing":**
+  - The Katana/Rapier draw animation keyed both legs at Action2, so the legs froze and slid for about a second on every draw or sheathe. The leg keys were removed; the walk cycle keeps playing under the draw.
+  - After a respawn, no animations loaded at all (the client read `Humanoid` before it existed), so everything moved wrongly until rejoining. It now waits for the Humanoid and Animator.
+  - The climb error from the report (`ClimbAction` concatenating nil when Space was pressed during a ledge pull-up) no longer happens.
+- **Weapons not lined up:** the sheathed Katana/Rapier hung straight through the right arm, and the Daggers were loose (one outside the left arm, one sticking out sideways). Holsters are now left hip (katana / rapier), crossed on the lower back (daggers), back (greatsword, unchanged) and right thigh (pistols, unchanged). The drawn grips were already in the fist.
+- Inventory tooltip went stale after a click; the hotbar highlight and gun tracers could pick the weapon Tool instead of the held item.
+- The old unused `HotbarUI` module was removed (copy in backups).
+
+**Tested (Studio Play):**
+- Equip, swap and unequip across Katana, Greatsword and Revolver; Apple onto the hotbar.
+- A weapon forced onto the hotbar can't be held.
+- The Apple is held beside the holstered weapon and put away when Combat Mode turns on.
+- The weapon comes back after a respawn, and the migration moved the Katana off hotbar slot 1.
+- Real clicks: inventory equip, the Potions tab, search ("app" / no match / cleared).
+- Held M1 played the whole string into the air: Sword and Greatsword Light 1–4, then looped.
+- M1 + R played Light 1, Light 2, then the Heavy straight away, then Light 3, Light 4. This worked both while holding LMB and while clicking, armed and unarmed.
+- Walking while drawing kept the walk cycle on the legs.
+- Respawn: animations loaded and the console stayed clean.
+- Screenshots of every holster and of the drawn grips.
+
+**Not done:** consumables have no use effect (the Apple can be held but not eaten; no design yet).
+
 ## 2026-10-14 — Mobile controls (A12)
 
 **Built:**

@@ -16,6 +16,7 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
 
 - **`ServerHandler`:** routes `Remotes.RequestRemote(Module, ...)` to `ServerHandler.Requests.<Module>`, behind a token-bucket rate limiter. Starts the services.
   - Requests: Stat, Gate, Sync, Party, Quest, Dialogue, Settings, Equip, HoldItem, CombatMode, Uppercut, Feint, JumpAttack, WeaponSkill, Aim, Downed, **Alchemy**.
+- **`ServerScriptService.LoadoutService`:** the equipped weapon. Weapons are equipped from the inventory (`Requests.Equip` routes weapons here), never the hotbar. Saved as profile `EquippedWeapon` (inventory index, "" = fists) and given again on every spawn (`Restore`, called by CharacterHandler). Old saves with a weapon on the hotbar are migrated on spawn.
 - **`ProgressionService`:** the only writer of stats, EXP, Mastery Points and Truth/Gate. Records hits (training), and writes the character multipliers PhysicalMultiplier, AlchemyMultiplier and SpeedMultiplier.
 - **`AlchemyService`:** alchemy casting (kinds: Projectile [Visual Fireball/AirSlash], Cone, Lunge, Phoenix, Counter, Melee, Trap, Nova, Burst, Tornado, Shield, Tracker, Thrust, Cleave; on-hit statuses via `ApplyOnHit`; windup = sheet Cast + CastDelay) (validation, meter, cooldown, clan rule, clap → slam → move prelude, projectiles, cone / lunge / phoenix). Burns go through `StatusManager`. Publishes the `Player` attribute `Affinity`.
 - **`EnemyService`:** PvE spawns (parts tagged `RenseiEnemySpawn`), Grunt/Elite AI using the players' combat rules.
@@ -50,7 +51,7 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
 ## Skills (WCS) — `ReplicatedStorage.Modules.Skills`
 
 - **`Combat.Fist`:** holdable M1. Click buffer and hold-to-chain → `Fist.FistSwing`, which picks Uppercut / Aerial / Dash Attack / gunshot / light combo.
-- **`Combat.Heavy`:** R; also the feint.
+- **`Combat.Heavy`:** R. Mid-swing presses are queued (`HeavyQueuedAt`) and `FistSwing` runs them through `Heavy.TakeQueued` when the swing ends. `CheckOthersActive = false`, so it works while LMB is held.
 - **`Combat.Block`:** F tap = parry, hold = block. Starts with `Fresh = true` only on a real key press; in hitstun it opens a hit-parry, then raises the guard once the stun ends if F is still held.
 - **States:** Stun, Attacking, Blocking, PerfectParry, IFrame, Dodge, AirCombo, Climbing…
 
@@ -61,7 +62,7 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
   - V/B downed, **Z/X/C alchemy** (press + release).
 - **`Managers.ClientActions`:** the action registry: ClientHandler and CombatModeUI register actions (Attack, Heavy, Block, Dash, Jump, AlchemyZ…), and keys and touch buttons both `Run(Name, Began)` them.
 - **`StarterPlayerScripts.UIHandler`:** boots `Modules.UI.*` (now including **MobileControls**).
-  - HUDUI, PopupUI, PartyUI, DialogueUI, InventoryUI, SettingsUI (shift lock lives here), CombatModeUI, CooldownUI, **AlchemyUI**, StatsUI, LockOn, HotbarUI, Fill.
+  - HUDUI, PopupUI, PartyUI, DialogueUI, InventoryUI, SettingsUI (shift lock lives here), CombatModeUI, CooldownUI, **AlchemyUI**, StatsUI, LockOn, Fill. (The old HotbarUI was removed; the live hotbar is in HUDUI.)
 - **`StarterGui.Uis`:** the rebuilt UI (HUD, HUD2, Stats, Inventory, Settings, Dialogue, Templates).
 
 ## Effects (ReFX) — `ReplicatedStorage.Modules.Effects`
@@ -81,6 +82,8 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
 - **`Animations.Weapons`:** per-weapon sets, many still unpublished.
 - **`Items.Weapon`:** weapon Tools.
   - Grip parts carry attributes Arm, MotorC0/MotorC1, HolsterC0.
+  - Holsters (PROPOSAL spots): Katana/Rapier left hip (handle forward, blade back), Greatsword diagonal on the back, Daggers crossed flat on the lower back, pistols on the right thigh.
+- **`Items.Consumable`:** hotbar items (Apple). Held with keys 1–0 outside Combat Mode only; Combat Mode puts the item away. They have no use effect yet.
 - **`VFX.FireElement`:** the owner's Flame VFX, copied from the Assets place.
   - ignite, infernolance, scorchingwave, phoenixdrive, Hands.
 - **`VFX.WindElement`, `VFX.MetalElement`:** built for the Wind and Metal kits (same layout).

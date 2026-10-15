@@ -14,8 +14,8 @@ Updated **2026-10-14**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
 ## What works now (playtested)
 
 - **Combat:**
-  - 4-hit light combo with hit confirm, held-LMB chaining and a click buffer.
-  - Heavy (R) with a crit telegraph; feint (RMB during a light's windup).
+  - 4-hit light combo with held-LMB chaining and a click buffer; the full string plays even when it whiffs.
+  - Heavy (R) with a crit telegraph, usable mid-string (queued behind the current swing); feint (RMB during a light's windup).
   - Uppercut (Ctrl+LMB) with an air juggle, aerial dive, dash attack.
   - Block (hold F, re-raises by itself while held) and parry (tap F, Devil Hunter rules), including parrying while getting hit (posture cost, cooldown).
   - Status effects: Burn, Freeze, Bleed, Shock, on the owner's VFX.
@@ -27,7 +27,8 @@ Updated **2026-10-14**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
   - Directional climb, wall run, wall-to-wall chaining.
 - **Weapons:** Sword (Katana), Rapier, Gauntlets, Greatsword, Daggers, Guns.
   - Each has a combo, heavy, skill (T) and passive.
-  - Draw/sheathe through Combat Mode (E) with holster↔hand blending; greatsword shoulder carry.
+  - Equipped from the inventory (not the hotbar); the choice is saved and comes back on respawn.
+  - Draw/sheathe through Combat Mode (E) with holster↔hand blending; greatsword shoulder carry. Holsters on the hip / back / thigh.
 - **Resources:** Health, Stamina, Posture, Transmutation Meter (earned by fighting only).
 - **Downed:** knocked state, Grip (B), Carry (V).
 - **PvE:** Dummy, Grunt, Elite (blocks and parries).

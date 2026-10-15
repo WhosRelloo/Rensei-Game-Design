@@ -9,7 +9,7 @@ Target feel (controls doc): **Devil Hunter.** Fast and responsive, smooth flowin
 | LMB | Light combo (hold to keep swinging). In the air: Aerial. While running: Dash Attack. |
 | Ctrl + LMB | Uppercut (launch + air juggle) |
 | RMB | Feint (cancels a light's windup) |
-| R | Heavy (crit telegraph during the windup) |
+| R | Heavy (crit telegraph during the windup). Pressed during an M1 swing, it comes out the moment that swing ends |
 | F | Tap = Parry, hold = Block (holding re-raises the guard after a stun). A fresh press parries even while you're being hit. |
 | Q | Dash (8 directions, camera-relative in shift lock) |
 | Shift / Ctrl / Space | Run / slide (outside Combat Mode) / jump, climb, wall run |
@@ -23,7 +23,7 @@ Target feel (controls doc): **Devil Hunter.** Fast and responsive, smooth flowin
 
 - **Startup:** the windup. Getting hit cancels it, so the faster attack wins. A light can be feinted here.
 - **Active:** the server sweeps the hitbox every frame.
-- **Recovery:** endlag. Hit confirm: a whiff adds 0.15s and resets the combo.
+- **Recovery:** endlag. A whiff adds 0.15s. The combo carries on through whiffs (owner, 2026-10-14): holding or clicking into the air plays the whole 4-hit string. A feint, an interrupt or a 2s pause resets it.
 
 ## Lights
 
@@ -95,6 +95,14 @@ Every button runs the same action as its key, through `Managers.ClientActions`:
 - Enemies never damage each other (`DamageManager`). Before this fix their swings could kill the enemies beside them.
 - They spread out around a target (4.5-stud spacing, PROPOSAL) instead of piling into one spot. Crowding only steers them; an enemy in range and ready still attacks.
 - The Elite's block presses count as real presses again (`Block:Start(true)`), so it parries. That had broken with the hit-parry change.
+
+## Heavies inside the M1 string
+
+- R pressed during a light swing (any phase) is **queued**: the swing plays out in full, then the heavy starts straight away (`HeavyQueuedAt`, `Heavy.TakeQueued`).
+  - Works while LMB is held (Heavy no longer waits for the held Fist skill to end).
+  - Not after a stun or a feint; the heavy cooldown still applies.
+- If the combo hasn't timed out, M1 continues the string after the heavy (e.g. L1, L2, Heavy, L3, L4).
+- R no longer feints; feint is RMB only.
 
 ## Feint timing
 
