@@ -2,6 +2,23 @@
 
 What each phase built and how it was tested. Newest first. All work is in the Studio place **Ye**. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-14 — Mobile controls (A12)
+
+**Built:**
+- A touch control cluster in Rensei's slot-plate art.
+- `ClientActions`: the keyboard and the touch buttons now run the same functions. ClientHandler was refactored onto it with no behaviour change.
+- Touch-aware climbing and wall running in JumpManager: the thumbstick acts as WASD, and holding Jump acts as holding Space.
+
+**Tested (Studio Play, ForceMobileControls):**
+- Geometry: 16 buttons, no overlaps, none under the leaderboard, none off-screen, the thumbstick half kept clear.
+- Fight turned on Combat Mode.
+- Attack → Light1; Heavy → heavy; Block → parry window.
+- Dash reached 98 studs/s; Jump peaked 7 studs up.
+- Holding Z held the clap (2.35s cast vs 1.0s for a tap) and cost 25 meter.
+- Turning it off restored the desktop alchemy bar and the Server panel.
+- **Keyboard regression after the refactor:** E, F, R, M1 and Z all still work.
+- Console clean.
+
 ## 2026-10-14 — Wind and Metal kits (all four designed kits complete)
 
 **Built:**

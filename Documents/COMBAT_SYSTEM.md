@@ -54,6 +54,34 @@ Target feel (controls doc): **Devil Hunter.** Fast and responsive, smooth flowin
   - **UNBLOCKABLE:** ignores both; dodge it.
 - **Dash:** 110 → 24 speed over 0.325s, i-frames, 20 stamina, 1s cooldown.
 
+## Mobile (touch) controls
+
+`Modules.UI.MobileControls` shows on touch screens. In Studio, set the Player attribute `ForceMobileControls = true`, or use the Device Emulator.
+
+Every button runs the same action as its key, through `Managers.ClientActions`:
+
+| Button | Key it matches |
+|---|---|
+| Attack (hold keeps swinging; jump attack while jumping) | LMB |
+| Upper | Ctrl+LMB |
+| Heavy | R |
+| Feint | RMB |
+| Block (hold; tap = parry) | F |
+| Dash | Q |
+| Jump (hold = wall run; tap at a wall = climb) | Space |
+| Fight / Calm | E |
+| Run (toggle) | Shift |
+| Slide (out of combat) | Ctrl |
+| Skill (with a weapon) | T |
+| Z / X / C (hold = keep the clap) | Z / X / C |
+| V (Carry, else the Ultimate) | V |
+| Grip (near a knocked body) | B |
+
+- **On a wall** the thumbstick moves you like WASD.
+- **Layout:** combat buttons show in Combat Mode only. Alchemy runs as a column on the left of the cluster, with cooldown drains.
+- **Roblox's own jump button is hidden**, because ours also climbs and wall-runs.
+- **Server Info panel:** hidden while the touch controls show (it sits in the same corner), back when they hide. On touch screens the desktop alchemy slot bar is replaced by the buttons.
+
 ## Shields, counters and true damage
 
 - **Shields** (`ShieldManager`, Steel Guard) soak damage from the front until their absorb runs out.

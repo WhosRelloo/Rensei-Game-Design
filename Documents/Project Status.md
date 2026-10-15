@@ -34,6 +34,7 @@ Updated **2026-10-14**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
 - **Alchemy:** the full Flame kit (Ignite, Scorching Wave, Inferno Lance, Phoenix Drive).
   - Clap (holdable) → arm extend (projectiles) or ground slam → move, on the owner's FireElement VFX, with the transmutation-circle effects.
   - Server-validated meter cost and cooldown; Z/X/C/V slot bar.
+- **Mobile:** touch control cluster (every action, alchemy with cooldowns, climbing with the thumbstick).
 - **UI:** HUD bars, cooldown list, alchemy slots, Stats (live polychart), Inventory, Hotbar, Settings (keybinds, shift lock, auto sprint), Party, Quest log, Server info, popups.
 - **Progression:** levels, stat points (5 stats), Mastery Points (training), Truth/Gate checks (the trial itself isn't built).
 

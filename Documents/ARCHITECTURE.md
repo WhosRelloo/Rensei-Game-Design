@@ -59,7 +59,8 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
 - **`StarterPlayerScripts.ClientHandler`:** all input bindings.
   - LMB, RMB, R, F (hold-retry), Q dash (`ClientHandler.Roll`), Shift run, Ctrl.
   - V/B downed, **Z/X/C alchemy** (press + release).
-- **`StarterPlayerScripts.UIHandler`:** boots `Modules.UI.*`.
+- **`Managers.ClientActions`:** the action registry: ClientHandler and CombatModeUI register actions (Attack, Heavy, Block, Dash, Jump, AlchemyZ…), and keys and touch buttons both `Run(Name, Began)` them.
+- **`StarterPlayerScripts.UIHandler`:** boots `Modules.UI.*` (now including **MobileControls**).
   - HUDUI, PopupUI, PartyUI, DialogueUI, InventoryUI, SettingsUI (shift lock lives here), CombatModeUI, CooldownUI, **AlchemyUI**, StatsUI, LockOn, HotbarUI, Fill.
 - **`StarterGui.Uis`:** the rebuilt UI (HUD, HUD2, Stats, Inventory, Settings, Dialogue, Templates).
 
