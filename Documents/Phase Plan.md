@@ -25,7 +25,7 @@ Rensei is developed on two tracks that share one codebase (the Roblox place **Ye
 | A6 UI import | ✅ 2026-10-13/14 | Rebuilt from the PSDs: HUD, Stats (live polychart), Inventory, Hotbar, Settings, Party, Quest log, Server info. Readability pass. |
 | A7 Bug / feel passes | ✅ 2026-10-14 | DH parry rules, M1 buffer, hitstop fix, crit telegraph, holdable-skill fix. |
 | A8 Weapon position audit | ✅ 2026-10-14 | Grips, holsters, hold poses, greatsword carry, smooth holster↔hand swaps, joint-leak fix. |
-| A9 Alchemy (Z/X/C/V) | ✅ 2026-10-14 | **All four designed kits complete** (16 of 20 slots): Flame, Ice, Wind, Metal. Ice, Wind and Metal run on placeholder animations and VFX made for them. Earth has no design yet (4 slots). |
+| A9 Alchemy (Z/X/C/V) | ✅ 2026-10-15 | **All five kits complete (20 of 20 slots):** Flame, Ice, Wind, Metal, Earth. Ice, Wind, Metal and Earth run on placeholder animations; Earth's VFX use the owner's own prototype meshes and sounds. |
 | A10 Combat fluidity vs Devil Hunter | ✅ 2026-10-14 | DH hitstun, combo-reset window and movement speeds. Hold F re-raises the guard. Shift-lock side dashes fixed. |
 | A10b Status effects + hit-parry | ✅ 2026-10-14 | Burn / Freeze / Bleed / Shock with real effects on the owner's VFX (`StatusManager`). Parry while getting hit, with a posture cost and the cooldown. |
 | A13 Movement & combat bug pass + audit | ✅ 2026-10-14 | Climbing rebuilt (grab, mantle, ledge pull-up, poses). Enemy friendly fire and stacking fixed, Elite parries restored, feint queue, Inferno Lance hit lag. Full audit (`Audit 2026-10-14.md`). |
@@ -43,7 +43,7 @@ Rensei is developed on two tracks that share one codebase (the Roblox place **Ye
 | 2 Alchemy vertical slice | ✅ 2026-10-14 | Flame Z Ignite works end to end: input → server validation (meter, cooldown, clan rule) → cast → projectile → damage and burn → feedback → cleanup. Invalid and repeated requests are handled. |
 | 3 Combat classifications & telegraphs | 🟡 | All three classes are in use and enforced in `DamageManager`. Telegraphs: heavy crit flash, alchemy clap circle and ground flash, and a red danger ring for UNBLOCKABLE moves (Phoenix Drive). Still to do: enemy telegraphs. |
 | 4 Connected skill tree | ⬜ | `Profile.AlchemyTree` exists; no nodes, costs or UI yet (design not documented). |
-| 5 Complete alchemy progression | 🟡 | Flame, Ice, Wind, Metal complete (16/20). **Earth needs a design.** Skill-tree unlocks not designed. |
+| 5 Complete alchemy progression | 🟡 | All five paths complete (20/20 slots). Skill-tree unlocks not designed. |
 | 6 Quests / dialogue / investigation | 🟡 | `QuestService`, `DialogueService`, the journal UI and dialogue UI are wired. No approved content yet. |
 | 7 Puzzles & environment | ⬜ | |
 | 8 Main story | ⬜ | |
@@ -53,7 +53,7 @@ Rensei is developed on two tracks that share one codebase (the Roblox place **Ye
 
 ## Next steps, in order
 
-1. **Earth kit** (E1): Rising Thorn, Tectonic Shift, Earth Wall, Earth Pillars (approved).
+1. **Skill tree design** (owner): nodes, costs, and whether slots unlock through it.
 2. **Owner assets for Ice, Wind, Metal:** VFX folders and move animations to replace the placeholders.
 3. **Publish** the cleaned climb animations (the `Save` under each climb Animation).
 4. **Publish `infernolance`** to the group. Inferno Lance's animation currently plays only in Studio.

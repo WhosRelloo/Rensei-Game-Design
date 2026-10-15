@@ -2,6 +2,29 @@
 
 What each phase built and how it was tested. Newest first. All work is in the Studio place **Ye**. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-15 — Earth kit (20 of 20 alchemy slots); Rensei logo
+
+**Built (the approved proposal, from the owner's own prototypes):**
+- **Z Rising Thorn:** a spike at the aimed spot, under the first character the aim crosses: 55 + Bleed, knock-up.
+- **X Tectonic Shift:** a ring of spikes, 85, stun 1.2s.
+- **C Earth Wall:** solid, climbable cover for 6s that blocks projectiles; it lifts whoever stands there (30).
+- **V Earth Pillars:** an unblockable line, 3 waves, 60 + 60 + 120.
+- **VFX:** `Assets.VFX.EarthElement` from the prototypes' rock and spike meshes, sounds and crack decal. Rock takes the ground's colour and material.
+- **Logo:** the owner's Rensei logo is on the main menu and in the intro cutscene. The decal 108616489098661 resolves to the image 130654945285755.
+
+**Tested (Studio Play, dummies given 10,000 HP):**
+- **Rising Thorn:** 55, then bleed 2 per 0.5s; the dummy was lifted to y 8.8.
+- **Tectonic Shift:** 85 on the plain dummy, 17 chip on the blocking dummy.
+- **Earth Wall:** the collider is in the right place, solid, and stops a projectile sweep; the lift hit deals 30.
+- **Earth Pillars:** all four dummies (including the blocking and parrying ones) took 60 / 60 / 120 in order along the line, popped up 3 → 7 → 11.6.
+- Screenshots of the ring, the wall and the pillars. Console clean.
+
+**Fixed while testing:**
+- Rising Thorn's aim passed through characters to the full range; it now stops at the first character.
+- Earth Wall's lift dealt nothing (the wall is DEFENSIVE); the lift is now its own BLOCKABLE hit.
+
+**Not verified by hand:** climbing the Earth Wall. The climb raycasts use `World.Map`, where the wall is, but the input tools couldn't steer a real climb.
+
 ## 2026-10-14 — Character creation and the start flow (three places)
 
 **Built (owner: "Main Menu > Customize Character > Finish creating > Teleport to Tutorial world > Finish Tutorial > Cutscene > Main Game"; "Let players set their first name, gender, etc."):**

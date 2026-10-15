@@ -59,7 +59,10 @@ A light hit earns 4. Alchemy hits never refill the meter.
 | Metal | X | **Crushing Anvil**: steel races along the ground (42 studs/s, 36 range), homes on the nearest enemy ahead after 0.25s, then an anvil drops: 100 dmg (sheet), radius 5 | Ground Slam + a second slam (PLACEHOLDER) | ✅ playtested |
 | Metal | C | **Metal Bind**: a steel lance to the first enemy in line (15 studs): 75 dmg and pinned 1s (sheet; stunned, can't move or jump) | Arm Extend + "Fire 1" (PLACEHOLDER) | ✅ playtested |
 | Metal | V | **Alloy Divider**: a giant blade forms overhead while a 30×6 line ahead is marked; after the cast + the sheet's 0.4s delay it cleaves the line: 300 **true damage** (ignores damage resist and shields; dodging still works); UNBLOCKABLE | Ground Slam + greatsword heavy (PLACEHOLDER) | ✅ playtested |
-| Earth | all | **Proposed** from the owner's prototypes (`Earth and Character Creation Proposal.md`): Z Rising Thorn, X Tectonic Shift, C Earth Wall, V Earth Pillars | | ⬜ waiting on approval |
+| Earth | Z | **Rising Thorn**: a rock spike bursts from the ground at the aimed spot (under the first character the aim crosses, 4–18 studs; the circle marks it): 55 dmg, BLOCKABLE, short knock-up, Bleed 3s (2 every 0.5s) | Ground Slam + "Fire 1" (PLACEHOLDER) | ✅ playtested |
+| Earth | X | **Tectonic Shift**: a ring of 12 spikes around the caster (radius 10): 85 dmg, BLOCKABLE, stun 1.2s, shoved out to the ring | Ground Slam + a second slam (PLACEHOLDER) | ✅ playtested |
+| Earth | C | **Earth Wall**: a rock wall (6 wide × 7 tall) rises 5 studs ahead for 6s. It is solid: it blocks movement, projectiles and line of sight, and is climbable (it's in `World.Map`). Anyone standing there is thrown up: 30, BLOCKABLE. One wall per caster | Ground Slam + "Fire 4" (PLACEHOLDER) | ✅ playtested (climbing not hand-tested) |
+| Earth | V | **Earth Pillars**: the 45×6 line ahead is marked for the cast; then 3 waves of pillars race along it (60 + 60 + 120 = 240), UNBLOCKABLE. Each wave pops victims up; the last throws them | Ground Slam + a second slam (PLACEHOLDER) | ✅ playtested |
 
 **Ice VFX:** `Assets.VFX.IceElement` was built for the kit from the owner's Freeze status textures, plus part-built ice: crystals, the greataxe, frost sheet, trap circle. It has the same layout as FireElement (Hands / shatter / mist), so the owner's own Ice VFX can replace it. **Ice animations are placeholders** from the existing set until real Ice animations exist.
 
@@ -95,4 +98,6 @@ Alchemy hits apply status effects through `StatusManager` (see COMBAT_SYSTEM.md)
 ## Open questions
 
 - How a player gets an affinity: character creation isn't built. In Studio, `AlchemyService.StudioTestAffinity` (default "Flame") stands in; it is never saved and is ignored live.
-- Earth abilities. Skill-tree unlocks for the slots. Final meter costs.
+- Skill-tree unlocks for the slots (the old build's XP order for Earth is a starting point: Wall → Rise / Shatter → Spike Lunge → Pillars → Thorn → Tectonic). Final meter costs.
+
+**Earth VFX:** `Assets.VFX.EarthElement`, made from the owner's prototypes: the rock mesh (543908753) and spike mesh (2720161649) as MeshParts, the EarthRise sound, the crack decal, dust from the SandDismantle texture, rock chips, and Hands. Rock takes the colour and material of the ground under it, like the prototypes. **Earth animations are placeholders.**

@@ -81,6 +81,12 @@ This document records established project decisions to keep development consiste
   - Automail, blindness and Homunculi are left for later.
   - The Earth kit as proposed, with Earth Wall at 6s.
 - **(Superseded) open decisions:** see `Earth and Character Creation Proposal.md` §3 (10 decisions: Stone Abilities meaning, nations, name, affinity pick vs roll, starting weapon, old-build extras, where creation happens, the Earth mapping, the Earth Wall duration).
+- **Earth PROPOSALS (built 2026-10-15):**
+  - Rising Thorn: range 4–18, radius 4, Bleed 3s (2 per 0.5s), knock-up 32.
+  - Tectonic Shift: 12 spikes, push 22.
+  - Earth Wall: 6×7×1.6, 5 studs out, 6s; the lift hit is BLOCKABLE.
+  - Earth Pillars: waves 0.3s apart, 0.35s to cross the line; 1.1s recovery.
+  - Earth's status is Bleed (the prototype's Rising Thorn bled).
 - **Consumables (PROPOSAL):** the Apple heals 8% of max HP over 6s (0.5s ticks), 1s between uses.
 - **Passive health regen:** Roblox's default regen (+1% max HP/s) is active. Keep it or remove it?
 - **Shock:** which element / moves apply it (built, unused). Bleed beyond daggers (Metal?).

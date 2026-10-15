@@ -19,7 +19,7 @@ Updated **2026-10-14**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
   - Uppercut (Ctrl+LMB) with an air juggle, aerial dive, dash attack.
   - Block (hold F, re-raises by itself while held) and parry (tap F, Devil Hunter rules), including parrying while getting hit (posture cost, cooldown).
   - Status effects: Burn, Freeze, Bleed, Shock, on the owner's VFX.
-- **Alchemy:** Flame, Ice, Wind and Metal kits complete (16 of 20 slots). Earth has no design.
+- **Alchemy:** all five kits complete (20 of 20 slots): Flame, Ice, Wind, Metal, Earth.
   - Posture and guard break, hitstop, knockbacks.
 - **Movement:**
   - Devil Hunter dash in 8 directions, including shift lock and sprint.
@@ -45,7 +45,7 @@ Updated **2026-10-14**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
 
 - **Animations:** many weapon animations are unpublished copies that play only in Studio. 16 IDs from the owner's animation sheet are broken group uploads, so the old animations are used for those.
 - **Affinity:** no way to choose one yet, because character creation isn't built. Studio uses the test setting `ServerScriptService.AlchemyService` attribute `StudioTestAffinity` (never saved, ignored live).
-- **Alchemy:** Ice, Wind and Metal run on placeholder animations and VFX made for them. Earth has no design.
+- **Alchemy:** Ice, Wind, Metal and Earth run on placeholder animations (Earth's VFX use the owner's prototype meshes).
 - **Climb animations:** the cleaned versions play only in Studio until published (live keeps the originals).
 - **Not built:** skill tree, quests/dialogue content, puzzles, story.
 

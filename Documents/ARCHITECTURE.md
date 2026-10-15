@@ -94,6 +94,7 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
 - **`Items.Consumable`:** hotbar items (Apple). Held with keys 1–0 outside Combat Mode only; Combat Mode puts the item away. Click while holding to use (`ServerScriptService.ItemService`).
 - **`VFX.FireElement`:** the owner's Flame VFX, copied from the Assets place.
   - ignite, infernolance, scorchingwave, phoenixdrive, Hands.
+- **`VFX.EarthElement`:** the owner's prototype rock + spike meshes (MeshParts), sounds, crack decal, dust / chips, Hands.
 - **`VFX.WindElement`, `VFX.MetalElement`:** built for the Wind and Metal kits (same layout).
 - **`VFX.IceElement`:** built for the Ice kit from the owner's Freeze textures (Hands, shatter, mist); same layout as FireElement.
 - **Animations with a `Save` child + attribute `StudioPrefersSave`:** published animation plus a corrected unpublished copy (the climb animations). Studio plays the copy; live plays the id.
