@@ -1,6 +1,6 @@
 # Skill Tree — Design Spec
 
-**Status:** design approved section by section by the owner, 2026-10-15. Waiting on the owner's review of this written spec. Every number is a **PROPOSAL** for tuning.
+**Status:** APPROVED by the owner, 2026-10-15 ("Continue"; then revised for themed tabs + previews, also approved). Every number is a **PROPOSAL** for tuning. The Truth/Gate trial area comes from the owner later, styled after the Tutorial place's map.
 
 **Sources:**
 - The master plan §8 (Connected Skill Tree) and §17.
@@ -19,7 +19,8 @@
 | Stages | **5 stages × 20 MP = 100 MP** lifetime, with 4 Truth/Gate trials. |
 | Stats link | **Stat requirements on deeper nodes.** |
 | Where to spend | **Anywhere, out of combat,** from a menu. |
-| Shape | **A transmutation circle:** rings Comprehension → Deconstruction → Reconstruction; sectors Alchemy / Arms / Body. |
+| Shape | **Separate trees per theme, like VV Ultimatum's** (owner, 2026-10-15): three tabs, **[Path] Alchemy / Arms / Body**. Each tab is its own transmutation circle: a free root in the centre, then rings Comprehension → Deconstruction → Reconstruction. Only the tabbed structure is taken from VV; its art and layout aren't copied, per the master plan. |
+| Previews | **Live demo in the node card** (owner, 2026-10-15): a small 3D window where a copy of your character performs the move on a dummy, looping. Passives show a before → after comparison. |
 
 Already confirmed and unchanged:
 - Mastery Points come from training (hits, parries, defeats), 20 per stage.
@@ -29,24 +30,27 @@ Already confirmed and unchanged:
 ## 2. Structure
 
 ```
-                 ALCHEMY
-            ring3  ring2  ring1
-                  \  |  /
-                 (Understanding)        centre: owned by everyone, holds the Z move
-                  /     \
-             ARMS        BODY
+ [ Flame Alchemy ]  [ Arms ]  [ Body ]          <- tabs (the first is named after your path)
+
+          ring 3 Reconstruction
+        ring 2 Deconstruction
+      ring 1 Comprehension
+           (root)                               <- each tab: its own circle, root in the centre
 ```
 
-- **Centre, *Understanding*:** free and owned by every character. It holds the **Z** move.
+- **Three trees,** one per tab. Each has a free root that every character owns:
+  - **Alchemy:** root `AL_Root`, *Understanding*. It holds the **Z** move. The tab is titled after your path ("Flame Alchemy", "Earth Alchemy"...).
+  - **Arms:** root `AR_Root`, *Fundamentals*.
+  - **Body:** root `BO_Root`, *Conditioning*.
 - **Rings,** opened by stage (the stage you're in, `Mastery.Stage`):
 
-| Ring | Name | Opens at | Stat requirement (sector stat) |
+| Ring | Name | Opens at | Stat requirement (tree stat) |
 |---|---|---|---|
 | 1 | Comprehension | Stage 1 | none |
 | 2 | Deconstruction | Stage 2 (after trial 1) | 8 |
 | 3 | Reconstruction | Stage 4 (after trial 3) | 14 |
 
-- **Sector stats:**
+- **Tree stats:**
   - **Alchemy** nodes need **Alchemy**.
   - **Arms** nodes need **Strength or Speed** (either one).
   - **Body** nodes need **Vitality or Speed** (either one).
@@ -73,7 +77,7 @@ Already confirmed and unchanged:
 
 Columns:
 - **Ranks×Cost:** MP per rank.
-- **Req:** a prerequisite; any one listed is enough. "Core" is the centre.
+- **Req:** a prerequisite; any one listed is enough. "Core" means the tree's own root (`AL_Root` / `AR_Root` / `BO_Root`).
 - **Fork:** the exclusive group.
 - **Effect:** per rank, with the modifier key in `code`.
 
@@ -147,7 +151,7 @@ Columns:
 
 ## 5. Data and save
 
-- **Registry:** `ReplicatedStorage.Modules.Data.Rensei.SkillTree`. It holds the catalogue (§4) plus each node's **position** (ring, angle) for the UI, and has helpers:
+- **Registry:** `ReplicatedStorage.Modules.Data.Rensei.SkillTree`. It holds the three trees and their roots, the catalogue (§4), each node's **tree** and **position** (ring, angle in its tree's circle), and each node's **preview** recipe (§8). Helpers:
   - `SkillTree.CanBuy(Data, Id)`: one shared verdict, used by both server and UI (the same pattern as `Progression.GateCheck`). Returns ok and a reason.
   - `SkillTree.Modifiers(Data)`: the summed modifier table.
 - **Save (SchemaVersion 1 → 2):**
@@ -201,10 +205,11 @@ All requests already go through `ServerHandler`'s per-player rate limiter.
 ## 8. UI
 
 - **Mastery menu** on **K**, with a mobile button beside the other menu buttons.
-- **The circle:**
-  - Three rings and three sector dividers: Alchemy at the top, Arms lower-left, Body lower-right.
+- **Tabs:** [Path] Alchemy / Arms / Body, each showing the MP spent in that tree.
+- **Each tree is a circle:**
+  - Its root in the centre and three rings.
   - Nodes sit at their (ring, angle), with lines to their prerequisites.
-  - Pan (drag), zoom (wheel / pinch), and recentre.
+  - Pan (drag), zoom (wheel / pinch), and recentre. One tree per screen keeps it readable on phones.
 - **Header:**
   - Unspent MP, Stage n/5, stage progress (e.g. 12/20).
   - **Truth/Gate** status with the exact `GateCheck` reasons. "Begin trial" stays disabled until the trial exists.
@@ -218,6 +223,14 @@ All requests already go through `ServerHandler`'s per-player rate limiter.
   - The name (the path's move name for slot upgrades), each rank's effect, and the cost.
   - Requirements ticked green or red.
   - **Buy / Refund** buttons, driven by the same `SkillTree.CanBuy` the server uses. A refusal shows the server's reason.
+- **Preview window** in the card: a `ViewportFrame` with a `WorldModel`, client-only, looping every ~3s.
+  - A copy of your character, built with AppearanceService from your saved look, faces a training dummy.
+  - The node's `Preview` recipe decides what plays:
+    - **Move / alchemy upgrade:** the clap → release → the move's animation (`TuningConfig.Alchemy.Abilities[<Id>].Anim`), plus a burst in the element's colour at the target.
+    - **Arms:** the matching attack animation (M1 finisher, heavy, uppercut, dash attack, or parry → riposte), with the dummy flinching.
+    - **Body movement:** the dash, climb, wall-run or sprint animation.
+    - **Passive:** no 3D; a before → after bar for each rank (e.g. *Stamina 100 → 110 → 120*).
+  - Previews are visual only: nothing in them touches the server or the real character.
 - **Feedback:** a purchase pulses gold along the link and plays a sound; the header updates at once.
 - **Style:** Rensei UI (Guru font, gold on near-black, the existing panel art).
 
@@ -231,7 +244,8 @@ All requests already go through `ServerHandler`'s per-player rate limiter.
   - Z damage (Z Potency); max stamina (Endurance); dash cooldown (Quick Step);
   - meter refund (Equivalent Exchange); move gating (X/C/V).
 - **Save:** migration v1 → v2 on an old profile. Buy, rejoin, and check the purchases and the refund state.
-- **UI:** PC and phone-sized screenshots; every node state; pan and zoom.
+- **UI:** PC and phone-sized screenshots; every node state; tab switching; pan and zoom.
+- **Previews:** one of each kind (alchemy move, arms attack, body movement, passive) plays and loops; switching nodes stops the old one; no errors when a move's animation is missing (it falls back to the clap).
 
 ## 10. Dependencies and open items
 
