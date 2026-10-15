@@ -73,8 +73,9 @@ This document records established project decisions to keep development consiste
   - update the visual status page.
 
 ## Open questions (not decided; don't invent answers)
-- **Affinity:** how a player gets an affinity (character creation flow, rolls?).
-- **Earth:** abilities (no sheet rows).
+- **Character creation and the Earth kit:** see `Earth and Character Creation Proposal.md` §3 (10 decisions: Stone Abilities meaning, nations, name, affinity pick vs roll, starting weapon, old-build extras, where creation happens, the Earth mapping, the Earth Wall duration).
+- **Consumables (PROPOSAL):** the Apple heals 8% of max HP over 6s (0.5s ticks), 1s between uses.
+- **Passive health regen:** Roblox's default regen (+1% max HP/s) is active. Keep it or remove it?
 - **Shock:** which element / moves apply it (built, unused). Bleed beyond daggers (Metal?).
 - **Flame X/C burn:** Scorching Wave and Inferno Lance burn for 2 ticks (PROPOSAL; the sheet lists burn only on Ignite and Phoenix Drive).
 - **Hit-parry numbers:** posture cost 10 and "always cooldown" are PROPOSALS; "VV" wasn't available to check, so they follow Devil Hunter's code.

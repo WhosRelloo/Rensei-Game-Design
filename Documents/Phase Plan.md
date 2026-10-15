@@ -52,11 +52,11 @@ Rensei is developed on two tracks that share one codebase (the Roblox place **Ye
 
 ## Next steps, in order
 
-1. **Earth kit design** from the owner (4 abilities). It's the last alchemy path.
+1. **Owner decisions on `Earth and Character Creation Proposal.md`** (Earth kit mapping + character creation). Then build: C1 registry/validation → C2 AppearanceService → C3 creation UI → E1 Earth kit.
 2. **Owner assets for Ice, Wind, Metal:** VFX folders and move animations to replace the placeholders.
 3. **Publish** the cleaned climb animations (the `Save` under each climb Animation).
 4. **Publish `infernolance`** to the group. Inferno Lance's animation currently plays only in Studio.
-5. **Character creation:** how a player gets an affinity (alchemy path). Needs design.
+5. **Character creation:** proposed in `Earth and Character Creation Proposal.md`; waiting on the owner's decisions.
 6. **Publish animations** to the group. Several weapon animations are still unpublished copies that only play in Studio.
 7. Mobile buttons, then the ranked arena when the owner wants it.
 

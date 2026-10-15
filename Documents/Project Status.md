@@ -28,6 +28,7 @@ Updated **2026-10-14**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
 - **Weapons:** Sword (Katana), Rapier, Gauntlets, Greatsword, Daggers, Guns.
   - Each has a combo, heavy, skill (T) and passive.
   - Equipped from the inventory (not the hotbar); the choice is saved and comes back on respawn.
+- **Items:** consumables on the hotbar; clicking while holding uses one. The Apple heals a little at a time.
   - Draw/sheathe through Combat Mode (E) with holster↔hand blending; greatsword shoulder carry. Holsters on the hip / back / thigh.
 - **Resources:** Health, Stamina, Posture, Transmutation Meter (earned by fighting only).
 - **Downed:** knocked state, Grip (B), Carry (V).

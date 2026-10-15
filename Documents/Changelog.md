@@ -2,6 +2,29 @@
 
 What each phase built and how it was tested. Newest first. All work is in the Studio place **Ye**. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-14 — Consumables heal; Earth + character creation proposal
+
+**Built (owner request: "consumables should heal a little bit of health at a time"):**
+- Hold an item from the hotbar (outside Combat Mode) and click to use it.
+- The Apple heals **8% of max HP over 6s**, in ticks every 0.5s. There is 1s between bites, and it isn't eaten at full health (all PROPOSAL).
+- Eating more adds to the heal still to come.
+- Healing pauses while knocked.
+- Each bite takes one off the stack. The last one leaves the inventory, and hotbar / equipped-weapon references shift to match.
+
+**Tested (Studio Play):**
+- At 940 max HP, one click healed +6.4 HP every 0.5s, 75 HP total.
+- A second click within 1s was ignored.
+- The stack went from 3 to 2.
+- The last Apple was removed, the tool disappeared, and the equipped-weapon index followed the Katana.
+- Console clean.
+
+**Noticed:** Roblox's default health regen (the auto-inserted `Health` script, +1% of max HP per second) is active in Ye. Whether Rensei wants passive regen is an owner decision. It's untouched.
+
+**Proposal written:** `Earth and Character Creation Proposal.md`.
+- The Earth kit is mapped from the owner's prototypes: Rising Thorn, Tectonic Shift, Earth Wall, Earth Pillars, with sheet-style numbers as PROPOSAL.
+- The character creation flow and data model build on the old build's nation system and the Assets-place customization parts.
+- It ends with 10 decisions for the owner.
+
 ## 2026-10-14 — Weapons + inventory pass (A14)
 
 **Changed (owner requests):**
@@ -33,7 +56,7 @@ What each phase built and how it was tested. Newest first. All work is in the St
 - Respawn: animations loaded and the console stayed clean.
 - Screenshots of every holster and of the drawn grips.
 
-**Not done:** consumables have no use effect (the Apple can be held but not eaten; no design yet).
+**Follow-up (same day):** consumables heal. See the entry above.
 
 ## 2026-10-14 — Mobile controls (A12)
 

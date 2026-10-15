@@ -16,6 +16,7 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
 
 - **`ServerHandler`:** routes `Remotes.RequestRemote(Module, ...)` to `ServerHandler.Requests.<Module>`, behind a token-bucket rate limiter. Starts the services.
   - Requests: Stat, Gate, Sync, Party, Quest, Dialogue, Settings, Equip, HoldItem, CombatMode, Uppercut, Feint, JumpAttack, WeaponSkill, Aim, Downed, **Alchemy**.
+- **`ServerScriptService.ItemService`:** using held items (`Tool.Activated`, hooked by Requests.HoldItem). Healing items heal over time (ItemData `Heal` = fraction of max HP, `HealTime`). Each use takes one off the stack; `RemoveIndex` removes an empty stack and shifts the hotbar / equipped-weapon indices.
 - **`ServerScriptService.LoadoutService`:** the equipped weapon. Weapons are equipped from the inventory (`Requests.Equip` routes weapons here), never the hotbar. Saved as profile `EquippedWeapon` (inventory index, "" = fists) and given again on every spawn (`Restore`, called by CharacterHandler). Old saves with a weapon on the hotbar are migrated on spawn.
 - **`ProgressionService`:** the only writer of stats, EXP, Mastery Points and Truth/Gate. Records hits (training), and writes the character multipliers PhysicalMultiplier, AlchemyMultiplier and SpeedMultiplier.
 - **`AlchemyService`:** alchemy casting (kinds: Projectile [Visual Fireball/AirSlash], Cone, Lunge, Phoenix, Counter, Melee, Trap, Nova, Burst, Tornado, Shield, Tracker, Thrust, Cleave; on-hit statuses via `ApplyOnHit`; windup = sheet Cast + CastDelay) (validation, meter, cooldown, clan rule, clap → slam → move prelude, projectiles, cone / lunge / phoenix). Burns go through `StatusManager`. Publishes the `Player` attribute `Affinity`.
@@ -83,7 +84,7 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
 - **`Items.Weapon`:** weapon Tools.
   - Grip parts carry attributes Arm, MotorC0/MotorC1, HolsterC0.
   - Holsters (PROPOSAL spots): Katana/Rapier left hip (handle forward, blade back), Greatsword diagonal on the back, Daggers crossed flat on the lower back, pistols on the right thigh.
-- **`Items.Consumable`:** hotbar items (Apple). Held with keys 1–0 outside Combat Mode only; Combat Mode puts the item away. They have no use effect yet.
+- **`Items.Consumable`:** hotbar items (Apple). Held with keys 1–0 outside Combat Mode only; Combat Mode puts the item away. Click while holding to use (`ServerScriptService.ItemService`).
 - **`VFX.FireElement`:** the owner's Flame VFX, copied from the Assets place.
   - ignite, infernolance, scorchingwave, phoenixdrive, Hands.
 - **`VFX.WindElement`, `VFX.MetalElement`:** built for the Wind and Metal kits (same layout).

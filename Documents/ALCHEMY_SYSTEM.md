@@ -59,7 +59,7 @@ A light hit earns 4. Alchemy hits never refill the meter.
 | Metal | X | **Crushing Anvil**: steel races along the ground (42 studs/s, 36 range), homes on the nearest enemy ahead after 0.25s, then an anvil drops: 100 dmg (sheet), radius 5 | Ground Slam + a second slam (PLACEHOLDER) | ✅ playtested |
 | Metal | C | **Metal Bind**: a steel lance to the first enemy in line (15 studs): 75 dmg and pinned 1s (sheet; stunned, can't move or jump) | Arm Extend + "Fire 1" (PLACEHOLDER) | ✅ playtested |
 | Metal | V | **Alloy Divider**: a giant blade forms overhead while a 30×6 line ahead is marked; after the cast + the sheet's 0.4s delay it cleaves the line: 300 **true damage** (ignores damage resist and shields; dodging still works); UNBLOCKABLE | Ground Slam + greatsword heavy (PLACEHOLDER) | ✅ playtested |
-| Earth | all | **No design yet** | | ⬜ |
+| Earth | all | **Proposed** from the owner's prototypes (`Earth and Character Creation Proposal.md`): Z Rising Thorn, X Tectonic Shift, C Earth Wall, V Earth Pillars | | ⬜ waiting on approval |
 
 **Ice VFX:** `Assets.VFX.IceElement` was built for the kit from the owner's Freeze status textures, plus part-built ice: crystals, the greataxe, frost sheet, trap circle. It has the same layout as FireElement (Hands / shatter / mist), so the owner's own Ice VFX can replace it. **Ice animations are placeholders** from the existing set until real Ice animations exist.
 
