@@ -2,6 +2,31 @@
 
 What each phase built and how it was tested. Newest first. All work is in the Studio place **Ye**. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-14 — Character creation and the start flow (three places)
+
+**Built (owner: "Main Menu > Customize Character > Finish creating > Teleport to Tutorial world > Finish Tutorial > Cutscene > Main Game"; "Let players set their first name, gender, etc."):**
+- **Character Customization place:**
+  - A main menu in Rensei's style (Guru font, gold on black) and a 6-step creation screen with a live preview on a lit dais.
+  - Steps: nation, first name (typed or random from the nation's list) / surname / gender, look (skin, 7 hairs, hair colour, 22 eyes, 8 brows, 25 mouths, 27 outfits, randomize), alchemy path (shows the 4 moves), starting weapon, confirm.
+  - Server-validated and saved once; then PLAY goes to the Tutorial.
+- **Tutorial place:** it loads the shared save, dresses the player, and sends players without a character to the menu. `ServerStorage.FinishTutorial:Fire(Player)` marks it done and goes to the main game.
+- **Ye:**
+  - `AppearanceService` dresses every spawn.
+  - `FlowService` sends anyone who didn't come through the flow to the menu (live), and plays the intro cutscene once (placeholder).
+  - The in-Ye `CreateCharacter` request was removed (copy in backups).
+- **Registry** `Customization`: the owner's nations, palettes, face parts, outfits, hair meshes and name lists, all from the Assets place.
+
+**Tested:** the full chain on one save. The character was made in the menu, finished the Tutorial, and arrived in Ye with the cutscene, the look, the Greatsword and the Earth path. Bad inputs were refused, every hair was checked on the head, and the console stayed clean.
+
+**Fixed while testing:**
+- Hair didn't attach on the client preview; it's now welded to the head.
+- Coloured hair textures ignored the chosen colour; they're now left off.
+- The stage didn't stream to the client; it's now Persistent.
+- Step tabs were sorted alphabetically.
+- Roblox's chat window covered the menu; it's hidden in the menu.
+
+**Owner items:** see `Start Flow and Character Creation.md`: tutorial content, the real cutscene, publishing for the first live teleport test, and the template's data-wipe line for one player in Ye's DataManager.
+
 ## 2026-10-14 — Consumables heal; Earth + character creation proposal
 
 **Built (owner request: "consumables should heal a little bit of health at a time"):**

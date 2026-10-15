@@ -31,6 +31,7 @@ Rensei is developed on two tracks that share one codebase (the Roblox place **Ye
 | A13 Movement & combat bug pass + audit | ✅ 2026-10-14 | Climbing rebuilt (grab, mantle, ledge pull-up, poses). Enemy friendly fire and stacking fixed, Elite parries restored, feint queue, Inferno Lance hit lag. Full audit (`Audit 2026-10-14.md`). |
 | A11 Ranked PvP arena | 💤 | Doc: "can be added later". |
 | A14 Weapons + inventory pass | ✅ 2026-10-14 | Weapons equip from the inventory (saved, restored on spawn, old hotbar weapons migrated); hotbar = items only. Heavies queue mid-M1-string; full M1 string on whiffs. Holsters fixed (katana was through the right arm, daggers loose). Draw no longer freezes the legs. Respawn animation-loading bug fixed. Climb Space nil error fixed. |
+| C Character creation + start flow | ✅ 2026-10-14 | Menu place (Character Customization): main menu + 6-step creation (nation, first name / surname / gender, look, alchemy path, starting weapon) with a live preview; server-validated, saved once. Tutorial place: dressed arrival + `FinishTutorial`. Ye: arrival routing, the look on every spawn, a placeholder intro cutscene. One shared save across the three places. |
 | A12 Mobile buttons | ✅ 2026-10-14 | Touch cluster bottom-right in Rensei's slot art: Attack (hold), Heavy, Block (hold / tap = parry), Feint, Upper, Skill, Dash, Jump (hold = wall run; climb at walls), Fight/Calm, Run (toggle), Slide, Grip, Z/X/C/V with cooldowns. Same code as the keyboard (`ClientActions`). Thumbstick works on walls. |
 
 ## Track B — Master implementation plan
@@ -52,11 +53,11 @@ Rensei is developed on two tracks that share one codebase (the Roblox place **Ye
 
 ## Next steps, in order
 
-1. **Owner decisions on `Earth and Character Creation Proposal.md`** (Earth kit mapping + character creation). Then build: C1 registry/validation → C2 AppearanceService → C3 creation UI → E1 Earth kit.
+1. **Earth kit** (E1): Rising Thorn, Tectonic Shift, Earth Wall, Earth Pillars (approved).
 2. **Owner assets for Ice, Wind, Metal:** VFX folders and move animations to replace the placeholders.
 3. **Publish** the cleaned climb animations (the `Save` under each climb Animation).
 4. **Publish `infernolance`** to the group. Inferno Lance's animation currently plays only in Studio.
-5. **Character creation:** proposed in `Earth and Character Creation Proposal.md`; waiting on the owner's decisions.
+5. **Tutorial content + the real intro cutscene** (owner). The tutorial calls `FinishTutorial`. Publish the three places for the first live flow test.
 6. **Publish animations** to the group. Several weapon animations are still unpublished copies that only play in Studio.
 7. Mobile buttons, then the ranked arena when the owner wants it.
 

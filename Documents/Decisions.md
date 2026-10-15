@@ -73,7 +73,14 @@ This document records established project decisions to keep development consiste
   - update the visual status page.
 
 ## Open questions (not decided; don't invent answers)
-- **Character creation and the Earth kit:** see `Earth and Character Creation Proposal.md` §3 (10 decisions: Stone Abilities meaning, nations, name, affinity pick vs roll, starting weapon, old-build extras, where creation happens, the Earth mapping, the Earth Wall duration).
+- **Start flow (owner, 2026-10-14):** Main Menu → Customize → Tutorial → Cutscene → Main game. Creation is in its own place (Character Customization). It lets players set a first name, an optional surname and a gender (owner: "first name, gender, etc.").
+- **Proposal approved (owner, 2026-10-14, "I like it")**, so §3 took the recommended or safest options:
+  - "Stone Abilities" means Philosopher's Stone abilities; Earth isn't restricted for Marcoh.
+  - Six nations, cosmetic only. Names typed or from the nation lists.
+  - The alchemy path is picked, not rolled. Starting weapon: fists or a Common weapon.
+  - Automail, blindness and Homunculi are left for later.
+  - The Earth kit as proposed, with Earth Wall at 6s.
+- **(Superseded) open decisions:** see `Earth and Character Creation Proposal.md` §3 (10 decisions: Stone Abilities meaning, nations, name, affinity pick vs roll, starting weapon, old-build extras, where creation happens, the Earth mapping, the Earth Wall duration).
 - **Consumables (PROPOSAL):** the Apple heals 8% of max HP over 6s (0.5s ticks), 1s between uses.
 - **Passive health regen:** Roblox's default regen (+1% max HP/s) is active. Keep it or remove it?
 - **Shock:** which element / moves apply it (built, unused). Bleed beyond daggers (Metal?).

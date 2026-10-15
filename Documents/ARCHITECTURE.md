@@ -12,10 +12,17 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
 - **`SkillData`:** hit definitions, *generated* from TuningConfig. Names: `Light1-4`, `Heavy`, `<Weapon>_Light1..`, `<Weapon>_Heavy`, `<Weapon>_Skill`, `Alchemy_<Id>`.
 - **`ProfileData`:** profile template (SchemaVersion 1). `DataManager` (ServerScriptService.CharacterHandler) runs Migrate before Reconcile.
 
+## Other places (one experience, 9509447316)
+
+- **Character Customization (123967384111466):** the main menu and character creation. **Tutorial (74257385894576):** the tutorial step. Both share Ye's save. See `Start Flow and Character Creation.md`.
+
 ## Server — `ServerScriptService`
 
 - **`ServerHandler`:** routes `Remotes.RequestRemote(Module, ...)` to `ServerHandler.Requests.<Module>`, behind a token-bucket rate limiter. Starts the services.
   - Requests: Stat, Gate, Sync, Party, Quest, Dialogue, Settings, Equip, HoldItem, CombatMode, Uppercut, Feint, JumpAttack, WeaponSkill, Aim, Downed, **Alchemy**.
+- **`ServerScriptService.AppearanceService`:** builds the created look on every spawn (`ApplyIdentity`, called by CharacterHandler).
+- **`ServerScriptService.FlowService`:** start-flow routing (live: anyone not arriving through the flow goes to the menu) and the one-time intro cutscene (`IntroRemote` → `Modules.UI.IntroCutscene`).
+- **`Modules.Data.Rensei.Customization` / `Places`:** the creation registry (nations, palettes, face, outfits, hair, names, genders) and the place ids + `NextFor`. Copies of these live in the other places.
 - **`ServerScriptService.ItemService`:** using held items (`Tool.Activated`, hooked by Requests.HoldItem). Healing items heal over time (ItemData `Heal` = fraction of max HP, `HealTime`). Each use takes one off the stack; `RemoveIndex` removes an empty stack and shifts the hotbar / equipped-weapon indices.
 - **`ServerScriptService.LoadoutService`:** the equipped weapon. Weapons are equipped from the inventory (`Requests.Equip` routes weapons here), never the hotbar. Saved as profile `EquippedWeapon` (inventory index, "" = fists) and given again on every spawn (`Restore`, called by CharacterHandler). Old saves with a weapon on the hotbar are migrated on spawn.
 - **`ProgressionService`:** the only writer of stats, EXP, Mastery Points and Truth/Gate. Records hits (training), and writes the character multipliers PhysicalMultiplier, AlchemyMultiplier and SpeedMultiplier.

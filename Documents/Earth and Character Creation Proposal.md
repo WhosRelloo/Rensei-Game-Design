@@ -1,6 +1,6 @@
 # Earth Kit and Character Creation — Proposal
 
-**Status:** PROPOSAL, 2026-10-14. Nothing here is built. Every number is a PROPOSAL until the owner approves it. Section 3 lists the decisions only the owner can make.
+**Status:** APPROVED by the owner 2026-10-14 ("I like it"). Each decision in §3 took the recommended or safest option. Character creation is **built**, in a separate menu place as the owner asked: see `Start Flow and Character Creation.md`. The Earth kit is next. Numbers stay PROPOSAL until tuned.
 
 **Sources:**
 - The owner's older build in the Assets place:
