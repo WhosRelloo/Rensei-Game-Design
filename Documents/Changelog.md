@@ -2,6 +2,52 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-16 — Teleport + save audit
+
+**Asked:** "completely audit and fix the TP & data storage system". Covers all three places: Ye, Main Menu ("Character Customization") and Tutorial. Backups: `ServerStorage.RenseiBackups["Pre-TPData_2026-10-16"]` in each place.
+
+**Found and fixed:**
+- **Tutorial loaded the wrong save.** It always loaded slot 1 (`Data<UserId>`), whichever slot was picked in the menu. It now loads the selected slot through `SlotAccount`, like Ye. The Tutorial place gained copies of `Rensei.Slots` and `SlotAccount`.
+- **Ye wiped one account's save on every join.** The template's leftover line reset the profile of a hard-coded username (`husaynawesome`) to defaults. Removed.
+- **Async teleport failures left the player with no save.** Every place releases the profile, then teleports. If the teleport failed later (`TeleportInitFailed`: server full, flooded, ...), nothing reloaded the profile, so the player kept playing and nothing saved.
+  - New `ServerScriptService.FlowTeleport` (same file in every place) handles all flow teleports. It retries up to 3 times, covering immediate errors and `TeleportInitFailed`, then runs a fallback:
+    - **Menu:** loads the slot again and says "Teleport failed. Try again."
+    - **Tutorial / Ye:** kick with "please rejoin". The profile is already saved, so the menu sends them to the right step.
+- **A save taken by another server went unnoticed in Ye.** Ye didn't kick when another server's ForceLoad took the profile, so the player kept playing with progress that couldn't save. It now kicks ("Your data was opened somewhere else"), as the menu and tutorial already did. Releasing for a teleport doesn't kick.
+- **A store outage could load the wrong slot.** If the `RenseiAccounts` record couldn't be read, Ye and the Tutorial loaded slot 1 without saying so.
+  - `SlotAccount.ProfileKey` now returns nil in that case, and the place kicks with "Couldn't load your save slot. Please rejoin."
+  - Account reads skip the 4 s GetAsync cache (`UseCache = false`), so a slot picked moments ago on another server is never stale.
+  - The menu no longer caches an account it failed to read. Before, a store hiccup showed 2 slots instead of the ones owned.
+- **Ye: leaving during load kept the profile locked.** A player who left while their profile was loading kept it locked until the server closed. It's now released.
+- **Ye: CharacterHandler could wait forever.** It now waits at most 60 s (`DataManager:WaitProfile`).
+- **Ye: `SendData` crashed without a profile.** It now returns quietly.
+- **Ye: blocking start-up load.** Players already in the server at start-up no longer load one after another, blocking `Initiate`.
+- **Release waits for the save to finish.** Before a teleport, release now waits for ProfileService's "hop ready" signal (up to 6 s), so the next place's ForceLoad gets the profile at once instead of stealing a lock that's still being saved.
+- **Save templates and migrations were out of date in two places.**
+  - Menu and Tutorial `ProfileData` were still at schema v2, and their migrations stopped at step 1. All three places now use one `ServerScriptService.ProfileMigrations` (steps 0 to 3) and Ye's v4 `ProfileData`, byte-identical.
+  - No save changes shape: the steps are the same ones Ye already ran.
+
+**Shared files (keep identical in every place):** `ProfileData`, `Rensei.Places`, `Rensei.Slots`, `SlotAccount`, `ProfileMigrations`, `FlowTeleport`, ProfileService. Hashes matched across all three places after the change.
+
+**Tested (Studio Play, the owner's real save on slot 2):**
+- **Ye:**
+  - Loaded `Data<UserId>_S2` ("Koda Hawkeye") at schema 4.
+  - `SendData` with no profile: no error.
+  - A forced teleport failure: 2 tries, then the fallback ran and the teleport cleared.
+  - `DataManager:Release`: no kick.
+  - Releasing the profile from outside (as another server would): the player was kicked with "Your data was opened somewhere else".
+- **Menu:**
+  - Account read (2 owned, slot 2 selected); opened slot 2.
+  - Release, then a failed teleport: slot 2 came back and the player stayed in.
+  - Release took 0.67 s on a settled profile. On a profile opened a moment before, it took the full 6 s, because Roblox throttles writes to one key for about 6 s.
+  - Play over the real remote still answers the Studio message (next: Tutorial).
+- **Tutorial:** loaded slot 2 ("Koda Hawkeye", step Footwork). Before the fix it would have loaded slot 1.
+- **Consoles:** clean apart from Roblox's own UIBlox warnings and the expected `[FlowTeleport]` test warnings. Test hooks were removed.
+
+**Found while testing:** this project's ProfileService is an older standalone version without `AddUserId`, so profiles carry no GDPR user ids. The keys contain the UserId, so an erasure request is still a key lookup. Upgrading ProfileService (or moving to ProfileStore) would add it.
+
+**Not verified:** a real teleport between live servers (Studio can't teleport). The changes only take effect live after all three places are saved and published.
+
 ## 2026-10-16 — Emote wheel
 
 **Built (owner's "Rensei — Alchemical Emote Wheel System" prompt):** a radial emote wheel that is the game's own transmutation circle. All labels and page names are placeholders. Backup: `ServerStorage.RenseiBackups["Pre-Emotes_2026-10-16"]` (UIHandler; everything else is new).

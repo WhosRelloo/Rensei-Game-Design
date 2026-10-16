@@ -12,7 +12,7 @@
 | Tutorial | **Tutorial** (74257385894576) | The player arrives in their created look. The tutorial's own content ends it with `ServerStorage.FinishTutorial:Fire(Player)`. |
 | Cutscene + game | **RSEI / Ye** (106992859583940) | The intro cutscene plays once on first arrival (placeholder until the owner's cutscene exists), then the main game. |
 
-All three places share the ProfileService store `PlayerData`. Since 2026-10-15 each **save slot** is its own profile: `Data<UserId>` (slot 1) or `Data<UserId>_S<n>`, chosen in the menu and recorded in the account store `RenseiAccounts` (`A<UserId>`: Owned, Selected, Favorite, Receipts, Codes). The session lock hands the profile from place to place; each place releases it just before teleporting. **Open:** Ye loads the selected slot (`SlotAccount.ProfileKey`), but the Tutorial place still loads `Data<UserId>`.
+All three places share the ProfileService store `PlayerData`. Since 2026-10-15 each **save slot** is its own profile: `Data<UserId>` (slot 1) or `Data<UserId>_S<n>`, chosen in the menu and recorded in the account store `RenseiAccounts` (`A<UserId>`: Owned, Selected, Favorite, Receipts, Codes). The session lock hands the profile from place to place; each place releases it just before teleporting. Every place loads the selected slot (`SlotAccount.ProfileKey`; the Tutorial since 2026-10-16) and kicks rather than guess slot 1 if the account store can't be read. Every flow teleport goes through `FlowTeleport` (retries, then reloads the profile or kicks; Changelog 2026-10-16 "Teleport + save audit").
 
 **Routing** (live only; Studio never teleports):
 - The menu sends PLAY to `Places.NextFor(profile)`: Customize if there's no character, the Tutorial if it isn't done, otherwise the main game.
@@ -68,7 +68,7 @@ Rebuilt after the reference video on the design deck's slide 12, from the game's
 | Ye | `ServerScriptService.FlowService` (routing + cutscene), `AppearanceService`, `Modules.UI.IntroCutscene` (placeholder) |
 | All | `Modules.Data.Rensei.Customization`, `Places`, `Modules.Data.ProfileData` |
 
-**Shared modules are copies**, kept in sync from Ye (the source of truth): `Customization`, `ProfileData`, `Places`, `AppearanceService`, ProfileService.
+**Shared modules are copies**, kept in sync from Ye (the source of truth): `Customization`, `ProfileData`, `Places`, `Slots`, `AppearanceService`, ProfileService, and the server modules `SlotAccount`, `ProfileMigrations` and `FlowTeleport`.
 - When one changes, copy it to the other places.
 - Long term, turn these into Roblox **Packages** so they stay in sync automatically.
 
@@ -93,5 +93,6 @@ Rebuilt after the reference video on the design deck's slide 12, from the game's
 - **The tutorial's content:** Drillmaster Vask and the Gate of Truth exist. The tutorial needs to call `FinishTutorial` when done.
   - Ye's combat and alchemy systems aren't in the Tutorial place. If the tutorial teaches combat, those systems need to be shared (Packages are recommended).
 - **The real intro cutscene:** it replaces `IntroCutscene.Play`.
-- **Ye `DataManager` wipes one player** ("husaynawesome") every time they join. It's a leftover from the template; it should be removed.
+- **ProfileService** is an old standalone version without `AddUserId` (GDPR user ids). Upgrading it, or moving to ProfileStore, would add them.
+- **The Tutorial's `Customization` copy is older than Ye's and the menu's.** Newer looks may not dress correctly there until it is synced.
 - **Publishing** the three places (owner; never done by Claude).

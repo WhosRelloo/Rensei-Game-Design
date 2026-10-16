@@ -1,113 +1,66 @@
+-- Player profiles in Ye (ProfileService store "PlayerData"; the menu and tutorial places use the same
+-- store, see their MenuData / FlowData). The key is the save slot the menu picked
+-- (ServerScriptService.SlotAccount; slot 1 = the original "Data" .. UserId).
+-- * Migrate BEFORE Reconcile (ServerScriptService.ProfileMigrations, same file in every place).
+-- * A profile opened by another server (its ForceLoad steals the session lock) kicks the player
+--   here, so nothing is played that can't be saved. FlowService releases with DataManager:Release
+--   before a teleport, which doesn't kick.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local HttpService = game:GetService("HttpService")
+local ServerScriptService = game:GetService("ServerScriptService")
 local Players = game:GetService("Players")
 
 local ProfileService = require(script.ProfileService)
 local ProfileData = require(ReplicatedStorage.Modules.Data.ProfileData)
+local ProfileMigrations = require(ServerScriptService:WaitForChild("ProfileMigrations"))
+local SlotAccount = require(ServerScriptService:WaitForChild("SlotAccount"))
 
 local SessionData = ProfileService.GetProfileStore("PlayerData",ProfileData)
 
-local function deepCopy(original)
-	local copy = {}
-	for k, v in pairs(original) do
-		if type(v) == "table" then
-			v = deepCopy(v)
-		end
-		copy[k] = v
-	end
-	return copy
-end
-
 local Sessions = {}
-
--- Versioned migrations. Each step upgrades a profile by exactly one version.
-local Migrations = {
-	-- nil -> 1: the JJK template schema (StatTable/SkillTree/"CE" stats) becomes Rensei's.
-	-- Those keys never held Rensei progress, so they are dropped rather than converted.
-	[0] = function(Data)
-		Data.StatTable = nil
-		Data.SkillTree = nil
-		Data.Race = nil
-		Data.StatPoints = math.max(0, (Data.Level or 1) - 1) * 3
-	end,
-	-- 1 -> 2: the skill tree (AlchemyTree, never used, becomes SkillTree) + refundable stage spending.
-	-- KEEP IN SYNC with the menu place's MenuData and the tutorial place's FlowData.
-	[1] = function(Data)
-		Data.SkillTree = Data.SkillTree or Data.AlchemyTree or {}
-		Data.AlchemyTree = nil
-		if Data.Mastery then Data.Mastery.StageSpend = Data.Mastery.StageSpend or {} end
-	end,
-	-- 2 -> 3: story state (flags, evidence, deductions, puzzles, minigames) + staged quests.
-	-- Additive only. The menu / tutorial places don't need this step (they never read Story).
-	[2] = function(Data)
-		Data.Story = Data.Story or {}
-		for _, K in ipairs({"Flags", "Evidence", "Deductions", "Puzzles", "Minigames"}) do
-			Data.Story[K] = Data.Story[K] or {}
-		end
-		if Data.Quests then
-			for _, State in pairs(Data.Quests.Active or {}) do State.Stage = State.Stage or 1 end
-		end
-	end,
-	-- 3 -> 4: the morality ledger. Additive only; choices already made (Outcome_<QuestId> flags) are
-	-- turned into their deeds by MoralityService when the player joins (it reads the quest data).
-	[3] = function(Data)
-		Data.Morality = Data.Morality or {}
-		for _, K in ipairs({"Deeds", "Conduct", "Standing", "Trust", "Taboo"}) do
-			Data.Morality[K] = Data.Morality[K] or {}
-		end
-		Data.Morality.Renown = Data.Morality.Renown or 0
-	end,
-}
-
-local function Migrate(Data)
-	local Version = Data.SchemaVersion or 0
-	while Migrations[Version] do
-		Migrations[Version](Data)
-		Version += 1
-		Data.SchemaVersion = Version
-	end
-end
-
+local Leaving = {} -- [Player] = true once released for a teleport (no "opened elsewhere" kick)
 
 local DataManager = {}
 
-function DataManager:Initiate()
-	local function PlayerAdded(Player)
-		-- the save slot the menu picked (ServerScriptService.SlotAccount; slot 1 = the original key)
-		local Key = require(game:GetService("ServerScriptService").SlotAccount).ProfileKey(Player.UserId)
-		if not Player.Parent then return end
-		local PlayerData = SessionData:LoadProfileAsync(Key,"ForceLoad")
-		
-
-		if not PlayerData then
-			Player:Kick("Data Failed To Load")
-		else
-			-- Migrate BEFORE Reconcile: Reconcile would stamp the template's SchemaVersion
-			-- onto an old profile and the migration would never run.
-			Migrate(PlayerData.Data)
-			PlayerData:Reconcile()
-
-			if Player.Name == "<redacted>" then -- (export: a player-specific test reset; the name is not published)
-				PlayerData.Data = deepCopy(ProfileData)
-			end
-
-			Sessions[Player] = PlayerData
-
-			PlayerData:ListenToRelease(function()
-				Sessions[Player] = nil
-			end)
-		end
+local function PlayerAdded(Player)
+	-- the save slot the menu picked; nil = the account store couldn't be read (never guess slot 1)
+	local Key = SlotAccount.ProfileKey(Player.UserId)
+	if not Player.Parent then return end
+	if not Key then
+		Player:Kick("Couldn't load your save slot. Please rejoin.")
+		return
 	end
+	local PlayerData = SessionData:LoadProfileAsync(Key,"ForceLoad")
+	if not PlayerData then
+		Player:Kick("Data Failed To Load")
+		return
+	end
+	ProfileMigrations.Migrate(PlayerData.Data)
+	PlayerData:Reconcile()
+	if not Player.Parent then
+		-- left while it loaded
+		PlayerData:Release()
+		return
+	end
+	Sessions[Player] = PlayerData
+	PlayerData:ListenToRelease(function()
+		-- (our own releases clear Sessions first; only a release from elsewhere finds it still open)
+		if Sessions[Player] ~= PlayerData then return end
+		Sessions[Player] = nil
+		if Player.Parent and not Leaving[Player] then Player:Kick("Your data was opened somewhere else. Please rejoin.") end
+	end)
+end
 
+function DataManager:Initiate()
 	local function PlayerRemoving(Player)
 		local PlayerData = Sessions[Player]
+		Sessions[Player], Leaving[Player] = nil, nil
 		if PlayerData then
 			PlayerData:Release()
 		end
 	end
 
-	for I,V in pairs(Players:GetChildren()) do
-		PlayerAdded(V)
+	for I,V in pairs(Players:GetPlayers()) do
+		task.spawn(PlayerAdded, V)
 	end
 
 	Players.PlayerAdded:Connect(PlayerAdded)
@@ -118,9 +71,30 @@ function DataManager:GetProfile(Player)
 	return Sessions[Player]
 end
 
+-- Wait (up to Timeout s) for the player's profile; nil if they leave or it never loads.
+function DataManager:WaitProfile(Player, Timeout)
+	local Deadline = os.clock() + (Timeout or 30)
+	while not Sessions[Player] and Player.Parent and os.clock() < Deadline do task.wait(0.1) end
+	return Sessions[Player]
+end
+
+-- Release now (just before a teleport) so the next place's ForceLoad doesn't wait it out. Yields
+-- until the release has saved (ProfileService "hop ready", at most 6 s).
+function DataManager:Release(Player)
+	local PlayerData = Sessions[Player]
+	Leaving[Player] = true
+	Sessions[Player] = nil
+	if not PlayerData then return end
+	local Ready = false
+	PlayerData:ListenToHopReady(function() Ready = true end)
+	PlayerData:Release()
+	local Deadline = os.clock() + 6
+	while not Ready and os.clock() < Deadline do task.wait(0.1) end
+end
+
 function DataManager:SendData(Player)
 	local PlayerData = DataManager:GetProfile(Player)
-	
+	if not PlayerData then return end
 	ReplicatedStorage.Remotes.DataRemote:FireClient(Player,PlayerData.Data)
 end
 
