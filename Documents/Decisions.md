@@ -112,3 +112,4 @@ This document records established project decisions to keep development consiste
 - **Grip:** PvP / permadeath / anti-gank consequences of a grip finisher.
 - **Clans:** roster, rarities, roll weights, bonuses; which abilities count as "Stone Abilities".
 - **Ranked arena:** timing (the doc says "later").
+- **Morality & reputation (proposal 2026-10-16):** the 8 decisions in `Morality and Reputation Proposal.md` Â§8 (model, factions, conduct axes, visibility, Taboo canon, PvP deeds, titles, first slice). Nothing is built until the owner answers.

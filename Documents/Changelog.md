@@ -2,6 +2,30 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-16 — Morality & reputation proposal; full Foundry Yard playtest
+
+**Proposed (not built): `Morality and Reputation Proposal.md`.** Audit: there is no morality or faction system in the game. The only consequences today are the recorded story choice `Outcome_chalk_foundry` and Grip / Carry on knocked targets. The proposal expands Implementation Plan §14–16 into:
+- a **Deeds Ledger**: every consequential act is recorded once, with its reason;
+- five tracks built from it: **Conduct** (Mercy / Candor / Order, shown as words), **Standing** with each faction, **Renown** (the road to "Legendary Alchemist"), **Trust** with single NPCs, and **Taboo** (forbidden alchemy).
+- **Witness scopes** (Private / Local / Public) and **Discovery**: a secret deed can surface later through evidence.
+- It maps the Lise / Tobin / bandit-bounty moments onto deeds and has build slices M1–M7.
+- Every number is a PROPOSAL. The extra factions (Foundry Hands, Unlicensed Circle, Townsfolk) and the titles are **(new)** placeholders. §8 lists 8 owner decisions.
+
+**Playtested (Studio Play, real key presses and clicks, from a fresh quest state):** the whole "Chalk on the Foundry Wall".
+- Accepted from Brask. Inspected the wall chalk and the soot prints.
+- The **Valve Board** was solved by reading the needle: valve 1 bleeds. The vent saved as Sealed, then the corridor led to the half-drawn array.
+- Mirra, then Tobin's lie broken with the boot prints.
+- The furnace store opened by the **no-alchemy route**: coal carried from the bins to the furnace, then standing on the lock stone. The notebook was inside.
+- **Case Board:** one wrong answer refused at no cost, then the right one.
+- Lise → **Secret** (confirmed): +150 money +50 outcome bonus, +400 EXP (level 2), both codex entries, `Outcome_chalk_foundry = Secret`. Talking to her again paid nothing more.
+- **Assay Bench** (Flame / Magnet / Water → Slag Chalk) and **Ledger Cipher** (crate key → shift 5 → "Slag Heap") were played along the way. Both gave their evidence without touching the quest path.
+- The dialogue box now closes when you walk away mid-conversation (the stuck-dialogue fix from another session this day).
+- Console clean. The owner's save, which had its own progress (chalk quest at stage 5, bounty active), was snapshotted, reset for the run and restored exactly. The temporary hook was removed.
+
+**Found (not fixed):**
+- Pressing E as you arrive at an object, before its prompt shows, toggles **Combat Mode** instead. In Combat Mode an inspect still gives its evidence, but its text is suppressed, so it looks like nothing happened.
+- The HUD quest-tracker title overlaps the chat box (top left).
+
 ## 2026-10-16 — Assay Bench and Ledger Cipher minigames
 
 **Built (the two deferred minigames from `Quests, Puzzles and Minigames Proposal.md` §3.7, same pattern as Pressure Board / Array Restoration):** all names, lines and numbers are placeholders / PROPOSALS. Backups: `ServerStorage.RenseiBackups["Pre-AssayCipher_2026-10-16"]`.
