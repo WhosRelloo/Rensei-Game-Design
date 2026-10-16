@@ -2,6 +2,75 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-16 — Smaller HUD, sheet animations pass 2, evidence props
+
+**Asked (owner):** "Some of the UI is too big: Party UI, Level Up UI, Quest UI, etc. make them readable but not too big"; "look through the spreadsheet again and add in the animations wherever you can"; "for the investigative quests … look for suitable small items like notebooks, trinkets"; "look through the assets for any suitable armor, runes". Backups (per place): `RenseiBackups["Pre-UISize_2026-10-16"]` (the whole `StarterGui.Uis`), `["Pre-Anims2_2026-10-16"]`, `["Pre-EvidenceProps_2026-10-16"]`.
+
+**UI (Ye and Tutorial, same sizes):**
+- The HUD is sized as fractions of the screen, so it grew with big displays. These frames now use a share of their original size (PROPOSAL):
+  - quest tracker 78% (its title line 85% of that);
+  - party list, party invite and the "Enter name" party box 80%;
+  - Level Up popup 90% (its reward lines stay legible);
+  - Server Info 80%;
+  - dialogue box and choices 85%.
+- Each frame keeps its original size in the attribute `SizeBeforeShrink`. Re-running the change always starts from that.
+- Sizes are changed directly rather than with a `UIScale`, so UIMotion's pop-in on Level Up still works.
+- "Report to ????" in the Tutorial is unchanged: the hidden name is the owner's 2026-10-15 decision.
+
+**Animations (Animation ID's sheet, read again 2026-10-16):**
+- **New and live:**
+
+  | Sheet entry | Game animation | ID |
+  |---|---|---|
+  | Greatsword CRIT | `Greatsword_Heavy` | 87785261665755 |
+  | Greatsword WEAPON SKILL | `Greatsword_Skill` | 85933834004793 |
+  | Caestus CRIT | `Gauntlets_Heavy` (replaces 89096699319522, kept as `PreviousId`) | 75715098693180 |
+  | Plank | `NPC_Plank` | 110416565777124 |
+  | Evil Cinematic | `Misc_EvilCinematic` | 125888674015361 |
+  | Cloak/Armor Equip | `Misc_ArmorEquip` | 85191463400707 |
+
+- **Hit timing:** `AnimPeak` was re-measured from the new clips. Greatsword Heavy 0.85 (its sfx/vfx/comboStep markers sit at 0.88), Greatsword Skill 1.31 (first big swing; PROPOSAL), Caestus Heavy 0.88 (its `Hit` marker). This also applies to the two alchemy moves that borrow `Greatsword_Heavy` and to Shoulder Charge.
+- **Still broken:** the 15 ⏳ IDs from this morning still return "AnimationClip loaded is not valid": Greatsword M1 1–4 / Idle / Equip / Unequip / Walk / Grip / KO, Katana Sheathe / Unsheathe / Walk, Dagger Sheathe / Unsheathe. The previous animations stay until those are re-published.
+- **Wired in:**
+  - **Build** plays while a minigame is open (`MinigameService`), and stops on a pass, a close, or walking away.
+  - **NPC idles:** the new `NpcIdles` script loops each NPC's `IdleAnim` attribute. Picks (PROPOSAL):
+    - Chill: Brask, Tobin, Drillmaster Vask, and the Flame, Earth and Metal trainers;
+    - Admire: Lise, Mirra, and the Ice and Wind trainers.
+    - Lean Idle wasn't used: no NPC stands against anything to lean on.
+  - `AnimationManager` now loops NPC tracks when asked (`Looped`). Its "Animation not found" warning names the missing animation.
+- **Tutorial place:** its Animations folder was behind Ye. 39 animations were added (emotes, NPC idles, misc, Drag, Fire 2, Rapier / Caestus idles…) and 11 IDs updated (live katana M1s and idle, Rapier / Caestus / Greatsword CRITs, Greatsword skill, new Uppercut). The wrong gun idle was cleared. With Combat Mode on, the katana idle now plays and nothing warns.
+- **Not wired:** there is nothing to attach these to yet:
+  - Bandage Use: the only consumable is the Apple.
+  - Mask Equip, Arm Blast: no masks or prosthetics.
+  - Armor Equip: no armor system.
+  - Evil Cinematic: no villain cutscene.
+  - Plank, Drag.
+
+**Evidence props (Foundry Yard investigation):** the clue blocks now use the imported Alchemist Assets. The original part stays as the Inspect target.
+- the apprentice's notebook → the cream notebook with an orange ribbon (the block is hidden; the prompt is unchanged);
+- the State Authority crate → the grey clasped tome lying on top (the voided ledger);
+- the yard notice board → three pinned sheets.
+
+**Asset survey (for later):**
+- **Books:** nine closed alchemy books (Flame, Ice, Earth, Iron, Plant, Silver, Crimson, Chimera, Combat).
+- **Alchemist Assets research notes:** Human Transmutation, Blood Seals, Philosopher Stones, Teleportation, Sacrifice, Mannequin Soldiers. These suit forbidden-alchemy clues or rune/seal pages.
+- **Armor:** a full-plate `ArmourSet (FULL METAL ALCHEMIST)`.
+- **Missing:** no small trinkets (rings, keys, watches, lockets) exist in any place.
+
+**Tested (Studio Play):**
+- Tutorial screenshots before and after: tracker, party, Level Up, Server Info and dialogue all smaller and readable.
+- The six new IDs load (lengths 1.2–8 s).
+- All ten NPCs loop their idles.
+- Build plays while Pressure Board is open and stops on close.
+- The katana idle plays in the Tutorial.
+- The evidence prompts are intact.
+- Consoles clean.
+
+**Not verified:**
+- The Ye HUD on screen (its viewport only captures in Edit mode this session; the sizes match the Tutorial's).
+- Triggering the evidence inspects (skipped so the save's evidence isn't changed).
+- The new Greatsword / Caestus CRITs in an actual fight.
+
 ## 2026-10-16 — Alchemy trainer placeholders
 
 **Built (owner: "add alchemist trainer npc place holders with the in game asset we have"):** five placeholder trainers, one per alchemy path, in a row east of spawn with their backs to the east wall. Backup: `ServerStorage.RenseiBackups["Pre-Trainers_2026-10-16"]` (Dialogues; the NPCs are new).

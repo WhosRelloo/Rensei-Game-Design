@@ -19,6 +19,19 @@ local UIService = require(ServerScriptService.UIService)
 
 local MAX_DRIFT = 22 -- studs a player may move from where the minigame opened
 
+-- While a minigame is open the character works at it (the sheet's "Build" animation, "can be used
+-- for quests and minigames"); it stops on a pass, on closing, or on walking away.
+local function Working(Player, On)
+	local Character = Player.Character
+	if not Character then return end
+	local AnimationManager = require(ReplicatedStorage.Modules.Managers.AnimationManager)
+	if On then
+		AnimationManager.Play(Character, "Misc_Build", {Looped = true, Priority = Enum.AnimationPriority.Action})
+	else
+		AnimationManager.Stop(Character, "Misc_Build")
+	end
+end
+
 local MinigameService = {}
 
 local Remote
@@ -176,6 +189,7 @@ function MinigameService.Open(Player, Id, Context)
 	Sessions[Player] = {Id = Id, Def = Def, Kind = Kind, Context = Context, Secret = Secret,
 		At = Root.Position, Tries = (Sessions[Player] and Sessions[Player].Id == Id and Sessions[Player].Tries) or 0}
 	Remote:FireClient(Player, "Open", Id, Public)
+	Working(Player, true)
 	return true
 end
 
@@ -188,6 +202,7 @@ local function Submit(Player, Answer)
 	local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
 	if not Root or (Root.Position - S.At).Magnitude > MAX_DRIFT then
 		Sessions[Player] = nil
+		Working(Player, false)
 		Remote:FireClient(Player, "Result", false, "You walked away from it.", true)
 		return
 	end
@@ -199,6 +214,7 @@ local function Submit(Player, Answer)
 		return
 	end
 	Sessions[Player] = nil
+	Working(Player, false)
 	local Data = ProgressionService.GetData(Player)
 	local First = false
 	if Data then
@@ -225,6 +241,7 @@ function MinigameService.Start()
 			local Ok, Err = pcall(Submit, Player, Answer)
 			if not Ok then warn("MinigameService submit failed:", Err) end
 		elseif Kind == "Close" then
+			if Sessions[Player] then Working(Player, false) end
 			Sessions[Player] = nil
 		elseif Kind == "Act" then
 			local S = Sessions[Player]

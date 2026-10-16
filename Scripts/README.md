@@ -28,6 +28,9 @@ Paths mirror the Studio tree (`Scripts/ServerScriptService/MinigameService.lua` 
 | `ReplicatedStorage/Modules/Data/Rensei/Emotes.lua` | `ReplicatedStorage.Modules.Data.Rensei.Emotes` | 2026-10-16 |
 | `ReplicatedStorage/Modules/UI/EmoteWheelUI.lua` | `ReplicatedStorage.Modules.UI.EmoteWheelUI` | 2026-10-16 |
 | `ServerScriptService/ServerHandler/Requests/Emote.lua` | `ServerScriptService.ServerHandler.Requests.Emote` | 2026-10-16 |
+| `ReplicatedStorage/Modules/Managers/AnimationManager.lua` | `ReplicatedStorage.Modules.Managers.AnimationManager` (same in the Tutorial place) | 2026-10-16 |
+| `ReplicatedStorage/Modules/Data/Rensei/TuningConfig.lua` | `ReplicatedStorage.Modules.Data.Rensei.TuningConfig` | 2026-10-16 |
+| `ServerScriptService/NpcIdles.server.lua` | `ServerScriptService.NpcIdles` | 2026-10-16 |
 | `ServerScriptService/CharacterHandler.server.lua` | `ServerScriptService.CharacterHandler` | 2026-10-16 |
 | `ServerScriptService/FlowService.lua` | `ServerScriptService.FlowService` | 2026-10-16 |
 | `ServerScriptService/FlowTeleport.lua` | `ServerScriptService.FlowTeleport` (same in every place) | 2026-10-16 |
