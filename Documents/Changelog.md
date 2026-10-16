@@ -71,6 +71,25 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 - Pressing E as you arrive at an object, before its prompt shows, toggles **Combat Mode** instead. In Combat Mode an inspect still gives its evidence, but its text is suppressed, so it looks like nothing happened.
 - The HUD quest-tracker title overlaps the chat box (top left).
 
+## 2026-10-16 — Fix: dialogue box stuck open
+
+**Fixed (the pre-existing bug found during the Assay Bench / Ledger Cipher pass):** the NPC dialogue box could stay open with no way to close it. Number keys and clicking a choice did nothing; only a server `DialogueEnd` cleared it. Backups: `ServerStorage.RenseiBackups["Pre-DialogueStuck_2026-10-16"]` (DialogueService, DialogueUI, Requests.Dialogue).
+- **Cause (confirmed in Play):** the client box was showing while `DialogueService` had no session for the player. In that state, `Choose` returned at once and `Close` only sent `DialogueEnd` when a session existed, so nothing ever told the client to close. Walking away and back alone did *not* reproduce it (the server kept the session and choices still worked). The stuck state came back reliably whenever a conversation was opened through a different copy of the module, as a server-side test command does. That is the most likely trigger in the original playtest, which also used forged remotes.
+- **`DialogueService`:** `Close` now always sends `DialogueEnd`, session or not. `Choose` with no session closes the box. A new range watch (every 0.5 s) ends a conversation once the player is more than 16 studs (the existing `MAX_DISTANCE`) from the NPC or inspect point, or if either one is gone. `Choose` uses the same range check (`InRange`).
+- **`DialogueUI`:** a `DialogueEnd` while the box is already shut does nothing. The extra close messages (e.g. turning on Combat Mode) can no longer re-show the HUD bars.
+
+**Tested (Studio Play, real key presses and a click):**
+- Mirra (talk with E, choices 1 / 1, then E again and 2 "Thanks."): conversations advance and close normally.
+- Walking ~38 studs away mid-conversation closes the box by itself and brings the HUD back. Walking back and pressing E starts a fresh conversation.
+- Stuck state recreated (box open, no server session): before the fix 1 and Escape did nothing. After the fix, pressing 1 closed it, and so did clicking the choice.
+- Authority Crate inspect line (`Say`): it stays open while you stand at the crate, and Leave closes it.
+- Console clean (no game-script warnings). The owner's save was snapshotted before testing and restored afterwards; a deep compare showed no difference. The temporary test hook was removed.
+
+**Not changed / found:**
+- **Escape never closes the dialogue.** Roblox's own menu takes Escape before the game sees it (`InputBegan` never fires for it), so the Escape branch in `DialogueUI` is dead code. This is pre-existing and needs a different key or the menu's open event.
+- `DialogueService` keeps `Prompted` as a weak-keyed table with Instance keys, which the design rules forbid. It is pre-existing and was left as is.
+- Not verified: touch input, two players at once.
+
 ## 2026-10-16 — Assay Bench and Ledger Cipher minigames
 
 **Built (the two deferred minigames from `Quests, Puzzles and Minigames Proposal.md` §3.7, same pattern as Pressure Board / Array Restoration):** all names, lines and numbers are placeholders / PROPOSALS. Backups: `ServerStorage.RenseiBackups["Pre-AssayCipher_2026-10-16"]`.
@@ -92,7 +111,7 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Not verified:** touch input, two players at once.
 
-**Found (pre-existing, not changed):** if you walk away from an NPC mid-conversation, the dialogue box can stay open with no way to close it. Number keys and Escape do nothing, and only a server `DialogueEnd` clears it. The likely cause: `DialogueService.Choose` returns without notifying the client when the server has no session.
+**Found (pre-existing; fixed the same day, see "Fix: dialogue box stuck open" above):** if you walk away from an NPC mid-conversation, the dialogue box can stay open with no way to close it. Number keys and Escape do nothing, and only a server `DialogueEnd` clears it. The likely cause: `DialogueService.Choose` returns without notifying the client when the server has no session.
 
 ## 2026-10-16 — Quests, investigation, environmental puzzles, UI minigames (Phases 6–7 vertical slice)
 
