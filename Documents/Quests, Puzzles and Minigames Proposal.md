@@ -1,6 +1,6 @@
 # Quests, Environmental Puzzles & UI Minigames — Audit and Proposal
 
-**Status:** approved by the owner 2026-10-15 with the recommended defaults (§6: yes to 1–3, Pressure Board + Array Restoration first, the proposed rewards, choices record a flag only). **Slices S1–S8 built and playtested 2026-10-16** — see `Changelog.md`. Not built yet: the Assay Bench and Ledger Cipher minigames, escort objectives, the Journal codex text. Master plan Phases 6 (quests, dialogue, investigation) and 7 (puzzles and environment). Every number is a PROPOSAL; every lore detail not already in canon is marked **(new)** and needs the owner's OK.
+**Status:** approved by the owner 2026-10-15 with the recommended defaults (§6: yes to 1–3, Pressure Board + Array Restoration first, the proposed rewards, choices record a flag only). **Slices S1–S8 built and playtested 2026-10-16** — see `Changelog.md`. The Assay Bench and Ledger Cipher minigames followed the same day (see `Changelog.md`; scripts in `Scripts/`). Not built yet: escort objectives, the Journal codex text. Master plan Phases 6 (quests, dialogue, investigation) and 7 (puzzles and environment). Every number is a PROPOSAL; every lore detail not already in canon is marked **(new)** and needs the owner's OK.
 
 ---
 
