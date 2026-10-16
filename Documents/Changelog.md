@@ -2,6 +2,27 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-16 — Assay Bench and Ledger Cipher minigames
+
+**Built (the two deferred minigames from `Quests, Puzzles and Minigames Proposal.md` §3.7, same pattern as Pressure Board / Array Restoration):** all names, lines and numbers are placeholders / PROPOSALS. Backups: `ServerStorage.RenseiBackups["Pre-AssayCipher_2026-10-16"]`.
+- **Assay Bench** (`Kind = "AssayBench"`, `assay_chalk`): identify the wall chalk by testing it (Flame, Acid, Magnet, Water) and picking the matching row of a six-row reference table (Clerk's Chalk, Slag Chalk, Iron Ore, Copper Ore, Bone Ash, Sulphur). **The sample never reaches the client**: each test is a new `Act` message and the server answers with that one reaction. 3 chips per sample (PROPOSAL); every two rows differ in at least two tests, so any three tests always name it. Cells turn green or red against what you've seen. A wrong guess refills the chips. The bench's sample is always slag chalk (the story needs that); a bench without `Sample` picks a random row.
+- **Ledger Cipher** (`Kind = "LedgerCipher"`, `ledger_cipher`): the server writes a four-line State Authority shipping page ("SIX CRATES CHALK TO ORE ROAD"…) from word pools, enciphers it with a shift of 5 (PROPOSAL), and strikes one chalk line out in red wax. **The key is never sent**: the player finds it on an Authority crate seal ("F over A"). A cipher ring (WRITTEN / READS, `< Shift >`) helps decode, and the answer box is the Settings key-bind box. The client sends the place; the server compares letters only (case and spaces don't matter, 40 characters max).
+- **`MinigameService`** (additive): a `Requires` + `Locked` gate on opening (StoryLogic conditions), an optional `Kind.Act` step (`Act` → `Reply`, rate-limited) and `Kind.Failed` reset hook, and `Def.Evidence` given **on the first pass only**. Pressure Board and Array Restoration are unchanged.
+- **`MinigameUI`**: draws both with kit buttons and the Guru font. Cipher text is letter-spaced, so Guru never joins "II".
+- **Foundry Yard (optional side content; the quest's required path is unchanged):** an **Assay Bench** on the far side of Mirra's crucible (mechanism `assay_bench`, needs *Chalk Sample*) gives new evidence **Slag Chalk**. A **Shipping Ledger** beside the notice board (mechanism `yard_ledger`) gives new evidence **Voided Ledger Line** (new lore hook: the Authority is missing licensed chalk too). An **Authority Crate** by the gate (inspect `authority_crate`) holds the key. Both mechanisms save as `Mech_<Id>` and answer "It's already done." afterwards.
+
+**Tested (Studio Play, real key presses and clicks):**
+- The bench without *Chalk Sample* refused with the Locked line. With it, the Flame and Magnet tests answered Orange / Pulls and showed 1 chip left. Iron Ore → failed with refilled chips. Slag Chalk → passed, giving *Slag Chalk* once. E again → "It's already done."
+- **Forged client messages:** an unknown test was ignored; a 4th test with 0 chips returned "no sample left"; `{Passed = true}`, `"true"` and a wrong row were all rejected. On the ledger, a table, a 70-character string, the raw ciphertext and an assay `Act` were all rejected or ignored. A correct answer re-sent after the pass did nothing (no session).
+- Ledger: E on the crate showed the key; `>` ×5 set Shift 5; "old mill" failed; typing "Ore Road" passed and gave *Voided Ledger Line*. A second run dealt a different page.
+- Console clean (client and server). The owner's save (Story / Quests / Money / Exp / Codex / Level) was snapshotted before testing and restored afterwards. A second Play session confirmed it was empty again. The temporary test hook was removed.
+
+**Fixed while testing:** the bench first stood right beside Mirra, so her Talk prompt won over it. It was moved to the far side of the crucible.
+
+**Not verified:** touch input, two players at once, and the Journal's Evidence tab showing the two new entries. After the last tweaks (named table rows, thinner wax strike, cell spacing), only the ledger was re-checked.
+
+**Found (pre-existing, not changed):** if you walk away from an NPC mid-conversation, the dialogue box can stay open with no way to close it. Number keys and Escape do nothing, and only a server `DialogueEnd` clears it. The likely cause: `DialogueService.Choose` returns without notifying the client when the server has no session.
+
 ## 2026-10-16 — Quests, investigation, environmental puzzles, UI minigames (Phases 6–7 vertical slice)
 
 **Built (owner approved `Quests, Puzzles and Minigames Proposal.md` with the recommended defaults):** the full framework plus one complete quest on a graybox site. All names, lines and numbers are placeholders / PROPOSALS.
