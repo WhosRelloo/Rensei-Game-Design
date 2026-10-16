@@ -19,7 +19,9 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Fixed while testing:** the bench first stood right beside Mirra, so her Talk prompt won over it. It was moved to the far side of the crucible.
 
-**Not verified:** touch input, two players at once, and the Journal's Evidence tab showing the two new entries. After the last tweaks (named table rows, thinner wax strike, cell spacing), only the ledger was re-checked.
+**Re-checked afterwards:** the Journal's Evidence tab lists *Slag Chalk* and *Voided Ledger Line* under the quest. The tweaked Assay Bench layout (named table rows, cell spacing) reads cleanly, and a row can be picked. The save was snapshotted and restored again.
+
+**Not verified:** touch input, two players at once.
 
 **Found (pre-existing, not changed):** if you walk away from an NPC mid-conversation, the dialogue box can stay open with no way to close it. Number keys and Escape do nothing, and only a server `DialogueEnd` clears it. The likely cause: `DialogueService.Choose` returns without notifying the client when the server has no session.
 
