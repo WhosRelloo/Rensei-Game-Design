@@ -2,6 +2,51 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-16 — Morality, first slice (M1–M3 + M5)
+
+**Built (owner approved the defaults in `Morality and Reputation Proposal.md` §8: five tracks, the placeholder factions, Mercy / Candor / Order, words only, no deeds in arena / duels / self-defence, flavour titles; Taboo canon left for later):** all names, lines and numbers are placeholders / PROPOSALS. Backups: `ServerStorage.RenseiBackups["Pre-Morality_2026-10-16"]`.
+- **M1 — data + save schema 4.** New `Rensei.Factions`:
+  - the factions State Authority, Foundry Hands, Unlicensed Circle and Townsfolk;
+  - tiers Hostile / Distrusted / Neutral / Trusted / Honoured;
+  - the conduct words (Merciful–Ruthless, Honest–Deceitful, Lawful–Defiant) and the renown ranks.
+
+  New `Rensei.Deeds`: 9 deeds, plus `Finishers` for knocked enemies. `ProfileData` is now `SchemaVersion = 4` with `Morality = {Deeds, Conduct, Standing, Trust, Renown, Taboo}`. The `DataManager` 3→4 migration is additive.
+- **M2 — `MoralityService`, the only writer.**
+  - `Record` puts a deed on the ledger once. Repeatable deeds count at most `Cap` times a day, so morality can't be farmed.
+  - It applies the deed's effects:
+    - Conduct and Trust always change.
+    - Standing changes only for Local / Public deeds. A Private deed waits for discovery, which comes in a later slice.
+    - Renown changes for Public deeds.
+  - It shows a toast with the deed's reason, and a banner when a faction's tier changes.
+  - On join, all tracks are **rebuilt from the ledger**, and any quest ending already chosen is turned into its deeds once (so older saves catch up).
+- **M3 — hooks.** New StoryLogic conditions: `Deed`, `NotDeed`, `Standing` / `StandingBelow` (a tier name or a number), `Trait`, `Trust` / `TrustBelow` and `Renown`, with lock labels such as "[State Authority: Trusted]". Other hooks:
+  - a dialogue action `{Kind = "Deed"}`;
+  - quest `Outcomes[x].Deeds`;
+  - `DownedManager.Listeners` (fired after a grip finishes someone);
+  - `WorldService.Credit(Victim, Player)` (credits a victim once only).
+- **M5 — content.**
+  - **Lise:** Report, Secret and Teach each record their deed. After Secret, telling Brask "It was Lise" is a separate betrayal: Candor −10, Lise remembers it, and new lines for her and Brask.
+  - **Tobin:** "Your secret's safe" is now a promise (with a "not promising" option). Telling Brask later records a *broken promise* (Candor −10) or a plain *told on*, and Tobin's lines change.
+  - **Brask:** after the quest, "Any word from the Authority's inspectors?" is greyed until the State Authority is **Trusted**. Mirra reacts to Report / Teach.
+  - **Bandits:** gripping a knocked bandit is *Finished off a beaten bandit* (Mercy −1). Carrying one alive to Brask (`TakesPrisoners`) is *Carried a beaten bandit in alive*: Mercy +1, Order +1, Authority +1, Townsfolk +1, +10 money, and the defeat counts once.
+
+**Fixed while testing:** `DownedManager` found the carried body by **name**. With two "Bandit Duelist"s alive, it returned the healthy one, so Drop (and the hand-over) acted on the wrong rig. The new `DownedManager.Carried(Carrier)` follows the `CarriedBy` link, and Drop uses it. This was an existing bug.
+
+**Tested (Studio Play, real key presses):**
+- Server checks: a once-only deed recorded 20× counted once; a repeatable recorded 15× counted 10 (the cap); an unknown id was ignored; a rebuild from the ledger gave identical numbers; the join-time catch-up of an old Report ending applied once and was idempotent.
+- Tobin: broke his lie, promised (toast and Trust +15), then got his "you kept your word" line. Brask showed exactly one "Tobin slept" choice. Picking it recorded the broken promise (Candor −10, Foundry −5, Tobin −35), and the choice was gone afterwards.
+- Lise: backing out at the confirmation recorded nothing. Secret recorded *Kept Lise's secret* (Private: Lise +30, Mercy +5, no faction change).
+- Brask after the quest: "It was Lise" and the greyed "[State Authority: Trusted]" choice were shown. The locked one did nothing. Betraying Lise gave Candor −20 (Deceitful), and Lise's new line followed.
+- Grip on a knocked Bandit Duelist: deed recorded, kill credited once. Carry to Brask: deed, standing, +10 money, +125 EXP credited once; the other live duelist was untouched.
+- At Authority 20, Brask's inspectors line unlocked with no label.
+- Console clean. The owner's save was snapshotted and restored. Its only lasting change is the schema 4 migration (an empty ledger). Hooks and test spawns removed.
+
+**Not built (next slices):** Discovery (M6), the Journal Standing tab (M4), standing drift, PvP grip deeds (PvP rules still undecided), titles / renown sources, Taboo (canon pending). Grunt bandits aren't Knockable, so only Bandit Duelists can be gripped or carried.
+
+**Notes:**
+- When this session started, the Studio save showed EXP 0 with no quests, unlike the earlier test save (quest at stage 5). It may be a different save slot. It was restored exactly as found.
+- New scripts are mirrored in `Scripts/`.
+
 ## 2026-10-16 — Morality & reputation proposal; full Foundry Yard playtest
 
 **Proposed (not built): `Morality and Reputation Proposal.md`.** Audit: there is no morality or faction system in the game. The only consequences today are the recorded story choice `Outcome_chalk_foundry` and Grip / Carry on knocked targets. The proposal expands Implementation Plan §14–16 into:

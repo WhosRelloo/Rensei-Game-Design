@@ -1,6 +1,6 @@
 # Morality, Reputation & Consequence — Audit and Proposal
 
-**Status:** PROPOSAL, 2026-10-16. Nothing here is built. It expands `Claude Implementation Plan.md` §14 (Factions and Reputation), §15 (Choices) and §16 (Endings) into a concrete system. Every number is a PROPOSAL. Every faction, title or lore detail not already in canon is marked **(new)** and needs the owner's OK. The decisions the owner must make are in §8.
+**Status:** owner approved the Â§8 defaults 2026-10-16 (Taboo canon left open). **Slices M1-M3 + M5 built and playtested 2026-10-16** (see `Changelog.md`). Not built yet: M4 (Journal Standing tab), M6 (Discovery), standing drift, PvP deeds, titles, Taboo. It expands `Claude Implementation Plan.md` §14 (Factions and Reputation), §15 (Choices) and §16 (Endings) into a concrete system. Every number is a PROPOSAL. Every faction, title or lore detail not already in canon is marked **(new)** and needs the owner's OK. The decisions the owner must make are in §8.
 
 ---
 

@@ -68,6 +68,14 @@ This document records established project decisions to keep development consiste
 - **Rules kept:** no puzzle requires a specific alchemy path; failures are recoverable; rewards pay once.
 - **PROPOSAL (built):** out of combat, an alchemy cast next to a mechanism that reacts to its element costs no meter. The Journal is on J (J and K are now reserved from rebinding).
 
+## Morality and reputation (owner approved the proposal's defaults, 2026-10-16)
+- **Five tracks, no karma meter:** Conduct (Mercy / Candor / Order), Standing per faction, Renown, Trust per NPC, Taboo, all built from a Deeds Ledger (`Morality and Reputation Proposal.md`).
+- **Placeholder factions allowed:** Foundry Hands, Unlicensed Circle and Townsfolk next to the State Authority.
+- **Words only:** players see tiers, conduct words and ranks, never numbers.
+- **PvP:** no deeds in arena, duels or self-defence. An unprovoked grip on a player is a capped Local deed (not built until the PvP rules exist).
+- **Titles:** the Renown x Conduct flavour titles (placeholders).
+- **First slice:** M1-M3 + M5 (built 2026-10-16). Taboo canon is left for later.
+
 ## Shelved features
 - The Nemesis system is shelved. Don't implement it unless the owner brings it back.
 
@@ -112,4 +120,4 @@ This document records established project decisions to keep development consiste
 - **Grip:** PvP / permadeath / anti-gank consequences of a grip finisher.
 - **Clans:** roster, rarities, roll weights, bonuses; which abilities count as "Stone Abilities".
 - **Ranked arena:** timing (the doc says "later").
-- **Morality & reputation (proposal 2026-10-16):** the 8 decisions in `Morality and Reputation Proposal.md` Â§8 (model, factions, conduct axes, visibility, Taboo canon, PvP deeds, titles, first slice). Nothing is built until the owner answers.
+- **Morality Taboo canon:** which forbidden acts exist (human transmutation, Stone use, chimeras) and whether the Authority hunts or recruits a Taboo user. PvP / permadeath rules (Grip) also gate PvP deeds.
