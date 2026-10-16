@@ -2,6 +2,14 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-15 — Admin panel: switch alchemy
+
+**Built (owner: "add switching alchemy to this panel"):**
+- An **Alchemy** row on the Self tab and on the Players tab (for the selected player): `<  Flame  >  Set`, cycling None / Flame / Ice / Earth / Wind / Metal. It starts on the player's current path and shows "(now: …)".
+- Server: `AdminService` command `SetAlchemy` writes the save's `Identity.Affinity` ("None" clears it), then `AlchemyService.PublishAffinity` and a profile sync, so the alchemy bar, mobile buttons and the Mastery tree switch straight away. Unknown paths are refused; every switch is in the admin log.
+
+**Tested (Studio Play, real clicks):** Flame → Ice: the row read "now: Ice" and the slot bar showed Cryo Shift, Coldsteel Smash, Ice Shards, Absolute Zero. "Lightning" was refused. The owner's save was restored to its empty path (Studio's `StudioTestAffinity` fallback shows Flame). Console clean.
+
 ## 2026-10-15 — Admin panel; settings update
 
 **Built (owner: "make a on theme admin panel using the ui assets that we have in game, also update the settings"):**

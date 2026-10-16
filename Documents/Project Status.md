@@ -34,7 +34,7 @@ Updated **2026-10-15**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
 - **Mastery skill tree (K):** buy / refund nodes; combat, alchemy, body and movement effects.
 - **PvE looks:** enemies roll a nation outfit and one of the creator's starting weapons.
 - **Combat log badge:** in combat, shows who hit you and the time until you're out of combat.
-- **Admin panel (F2):** admins only (`AdminConfig`); players, world, self and log tabs.
+- **Admin panel (F2):** admins only (`AdminConfig`); players, world, self and log tabs, including switching a player's alchemy path.
 - **Items:** consumables on the hotbar; clicking while holding uses one. The Apple heals a little at a time.
   - Draw/sheathe through Combat Mode (E) with holster↔hand blending; greatsword shoulder carry. Holsters on the hip / back / thigh.
 - **Resources:** Health, Stamina, Posture, Transmutation Meter (earned by fighting only).
@@ -52,7 +52,7 @@ Updated **2026-10-15**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
 
 - **Animations:** many weapon animations are unpublished copies that play only in Studio. 16 IDs from the owner's animation sheet are broken group uploads, so the old animations are used for those.
   - The "NEW RENSEI ANIMS" folder (new uppercut, emotes, etc.) is owned by another group and won't load in Rensei's game; it needs re-uploading under the Rensei group. The animation spreadsheet's new rows haven't been audited yet (link needed).
-- **Affinity:** the Alchemy step was removed from the creator at the owner's request, so there's no way to choose a path yet. Studio uses the test setting `ServerScriptService.AlchemyService` attribute `StudioTestAffinity` (never saved, ignored live).
+- **Affinity:** the Alchemy step was removed from the creator at the owner's request, so players can't choose a path yet; admins can set anyone's path from the admin panel (F2). Studio uses the test setting `ServerScriptService.AlchemyService` attribute `StudioTestAffinity` (never saved, ignored live).
 - **Purchases:** the Developer Product IDs for save slots and reroll packs are placeholders (0).
 - **Tutorial place:** still loads `Data<UserId>`, not the selected save slot.
 - **Alchemy:** Ice, Wind, Metal and Earth run on placeholder animations (Earth's VFX use the owner's prototype meshes).
