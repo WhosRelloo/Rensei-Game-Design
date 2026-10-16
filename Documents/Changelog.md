@@ -2,6 +2,39 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-16 — Emote wheel
+
+**Built (owner's "Rensei — Alchemical Emote Wheel System" prompt):** a radial emote wheel that is the game's own transmutation circle. All labels and page names are placeholders. Backup: `ServerStorage.RenseiBackups["Pre-Emotes_2026-10-16"]` (UIHandler; everything else is new).
+- **Use:**
+  - **Hold H**, point, release to perform.
+  - **Tap H** to leave it open and click a name; H again or right click closes it.
+  - The **mouse wheel** turns to the next ring.
+  - On touch, an **Emote** button opens it; tap a name, or tap the centre to close.
+- **Look:** a dark disc with the transmutation circle turning slowly behind gold Guru-font names. A chalk-line pointer runs from the centre to the chosen emote, with a diamond node per slot. The centre plate shows the ring's name, the chosen emote, or why you can't emote right now. Opens with a short pop.
+- **Rings (8 each):**
+  - *Composure:* Bow, Meditate, Lean, Kneel, Sit, Rest, Pushups, Laugh.
+  - *Revelry:* Aero Step, Anthony, Clean Groove, Dance, Floss, Kazotsky Kick, Peter Parker, Thriller.
+
+  All are from the Animation ID's sheet; Kneel, Sit and Rest reuse its NPC idles.
+- **Rules:**
+  - The server checks every emote (`Requests.Emote` + `Rensei.Emotes.Blocked`): not in Combat Mode or in combat, not knocked / carried / gripped, hands free, on the ground.
+  - 0.75s between emotes (PROPOSAL).
+  - While one runs, the character attribute is `Emote = id`.
+  - Moving, jumping, attacking or entering Combat Mode ends it; one-shot emotes (Bow, Laugh) clear themselves when done.
+  - The animation plays on the player's own client, so it replicates to everyone.
+- **Files:** `Rensei.Emotes` (list, rings, key, cooldown, shared check), `ServerHandler.Requests.Emote`, `Modules.UI.EmoteWheelUI` (started by UIHandler).
+
+**Tested (Studio Play, real keys and clicks):**
+- Tap H → the wheel stayed open → pointed at Meditate → click → seated meditation, `Emote = meditate` → W ended it and cleared it.
+- Mouse wheel → Revelry → Floss played.
+- A forged Bow cleared itself when it ended; forged unknown ids and a table were ignored.
+- In Combat Mode the wheel won't open and a forged Play was refused.
+- Console clean.
+
+**Fixed while testing:** a quick tap of H used to "pick" whatever the resting mouse pointed at. A release within 0.3s now never performs; it leaves the wheel open for clicking.
+
+**Not verified:** the touch button on a phone; a second player seeing the emote (it replicates the way every player animation does); rebinding H (the Settings key rows are authored GUI, so H is fixed for now).
+
 ## 2026-10-16 — Animation ID's sheet applied
 
 **Done (owner: "We added new & more animations to the spreadsheet, replace and add them as needed"):** every id in the **Animation ID's** sheet was loaded in Studio Play. Backup: `ServerStorage.RenseiBackups["Pre-AnimSheet_2026-10-16"]` (TuningConfig, WeaponManager, DownedManager and the whole `Assets.Animations` folder). Full map: `Documents/Animations.md`.

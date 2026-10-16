@@ -25,5 +25,8 @@ Paths mirror the Studio tree (`Scripts/ServerScriptService/MinigameService.lua` 
 | `ReplicatedStorage/Modules/Data/ProfileData.lua` | `ReplicatedStorage.Modules.Data.ProfileData` | 2026-10-16 |
 | `ReplicatedStorage/Modules/UI/DialogueUI.lua` | `ReplicatedStorage.Modules.UI.DialogueUI` | 2026-10-16 |
 | `ReplicatedStorage/Modules/Managers/DownedManager.lua` | `ReplicatedStorage.Modules.Managers.DownedManager` | 2026-10-16 |
+| `ReplicatedStorage/Modules/Data/Rensei/Emotes.lua` | `ReplicatedStorage.Modules.Data.Rensei.Emotes` | 2026-10-16 |
+| `ReplicatedStorage/Modules/UI/EmoteWheelUI.lua` | `ReplicatedStorage.Modules.UI.EmoteWheelUI` | 2026-10-16 |
+| `ServerScriptService/ServerHandler/Requests/Emote.lua` | `ServerScriptService.ServerHandler.Requests.Emote` | 2026-10-16 |
 
-Exports so far (all 2026-10-16): the scripts touched by the Assay Bench / Ledger Cipher work, the stuck-dialogue fix (DialogueService, DialogueUI) and the morality slice with every engine script it changed (see `Documents/Changelog.md`). Each file is byte-identical to the Studio source at the time of export, except `DataManager.lua`: one line names a specific player for a test reset, and that name is replaced with `<redacted>` because this repository is public.
+Exports so far (all 2026-10-16): the scripts touched by the Assay Bench / Ledger Cipher work, the stuck-dialogue fix (DialogueService, DialogueUI) the morality slice with every engine script it changed, and the emote wheel (see `Documents/Changelog.md`). Each file is byte-identical to the Studio source at the time of export, except `DataManager.lua`: one line names a specific player for a test reset, and that name is replaced with `<redacted>` because this repository is public.
