@@ -2,6 +2,29 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-16 — Animation ID's sheet applied
+
+**Done (owner: "We added new & more animations to the spreadsheet, replace and add them as needed"):** every id in the **Animation ID's** sheet was loaded in Studio Play. Backup: `ServerStorage.RenseiBackups["Pre-AnimSheet_2026-10-16"]` (TuningConfig, WeaponManager, DownedManager and the whole `Assets.Animations` folder). Full map: `Documents/Animations.md`.
+- **Live now (published ids replace the Studio-only saves):** Katana M1 1–4 and idle; Rapier idle, walk and crit; Caestus idle and crit; the new Uppercut; Greatsword run.
+- **Registered for later:**
+  - Drag, and the Misc animations: Mask, Bandage, Arm Blast, Build, Meditate, Pushups, Bow;
+  - 10 emotes (`Shared.Emotes`) and 9 NPC idles (`Shared.NPCIdles`), not wired to anything yet.
+- **Wiring:**
+  - `IdleAnim` for Sword, Rapier (its own idle now) and Gauntlets.
+  - New `WalkAnim` support in `WeaponManager`: a drawn weapon's walk replaces the default walk (not while sprinting, attacking or carrying). The Rapier uses it.
+  - `AnimPeak` re-measured from the new keyframes, so hits still land on the swing: Katana M1 1 0.38 / M1 2 0.31 / M1 4 0.38 (also the Rising Cut dash), Rapier crit 0.44 (first of three thrusts), Caestus crit 0.45, Uppercut 0.27 (its Hit marker).
+- **Not usable yet:** 15 ids return "AnimationClip loaded is not valid" in this place. They are the Greatsword M1 1–4, idle, sheathe, unsheathe, walk and GRIP; Katana sheathe, unsheathe and walk; Dagger sheathe and unsheathe; and KO. Applying them would have replaced working Studio saves, so each keeps its previous animation, with the sheet id stored as `SheetId`. The id probably needs re-publishing to the group or re-copying.
+- **Gun idle:** `Guns_Idle` carried 86848934973845, which the sheet now lists as the Rapier idle. It was cleared (its Studio save still plays in Studio).
+
+**Tested (Studio Play, real clicks and keys):**
+- Katana: drawn idle, then M1 1→2→3→4 in order.
+- Rapier: idle, then walking (Rapier_Walk at full weight), then the crit on R.
+- Caestus: idle, then the crit on R.
+- Uppercut: Ctrl+LMB.
+- Console clean. The owner's save (inventory, equipped weapon) was snapshotted and restored; the test hook was removed.
+
+**Not done:** sheathe / unsheathe still play the old draw backwards (the new ids don't load). Emotes have no menu or command yet. NPC idles aren't on the story NPCs yet.
+
 ## 2026-10-16 — Morality, first slice (M1–M3 + M5)
 
 **Built (owner approved the defaults in `Morality and Reputation Proposal.md` §8: five tracks, the placeholder factions, Mercy / Candor / Order, words only, no deeds in arena / duels / self-defence, flavour titles; Taboo canon left for later):** all names, lines and numbers are placeholders / PROPOSALS. Backups: `ServerStorage.RenseiBackups["Pre-Morality_2026-10-16"]`.
