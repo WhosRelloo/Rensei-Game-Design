@@ -23,6 +23,15 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
   - Requests: Stat, Gate, Sync, Party, Quest, Dialogue, Settings, Equip, HoldItem, CombatMode, Uppercut, Feint, JumpAttack, WeaponSkill, Aim, Downed, **Alchemy**, **SkillTree**.
 - **`AdminService` + `AdminConfig`:** the admin panel's server side. `Remotes.AdminRemote` (RemoteFunction): `"State"` and `"Run", Command, UserId, Arg`. Every call re-checks admin status; announcements and kick reasons are text-filtered; actions are logged (last 60) and printed. `AdminConfig` (group rank, UserIds, Studio) stays server-only. Admins get the `Player` attribute `RenseiAdmin`.
 - **`SlotAccount`:** save slots. Account DataStore `RenseiAccounts`, key `A<UserId>` = {Owned, Selected, Favorite, Receipts, Codes}; `ProfileKey(UserId)` = `Data<UserId>` for slot 1, `Data<UserId>_S<n>` otherwise (DataManager loads it).
+- **Quests / story (2026-10-16):**
+  - **`QuestService`:** staged quests (`Rensei.Quests`, rules in `Rensei.StoryLogic`, shared with the client). Progress only via `Signal(Kind, Target)`; `CatchUp` fills objectives already true; completion leaves Active before paying; outcome rewards from flag `Outcome_<QuestId>`.
+  - **`StoryService`:** the only writer of profile `Story.Flags` (never overwritten unless asked), `Story.Evidence`, `Story.Deductions`.
+  - **`InvestigationService`:** parts / models tagged `RenseiInspect` (+ `InspectId`) get an Inspect prompt (text via `DialogueService.Say`); Case Board deductions (`Requests.Investigation` → UI event `CaseResult`). Content: `Rensei.Investigation`, `Rensei.Evidence`.
+  - **`PuzzleService`:** PER-PLAYER mechanisms tagged `RenseiMechanism` (+ `MechanismId`), puzzles and doors tagged `RenseiPuzzleDoor` (+ `PuzzleId`). `Remotes.PuzzleRemote` sends a player only their own states. `AlchemyService` calls `React` when a move goes active (and waives the meter out of combat near a reacting mechanism). Permanent states saved as `Story.Flags["Mech_<Id>"]`. Content: `Rensei.Puzzles`.
+  - **`MinigameService`:** server-seeded, server-validated minigames over `Remotes.MinigameRemote` (Pressure Board, Array Restoration). Content: `Rensei.Minigames`.
+  - **`DialogueService`** extensions: `Starts` / `Alt` / choice `Requires` + `Show = "Locked"`; actions SetFlag, GiveEvidence, GiveItem, StartMinigame, Signal; NPC looks from `LookNation` / `LookGender` / `LookSeed`.
+  - **`ItemService.Give(Player, Name, Amount)`** for rewards.
+  - Graybox content: `Workspace.World.Map.FoundryYard`, NPCs in `World.NPCs`.
 - **`SkillTreeService`:** Mastery node purchases and refunds (`Requests.SkillTree`); effects are read through `Managers.SkillMods` (`Mod_<Key>` attributes).
 - **`ServerScriptService.AppearanceService`:** builds the created look on every spawn (`ApplyIdentity`, called by CharacterHandler).
 - **`ServerScriptService.FlowService`:** start-flow routing (live: anyone not arriving through the flow goes to the menu) and the one-time intro cutscene (`IntroRemote` → `Modules.UI.IntroCutscene`).
@@ -81,6 +90,7 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
 - **`StarterPlayerScripts.UIHandler`:** boots `Modules.UI.*` (now including **MobileControls**).
   - HUDUI, PopupUI, PartyUI, DialogueUI, InventoryUI, SettingsUI (shift lock lives here), CombatModeUI, CooldownUI, **AlchemyUI**, StatsUI, LockOn, Fill. (The old HotbarUI was removed; the live hotbar is in HUDUI.)
   - **MasteryUI** (K, the skill tree), **CombatLogUI** (in-combat badge), **AdminUI** (F2, admins only; built from the Settings panel's art).
+  - **JournalUI** (J: quests, evidence, Case Board, codex), **PuzzleClient** (draws this player's puzzle states), **MinigameUI** — all panels built with **MenuKit** (an on-theme panel from the Settings art: rows, buttons, cyclers, paragraphs).
   - **UIMotion** is started last: menu open / close (`UIState` calls `Open` / `Close` / `Fade`), button hover and press, row pop-in (skipped for rows with the `NoPop` attribute), HUD2 popups, dialogue, HUD. Respects the player attributes `ReducedMotion` and `UISounds` (from Settings).
   - `UIState.RegisterMenu(Name, Frame, OnOpen, AllowInCombat)`: menus are locked in combat unless `AllowInCombat`.
 - **`StarterGui.Uis`:** the rebuilt UI (HUD, HUD2, Stats, Inventory, Settings, Dialogue, Templates).

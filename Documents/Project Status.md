@@ -1,6 +1,6 @@
 # Rensei Project Status
 
-Updated **2026-10-15**. See `Phase Plan.md` for the roadmap, `Changelog.md` for per-phase detail, and `ARCHITECTURE.md` for where everything lives in the place.
+Updated **2026-10-16**. See `Phase Plan.md` for the roadmap, `Changelog.md` for per-phase detail, and `ARCHITECTURE.md` for where everything lives in the place.
 
 ## Current state
 
@@ -32,6 +32,7 @@ Updated **2026-10-15**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
 - **Start flow:** main menu + character creation (separate place) → Tutorial place → intro cutscene → Ye. See `Start Flow and Character Creation.md`.
   - Save slots (2 free, up to 5 purchasable), clan surnames rolled with the deck's odds (Clan Index, rerolls by pack or code), catalog hair IDs, colour wheel, female body, nation starter outfits.
 - **Mastery skill tree (K):** buy / refund nodes; combat, alchemy, body and movement effects.
+- **Quests, investigation, puzzles (vertical slice):** staged quests with endings, conditional dialogue, evidence and a Case Board in the Journal (J), per-player environmental puzzles that every alchemy path can solve (each with a non-alchemy route too), and two UI minigames (Pressure Board, Array Restoration). One full placeholder quest, "Chalk on the Foundry Wall", in a graybox Foundry Yard south of the arena, plus a repeatable bandit bounty.
 - **PvE looks:** enemies roll a nation outfit and one of the creator's starting weapons.
 - **Combat log badge:** in combat, shows who hit you and the time until you're out of combat.
 - **Admin panel (F2):** admins only (`AdminConfig`); players, world, self and log tabs, including switching a player's alchemy path.
@@ -57,7 +58,8 @@ Updated **2026-10-15**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
 - **Tutorial place:** still loads `Data<UserId>`, not the selected save slot.
 - **Alchemy:** Ice, Wind, Metal and Earth run on placeholder animations (Earth's VFX use the owner's prototype meshes).
 - **Climb animations:** the cleaned versions play only in Studio until published (live keeps the originals).
-- **Not built:** quests/dialogue content, puzzles, story.
+- **Quest content:** only the placeholder Foundry Yard quest and bounty exist; real quests, the map and canon lore are the owner's. Not yet verified: two players in one puzzle at once, and puzzle state after a real rejoin (Studio saves were failing with HTTP 500 during testing).
+- **Not built:** main story, Assay Bench / Ledger Cipher minigames, escort objectives, factions / reputation.
 
 ## Development rules (unchanged)
 

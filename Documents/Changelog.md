@@ -2,6 +2,31 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-16 — Quests, investigation, environmental puzzles, UI minigames (Phases 6–7 vertical slice)
+
+**Built (owner approved `Quests, Puzzles and Minigames Proposal.md` with the recommended defaults):** the full framework plus one complete quest on a graybox site. All names, lines and numbers are placeholders / PROPOSALS.
+- **Save schema 3** (additive migration): `Story = {Flags, Evidence, Deductions, Puzzles, Minigames}`, quest `Stage`, `Quests.Tracked`.
+- **Quests** (`QuestService` + shared `Rensei.StoryLogic`): ordered stages, prerequisites, catch-up (evidence found before a stage still counts), optional / hidden objectives, outcomes per ending, item / codex rewards, repeatables with cooldowns. Still pays exactly once (the quest leaves Active before paying). New objective kinds: Inspect, Evidence, Deduce, Puzzle, Minigame, Mechanism, Flag.
+- **Dialogue** (`DialogueService`): conditional openers (`Starts`), alternate node text (`Alt`), choices hidden or shown greyed with a reason (`Show = "Locked"`, e.g. "[Evidence: Small Boot Prints]"), new actions (SetFlag, GiveEvidence, GiveItem, StartMinigame, Signal). The server keeps the list of choices it showed, so a forged index can't reach a hidden or locked one. Story NPCs can wear a seeded nation look (`LookNation` / `LookGender` / `LookSeed`).
+- **Investigation** (`InvestigationService`, `StoryService`): `RenseiInspect` points give evidence; the **Case Board** checks deductions on the server (wrong answers cost nothing).
+- **Journal (J)** (`JournalUI`, built with the new `MenuKit` from the Settings art): Quests (stage text, Track / Abandon), Evidence, Case Board, Codex. The HUD tracker shows the current stage, tracked quest first.
+- **Environmental puzzles** (`PuzzleService` + `PuzzleClient`): **per-player** mechanism states (steam vent, furnace mouth, lock stone, cracked seal, valve board, coal bins), doors that open per player, timed states that revert, permanent states saved. **Every alchemy path reacts:** any cast of that element near a mechanism (AlchemyService hook). **Every puzzle also has a non-alchemy route** (valves, carried coal, standing on the stone, the seal minigame).
+- **Puzzle casts are free (PROPOSAL):** out of combat, a cast next to a mechanism that reacts to your element costs no meter (the meter only fills in fights).
+- **UI minigames** (`MinigameService` + `MinigameUI`): **Pressure Board** (balance three valves, one bleeds pressure) and **Array Restoration** (turn geared rings until the marks meet the notch). Server-seeded, server-validated (it recomputes the gauge / replays the moves), retryable, no penalty for failing.
+- **Graybox Foundry Yard** (`World.Map.FoundryYard`, south of the arena): walls, gate, vent corridor, furnace store, notice board, area discovery. NPCs Foreman Brask, Mirra, Tobin, Lise.
+- **Quest "Chalk on the Foundry Wall"**: examine three chalk marks (one behind the steam vent) → question the night shift (Tobin lies until shown either of two clues) → open the furnace store ("fire in the mouth, weight on the stone", or mend the seal) → search it → Case Board → confront Lise: **report / keep the secret / teach** (confirmed, recorded once as `Outcome_chalk_foundry`). Plus the repeatable **Bounty: Ore Road Bandits** (5 bandits, 10 min cooldown).
+
+**Tested (Studio Play, real key presses and clicks):**
+- The whole quest end to end: E to talk to Brask and accept; E on each mark; the vent blocked the corridor (stopped at z 51.4); the Valve Board failed with the needle outside the green, then passed (vent saved as Sealed, steam and the invisible wall gone for that player); walked through; Tobin's lie broken with the boot prints; Mirra.
+- **Alchemy route:** a real Ignite cast with 0 meter lit the furnace from 22 studs; standing on the lock stone opened the store; walked in through the door.
+- **Array Restoration** solved by clicking the rings in (saved as Restored); forged minigame submits with no open session were ignored.
+- **Case Board:** a wrong answer refused with a hint; the right one solved it. Lise: backing out at the confirmation recorded nothing; "Teach" completed the quest: +150 money, +550 EXP, both codex entries; 15 repeated signals paid nothing more; changing the ending afterwards was refused.
+- Server checks (earlier pass): catch-up, stage gating, deduction gating, the bounty's cooldown. Console clean (client and server). The owner's save was snapshotted and restored after testing.
+
+**Fixed while testing:** the NPC clones copied Vask's anchored crouch pose (they looked like they were lying down) — given a standing pose; the font drew "II" as a ligature (valves are numbered 1–3); bigger minigame buttons; inspect / mechanism prompts can sit on plain parts (dialogue distance check).
+
+**Not verified:** two players at once (per-player states were designed for it but only one test client was available); restoring saved puzzle state after a real rejoin (Studio's DataStore calls were failing with HTTP 500 this session, so saves from Studio didn't persist).
+
 ## 2026-10-15 — Admin panel: switch alchemy
 
 **Built (owner: "add switching alchemy to this panel"):**

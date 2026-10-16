@@ -58,6 +58,16 @@ This document records established project decisions to keep development consiste
 - **Truth/Gate (Deepwoken-style stages):** spend all 20 Mastery Points of a stage, then pass the trial to unlock the next 20.
 - Paid rerolls (clan) must use secure purchase processing. Rolling is disabled until a clan roster exists.
 
+## Quests, puzzles and minigames (owner approved the proposal's defaults, 2026-10-15)
+- **Placeholder lore allowed:** the foundry district, the State Authority's alchemy licence, and the new characters Foreman Brask, Mirra, Tobin and Lise are placeholders until the owner's canon replaces them.
+- **Graybox first:** content is built on a graybox Foundry Yard in Ye until the real map exists.
+- **Puzzle ownership:** per-player by default (nobody blocks anyone else).
+- **Minigames first:** Pressure Board and Array Restoration (Assay Bench and Ledger Cipher later).
+- **Rewards:** the proposal's numbers as a starting point (PROPOSAL).
+- **Consequences:** story choices only record a flag for now (`Outcome_<QuestId>`); later faction work reads it.
+- **Rules kept:** no puzzle requires a specific alchemy path; failures are recoverable; rewards pay once.
+- **PROPOSAL (built):** out of combat, an alchemy cast next to a mechanism that reacts to its element costs no meter. The Journal is on J (J and K are now reserved from rebinding).
+
 ## Shelved features
 - The Nemesis system is shelved. Don't implement it unless the owner brings it back.
 

@@ -1,6 +1,6 @@
 # Rensei Phase Plan
 
-Updated after every phase. Status as of **2026-10-14**.
+Updated after every phase. Status as of **2026-10-16**.
 
 Legend: ✅ done and playtested · 🟡 partly done · ⬜ not started · 💤 deferred by the owner
 
@@ -42,10 +42,10 @@ Rensei is developed on two tracks that share one codebase (the Roblox place **Ye
 | 1 Core contracts & persistence | ✅ | `Modules.Data.Rensei.*` (Stats, Progression, Formulas, Alchemy, Clans). ProfileData SchemaVersion 1 with migration. `ProgressionService` is the only writer of stats, EXP, Mastery Points and the Gate. Several client-trust exploits fixed. |
 | 2 Alchemy vertical slice | ✅ 2026-10-14 | Flame Z Ignite works end to end: input → server validation (meter, cooldown, clan rule) → cast → projectile → damage and burn → feedback → cleanup. Invalid and repeated requests are handled. |
 | 3 Combat classifications & telegraphs | 🟡 | All three classes are in use and enforced in `DamageManager`. Telegraphs: heavy crit flash, alchemy clap circle and ground flash, and a red danger ring for UNBLOCKABLE moves (Phoenix Drive). Still to do: enemy telegraphs. |
-| 4 Connected skill tree | ⬜ | `Profile.AlchemyTree` exists; no nodes, costs or UI yet (design not documented). |
+| 4 Connected skill tree | ✅ 2026-10-15 | The Mastery tree (K): `Rensei.SkillTree`, `SkillTreeService`, `SkillMods`, `MasteryUI`; buy / refund, effects across combat, alchemy, body and movement (Rello's plan, `plans/2026-10-15-skill-tree.md`). |
 | 5 Complete alchemy progression | 🟡 | All five paths complete (20/20 slots). Skill-tree unlocks not designed. |
-| 6 Quests / dialogue / investigation | 🟡 | `QuestService`, `DialogueService`, the journal UI and dialogue UI are wired. No approved content yet. |
-| 7 Puzzles & environment | ⬜ | |
+| 6 Quests / dialogue / investigation | ✅ 2026-10-16 (slice) | Staged quests, prerequisites, outcomes, catch-up, conditional dialogue, evidence, Case Board, Journal (J). One complete placeholder quest ("Chalk on the Foundry Wall") + a repeatable bounty. See `Quests, Puzzles and Minigames Proposal.md`. Real content waits on the owner's lore and map. |
+| 7 Puzzles & environment | ✅ 2026-10-16 (slice) | Per-player mechanisms that react to all five alchemy paths, each with a non-alchemy route; puzzles with doors; two UI minigames (Pressure Board, Array Restoration). Graybox Foundry Yard. Assay Bench and Ledger Cipher are designed, not built. |
 | 8 Main story | ⬜ | |
 | 9 Cinematic choices | ⬜ | |
 | 10 Endings & legacy | ⬜ | |
