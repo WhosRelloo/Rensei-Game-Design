@@ -1,6 +1,91 @@
 # Rensei Changelog
 
-What each phase built and how it was tested. Newest first. All work is in the Studio place **Ye**. Backups of every touched script are in `ServerStorage.RenseiBackups`.
+What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. Backups of every touched script are in `ServerStorage.RenseiBackups`.
+
+## 2026-10-15 — Admin panel; settings update
+
+**Built (owner: "make a on theme admin panel using the ui assets that we have in game, also update the settings"):**
+- **Admin panel (F2).** Built from the Settings panel's own art: frame, header plate (ADMIN), tab art, row plates, Enable/Disable buttons, the key-bind box as text inputs. Four tabs:
+  - **Players:** pick a player, then Go To, Bring, Freeze/Unfreeze, Heal, Respawn, Kill, Spectate, Give Money, Give EXP, Give Item (cycler over `ItemData`), Kick with a reason.
+  - **World:** spawn an enemy in front of you (cycler over `TuningConfig.Enemies`; admin spawns never respawn), Clear Spawns, Kill All, set the time of day, Announce (top-of-screen banner for everyone).
+  - **Self:** God mode (DamageManager returns IFramed for `AdminGod`), Speed x0.5–4 (`SpeedMultiplier`), Heal Me.
+  - **Logs:** the server's last 60 admin actions.
+- **Permissions:** `ServerScriptService.AdminConfig` (server-only): Rensei group (206818864) rank ≥ 254, listed UserIds, and anyone in Studio. `AdminService` re-checks every call; non-admins never get the panel built.
+- **Safety:** announcements and kick reasons go through `TextService` filtering; you can't kick yourself, and only a listed UserId can kick another admin; 0.2s between commands.
+- **Allowed in combat:** `UIState.RegisterMenu` takes an `AllowInCombat` flag; the admin panel uses it. Other menus still lock in combat.
+- **Settings update:** Combat Log (Gameplay); Post Effects, UI Animations, Field Of View 60–100° (Graphics); UI Sounds (Audio). Saved with the profile like the existing settings (`Rensei.Settings` defaults + validation).
+
+**Tested (Studio Play):**
+- The panel opened on F2 for the admin and matched the other menus (screenshots).
+- Every command through the real remote: money, EXP, Apple (an unknown item refused), Freeze/Unfreeze, God on/off, Speed x2 and reset, time 18:00, enemy spawn and clear, announcement, an unknown command refused. The log listed all 13.
+- Settings: Post Effects off disabled Bloom; back on restored it. FOV shows in degrees. Console clean on client and server.
+
+**Fixed while testing:**
+- Long admin lists ran past the frame; the list now clips and scrolls.
+- **Rows re-animated every 2s** (owner report): the live refresh rebuilt every row and the motion layer popped each one again. Unchanged refreshes now do nothing, and rebuilt rows update in place; rows pop only on open or a tab change (verified: 7s idle, 0 rebuilds; Select rebuilt 10 rows, 0 pops).
+
+**Note:** the command test wrote to the owner's live slot-1 save (+250 money, +50 EXP, +1 Apple), because Studio saves to the real DataStores.
+
+## 2026-10-15 — Animated UI; combat-log badge
+
+**Built (owner: "make all UI in the game animated", "a custom Combat log icon that pops up at the top of the screen when players are in combat ... who hit them and how long they have until they are out of combat"):**
+- **`Modules.UI.UIMotion`**, started by UIHandler after every UI module:
+  - Menus pop in (scale + slide) and settle out instead of snapping; the backdrop fades. `UIState.ToggleMenu` / `CloseMenus` use it.
+  - Every button gets hover grow / press squish (touch gets a press punch). Buttons that already have their own UIScale (Fusion springs) are left alone.
+  - List rows pop in, staggered, as menus build them (not in the HUD, whose lists refresh constantly).
+  - HUD2 popups punch in, the banner drops from the top, the dialogue box rises, the HUD slides into place.
+  - Settings: UI Animations off makes everything instant; UI Sounds off silences the menu sounds.
+- **`Modules.UI.CombatLogUI`:** a badge that drops in at the top centre while you're in combat. It shows "IN COMBAT", who last hit you (or who you're fighting), a countdown and a draining bar; the icon jolts on every new hit and the timer pulses in the last 3s. It flashes "SAFE" and slides away when combat ends.
+  - **Icon:** a white seated Truth figure with a big toothy grin and black arms, drawn from UI shapes on a transparent background. An uploaded image can replace it (`ICON_IMAGE`).
+  - Server: `WorldService.MarkCombat` now also sets `CombatUntil` (server time), `CombatBy`, `CombatVs`, `CombatHitAt` on the player's character.
+
+**Tested (Studio Play):** a Bandit hit the player: the badge read "IN COMBAT / Hit by Bandit" with the countdown; after combat it showed SAFE and hid. Stats menu open/close animated and restored cleanly; 56 buttons got hover motion. Console clean.
+
+**Fixed while documenting:** UIMotion used weak-keyed tables with Instance keys (against the rule in ARCHITECTURE.md); they're plain tables now, cleared on `Destroying`.
+
+## 2026-10-15 — Grip audit, grip styles, weapon dash attacks
+
+**Grip audit (owner: "completely audit player behavior after gripping enemies, add different grips"):**
+- After a grip, the gripper's parts kept the wrong `Massless` value and the HumanoidRootPart was left massless; both are saved and restored now. Walk speed and jump height are saved and restored too.
+- **Grip styles** (`DownedManager.GripStyle`): **Classic** (paired, then the gripper steps clear), **Stomp**, and **Execution** (armed: the weapon's heavy, twice). Unarmed grips pick Classic or Stomp at random; the `GripStyle` attribute forces one.
+- Tested: Stomp and Classic kept mass, speed and position correct afterwards.
+
+**Weapon dash attacks (owner: "dash attacks for weapons to make them feel more custom"):** running + LMB with a weapon drawn uses that class's own dash attack (`TuningConfig.WeaponDashAttacks`, all numbers PROPOSAL):
+- Sword **Rising Cut** · Rapier **Lunging Thrust** · Greatsword **Cleaving Charge** (hyper armour) · Daggers **Shadow Step** (2 hits) · Gauntlets **Shoulder Charge** · Guns **Pistol Whip**.
+- `SkillData` generates `<Class>_DashAttack`; the Momentum Strike skill-tree bonus applies to all of them.
+- Tested: Katana run attack → `Sword_DashAttack`, 26 damage on a Bandit. (Two earlier "misses" were the test setup: the camera faced away, and the passive Bandit wandered.)
+
+**New animations (the "NEW RENSEI ANIMS" folder):** they're owned by another group ("gangsta bugs bunny"), so they don't load in Rensei's game. They need re-uploading under the Rensei group before they can replace placeholders. The carry IDs were tried and reverted.
+
+## 2026-10-15 — NPC looks and weapons
+
+**Built (owner: "randomize the fits of the npc ... respective to their nation", "spawn with the weapons that are in the character customization screen"):**
+- Every enemy spawn rolls a nation, gender and outfit from the creator's assets (`Customization.RandomLook`).
+- Each enemy gets one of the creator's starting weapons (`PickWeapon`; a spawn part's `Weapon` attribute overrides). Gunners keep 18 studs away and fire through the players' gun code.
+
+**Tested:** looks varied per spawn; a gunner hit 12 × 12; a melee Bandit dealt 170 in 7s.
+
+## 2026-10-15 — Mastery skill tree finished (Rello's plan, Tasks 6–8)
+
+- **Movement effects:** parkour cost and wall-run time (JumpManager) and sprint speed (ClientHandler.Run) read their `SkillMods`.
+- **Mastery menu (K):** `Modules.UI.MasteryUI`, built from the Inventory art: the tree on a circle canvas, a node card, and a ViewportFrame preview of the move. Buy and refund go through `Requests.SkillTree`.
+- The temporary `TestHookScript` was removed (copy in backups).
+- Tested: buying and refunding nodes, and the movement effects.
+
+## 2026-10-15 — Character creator rebuild (Character Customization place)
+
+**Built (owner: rebuild like the reference video on slide 12, keep hair IDs, add purchasable save slots, surname = clan):**
+- **Save slots:** 2 free, up to 5 (Developer Product, 200 Robux PROPOSAL). Each slot is its own profile (`Data<UserId>` for slot 1, `Data<UserId>_S<n>`); the account store `RenseiAccounts` keeps owned / selected / favourite slots. Small star (favourite, listed first) and trash icons per slot.
+- **Clans = surnames,** rolled with the deck's odds: Common 50 / Uncommon 28 / Rare 15 / Mythic 1 (Legendary is empty, so its share is spread), with pity. A Clan Index lists every clan's rarity and buffs. Rerolls come from packs (Developer Products) or codes (`ClanCodes`).
+- **Look:** up to 3 hair IDs from the Roblox catalog (recoloured by the hair colour) plus preset hairs; a colour wheel with brightness and a "keep own colours" toggle; eyes / brows / mouth thumbnails; skin swatches.
+- **Gender** changes the body (the owner's ROBLOX Girl torso for Female). **Nation** decides the starter outfit.
+- **Weapon** step shows the weapon's stats card. The Alchemy step was removed.
+- **Presentation:** rebuilt from the game's UI kit (panels, plates, rarity frames); an idle with an occasional clap; hold left-click on the character to turn it; the camera sits on `MenuStage.CameraMark` with the background streamed in.
+- Ye's `DataManager` loads the selected slot (`SlotAccount.ProfileKey`).
+
+**Tested:** slot buy/select/favourite/delete, the clan roll and index, creation, the colour wheel, ID hair tint, the female body, the reroll panel (bad codes refused), hold-to-rotate.
+
+**Owner items:** the Developer Product IDs for slots and reroll packs are still 0; the Tutorial place still loads `Data<UserId>` instead of the selected slot.
 
 ## 2026-10-15 — Earth kit (20 of 20 alchemy slots); Rensei logo
 

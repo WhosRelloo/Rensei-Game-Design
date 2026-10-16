@@ -12,16 +12,26 @@
 | Tutorial | **Tutorial** (74257385894576) | The player arrives in their created look. The tutorial's own content ends it with `ServerStorage.FinishTutorial:Fire(Player)`. |
 | Cutscene + game | **RSEI / Ye** (106992859583940) | The intro cutscene plays once on first arrival (placeholder until the owner's cutscene exists), then the main game. |
 
-All three places share **one save**: the ProfileService store `PlayerData`, key `Data<UserId>`. The session lock hands it from place to place; each place releases it just before teleporting.
+All three places share the ProfileService store `PlayerData`. Since 2026-10-15 each **save slot** is its own profile: `Data<UserId>` (slot 1) or `Data<UserId>_S<n>`, chosen in the menu and recorded in the account store `RenseiAccounts` (`A<UserId>`: Owned, Selected, Favorite, Receipts, Codes). The session lock hands the profile from place to place; each place releases it just before teleporting. **Open:** Ye loads the selected slot (`SlotAccount.ProfileKey`), but the Tutorial place still loads `Data<UserId>`.
 
 **Routing** (live only; Studio never teleports):
 - The menu sends PLAY to `Places.NextFor(profile)`: Customize if there's no character, the Tutorial if it isn't done, otherwise the main game.
 - The Tutorial sends a player with no character to the menu.
 - Ye sends anyone who didn't arrive through the flow (direct join, rejoin, old save) to the menu, which then routes them. So **players always start at the main menu**, whichever place is the experience's start place.
 
-## Character creation (menu place)
+## Character creation (menu place) — rebuilt 2026-10-15
 
-Six steps:
+Rebuilt after the reference video on the design deck's slide 12, from the game's UI kit (panels, plates, rarity frames):
+- **Save slots:** 2 free, up to 5 (`Rensei.Slots`: Free 2, Max 5, Price 200 PROPOSAL, Developer Product id still 0). Star = favourite (listed first), trash = delete (the profile is wiped).
+- **Facial:** up to 3 Roblox catalog hair IDs (recoloured by the hair colour; their own texture is stripped), preset hairs, eye / brow / mouth thumbnails.
+- **Traits:** nation (card with a blurb; decides the starter outfit, `Customization.OutfitFor`), gender (Female uses the owner's ROBLOX Girl torso), a hair colour wheel with brightness and "keep own colours", skin swatches.
+- **Weapon:** the starting weapon with its stats card.
+- **Finalize:** first name (suggestions from the nation's list); **surname = clan**, rolled with the deck's odds (`Rensei.Clans`: Common 50, Uncommon 28, Rare 15, Mythic 1; Legendary has no clans yet so its share is spread; pity 20 / 30). The Clan Index lists every clan with its rarity and buffs. Rerolls: packs (Developer Products, ids still 0) or codes (`ServerScriptService.ClanCodes`). A summary card framed by the clan's rarity.
+- The **Alchemy** step was removed (owner request).
+- The preview rig idles with an occasional clap; hold left-click on it to turn it. The camera sits on `Workspace.MenuStage.CameraMark`; the server sets `ReplicationFocus` so the background streams in.
+- Server calls (`MenuServer`): Slots, Open, State, Hair, RollClan, Redeem, Favorite, Delete, Create, Play; `ProcessReceipt` for slots and reroll packs.
+
+### The original six steps (2026-10-14, superseded)
 1. **Origin:** one of the owner's six nations (Amestrian, Xingnese, Ishvalan, Xerxian, Aerugonian, Drachman). It sets the default skin, hair colour, eyes and outfit. Cosmetic only.
 2. **Identity:**
    - **first name**: typed, or RANDOM from the nation's name list (the owner's old lists);

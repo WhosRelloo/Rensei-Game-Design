@@ -1,12 +1,13 @@
 # Rensei Architecture — where everything lives in Ye
 
-Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Rensei's UI on top. It has been extended system by system. The source of truth is the place itself; this is the map. Updated **2026-10-14**.
+Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Rensei's UI on top. It has been extended system by system. The source of truth is the place itself; this is the map. Updated **2026-10-15**.
 
 ## Data and configuration — `ReplicatedStorage.Modules.Data`
 
 - **`Rensei.TuningConfig`:** every combat number (controls doc: "TuningConfig.lua for all numbers"). Invented values are labelled PROPOSAL; values from Devil Hunter's code are labelled DH.
   - Light, Heavy, Uppercut, Aerial, DashAttack, Block, Parry, Dash, Hitstop, HitStun.
   - Parkour, Feint, Weapons, Alchemy, Downed, Enemies.
+  - `WeaponDashAttacks`: per-class overrides of DashAttack, merged into `Weapons.<Class>.DashAttack` (→ SkillData `<Class>_DashAttack`).
 - **`Rensei.Alchemy`:** the alchemy ability registry. Rows copied from the design sheet: damage, cooldown, cast, class, extras.
 - **`Rensei.Stats` / `Progression` / `Formulas` / `Clans` / `Settings`:** stat definitions, level curve, damage/HP formulas (approved spreadsheet scale), clans (the Marcoh rule), settings defaults.
 - **`SkillData`:** hit definitions, *generated* from TuningConfig. Names: `Light1-4`, `Heavy`, `<Weapon>_Light1..`, `<Weapon>_Heavy`, `<Weapon>_Skill`, `Alchemy_<Id>`.
@@ -19,7 +20,10 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
 ## Server — `ServerScriptService`
 
 - **`ServerHandler`:** routes `Remotes.RequestRemote(Module, ...)` to `ServerHandler.Requests.<Module>`, behind a token-bucket rate limiter. Starts the services.
-  - Requests: Stat, Gate, Sync, Party, Quest, Dialogue, Settings, Equip, HoldItem, CombatMode, Uppercut, Feint, JumpAttack, WeaponSkill, Aim, Downed, **Alchemy**.
+  - Requests: Stat, Gate, Sync, Party, Quest, Dialogue, Settings, Equip, HoldItem, CombatMode, Uppercut, Feint, JumpAttack, WeaponSkill, Aim, Downed, **Alchemy**, **SkillTree**.
+- **`AdminService` + `AdminConfig`:** the admin panel's server side. `Remotes.AdminRemote` (RemoteFunction): `"State"` and `"Run", Command, UserId, Arg`. Every call re-checks admin status; announcements and kick reasons are text-filtered; actions are logged (last 60) and printed. `AdminConfig` (group rank, UserIds, Studio) stays server-only. Admins get the `Player` attribute `RenseiAdmin`.
+- **`SlotAccount`:** save slots. Account DataStore `RenseiAccounts`, key `A<UserId>` = {Owned, Selected, Favorite, Receipts, Codes}; `ProfileKey(UserId)` = `Data<UserId>` for slot 1, `Data<UserId>_S<n>` otherwise (DataManager loads it).
+- **`SkillTreeService`:** Mastery node purchases and refunds (`Requests.SkillTree`); effects are read through `Managers.SkillMods` (`Mod_<Key>` attributes).
 - **`ServerScriptService.AppearanceService`:** builds the created look on every spawn (`ApplyIdentity`, called by CharacterHandler).
 - **`ServerScriptService.FlowService`:** start-flow routing (live: anyone not arriving through the flow goes to the menu) and the one-time intro cutscene (`IntroRemote` → `Modules.UI.IntroCutscene`).
 - **`Modules.Data.Rensei.Customization` / `Places`:** the creation registry (nations, palettes, face, outfits, hair, names, genders) and the place ids + `NextFor`. Copies of these live in the other places.
@@ -28,8 +32,11 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
 - **`ProgressionService`:** the only writer of stats, EXP, Mastery Points and Truth/Gate. Records hits (training), and writes the character multipliers PhysicalMultiplier, AlchemyMultiplier and SpeedMultiplier.
 - **`AlchemyService`:** alchemy casting (kinds: Projectile [Visual Fireball/AirSlash], Cone, Lunge, Phoenix, Counter, Melee, Trap, Nova, Burst, Tornado, Shield, Tracker, Thrust, Cleave; on-hit statuses via `ApplyOnHit`; windup = sheet Cast + CastDelay) (validation, meter, cooldown, clan rule, clap → slam → move prelude, projectiles, cone / lunge / phoenix). Burns go through `StatusManager`. Publishes the `Player` attribute `Affinity`.
 - **`EnemyService`:** PvE spawns (parts tagged `RenseiEnemySpawn`), Grunt/Elite AI using the players' combat rules.
+  - Each spawn rolls a look (`Customization.RandomLook`: nation, gender, outfit) and a weapon (`PickWeapon` from the creator's starting weapons; the spawn part's `Weapon` attribute overrides). Gunners hold 18 studs.
+  - `EnemyService.Spawn(Part)` is public (the admin panel uses it with an untagged part).
+- **`WorldService`:** areas, kill credit, and the combat lock: `InCombat`, plus for the combat-log badge `CombatUntil` (server time), `CombatBy`, `CombatVs`, `CombatHitAt` on player characters.
 - **`UIService`:** server → client UI events (Toast, LevelUp, Area, Party, Dialogue…).
-- **`PartyService`, `QuestService`, `WorldService`, `DialogueService`:** frameworks wired; quest and dialogue content are empty on purpose.
+- **`PartyService`, `QuestService`, `DialogueService`:** frameworks wired; quest and dialogue content are empty on purpose.
 - **`CharacterHandler`:** WCS server, dummies, DataManager.
 
 ## Shared managers — `ReplicatedStorage.Modules.Managers`
@@ -46,6 +53,8 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
 - **`CounterManager`:** reactive counters (Cryo Shift). `Open(Character, Duration, Handler)`; DamageManager hands the first non-UNBLOCKABLE hit to the handler and returns "Countered".
 - **`ShieldManager`:** damage-absorbing shields (Steel Guard): `Open(Character, {Duration, Absorb, Arc, OnAbsorb, OnBreak})`; DamageManager returns "Shielded".
 - **`DownedManager`:** all combat damage goes through `DownedManager.Damage`. Knocked state, Grip, Carry.
+  - Grip styles (`GripStyle`): Classic (paired), Stomp, Execution (armed); the gripper's `Massless`, WalkSpeed and JumpHeight are saved and restored.
+  - `DamageManager` also returns IFramed for a victim with `AdminGod`.
 - **`WeaponManager`:** weapon tools.
   - Server: grip Motor6Ds; HolsterWeld while holstered; draw/sheathe; guns; passives.
   - Client: hold, idle and carry poses; the holster↔hand blend.
@@ -71,6 +80,9 @@ Ye (placeId 106992859583940) started as a JJK-style WCS combat template with Ren
 - **`Managers.ClientActions`:** the action registry: ClientHandler and CombatModeUI register actions (Attack, Heavy, Block, Dash, Jump, AlchemyZ…), and keys and touch buttons both `Run(Name, Began)` them.
 - **`StarterPlayerScripts.UIHandler`:** boots `Modules.UI.*` (now including **MobileControls**).
   - HUDUI, PopupUI, PartyUI, DialogueUI, InventoryUI, SettingsUI (shift lock lives here), CombatModeUI, CooldownUI, **AlchemyUI**, StatsUI, LockOn, Fill. (The old HotbarUI was removed; the live hotbar is in HUDUI.)
+  - **MasteryUI** (K, the skill tree), **CombatLogUI** (in-combat badge), **AdminUI** (F2, admins only; built from the Settings panel's art).
+  - **UIMotion** is started last: menu open / close (`UIState` calls `Open` / `Close` / `Fade`), button hover and press, row pop-in (skipped for rows with the `NoPop` attribute), HUD2 popups, dialogue, HUD. Respects the player attributes `ReducedMotion` and `UISounds` (from Settings).
+  - `UIState.RegisterMenu(Name, Frame, OnOpen, AllowInCombat)`: menus are locked in combat unless `AllowInCombat`.
 - **`StarterGui.Uis`:** the rebuilt UI (HUD, HUD2, Stats, Inventory, Settings, Dialogue, Templates).
 
 ## Effects (ReFX) — `ReplicatedStorage.Modules.Effects`
