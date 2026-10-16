@@ -376,4 +376,48 @@ Dialogues.placeholder_npc = {
 	},
 }
 
+-- PLACEHOLDER (2026-10-16): the five alchemy trainers east of spawn (Workspace.World.NPCs["Alchemy
+-- Trainers"]), one per path, each beside a stand with their path's scroll from the Alchemist Assets.
+-- Names, nations and lines are placeholders until the owner writes them. Training isn't built: a
+-- trainer only describes their path (the move list comes from Rensei.Alchemy, so it stays current).
+-- DialogueIds: trainer_flame, trainer_ice, trainer_earth, trainer_wind, trainer_metal.
+do
+	local Alchemy = require(script.Parent.Alchemy)
+	for _, Path in ipairs(Alchemy.Affinities) do
+		local Moves = {}
+		for _, Move in ipairs(Alchemy.ForAffinity(Path) or {}) do
+			table.insert(Moves, type(Move) == "table" and Move.Name or tostring(Move))
+		end
+		local MoveList = #Moves > 1 and (table.concat(Moves, ", ", 1, #Moves - 1) .. " and " .. Moves[#Moves]) or (Moves[1] or "[moves]")
+		Dialogues["trainer_" .. Path:lower()] = {
+			Speaker = Path .. " Alchemist",
+			Start = "start",
+			Nodes = {
+				start = {
+					Text = ("[Placeholder greeting for the %s trainer. They teach %s alchemy. Replace with their opening line.]"):format(Path, Path),
+					Choices = {
+						{Text = ("\"What can %s alchemy do?\""):format(Path), Next = "path"},
+						{Text = "\"Will you train me?\"", Next = "train"},
+						{Text = "\"[Leave]\""},
+					},
+				},
+				path = {
+					Text = ("[Placeholder] The %s path: %s."):format(Path, MoveList),
+					Choices = {
+						{Text = "\"[Back]\"", Next = "start"},
+						{Text = "\"[Leave]\""},
+					},
+				},
+				train = {
+					Text = "[Placeholder: training isn't built yet. This is where the trainer will teach their path.]",
+					Choices = {
+						{Text = "\"[Back]\"", Next = "start"},
+						{Text = "\"[Leave]\""},
+					},
+				},
+			},
+		}
+	end
+end
+
 return Dialogues

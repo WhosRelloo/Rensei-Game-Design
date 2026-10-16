@@ -2,6 +2,39 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-16 — Alchemy trainer placeholders
+
+**Built (owner: "add alchemist trainer npc place holders with the in game asset we have"):** five placeholder trainers, one per alchemy path, in a row east of spawn with their backs to the east wall. Backup: `ServerStorage.RenseiBackups["Pre-Trainers_2026-10-16"]` (Dialogues; the NPCs are new).
+- **Where:** `Workspace.World.NPCs["Alchemy Trainers"]`, at x = 44 and z = −24 / −12 / 0 / 12 / 24 (Flame, Ice, Earth, Wind, Metal), facing spawn.
+- **Each trainer:**
+  - The same R6 rig as the Foundry NPCs, dressed by the nation-look system (`LookNation` / `LookGender` / `LookSeed`).
+  - A Talk prompt.
+  - Attributes `TrainerPath = <path>` and `Placeholder = true`.
+- **Scroll stands:** each trainer has a wooden stand at their front-right holding their path's scroll from `Assets["RELLO IMPORTED ASSETS"]["Alchemist Assets"]`:
+  - Flame Alchemy, Ice Alchemy and Earth Alchemy for those paths.
+  - Iron Alchemy for Metal.
+  - There's no Wind scroll in the assets, so Wind uses the plain scroll ("1").
+- **Dialogue** (`trainer_flame` … `trainer_metal`), generated in `Rensei.Dialogues` from `Rensei.Alchemy`, so the move lists stay current:
+  - a placeholder greeting;
+  - "What can <path> alchemy do?" lists the path's four moves;
+  - "Will you train me?" says training isn't built yet;
+  - Leave.
+- **PROPOSAL placeholders for the owner to replace:**
+  - Names ("Flame Alchemist", …).
+  - Nations: Flame Amestrian (M), Ice Drachman (F), Earth Aerugonian (M), Wind Xingnese (F), Metal Xerxian (M).
+  - All lines.
+- Trainers don't grant a path yet. Paths are still set from the admin panel (F2).
+
+**Tested (Studio Play):**
+- All five spawned dressed, with Talk prompts.
+- Each path's dialogue lists its real moves (Flame: Ignite, Scorching Wave, Inferno Lance, Phoenix Drive).
+- The Flame conversation ran start → moves → back → training → leave, through the prompt and the dialogue UI's own choice requests.
+- Console clean.
+
+**Not verified:**
+- How they look on screen: the Studio viewport captured blank this session.
+- Opening the prompt with a real E key press: injected keys didn't reach Studio, even on Lise.
+
 ## 2026-10-16 — Teleport + save audit
 
 **Asked:** "completely audit and fix the TP & data storage system". Covers all three places: Ye, Main Menu ("Character Customization") and Tutorial. Backups: `ServerStorage.RenseiBackups["Pre-TPData_2026-10-16"]` in each place.
