@@ -636,6 +636,14 @@ local function BuildLeaderboard()
 		HideCard()
 	end)
 
+	-- Tab shows / hides the board (not while typing: ContextActionService skips focused text boxes)
+	game:GetService("ContextActionService"):BindAction("RenseiLeaderboard", function(_, State)
+		if State ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
+		Root.Visible = not Root.Visible
+		if not Root.Visible then HideCard() end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.KeyCode.Tab)
+
 	Players.PlayerAdded:Connect(AddRow)
 	Players.PlayerRemoving:Connect(RemoveRow)
 	for _, P in ipairs(Players:GetPlayers()) do AddRow(P) end

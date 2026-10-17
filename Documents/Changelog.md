@@ -2,6 +2,16 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-17 — Leaderboard: Tab to show / hide
+
+**Changed (owner: "make it so were you can close and open the leaderboard with tab"):** **Tab** toggles the leaderboard (`HUDUI`, ContextActionService action `RenseiLeaderboard`).
+- **Starts:** shown.
+- **While typing:** nothing happens (ContextActionService skips focused text boxes).
+- **On hiding:** an open player card closes too.
+- **Other keys:** nothing else in the game uses Tab; Roblox's own player list is already disabled.
+
+**Tested (Studio Play):** two real Tab presses took the board from shown to hidden to shown, with no script errors.
+
 ## 2026-10-17 — Leaderboard: Nation instead of Clan
 
 **Changed (owner: "change clan with your nation you choose when creating your character"):**
