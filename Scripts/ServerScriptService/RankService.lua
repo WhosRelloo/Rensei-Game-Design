@@ -2,7 +2,8 @@
 -- Publish(Player) reads the server's copy of the save and writes read-only attributes on the Player:
 --   ProfileReady = true once the save has loaded (until then the leaderboard shows "Loading")
 --   Rank (1-4, earned), Title, RankStatus (the eligibility line), StateLicense (bool),
---   Clan (the clan's name from Rensei.Clans, or "" when the character has none)
+--   Nation (the nation picked in character creation, Identity.Origin, by its Customization name;
+--   "" before a character exists)
 -- "Level" is already published by ProgressionService.Sync, which calls Publish, so every save change
 -- that syncs (EXP, quests, flags, admin) updates the leaderboard. Attributes the server sets replicate
 -- to every client; a client can change its own local copy, but that never replicates, so it fools
@@ -15,7 +16,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local Ranks = require(ReplicatedStorage.Modules.Data.Rensei.Ranks)
-local Clans = require(ReplicatedStorage.Modules.Data.Rensei.Clans)
+local Nations = require(ReplicatedStorage.Modules.Data.Rensei.Customization).Nations
 local DataManager = require(ServerScriptService.CharacterHandler.DataManager)
 
 local RankService = {}
@@ -44,14 +45,14 @@ function RankService.Publish(Player)
 	if not Data or not Player.Parent then return end
 	local Flags = FlagsOf(Data)
 	local Rank, Status = Ranks.Evaluate(Data.Level, Flags)
-	local ClanId = type(Data.Identity) == "table" and Data.Identity.Clan or ""
-	local Clan = type(ClanId) == "string" and Clans.Roster[ClanId]
+	local NationId = type(Data.Identity) == "table" and Data.Identity.Origin or ""
+	local Nation = type(NationId) == "string" and Nations[NationId]
 	Set(Player, "Rank", Rank)
 	Set(Player, "Title", Ranks.List[Rank].Title)
 	Set(Player, "RankStatus", Status)
 	Set(Player, "StateLicense", Rank >= 2)
-	-- an id the roster doesn't know (a renamed clan) shows as saved, never as a made-up clan
-	Set(Player, "Clan", Clan and Clan.Name or (type(ClanId) == "string" and ClanId or ""))
+	-- an id the list doesn't know shows as saved, never as a made-up nation
+	Set(Player, "Nation", Nation and Nation.Name or (type(NationId) == "string" and NationId or ""))
 	Set(Player, "ProfileReady", true)
 end
 

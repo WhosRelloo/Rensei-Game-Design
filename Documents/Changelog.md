@@ -2,6 +2,19 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-17 — Leaderboard: Nation instead of Clan
+
+**Changed (owner: "change clan with your nation you choose when creating your character"):**
+- **Leaderboard column:** the fourth column is now **Nation**, the nation picked in character creation (`Identity.Origin`, shown by its `Rensei.Customization.Nations` name). It shows "None" before a character exists.
+- **Player card:** shows "Nation: …" in place of "Clan: …".
+- **`RankService.Publish`:** publishes a `Nation` attribute and no longer publishes `Clan`.
+- **Unchanged:** clans themselves (surname, rolls, the Marcoh rule) work as before; they're just not on the leaderboard.
+
+**Tested (Studio Play):**
+- The board header reads NATION, and the card line works.
+- The save slot loaded in Studio (slot 1) has no character, so it shows "None".
+- The character in slot 2 (Xingnese) wasn't loaded, so a real nation name was not seen on screen.
+
 ## 2026-10-17 — Leaderboard: Name, Level, Title, Clan + player card
 
 **Built (owner prompt: "Secure Roblox RPG Leaderboard Upgrade"; then "make the leaderboard ui off the ui asset we have in game"):**

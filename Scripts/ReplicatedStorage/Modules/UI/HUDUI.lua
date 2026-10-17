@@ -251,8 +251,9 @@ local function UpdateTargets()
 end
 
 -- ===== Leaderboard =====
--- Columns Name (the Roblox display name), Lv, Title (the earned alchemist rank), Clan. Hover a name,
--- or tap it on mobile, for a card: username, display name, level, title, clan, rank and promotion
+-- Columns Name (the Roblox display name), Lv, Title (the earned alchemist rank), Nation (picked in
+-- character creation). Hover a name, or tap it on mobile, for a card: username, display name, level,
+-- title, nation, rank and promotion
 -- status. Every value is an attribute the server sets on the Player (ProgressionService.Sync ->
 -- RankService.Publish); rows are keyed by the Player instance, never by a name, so two players
 -- with the same display name stay apart. Until a save has loaded (ProfileReady) the row says
@@ -275,7 +276,7 @@ local ART_ROW = "rbxassetid://117415375236383" -- Templates.LeaderEntry
 local ROW_H, HEAD_H, BANNER_H, MAX_ROWS = 24, 18, 28, 10
 local INSET = 0.05 -- keeps text clear of the row bar's end caps
 local COLUMNS = {{Key = "Name", Head = "Name", W = 0.34}, {Key = "Level", Head = "Lv", W = 0.1},
-	{Key = "Title", Head = "Title", W = 0.32}, {Key = "Clan", Head = "Clan", W = 0.24}}
+	{Key = "Title", Head = "Title", W = 0.32}, {Key = "Nation", Head = "Nation", W = 0.24}}
 
 local Board -- {Root, List, Scale, CardScale}
 local Rows = {} -- [Player] = {Frame, Art, Cells, Conn, NameConn}
@@ -333,14 +334,14 @@ end
 local function Info(P)
 	local Ready = P:GetAttribute("ProfileReady") == true
 	local Rank = Ready and tonumber(P:GetAttribute("Rank")) or nil
-	local Clan = Ready and P:GetAttribute("Clan") or nil
+	local Nation = Ready and P:GetAttribute("Nation") or nil
 	return {
 		Ready = Ready,
 		Name = P.DisplayName,
 		Level = Ready and tostring(P:GetAttribute("Level") or "?") or "...",
 		Rank = Rank,
 		Title = Ready and (P:GetAttribute("Title") or "?") or "Loading",
-		Clan = not Ready and "..." or ((Clan == nil or Clan == "") and "Unclanned" or Clan),
+		Nation = not Ready and "..." or ((Nation == nil or Nation == "") and "None" or Nation),
 		Status = Ready and P:GetAttribute("RankStatus") or nil,
 		License = Ready and P:GetAttribute("StateLicense") == true,
 	}
@@ -379,7 +380,7 @@ local function FillCard()
 	end
 	CardLine(4, "Level: " .. I.Level)
 	CardLine(5, "Title: " .. I.Title, RANK_COLORS[I.Rank] or LB_TEXT)
-	CardLine(6, "Clan: " .. I.Clan)
+	CardLine(6, "Nation: " .. I.Nation)
 	local Def = I.Rank and Ranks.List[I.Rank]
 	if Def then
 		CardLine(7, ("Rank: %d - %s"):format(Def.Rank, Def.Title), RANK_COLORS[Def.Rank])
@@ -485,8 +486,8 @@ local function DrawLeaderboard()
 			Row.Cells.Level.Text = I.Level
 			Row.Cells.Title.Text = I.Title
 			Row.Cells.Title.TextColor3 = I.Ready and (RANK_COLORS[I.Rank] or LB_TEXT) or LB_DIM
-			Row.Cells.Clan.Text = I.Clan
-			Row.Cells.Clan.TextColor3 = (I.Ready and I.Clan ~= "Unclanned") and LB_TEXT or LB_DIM
+			Row.Cells.Nation.Text = I.Nation
+			Row.Cells.Nation.TextColor3 = (I.Ready and I.Nation ~= "None") and LB_TEXT or LB_DIM
 		end
 	end
 	local Shown = math.min(#List, MAX_ROWS)
