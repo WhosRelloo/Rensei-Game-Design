@@ -251,8 +251,8 @@ local function UpdateTargets()
 end
 
 -- ===== Leaderboard =====
--- Columns Name (the Roblox display name), Lv, Title (the earned alchemist rank), Nation (picked in
--- character creation). Hover a name, or tap it on mobile, for a card: username, display name, level,
+-- Columns Name (the Roblox display name), Title (the earned alchemist rank), Nation (picked in
+-- character creation); the level is on the card only, though rows still sort by it. Hover a name, or tap it on mobile, for a card: username, display name, level,
 -- title, nation, rank and promotion
 -- status. Every value is an attribute the server sets on the Player (ProgressionService.Sync ->
 -- RankService.Publish); rows are keyed by the Player instance, never by a name, so two players
@@ -275,8 +275,8 @@ local ART_PANEL = "rbxassetid://119335349346175" -- HUD.Server.main
 local ART_ROW = "rbxassetid://117415375236383" -- Templates.LeaderEntry
 local ROW_H, HEAD_H, BANNER_H, MAX_ROWS = 24, 18, 28, 10
 local INSET = 0.05 -- keeps text clear of the row bar's end caps
-local COLUMNS = {{Key = "Name", Head = "Name", W = 0.34}, {Key = "Level", Head = "Lv", W = 0.1},
-	{Key = "Title", Head = "Title", W = 0.32}, {Key = "Nation", Head = "Nation", W = 0.24}}
+local COLUMNS = {{Key = "Name", Head = "Name", W = 0.38},
+	{Key = "Title", Head = "Title", W = 0.36}, {Key = "Nation", Head = "Nation", W = 0.26}}
 
 local Board -- {Root, List, Scale, CardScale}
 local Rows = {} -- [Player] = {Frame, Art, Cells, Conn, NameConn}
@@ -483,7 +483,6 @@ local function DrawLeaderboard()
 			local I = Info(P)
 			Row.Frame.LayoutOrder = Order
 			Row.Cells.Name.Text = I.Name
-			Row.Cells.Level.Text = I.Level
 			Row.Cells.Title.Text = I.Title
 			Row.Cells.Title.TextColor3 = I.Ready and (RANK_COLORS[I.Rank] or LB_TEXT) or LB_DIM
 			Row.Cells.Nation.Text = I.Nation

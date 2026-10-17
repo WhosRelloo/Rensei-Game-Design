@@ -67,3 +67,5 @@ Leaderboard export (2026-10-17): every script the leaderboard upgrade added or c
 Nation column (2026-10-17): RankService and HUDUI re-exported.
 
 Tab toggle (2026-10-17): HUDUI re-exported.
+
+Level column removed (2026-10-17): HUDUI re-exported.

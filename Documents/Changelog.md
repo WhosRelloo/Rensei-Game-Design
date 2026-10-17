@@ -2,6 +2,14 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-17 — Leaderboard: level column removed
+
+**Changed (owner: "remove level from the leaderboard"):** the board now has three columns: Name, Title, Nation (`HUDUI`).
+- **Level:** still shown on the hover / tap player card.
+- **Sorting:** rows still sort by level, highest first.
+
+**Tested (Studio Play):** the header reads NAME, TITLE, NATION and the row fills the three columns, with no script errors.
+
 ## 2026-10-17 — Leaderboard: Tab to show / hide
 
 **Changed (owner: "make it so were you can close and open the leaderboard with tab"):** **Tab** toggles the leaderboard (`HUDUI`, ContextActionService action `RenseiLeaderboard`).
