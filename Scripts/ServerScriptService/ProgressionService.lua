@@ -32,6 +32,8 @@ local function Sync(Player)
 	if Profile then
 		-- Public, read-only mirrors other clients need (leaderboard).
 		Player:SetAttribute("Level", Profile.Data.Level)
+		-- rank, title, clan (RankService; the leaderboard reads these)
+		require(ServerScriptService.RankService).Publish(Player)
 		DataManager:SendData(Player)
 	end
 end

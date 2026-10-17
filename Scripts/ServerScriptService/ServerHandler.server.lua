@@ -91,4 +91,5 @@ require(ServerScriptService.MinigameService).Start() -- Pressure Board, Array Re
 require(ServerScriptService.MoralityService).Start() -- deeds ledger: conduct, standing, trust, renown
 require(ServerScriptService.TrialService).Start() -- alchemy trials (RenseiTrial arenas)
 require(ServerScriptService.TrainingService).Start() -- trainer lessons / exercises (mastery training)
+require(ServerScriptService.RankService).Start() -- public rank / title / clan for the leaderboard
 script:SetAttribute("Started", os.time())

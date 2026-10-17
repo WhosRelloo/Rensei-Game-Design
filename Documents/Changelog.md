@@ -2,6 +2,52 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-17 — Leaderboard: Name, Level, Title, Clan + player card
+
+**Built (owner prompt: "Secure Roblox RPG Leaderboard Upgrade"; then "make the leaderboard ui off the ui asset we have in game"):**
+Backup: `ServerStorage.RenseiBackups["Pre-Leaderboard_2026-10-17"]` (HUDUI, ProgressionService, AdminService, AdminUI, ServerHandler).
+- **Columns:** Name (Roblox display name), Lv, Title (earned alchemist rank), Clan ("Unclanned" when none).
+- **Sorting:** level, then rank, then display name, then UserId.
+- **Updates:** event-driven from attribute changes; the old 1 s polling loop no longer drives the board.
+- **Scrolling:** after 10 rows.
+- **Your own row:** tinted gold.
+- **Art:** the game's own HUD pieces:
+  - the Server Info header banner ("PLAYERS"),
+  - the Server Info panel,
+  - the `LeaderEntry` row bar behind each row.
+- **Player card:**
+  - Hover a name (or tap it on mobile) for the card: @username, display name, level, title, clan, rank 1–4 with its description, license status, and the next-rank / eligibility line.
+  - A click or tap pins the card; a click or tap elsewhere closes it.
+  - A short grace period stops it flickering between the name and the card.
+  - The card closes if that player leaves.
+- **Ranks** (`Rensei.Ranks`, `RankService`, server-authoritative):
+  - Apprentice 1–5.
+  - State Alchemist 6–10: needs the `StateLicense` flag. Reaching level 6 alone only makes you eligible.
+  - Master Alchemist 11–15: needs `Promotion_Master` and rank 2.
+  - Philosopher's Tier 16–20: WIP, never granted.
+  - Promotions are Story flags that only the server sets, checked for level and order.
+  - `RankService.Publish` runs from `ProgressionService.Sync` and on join, and writes the read-only Player attributes `Rank`, `Title`, `RankStatus`, `StateLicense`, `Clan` and `ProfileReady`.
+  - No new remotes.
+- **Clan:** the existing system (`Identity.Clan`, `Rensei.Clans`).
+- **Admin panel:** a new `SetRank` command (1–3, server-checked) with a Rank row under Alchemy, for testing.
+- PROPOSAL: the flag names. No quest grants the License or the Master promotion yet.
+
+**Tested (Studio Play, one client):**
+- Level 1 can't be promoted; level 6 without the license stays Apprentice and shows "Eligible…".
+- License → State Alchemist. A repeat grant is refused, and skipping straight to rank 3 is refused.
+- Level 11 + promotion → Master Alchemist.
+- Level 16 shows "not open yet (WIP)", and rank 4 can't be granted.
+- Clan shows "Unclanned", then "Hawkeye".
+- A level change updates the row live.
+- Hover, hover onto the card, leave, click-pin, and click-away all behave as described.
+- Loading state shows "Loading".
+- A client rewriting its own attributes changes only its own screen; the server's values are unchanged.
+- The save was snapshotted and restored.
+
+**Not tested:**
+- Multiple real clients: duplicate display names, equal levels, a player leaving with their card open, other clients' views.
+- Touch on a real phone.
+
 ## 2026-10-17 — Alchemy acquisition & mastery questlines
 
 **Built (owner prompt: "RENSEI — ALCHEMY ACQUISITION & MASTERY QUESTLINES"):** a questline per alchemy path that grants the path, plus practice with the trainer afterwards. Design, decisions and test table: `Documents/Alchemy Acquisition and Mastery.md`. Backup: `ServerStorage.RenseiBackups["Pre-AlchemyQuests_2026-10-16"]`.

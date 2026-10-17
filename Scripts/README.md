@@ -51,8 +51,15 @@ Paths mirror the Studio tree (`Scripts/ServerScriptService/MinigameService.lua` 
 | `ServerScriptService/ServerHandler.server.lua` | `ServerScriptService.ServerHandler` | 2026-10-17 |
 | `ServerScriptService/TrainingService.lua` | `ServerScriptService.TrainingService` | 2026-10-17 |
 | `ServerScriptService/TrialService.lua` | `ServerScriptService.TrialService` | 2026-10-17 |
+| `ReplicatedStorage/Modules/Data/Rensei/Ranks.lua` | `ReplicatedStorage.Modules.Data.Rensei.Ranks` | 2026-10-17 |
+| `ReplicatedStorage/Modules/UI/AdminUI.lua` | `ReplicatedStorage.Modules.UI.AdminUI` | 2026-10-17 |
+| `ReplicatedStorage/Modules/UI/HUDUI.lua` | `ReplicatedStorage.Modules.UI.HUDUI` | 2026-10-17 |
+| `ServerScriptService/AdminService.lua` | `ServerScriptService.AdminService` | 2026-10-17 |
+| `ServerScriptService/RankService.lua` | `ServerScriptService.RankService` | 2026-10-17 |
 
 Exports so far (all 2026-10-16): the scripts touched by the Assay Bench / Ledger Cipher work, the stuck-dialogue fix (DialogueService, DialogueUI) the morality slice with every engine script it changed, and the emote wheel (see `Documents/Changelog.md`). Each file is byte-identical to the Studio source at the time of export, except `DataManager.lua`: one line names a specific player for a test reset, and that name is replaced with `<redacted>` because this repository is public.
 
 
 Alchemy questline export (2026-10-17): every script the acquisition & mastery questlines added or changed; see the 2026-10-17 changelog entry.
+
+Leaderboard export (2026-10-17): every script the leaderboard upgrade added or changed; see the changelog entry.
