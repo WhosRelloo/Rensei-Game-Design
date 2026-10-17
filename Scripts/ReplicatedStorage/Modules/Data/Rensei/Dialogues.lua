@@ -420,4 +420,301 @@ do
 	end
 end
 
+-- Flame trainer: Calda (PROPOSAL name and lines). Acquisition questline acq_flame, then mentor practice
+-- (TrainingService). Starts are checked top to bottom; the first that passes opens the conversation.
+do
+	local function At(N) return {Quest = {Id = "acq_flame", Is = "Active", Stage = N}} end
+	local Leave = {Text = "\"That's all.\""}
+	local Back = {Text = "\"Something else.\"", Next = "menu_back"}
+	Dialogues.trainer_flame = {
+		Speaker = "Calda, Flame Alchemist",
+		Start = "start",
+		Starts = {
+			{Requires = {SavedAffinity = "Flame"}, Node = "mentor"},
+			{Requires = {SavedAffinity = {"Ice", "Earth", "Wind", "Metal"}}, Node = "other"},
+			{Requires = At(6), Node = "recognize"},
+			{Requires = At(5), Node = "exam"},
+			{Requires = At(4), Node = "trial"},
+			{Requires = At(3), Node = "experiment"},
+			{Requires = At(2), Node = "fieldwork"},
+			{Requires = At(1), Node = "sent"},
+			{Requires = {Quest = {Id = "acq_ice", Is = "Active"}}, Node = "busy"},
+			{Requires = {Quest = {Id = "acq_earth", Is = "Active"}}, Node = "busy"},
+			{Requires = {Quest = {Id = "acq_wind", Is = "Active"}}, Node = "busy"},
+			{Requires = {Quest = {Id = "acq_metal", Is = "Active"}}, Node = "busy"},
+		},
+		Nodes = {
+			-- Act I: the invitation
+			start = {
+				Text = "You want fire. Everyone who comes to me wants fire. [She snaps; a flame blooms in her palm and stops dead a finger's width from the paper beside it.] That stop is the lesson. Most never learn it.",
+				Choices = {
+					{Text = "\"Teach me.\"", Next = "demo"},
+					{Text = "\"Who are you?\"", Next = "who"},
+					Leave,
+				},
+			},
+			who = {
+				Text = "Calda. State-licensed, Flame. I teach control, not spectacle. If you want spectacle, go watch a festival.",
+				Choices = {{Text = "\"Teach me, then.\"", Next = "demo"}, Leave},
+			},
+			demo = {
+				Text = "Then learn what happens without it. My last apprentice burned out the laboratory east of here. Go and tell me why it burned. And don't tell me 'too much fire'.",
+				Choices = {
+					{Text = "\"I'll find out.\"", Action = {Kind = "StartQuest", Quest = "acq_flame"}, Requires = {NoAffinity = true}, Show = "Locked"},
+					{Text = "\"Not yet.\""},
+				},
+			},
+			sent = {
+				Text = "The laboratory is east of here, past the wall. Look at it the way you'd look at evidence, not a ruin.",
+				Choices = {Leave},
+			},
+			-- Act II: fieldwork
+			fieldwork = {
+				Text = "Well? What burned it?",
+				Alt = {{Requires = {Evidence = {"burn_pattern", "open_vent", "flash_powder"}}, Text = "You've seen it all. Now put it together - on your Case Board, not in my ear. What fed it, where it went, what made it a disaster."}},
+				Choices = {
+					{Text = "\"Where do I start?\"", Next = "hint_field"},
+					{Text = "\"I found Corin's log.\"", Next = "corin", Requires = {Evidence = "corin_log"}},
+					Leave,
+				},
+			},
+			hint_field = {
+				Text = "Fire leaves a record. Where it began, where it went, and what it found on the way. Read the floor, the wall, the shelf.",
+				Choices = {{Text = "\"Something else.\"", Next = "fieldwork"}, Leave},
+			},
+			corin = {
+				Text = "\"Patience is for Ice students.\" [A long breath.] He understood every word I ever said to him, and not one thing it meant.",
+				Choices = {{Text = "\"Something else.\"", Next = "fieldwork"}, Leave},
+			},
+			-- Act III: experimentation
+			experiment = {
+				Text = "So you know why it burned. Now prove you can keep it from burning. The lab's chamber still works. Bring it to one clean flame.",
+				Choices = {{Text = "\"Any advice?\"", Next = "hint_chamber"}, Leave},
+			},
+			hint_chamber = {
+				Text = "Heat climbs on its own, even when you hold. Air is what you truly control. Close the vent too late and it flares; too early and it chokes.",
+				Choices = {Leave},
+			},
+			-- Act IV: the trial
+			trial = {
+				Text = "Corin came back. He's in the ash pit south of the lab, burning anything that moves. He's strong. He's also reckless.",
+				Choices = {{Text = "\"How do I beat him?\"", Next = "hint_trial"}, Leave},
+			},
+			hint_trial = {
+				Text = "Don't trade blows while he's composed - he'll catch you. Every blaze costs him; that's your opening. And fire doesn't care whose it is.",
+				Choices = {Leave},
+			},
+			-- Act V: the examination and recognition
+			exam = {
+				Text = "Corin's done, then. [She looks at you a long moment.] My plate, then. Light the reaction and keep the specimen whole. I'll be watching the specimen, not the flame.",
+				Choices = {
+					{Text = "\"I'm ready for the examination.\"", Action = {Kind = "StartMinigame", Minigame = "flame_exam"}},
+					{Text = "\"Why the specimen?\"", Next = "hint_exam"},
+					Leave,
+				},
+			},
+			hint_exam = {
+				Text = "Because anyone can make fire. The question is what you didn't burn. Narrow bands, little margin. Count your turns.",
+				Choices = {Leave},
+			},
+			recognize = {
+				Text = "The specimen isn't even warm. [She nods once.] You understood it. Fire is a decision, not a feeling. From today, you're mine to teach.",
+				Choices = {{Text = "\"I'm ready.\"", Action = {Kind = "Signal", Target = "acq_flame_recognized"}}},
+			},
+			-- after acquisition: the mentor (TrainingService)
+			mentor = {
+				Text = "Student. What will it be?",
+				Choices = {
+					{Text = "\"A lesson.\" (Reaction Drill, once a day)", Action = {Kind = "Lesson", Lesson = "flame_lesson"}},
+					{Text = "\"Breath control.\" (Exercise)", Action = {Kind = "Exercise", Exercise = "flame_exercise"}},
+					{Text = "\"The research.\"", Next = "archive"},
+					{Text = "\"How far can you take me?\"", Next = "gate"},
+					Leave,
+				},
+			},
+			menu_back = {Text = "What else?", Choices = {{Text = "\"Back.\"", Next = "mentor"}, Leave}},
+			archive = {
+				Text = "You left that laboratory with only what you needed. Some students go back for the rest.",
+				Alt = {{Requires = {Evidence = "corin_log"}, Text = "Corin's log is still on my desk. Read it whenever you feel impatient. It's the best lesson he ever gave anyone."}},
+				Choices = {Back},
+			},
+			gate = {
+				Text = "Until you've faced the Gate, your mastery has a ceiling. I can sharpen you right up to it. I can't open it for you.",
+				Choices = {Back},
+			},
+			other = {
+				Text = "You already walk another path. I don't take students who are halfway out the door. [Almost a smile.] You're welcome to listen, though.",
+				Choices = {{Text = "\"Tell me about fire.\"", Next = "who"}, Leave},
+			},
+			busy = {
+				Text = "You're halfway through another master's teaching. Finish what you started. Then we'll see.",
+				Choices = {Leave},
+			},
+		},
+	}
+end
+
+-- Ice, Earth, Wind and Metal trainers (PROPOSAL names and lines): the same structure as Calda's above
+-- (acquisition questline acq_<path>, then mentor practice), each with its own voice and content.
+do
+	local function Trainer(T)
+		local Q = "acq_" .. T.Id
+		local function At(N) return {Quest = {Id = Q, Is = "Active", Stage = N}} end
+		local Leave = {Text = T.Leave or "\"That's all.\""}
+		local Back = {Text = "\"Something else.\"", Next = "menu_back"}
+		local Others = {}
+		for _, P in ipairs({"Flame", "Ice", "Earth", "Wind", "Metal"}) do if P ~= T.Path then table.insert(Others, P) end end
+		local Starts = {
+			{Requires = {SavedAffinity = T.Path}, Node = "mentor"},
+			{Requires = {SavedAffinity = Others}, Node = "other"},
+			{Requires = At(6), Node = "recognize"}, {Requires = At(5), Node = "exam"}, {Requires = At(4), Node = "trial"},
+			{Requires = At(3), Node = "experiment"}, {Requires = At(2), Node = "fieldwork"}, {Requires = At(1), Node = "sent"},
+		}
+		for _, P in ipairs({"flame", "ice", "earth", "wind", "metal"}) do
+			if P ~= T.Id then table.insert(Starts, {Requires = {Quest = {Id = "acq_" .. P, Is = "Active"}}, Node = "busy"}) end
+		end
+		local L = T.Lines
+		Dialogues["trainer_" .. T.Id] = {
+			Speaker = T.Speaker, Start = "start", Starts = Starts,
+			Nodes = {
+				start = {Text = L.start, Choices = {{Text = "\"Teach me.\"", Next = "demo"}, {Text = "\"Who are you?\"", Next = "who"}, Leave}},
+				who = {Text = L.who, Choices = {{Text = "\"Teach me, then.\"", Next = "demo"}, Leave}},
+				demo = {Text = L.demo, Choices = {
+					{Text = "\"I'll go.\"", Action = {Kind = "StartQuest", Quest = Q}, Requires = {NoAffinity = true}, Show = "Locked"},
+					{Text = "\"Not yet.\""},
+				}},
+				sent = {Text = L.sent, Choices = {Leave}},
+				fieldwork = {Text = L.fieldwork, Alt = {{Requires = {Evidence = T.Clues}, Text = L.fieldwork_all}},
+					Choices = {{Text = "\"Where do I start?\"", Next = "hint_field"}, {Text = L.note_ask, Next = "note", Requires = {Evidence = T.Note}}, Leave}},
+				hint_field = {Text = L.hint_field, Choices = {{Text = "\"Something else.\"", Next = "fieldwork"}, Leave}},
+				note = {Text = L.note, Choices = {{Text = "\"Something else.\"", Next = "fieldwork"}, Leave}},
+				experiment = {Text = L.experiment, Choices = {{Text = "\"Any advice?\"", Next = "hint_experiment"}, Leave}},
+				hint_experiment = {Text = L.hint_experiment, Choices = {Leave}},
+				trial = {Text = L.trial, Choices = {{Text = "\"How do I win?\"", Next = "hint_trial"}, Leave}},
+				hint_trial = {Text = L.hint_trial, Choices = {Leave}},
+				exam = {Text = L.exam, Choices = {
+					{Text = "\"I'm ready for the examination.\"", Action = {Kind = "StartMinigame", Minigame = T.Exam}},
+					{Text = "\"What are you looking for?\"", Next = "hint_exam"}, Leave}},
+				hint_exam = {Text = L.hint_exam, Choices = {Leave}},
+				recognize = {Text = L.recognize, Choices = {{Text = "\"I'm ready.\"", Action = {Kind = "Signal", Target = Q .. "_recognized"}}}},
+				mentor = {Text = L.mentor, Choices = {
+					{Text = ("\"A lesson.\" (%s, once a day)"):format(T.LessonTitle), Action = {Kind = "Lesson", Lesson = T.Id .. "_lesson"}},
+					{Text = ("\"%s.\" (Exercise)"):format(T.ExerciseTitle), Action = {Kind = "Exercise", Exercise = T.Id .. "_exercise"}},
+					{Text = "\"The research.\"", Next = "archive"},
+					{Text = "\"How far can you take me?\"", Next = "gate"},
+					Leave}},
+				menu_back = {Text = "What else?", Choices = {{Text = "\"Back.\"", Next = "mentor"}, Leave}},
+				archive = {Text = L.archive, Alt = {{Requires = {Evidence = T.Note}, Text = L.archive_note}}, Choices = {Back}},
+				gate = {Text = L.gate, Choices = {Back}},
+				other = {Text = L.other, Choices = {{Text = "\"Tell me about your path.\"", Next = "who"}, Leave}},
+				busy = {Text = L.busy, Choices = {Leave}},
+			},
+		}
+	end
+
+	Trainer({Id = "ice", Path = "Ice", Speaker = "Veyra, Ice Alchemist", Exam = "ice_exam", LessonTitle = "Phase Drill", ExerciseTitle = "Stillness",
+		Clues = {"uneven_ice", "frozen_channels", "frost_cycles"}, Note = "maren_notes", Lines = {
+		start = "[She doesn't look up from the frost she's tracing on the stone.] You came quietly. Good. Most people arrive talking.",
+		who = "Veyra. Ice. I study what holds still, and why. Things that look frozen rarely are.",
+		demo = "A colleague of mine, Maren, ran a research station west of here. It froze, and she hasn't come back. Go and look. Don't touch anything until you understand it.",
+		sent = "The station is west, past the hill. Look before you act. Then look again.",
+		fieldwork = "What have you seen?",
+		fieldwork_all = "You've seen enough to answer. Put it together on your Case Board. Where did the cold come from, how did it move, and why didn't it stop?",
+		hint_field = "Ice remembers. Read where it's thick and where it's thin, which way the water froze, and how many times.",
+		note_ask = "\"I found Maren's notes.\"",
+		note = "[A long silence.] Then she knew the guardian was there, and stayed anyway. That was Maren.",
+		experiment = "The station's pumps hold the cold in balance. Restore them. Ice spreads; meltwater runs back. Learn which way before you try.",
+		hint_experiment = "Freezing a pipe frosts the one after it. Thawing one melts the one before. Three frozen together will crack. Plan, then act.",
+		trial = "The guardian Maren wrote of is awake, in the frozen chamber south of the station. It isn't evil. It's doing its work too well.",
+		hint_trial = "Its shell turns your blows. Watch it: after it sheds frost, the shell cracks. That is when you strike. Not before.",
+		exam = "[She sets seven glass pipes on the stone.] The same principle, with no room for error. I'll be watching how long you wait before your first move.",
+		hint_exam = "Patience. Count the moves backwards from what you need, and the answer usually shows itself.",
+		recognize = "You waited. You looked. Then you acted, once, correctly. [She almost smiles.] Stillness is not the absence of motion. It's the absence of waste.",
+		mentor = "Sit. What do you want to practise?",
+		archive = "You found what you needed at the station, and no more. Some students go back.",
+		archive_note = "Maren's notes are with me now. Read them when you're tempted to rush. She didn't, and she still lost.",
+		gate = "I can teach you to be still. I can't teach you what the Gate wants. That, you face alone.",
+		other = "You already practise another discipline. [She turns back to her frost.] You may watch. Watching is never wasted.",
+		busy = "You're learning from someone else. Finish it. Half an education is worse than none.",
+	}})
+
+	Trainer({Id = "earth", Path = "Earth", Speaker = "Holt, Earth Alchemist", Exam = "earth_exam", LessonTitle = "Load Drill", ExerciseTitle = "Groundwork",
+		Clues = {"stress_cracks", "hollow_pier", "washed_soil"}, Note = "survey_report", Lines = {
+		start = "[He's crouched, palm flat on the ground.] Feel that? No. Nobody does, first time. That's the problem with most Earth students: they want to move it before they've felt it.",
+		who = "Holt. Earth. I build things that stay up. That's less glamorous than it sounds and more important.",
+		demo = "There's a footbridge north-west of here the village needs. It's cracking. Go and find out why - and don't you dare try to fix it first.",
+		sent = "The footbridge is north-west, over the dry ditch. Look at what's holding it up, not at what's falling.",
+		fieldwork = "Well. Why's it failing?",
+		fieldwork_all = "You've got the pieces. Lay them out on your Case Board. Where did the weight go, what gave, and what made it worse?",
+		hint_field = "Cracks point at the cause. A pier that rings hollow is lying to you. And always look at what's under the footing.",
+		note_ask = "\"There was a survey report.\"",
+		note = "\"Recommend inspection.\" [He laughs without humor.] Somebody wrote the right answer and nobody read it. That's how most bridges fall.",
+		experiment = "Now show me where the supports should go. Use the survey table. Read the loads. Read the ground. Then place.",
+		hint_experiment = "Every load goes to its nearest support. Soft ground takes nothing. Start with the heaviest loads and work out.",
+		trial = "Someone's tearing up the quarry west of the bridge. Dask. Used to work for me. He thinks strength is the same as understanding.",
+		hint_trial = "He'll break the ground under you. Watch for the ring. Stand close to him or well away - the band between is where it breaks. After every tremor he's rooted. That's your moment.",
+		exam = "[He sets out a heavier model.] Same idea. Less room. I want every support carrying exactly what it can and not an ounce more.",
+		hint_exam = "A tie splits a load. Sometimes the right place for a support is between two heavy loads, not under one.",
+		recognize = "It held. [He pushes on the model. It doesn't move.] You understood it before you changed it. That's the whole discipline.",
+		mentor = "What'll it be?",
+		archive = "You read that bridge well enough. There's more out there, if you look.",
+		archive_note = "That survey report's pinned over my bench now. Reminds me to read what's in front of me.",
+		gate = "I can make you solid. The Gate's another matter. It weighs you differently.",
+		other = "You've already got a discipline. I won't split your foundations. [He shrugs.] But stick around, if you like.",
+		busy = "You're halfway through someone else's teaching. Finish that first. Half a foundation's worse than none.",
+	}})
+
+	Trainer({Id = "wind", Path = "Wind", Speaker = "Ansel, Wind Alchemist", Exam = "wind_exam", LessonTitle = "Pressure Drill", ExerciseTitle = "Core Hold",
+		Clues = {"still_flags", "dust_lines", "closed_vents"}, Note = "pressure_log", Lines = {
+		start = "Can you see the wind? [He waits.] No? Then how do you know it's there? [He waits again.] That's the first lesson. You'll find the rest yourself.",
+		who = "Ansel. Wind. I teach people to see what can't be seen, by what it leaves behind.",
+		demo = "There's an observatory north-east of here. Its machines stopped. I know why. Do you? Go and find out. I'm not going to tell you.",
+		sent = "The observatory's north-east. Don't look for the wind. Look for what it moved.",
+		fieldwork = "And? What did the air tell you?",
+		fieldwork_all = "You've read it. Now say it - on your Case Board. Where does the air come in, where did it leave, and why did it stop leaving?",
+		hint_field = "What still moves? What's lying in lines? What was closed that should be open? Those are three questions, not one.",
+		note_ask = "\"There's a pressure log.\"",
+		note = "\"Siv disagrees.\" [He smiles faintly.] She did. Loudly. She was right, and it didn't help her.",
+		experiment = "Now route it. The manifold still works. Every vent needs exactly the pressure it needs. What does a valve do to the vents below it?",
+		hint_experiment = "A valve sends everything left, everything right, or splits it. Start at the vents that need nothing. What does that tell you?",
+		trial = "Siv's on the gale floor east of the observatory. She thinks I'm wrong about everything. Go and prove her wrong about you.",
+		hint_trial = "The lanes show where the gusts will run. Step across a lane, never along it. After every gust, she's catching her breath.",
+		exam = "[He hands you a wider schematic.] Seven valves. Eight vents. Every reading exact. Why exact? You tell me.",
+		hint_exam = "Split twice and a vent gets a quarter. Which vents need quarters? Start there.",
+		recognize = "You didn't guess once. [He nods slowly.] You can't see it. You don't need to. That's Wind.",
+		mentor = "Well? What are we testing today?",
+		archive = "You found what you needed at the observatory. Did you find everything? Hm.",
+		archive_note = "Siv's pressure log. I keep it. Every number in it is a question someone didn't ask in time.",
+		gate = "How far can I take you? Up to the Gate. What's past it? [He smiles.] Good question. Keep it.",
+		other = "You already walk another path. Why would you want mine too? [A pause.] That's a real question, by the way.",
+		busy = "You're studying with someone else. Finish. Then come back and tell me what you learned. I'll ask questions.",
+	}})
+
+	Trainer({Id = "metal", Path = "Metal", Speaker = "Brannoc, Metal Alchemist", Exam = "metal_exam", LessonTitle = "Material Drill", ExerciseTitle = "Forge Cadence",
+		Clues = {"sheared_shaft", "sample_rack", "bad_weld"}, Note = "experiment_record", Lines = {
+		start = "[He doesn't stop filing.] Strength is cheap. Precision isn't. If you came for strength, the Foundry's hiring.",
+		who = "Brannoc. Metal. I shape what others break. I don't waste stock, and I don't waste words.",
+		demo = "There's a forge east of the Foundry Yard. Went cold mid-shift. Find out why. Touch nothing until you can tell me what failed and why.",
+		sent = "East of the Foundry Yard. Look at the break, the stock and the repair. In that order.",
+		fieldwork = "Report.",
+		fieldwork_all = "You've seen it all. Write it up on your Case Board. What broke, why, and why the repair failed.",
+		hint_field = "A break tells you how it failed. The stock tells you why. A bad repair tells you who was in a hurry.",
+		note_ask = "\"There was a workshop record.\"",
+		note = "\"It moves. It shouldn't.\" [He sets the file down for the first time.] No. It shouldn't.",
+		experiment = "New parts. The bench has stock. Choose right. One piece of each. No second tries on material.",
+		hint_experiment = "Find the part only one material can satisfy. Start there. The rest follows.",
+		trial = "The experiment from that record is on the forge floor east of the workshop. Armored. Don't hit the armor. Hit the joints.",
+		hint_trial = "Its plating turns your blows. After every cleave it vents and the joints open - they glow. Strike then. Stand off the marked lines.",
+		exam = "[He sets out six bars of stock and four drawings.] Same principle. More parts. Same rule: no waste.",
+		hint_exam = "An 'at most' rules out more than an 'at least'. Use it.",
+		recognize = "[He turns the piece over twice, then sets it down.] Acceptable. [A pause.] From me, that means good. You'll do.",
+		mentor = "Work.",
+		archive = "You found what you needed. Thoroughness would have found more.",
+		archive_note = "The workshop record's in my drawer. I read it when I'm tempted to cut corners.",
+		gate = "I can make you precise. The Gate isn't a material. I can't shape it for you.",
+		other = "You already have a discipline. I don't take half-students. [He goes back to filing.]",
+		busy = "You're mid-way through someone else's teaching. Finish the job.",
+	}})
+end
+
 return Dialogues

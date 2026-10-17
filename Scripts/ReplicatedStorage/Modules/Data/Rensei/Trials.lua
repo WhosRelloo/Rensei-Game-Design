@@ -1,0 +1,80 @@
+-- Alchemy trials (TrialService). Act IV of each acquisition questline. All numbers PROPOSALS; names and
+-- lines are placeholders for the owner to rewrite.
+--   [TrialId] = {
+--     Title, Path, Requires (StoryLogic; checked when the run starts), Locked (line when not met),
+--     Foe = TuningConfig.Enemies type, Nation (look), Weapon ("" = fists, nil = random starting weapon),
+--     FoeDistance (studs from the arena marker, along its front), Radius (arena), TimeLimit (s),
+--     FirstHazard (s before the first wave),
+--     Hazard = {Kind = "Flame" | "Ice" | "Earth" | "Wind" | "Metal", Every = {min, max} (s between waves),
+--       Count, Warn (telegraph seconds), Radius / Length + Width, Damage, Status, StatusTime,
+--       FoeMult (how much of it the foe takes when caught), Linger / LingerDamage, Slow, Push, Spread,
+--       Tremor = {Inner, Outer, Warn, Damage}},
+--     Opening = {For (s the foe's guard is down after each wave), DamageMult (while open),
+--       GuardedMult (armour while closed), ShellColor (armour highlight), Text (shown once)},
+--     Intro, WinText, FailText, Hint (after two failures)
+--   }
+
+local function Stage(Quest, N) return {Quest = {Id = Quest, Is = "Active", Stage = N}} end
+
+return {
+	flame_apprentice = {
+		Title = "The Failed Apprentice", Path = "Flame",
+		Requires = Stage("acq_flame", 4), Locked = "Ash and old scorch marks. Talk to the Flame trainer first.",
+		Foe = "TrialFlame", Nation = "Amestrian", Weapon = "", FoeDistance = 16, Radius = 34, TimeLimit = 240, FirstHazard = 4,
+		Hazard = {Kind = "Flame", Every = {4.5, 6.5}, Count = 3, Radius = 6.5, Warn = 1.5, Damage = 24, Status = "Burn",
+			FoeMult = 2.5, Linger = 4, LingerDamage = 6},
+		Opening = {For = 3.2, DamageMult = 1.35, Text = "Corin staggers after every blaze: he's burned through his own reaction. That's your opening. Lure him into his fire and his own flames hurt him most."},
+		Intro = "Corin Vale turns, hands already glowing. \"She sent you? Then she sent you to burn.\"",
+		WinText = "Corin drops to his knees in the ash, his hands finally still.",
+		FailText = "You went down in the smoke.",
+		Hint = "Don't trade blows while he's composed: he parries reckless strikes. Dodge out of the rings, then hit him while he staggers.",
+	},
+	ice_guardian = {
+		Title = "The Crystallized Guardian", Path = "Ice",
+		Requires = Stage("acq_ice", 4), Locked = "A frozen chamber. Something inside is very still.",
+		Foe = "TrialIce", Nation = "Drachman", Weapon = nil, FoeDistance = 16, Radius = 34, TimeLimit = 260, FirstHazard = 4,
+		Hazard = {Kind = "Ice", Every = {5, 7}, Count = 3, Radius = 6, Warn = 1.6, Damage = 14, Status = "Freeze", StatusTime = 1.2,
+			FoeMult = 0, Linger = 5, Slow = 0.5},
+		Opening = {For = 3.5, DamageMult = 1.4, GuardedMult = 0.3, ShellColor = Color3.fromRGB(170, 225, 255),
+			Text = "Its crystal shell turns red and cracks open after every frost wave. Blows glance off the shell: strike only while it's cracked."},
+		Intro = "The ice around the Guardian groans. It was a person once. Now it only guards.",
+		WinText = "The crystal shell shatters. Under it, the Guardian finally sleeps.",
+		FailText = "The cold took you.",
+		Hint = "Watch the shell. Blue means wait and stay out of the rings; red means hit it now.",
+	},
+	earth_quarry = {
+		Title = "The Unstable Quarry", Path = "Earth",
+		Requires = Stage("acq_earth", 4), Locked = "Loose rock and fresh cracks. Not safe without a reason to be here.",
+		Foe = "TrialEarth", Nation = "Aerugonian", Weapon = nil, FoeDistance = 16, Radius = 36, TimeLimit = 260, FirstHazard = 4,
+		Hazard = {Kind = "Earth", Every = {5.5, 7.5}, Count = 3, Radius = 5.5, Warn = 1.6, Damage = 26, FoeMult = 2,
+			Tremor = {Inner = 6, Outer = 16, Warn = 1.4, Damage = 22}},
+		Opening = {For = 3.0, DamageMult = 1.3, Text = "Every tremor roots Dask in place for a moment. Stand close to him or far away - the band between is where the ground breaks."},
+		Intro = "Dask slams a palm on the quarry floor. Stone shudders under your feet.",
+		WinText = "Dask falls, and the quarry finally goes quiet.",
+		FailText = "The ground came down on you.",
+		Hint = "The dark circle around Dask is safe ground during a tremor, and so is distance. Rocks fall where you stand - keep moving.",
+	},
+	wind_dancer = {
+		Title = "The Moving Trial", Path = "Wind",
+		Requires = Stage("acq_wind", 4), Locked = "Wind howls through the empty dome.",
+		Foe = "TrialWind", Nation = "Xingnese", Weapon = nil, FoeDistance = 16, Radius = 36, TimeLimit = 240, FirstHazard = 4,
+		Hazard = {Kind = "Wind", Every = {4.5, 6}, Count = 2, Length = 56, Width = 6, Warn = 1.3, Damage = 12, Push = 48, FoeMult = 1.5},
+		Opening = {For = 2.8, DamageMult = 1.35, Text = "Siv catches her breath after every gust. The lanes show where the wind will run - step out of them, then close in."},
+		Intro = "Siv lands lightly on the observatory floor. \"Can you even see what moves you?\"",
+		WinText = "Siv lands badly and doesn't get up. The air goes still.",
+		FailText = "The wind threw you down.",
+		Hint = "The pale lanes are where the gusts will run. Step across one, never along it.",
+	},
+	metal_experiment = {
+		Title = "The Armored Experiment", Path = "Metal",
+		Requires = Stage("acq_metal", 4), Locked = "Something heavy shifts behind the forge doors.",
+		Foe = "TrialMetal", Nation = "Xerxian", Weapon = nil, FoeDistance = 16, Radius = 34, TimeLimit = 280, FirstHazard = 4,
+		Hazard = {Kind = "Metal", Every = {5.5, 7}, Count = 3, Length = 30, Width = 4, Warn = 1.5, Damage = 28, Spread = 22},
+		Opening = {For = 3.5, DamageMult = 1.5, GuardedMult = 0.25, ShellColor = Color3.fromRGB(200, 205, 215),
+			Text = "Its plating vents and opens at the joints after every cleave. Armour turns your blows; the joints don't."},
+		Intro = "The Experiment's plates grind as it straightens up. Something inside it is still burning.",
+		WinText = "The Experiment's plating locks solid. It doesn't move again.",
+		FailText = "The plating held and you didn't.",
+		Hint = "Stand off to the side of the marked lines, and save your strikes for when the joints glow red.",
+	},
+}

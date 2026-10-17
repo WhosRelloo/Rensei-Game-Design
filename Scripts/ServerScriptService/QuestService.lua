@@ -5,6 +5,10 @@
 -- Quests have ordered Stages (Rensei.StoryLogic); only the current stage's objectives advance.
 -- When a stage starts, objectives that are already true (evidence held, puzzle solved, flag set...)
 -- are filled in at once (CatchUp), so the order a player finds things in never matters.
+-- Rewards may also carry Affinity = "<Path>" (the alchemy acquisition questlines: the path is set
+-- ONCE, only on a character with none, and the flag Acquired_<Path> records it) and
+-- Training = {[Source] = multiplier} (ProgressionService.AddTraining: the stage cap and Truth/Gate
+-- still apply, so a quest can never move a player past the Gate).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -31,6 +35,8 @@ local function AlreadyTrue(Data, O)
 	if O.Kind == "Puzzle" then return (S.Puzzles or {})[O.Target] ~= nil end
 	if O.Kind == "Flag" then return (S.Flags or {})[O.Target] ~= nil end
 	if O.Kind == "Minigame" then return (S.Minigames or {})[O.Target] ~= nil and S.Minigames[O.Target].Passed ~= nil end
+	-- an area discovered before the quest (discovery only signals the first time)
+	if O.Kind == "Visit" then return (Data.Areas or {})[O.Target] ~= nil end
 	return false
 end
 
@@ -53,6 +59,24 @@ local function GiveRewards(Player, Data, Rewards, Source)
 			Data.Codex[Entry] = os.time()
 			UIService.Notify(Player, "Banner", {Text = "New Entry Unlocked - [" .. Entry .. "]"})
 		end
+	end
+	if Rewards.Affinity then
+		local Path = Rewards.Affinity
+		local Registry = require(ReplicatedStorage.Modules.Data.Rensei.Alchemy)
+		local Identity = Data.Identity
+		if table.find(Registry.Affinities, Path) and type(Identity) == "table" then
+			if (Identity.Affinity or "") == "" then
+				Identity.Affinity = Path
+				require(ServerScriptService.AlchemyService).PublishAffinity(Player)
+				UIService.Notify(Player, "Banner", {Text = Path .. " Alchemy - Acquired"})
+			else
+				warn("QuestService: " .. Player.Name .. " already has " .. Identity.Affinity .. "; " .. Path .. " was not granted")
+			end
+			require(ServerScriptService.StoryService).SetFlag(Player, "Acquired_" .. Path, os.time())
+		end
+	end
+	for Source, Mult in pairs(Rewards.Training or {}) do
+		ProgressionService.AddTraining(Player, Source, Mult)
 	end
 end
 

@@ -10,6 +10,7 @@ local TweenService = game:GetService("TweenService")
 local UIState = require(script.Parent.UIState)
 local MenuKit = require(script.Parent.MenuKit)
 local Defs = require(ReplicatedStorage.Modules.Data.Rensei.Minigames)
+local Builders = require(script.Parent.AlchemyMinigameUI) -- the alchemy trainers' kinds
 
 local CIRCLE = "rbxassetid://132299053523633" -- the game's transmutation circle texture
 local GOLD = Color3.fromRGB(230, 205, 120)
@@ -348,9 +349,15 @@ local function Open(Id, Params)
 		Answer = AssayBench(Def, Params)
 	elseif Def.Kind == "LedgerCipher" then
 		Answer = LedgerCipher(Def, Params)
+	elseif Builders[Def.Kind] then
+		ResultLabel = Text(Canvas, "", UDim2.fromScale(0.04, 0.88), UDim2.fromScale(0.92, 0.05))
+		local Ctx = {Canvas = Canvas, Make = Make, Text = Text, KitButton = KitButton, GOLD = GOLD, RED = RED, GREEN = GREEN,
+			Current = Current, Result = function(T, Color) ResultLabel.Text = T ResultLabel.TextColor3 = Color or GOLD end}
+		Answer, Reset = Builders[Def.Kind](Ctx, Def, Params)
 	end
 	ResultLabel = ResultLabel and ResultLabel.Parent and ResultLabel or Text(Canvas, "", UDim2.fromScale(0.04, 0.86), UDim2.fromScale(0.92, 0.05))
-	local SubmitLabel = ({PressureBoard = "Seal Line", AssayBench = "Name It", LedgerCipher = "Submit"})[Def.Kind] or "Seal"
+	local SubmitLabel = ({PressureBoard = "Seal Line", AssayBench = "Name It", LedgerCipher = "Submit"})[Def.Kind]
+		or Builders.SubmitLabel[Def.Kind] or "Seal"
 	local Buttons = Reset and {"SEAL", "RESET", "LEAVE"} or {"SEAL", "LEAVE"}
 	for I, Label in ipairs(Buttons) do
 		local X = (I - 0.5) / #Buttons
@@ -359,7 +366,8 @@ local function Open(Id, Params)
 				if Label == "SEAL" then
 					local A = Answer()
 					if A == nil or A == "" then
-						ResultLabel.Text = Def.Kind == "AssayBench" and "Pick a row of the table first." or "Write something first."
+						ResultLabel.Text = Def.Kind == "AssayBench" and "Pick a row of the table first."
+							or (Builders[Def.Kind] and (Def.Empty or "Make a move first.")) or "Write something first."
 						ResultLabel.TextColor3 = RED
 					else
 						Remote:FireServer("Submit", A)

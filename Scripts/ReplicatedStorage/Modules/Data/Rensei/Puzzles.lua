@@ -23,6 +23,32 @@ return {
 	NearRange = 9, -- studs: within this, facing doesn't matter
 
 	Mechanisms = {
+		ice_pumps = {
+			Kind = "Bench", Title = "Pump Housing", Default = "Idle",
+			Prompt = {Action = "Work the Pumps", Minigame = "ice_phase", Target = "ice_pumps", PassState = "Running"},
+			Hint = "A pump housing furred with frost.",
+		},
+		earth_table = {
+			Kind = "Bench", Title = "Survey Table", Default = "Idle",
+			Prompt = {Action = "Brace the Model", Minigame = "earth_loads", Target = "earth_table", PassState = "Braced"},
+			Hint = "A survey table with a model of the bridge.",
+		},
+		wind_manifold = {
+			Kind = "Bench", Title = "Duct Manifold", Default = "Idle",
+			Prompt = {Action = "Set the Valves", Minigame = "wind_routing", Target = "wind_manifold", PassState = "Flowing"},
+			Hint = "A manifold of valves. The ducts behind it are silent.",
+		},
+		metal_bench = {
+			Kind = "Bench", Title = "Material Bench", Default = "Idle",
+			Prompt = {Action = "Choose the Stock", Minigame = "metal_match", Target = "metal_bench", PassState = "Fitted"},
+			Hint = "A bench of material stock and broken parts.",
+		},
+		-- ===== alchemy acquisition: Flame (2026-10-16, PROPOSAL) =====
+		flame_chamber = {
+			Kind = "Bench", Title = "Reaction Chamber", Default = "Scorched",
+			Prompt = {Action = "Run the Chamber", Minigame = "flame_reaction", Target = "flame_chamber", PassState = "Steady"},
+			Hint = "A scorched reaction chamber. Its dials still turn.",
+		},
 		yard_vent = {
 			Kind = "SteamVent", Title = "Steam Vent", Default = "On", Blocks = true,
 			Reactions = {

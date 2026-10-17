@@ -779,6 +779,27 @@ TuningConfig.Enemies = {
 	},
 }
 
+-- Alchemy trial foes (TrialService, 2026-10-16): Duelist-based, each with its own name and numbers.
+-- Their "alchemy" is the arena hazards TrialService runs (Rensei.Trials). All PROPOSALS.
+for Name, Over in pairs({
+	TrialFlame = {DisplayName = "Corin Vale, Burned Apprentice", Level = 6, Health = 1100, DamageMult = 0.9, WalkSpeed = 16,
+		ParryChance = 0.45, BlockChance = 0.3, AggroRange = 70, LeashRange = 140},
+	TrialIce = {DisplayName = "Crystallized Guardian", Level = 7, Health = 1300, DamageMult = 1.0, WalkSpeed = 12,
+		ParryChance = 0.2, BlockChance = 0.5, AggroRange = 70, LeashRange = 140, HeavyChance = 0.45},
+	TrialEarth = {DisplayName = "Dask, the Quarry Breaker", Level = 7, Health = 1250, DamageMult = 1.0, WalkSpeed = 14,
+		ParryChance = 0.25, BlockChance = 0.35, AggroRange = 70, LeashRange = 140},
+	TrialWind = {DisplayName = "Siv, the Gale Dancer", Level = 7, Health = 1000, DamageMult = 0.9, WalkSpeed = 19,
+		ParryChance = 0.35, BlockChance = 0.2, Pause = {0.3, 0.7}, AggroRange = 70, LeashRange = 140},
+	TrialMetal = {DisplayName = "The Armored Experiment", Level = 8, Health = 1600, DamageMult = 1.1, WalkSpeed = 12,
+		ParryChance = 0.15, BlockChance = 0.45, HeavyChance = 0.4, AggroRange = 70, LeashRange = 140},
+}) do
+	local D = table.clone(TuningConfig.Enemies.Elite)
+	for K, V in pairs(Over) do D[K] = V end
+	D.RespawnTime = 1e9 -- trial foes are spawned per run, never respawned
+	D.TrialFoe = true
+	TuningConfig.Enemies[Name] = D
+end
+
 -- Weapon dash attacks (owner 2026-10-15: "dash attacks for weapons to make them feel more custom").
 -- Running + LMB with a weapon drawn uses its class's dash attack instead of the fist one; each entry
 -- overrides TuningConfig.DashAttack (anything left out is inherited). ALL numbers are PROPOSALS.

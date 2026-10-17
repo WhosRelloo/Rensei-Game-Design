@@ -11,9 +11,11 @@
 --   NotEvidence = "id" | {...}
 --   Deduction = "id" | {...}          deductions made
 --   Puzzle = "id" | {...}             per-player puzzles solved
---   Quest = {Id = "q", Is = "Active" | "Completed" | "NotStarted" | "NotCompleted", Stage = n, StageAtLeast = n}
+--   Quest = {Id = "q", Is = "Active" | "Completed" | "NotStarted" | "NotCompleted" | "NotActive", Stage = n, StageAtLeast = n}
 --   Quests = {{...}, {...}}           several Quest conditions
 --   Affinity = "Flame" | {...}        the alchemy path (Identity.Affinity, or the Player attribute)
+--   NoAffinity = true                 no SAVED path yet (Identity.Affinity empty; Studio's stand-in doesn't count)
+--   SavedAffinity = "Flame" | {...}   the SAVED path is one of these (not Studio's stand-in)
 --   Level = n                         minimum level
 --   Item = "name"                     holds an inventory item
 -- Morality (MoralityService; Rensei.Factions / Rensei.Deeds):
@@ -91,6 +93,7 @@ local function QuestIs(Data, Q)
 	if Is == "Completed" and not Completed then return false end
 	if Is == "NotStarted" and (Active or Completed) then return false end
 	if Is == "NotCompleted" and Completed then return false end
+	if Is == "NotActive" and Active then return false end
 	if Q.Stage and not (Active and (Active.Stage or 1) == Q.Stage) then return false end
 	if Q.StageAtLeast and not (Completed or (Active and (Active.Stage or 1) >= Q.StageAtLeast)) then return false end
 	return true
@@ -114,6 +117,8 @@ function StoryLogic.Meets(Requires, Data, Player)
 		local Mine = (Player and Player:GetAttribute("Affinity")) or (Data.Identity and Data.Identity.Affinity) or ""
 		if not table.find(List(Requires.Affinity), Mine) then return false end
 	end
+	if Requires.NoAffinity and ((Data.Identity and Data.Identity.Affinity) or "") ~= "" then return false end
+	if Requires.SavedAffinity and not table.find(List(Requires.SavedAffinity), (Data.Identity and Data.Identity.Affinity) or "") then return false end
 	if Requires.Level and (Data.Level or 1) < Requires.Level then return false end
 	if Requires.Item then
 		local Has = false

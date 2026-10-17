@@ -138,6 +138,16 @@ local Actions = {
 	end,
 	-- morality: records a deed (Rensei.Deeds) once; repeatables follow their daily cap
 	Deed = function(Player, Action) require(ServerScriptService.MoralityService).Record(Player, Action.Deed) end,
+	-- alchemy trainers (TrainingService re-checks the path and the daily limit): the conversation closes
+	-- first, so the minigame / drill has the screen
+	Lesson = function(Player, Action)
+		DialogueService.Close(Player)
+		require(ServerScriptService.TrainingService).Lesson(Player, Action.Lesson)
+	end,
+	Exercise = function(Player, Action)
+		DialogueService.Close(Player)
+		task.spawn(require(ServerScriptService.TrainingService).Exercise, Player, Action.Exercise)
+	end,
 }
 
 local function RunActions(Player, Choice, Session)

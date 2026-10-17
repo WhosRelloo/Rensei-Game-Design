@@ -186,6 +186,9 @@ DownedManager.Recover = Recover
 -- All combat damage comes through here.
 function DownedManager.Damage(Victim, Amount)
 	local H = Hum(Victim)
+	-- trial armour / openings (TrialService): the victim's DamageTakenMult scales every hit
+	local Mult = Victim:GetAttribute("DamageTakenMult")
+	if type(Mult) == "number" and Mult >= 0 then Amount *= Mult end
 	if not H or H.Health <= 0 or Amount <= 0 then return end
 	if DownedManager.IsKnocked(Victim) then return end -- only a grip finishes a knocked target
 	if Amount >= H.Health and DownedManager.Knockable(Victim) then

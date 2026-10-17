@@ -172,12 +172,22 @@ Kinds.LedgerCipher = {
 	end,
 }
 
+-- the alchemy trainers' kinds (ReactionControl, ...): shared rules, Check returns ok, reason
+for Name, Kind in pairs(require(ReplicatedStorage.Modules.Data.Rensei.AlchemyMinigames)) do
+	if type(Kind) == "table" and Kind.New and Kind.Check then Kinds[Name] = Kind end
+end
+
 -- ===== open / submit =====
 function MinigameService.Open(Player, Id, Context)
 	local Def = Defs[Id]
 	local Kind = Def and Kinds[Def.Kind]
 	local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
 	if not Kind or not Root or not Remote then return false end
+	-- menus can't open in combat (UIState), so the client would drop the session unseen: say so here
+	if Player.Character:GetAttribute("InCombat") then
+		UIService.Notify(Player, "Toast", {Text = "Not while you're fighting. Catch your breath first."})
+		return false
+	end
 	if Def.Requires then
 		local Data = ProgressionService.GetData(Player)
 		if not Data or not StoryLogic.Meets(Def.Requires, Data, Player) then
@@ -206,11 +216,14 @@ local function Submit(Player, Answer)
 		Remote:FireClient(Player, "Result", false, "You walked away from it.", true)
 		return
 	end
-	local Ok = S.Kind.Check(S.Def, S.Secret, Answer)
+	local Ok, Reason = S.Kind.Check(S.Def, S.Secret, Answer)
 	S.Tries += 1
 	if not Ok then
 		if S.Kind.Failed then S.Kind.Failed(S.Def, S.Secret) end
-		Remote:FireClient(Player, "Result", false, S.Def.Fail)
+		-- what went wrong (when the kind says), and after a few misses the definition's hint
+		local Text = Reason or S.Def.Fail
+		if S.Def.LateHint and S.Tries >= 3 then Text = Text .. "  Hint: " .. S.Def.LateHint end
+		Remote:FireClient(Player, "Result", false, Text)
 		return
 	end
 	Sessions[Player] = nil
@@ -229,6 +242,9 @@ local function Submit(Player, Answer)
 	if First and S.Def.Evidence then StoryService.GiveEvidence(Player, S.Def.Evidence) end -- pays once
 	QuestService.Signal(Player, "Minigame", S.Id)
 	require(ServerScriptService.PuzzleService).OnMinigamePassed(Player, S.Context)
+	if type(S.Context) == "table" and S.Context.Lesson then
+		require(ServerScriptService.TrainingService).OnLessonPassed(Player, S.Context.Lesson)
+	end
 	ProgressionService.Sync(Player)
 end
 
@@ -284,6 +300,8 @@ function MinigameService.Solve(Player)
 		return S.Secret.Sample
 	elseif S.Def.Kind == "LedgerCipher" then
 		return S.Secret.Answer
+	elseif S.Kind.Solve then
+		return S.Kind.Solve(S.Def, S.Secret)
 	end
 end
 

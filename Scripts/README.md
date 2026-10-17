@@ -6,30 +6,30 @@ Paths mirror the Studio tree (`Scripts/ServerScriptService/MinigameService.lua` 
 
 | File | Studio path | Last exported |
 |---|---|---|
-| `ServerScriptService/MinigameService.lua` | `ServerScriptService.MinigameService` | 2026-10-16 |
-| `ReplicatedStorage/Modules/UI/MinigameUI.lua` | `ReplicatedStorage.Modules.UI.MinigameUI` | 2026-10-16 |
-| `ReplicatedStorage/Modules/Data/Rensei/Minigames.lua` | `ReplicatedStorage.Modules.Data.Rensei.Minigames` | 2026-10-16 |
-| `ReplicatedStorage/Modules/Data/Rensei/Puzzles.lua` | `ReplicatedStorage.Modules.Data.Rensei.Puzzles` | 2026-10-16 |
-| `ReplicatedStorage/Modules/Data/Rensei/Evidence.lua` | `ReplicatedStorage.Modules.Data.Rensei.Evidence` | 2026-10-16 |
-| `ReplicatedStorage/Modules/Data/Rensei/Investigation.lua` | `ReplicatedStorage.Modules.Data.Rensei.Investigation` | 2026-10-16 |
+| `ServerScriptService/MinigameService.lua` | `ServerScriptService.MinigameService` | 2026-10-17 |
+| `ReplicatedStorage/Modules/UI/MinigameUI.lua` | `ReplicatedStorage.Modules.UI.MinigameUI` | 2026-10-17 |
+| `ReplicatedStorage/Modules/Data/Rensei/Minigames.lua` | `ReplicatedStorage.Modules.Data.Rensei.Minigames` | 2026-10-17 |
+| `ReplicatedStorage/Modules/Data/Rensei/Puzzles.lua` | `ReplicatedStorage.Modules.Data.Rensei.Puzzles` | 2026-10-17 |
+| `ReplicatedStorage/Modules/Data/Rensei/Evidence.lua` | `ReplicatedStorage.Modules.Data.Rensei.Evidence` | 2026-10-17 |
+| `ReplicatedStorage/Modules/Data/Rensei/Investigation.lua` | `ReplicatedStorage.Modules.Data.Rensei.Investigation` | 2026-10-17 |
 | `ServerScriptService/MoralityService.lua` | `ServerScriptService.MoralityService` | 2026-10-16 |
 | `ReplicatedStorage/Modules/Data/Rensei/Factions.lua` | `ReplicatedStorage.Modules.Data.Rensei.Factions` | 2026-10-16 |
 | `ReplicatedStorage/Modules/Data/Rensei/Deeds.lua` | `ReplicatedStorage.Modules.Data.Rensei.Deeds` | 2026-10-16 |
-| `ReplicatedStorage/Modules/Data/Rensei/StoryLogic.lua` | `ReplicatedStorage.Modules.Data.Rensei.StoryLogic` | 2026-10-16 |
-| `ReplicatedStorage/Modules/Data/Rensei/Quests.lua` | `ReplicatedStorage.Modules.Data.Rensei.Quests` | 2026-10-16 |
-| `ReplicatedStorage/Modules/Data/Rensei/Dialogues.lua` | `ReplicatedStorage.Modules.Data.Rensei.Dialogues` | 2026-10-16 |
-| `ServerScriptService/QuestService.lua` | `ServerScriptService.QuestService` | 2026-10-16 |
-| `ServerScriptService/DialogueService.lua` | `ServerScriptService.DialogueService` | 2026-10-16 |
-| `ServerScriptService/WorldService.lua` | `ServerScriptService.WorldService` | 2026-10-16 |
+| `ReplicatedStorage/Modules/Data/Rensei/StoryLogic.lua` | `ReplicatedStorage.Modules.Data.Rensei.StoryLogic` | 2026-10-17 |
+| `ReplicatedStorage/Modules/Data/Rensei/Quests.lua` | `ReplicatedStorage.Modules.Data.Rensei.Quests` | 2026-10-17 |
+| `ReplicatedStorage/Modules/Data/Rensei/Dialogues.lua` | `ReplicatedStorage.Modules.Data.Rensei.Dialogues` | 2026-10-17 |
+| `ServerScriptService/QuestService.lua` | `ServerScriptService.QuestService` | 2026-10-17 |
+| `ServerScriptService/DialogueService.lua` | `ServerScriptService.DialogueService` | 2026-10-17 |
+| `ServerScriptService/WorldService.lua` | `ServerScriptService.WorldService` | 2026-10-17 |
 | `ServerScriptService/CharacterHandler/DataManager.lua` | `ServerScriptService.CharacterHandler.DataManager` | 2026-10-16 (teleport + save audit) |
 | `ReplicatedStorage/Modules/Data/ProfileData.lua` | `ReplicatedStorage.Modules.Data.ProfileData` | 2026-10-16 |
 | `ReplicatedStorage/Modules/UI/DialogueUI.lua` | `ReplicatedStorage.Modules.UI.DialogueUI` | 2026-10-16 |
-| `ReplicatedStorage/Modules/Managers/DownedManager.lua` | `ReplicatedStorage.Modules.Managers.DownedManager` | 2026-10-16 |
+| `ReplicatedStorage/Modules/Managers/DownedManager.lua` | `ReplicatedStorage.Modules.Managers.DownedManager` | 2026-10-17 |
 | `ReplicatedStorage/Modules/Data/Rensei/Emotes.lua` | `ReplicatedStorage.Modules.Data.Rensei.Emotes` | 2026-10-16 |
 | `ReplicatedStorage/Modules/UI/EmoteWheelUI.lua` | `ReplicatedStorage.Modules.UI.EmoteWheelUI` | 2026-10-16 |
 | `ServerScriptService/ServerHandler/Requests/Emote.lua` | `ServerScriptService.ServerHandler.Requests.Emote` | 2026-10-16 |
 | `ReplicatedStorage/Modules/Managers/AnimationManager.lua` | `ReplicatedStorage.Modules.Managers.AnimationManager` (same in the Tutorial place) | 2026-10-16 |
-| `ReplicatedStorage/Modules/Data/Rensei/TuningConfig.lua` | `ReplicatedStorage.Modules.Data.Rensei.TuningConfig` | 2026-10-16 |
+| `ReplicatedStorage/Modules/Data/Rensei/TuningConfig.lua` | `ReplicatedStorage.Modules.Data.Rensei.TuningConfig` | 2026-10-17 |
 | `ServerScriptService/NpcIdles.server.lua` | `ServerScriptService.NpcIdles` | 2026-10-16 |
 | `ServerScriptService/CharacterHandler.server.lua` | `ServerScriptService.CharacterHandler` | 2026-10-16 |
 | `ServerScriptService/FlowService.lua` | `ServerScriptService.FlowService` | 2026-10-16 |
@@ -40,5 +40,19 @@ Paths mirror the Studio tree (`Scripts/ServerScriptService/MinigameService.lua` 
 | `MainMenu/ServerScriptService/MenuServer.server.lua` | Main Menu place: `ServerScriptService.MenuServer` | 2026-10-16 |
 | `Tutorial/ServerScriptService/FlowData.lua` | Tutorial place: `ServerScriptService.FlowData` | 2026-10-16 |
 | `Tutorial/ServerScriptService/TutorialServer.server.lua` | Tutorial place: `ServerScriptService.TutorialServer` | 2026-10-16 |
+| `ReplicatedStorage/Modules/Data/Rensei/AlchemyMinigames.lua` | `ReplicatedStorage.Modules.Data.Rensei.AlchemyMinigames` | 2026-10-17 |
+| `ReplicatedStorage/Modules/Data/Rensei/Progression.lua` | `ReplicatedStorage.Modules.Data.Rensei.Progression` | 2026-10-17 |
+| `ReplicatedStorage/Modules/Data/Rensei/Training.lua` | `ReplicatedStorage.Modules.Data.Rensei.Training` | 2026-10-17 |
+| `ReplicatedStorage/Modules/Data/Rensei/Trials.lua` | `ReplicatedStorage.Modules.Data.Rensei.Trials` | 2026-10-17 |
+| `ReplicatedStorage/Modules/UI/AlchemyMinigameUI.lua` | `ReplicatedStorage.Modules.UI.AlchemyMinigameUI` | 2026-10-17 |
+| `ReplicatedStorage/Modules/UI/JournalUI.lua` | `ReplicatedStorage.Modules.UI.JournalUI` | 2026-10-17 |
+| `ServerScriptService/EnemyService.lua` | `ServerScriptService.EnemyService` | 2026-10-17 |
+| `ServerScriptService/ProgressionService.lua` | `ServerScriptService.ProgressionService` | 2026-10-17 |
+| `ServerScriptService/ServerHandler.server.lua` | `ServerScriptService.ServerHandler` | 2026-10-17 |
+| `ServerScriptService/TrainingService.lua` | `ServerScriptService.TrainingService` | 2026-10-17 |
+| `ServerScriptService/TrialService.lua` | `ServerScriptService.TrialService` | 2026-10-17 |
 
 Exports so far (all 2026-10-16): the scripts touched by the Assay Bench / Ledger Cipher work, the stuck-dialogue fix (DialogueService, DialogueUI) the morality slice with every engine script it changed, and the emote wheel (see `Documents/Changelog.md`). Each file is byte-identical to the Studio source at the time of export, except `DataManager.lua`: one line names a specific player for a test reset, and that name is replaced with `<redacted>` because this repository is public.
+
+
+Alchemy questline export (2026-10-17): every script the acquisition & mastery questlines added or changed; see the 2026-10-17 changelog entry.

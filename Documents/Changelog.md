@@ -2,6 +2,70 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-17 — Alchemy acquisition & mastery questlines
+
+**Built (owner prompt: "RENSEI — ALCHEMY ACQUISITION & MASTERY QUESTLINES"):** a questline per alchemy path that grants the path, plus practice with the trainer afterwards. Design, decisions and test table: `Documents/Alchemy Acquisition and Mastery.md`. Backup: `ServerStorage.RenseiBackups["Pre-AlchemyQuests_2026-10-16"]`.
+- **Five questlines** (`acq_flame` "The Unburned Lesson", `acq_ice` "The Stillness Beneath", `acq_earth` "The Weight of Foundations", `acq_wind` "The Invisible Equation", `acq_metal` "The Unyielding Principle"), each started from its trainer (Calda, Veyra, Holt, Ansel, Brannoc):
+  1. Invitation: go to the site.
+  2. Fieldwork: three clues, an optional research note, then a Case Board deduction.
+  3. Experimentation: a station puzzle.
+  4. Trial: a fight in an arena next to the site.
+  5. Exam: a harder puzzle, opened from the trainer's dialogue.
+  6. Recognition: the trainer grants the path.
+- **One path per character.** Starting a questline needs no saved path, and only one questline can run at a time. Other trainers still talk and share lore, but won't teach. The reward sets `Identity.Affinity` only if it's empty, adds the `Acquired_<Path>` flag, 600 EXP and Quest training. X/C/V stay in the Mastery tree.
+- **Puzzles** (new kinds; the server keeps the answer and explains what went wrong):
+  - Flame: ReactionControl.
+  - Ice: PhaseSequence.
+  - Earth: LoadPaths.
+  - Wind: PressureRouting.
+  - Metal: MaterialMatch.
+- **Trials** (`TrialService`, `Rensei.Trials`): the foe is an Elite clone, and the server runs telegraphed hazards:
+  - Flame: fire rings and burn.
+  - Ice: frost rings and Freeze.
+  - Earth: rockfall and a tremor band.
+  - Wind: gust lanes that push.
+  - Metal: cleave lines.
+  
+  After each hazard the foe opens up, taking more damage with its guard down. You lose if you're knocked, time runs out, or you stay out of the arena for 6 s. A hint shows after two losses.
+- **Mentor practice** (`TrainingService`, `Rensei.Training`):
+  - A daily lesson puzzle.
+  - An exercise drill, 6 a day.
+  - Both pay through `AddTraining`, so the stage's 20 MP cap and the Truth/Gate still hold.
+- **Research notes:** evidence marked `Research = true`. The Journal tags them "(research note)".
+- **Engine changes:**
+  - `StoryLogic`: new `NoAffinity` and `SavedAffinity` conditions; `Quest.Is = "NotActive"`.
+  - `QuestService`: new `Affinity` and `Training` rewards.
+  - `DialogueService`: new `Lesson` and `Exercise` actions.
+  - `ProgressionService.AddTraining`: takes an `Active` flag.
+  - `MinigameService`: refuses to open during combat, with a message.
+  - `DownedManager`: applies `DamageTakenMult`.
+  - `EnemyService`: no block or parry while `GuardDown`.
+- **World:** five graybox sites and five arenas in `World.Map` (moveable folders).
+- All numbers are PROPOSALS.
+
+**Tested (Studio Play, all five paths end to end):**
+- dialogue → visit → clues (prompt shown at each) → wrong and right deduction → puzzle fail and pass → trial (hazards, guarded vs opening damage, win) → exam → recognition (path saved, EXP, MP);
+- the lesson and exercise payouts, plus the "another path" and "another questline running" refusals;
+- 15 puzzle definitions × 20 seeds solved.
+
+The test player's save was snapshotted and restored around every run.
+
+**Fixed during testing:**
+- A puzzle opened during combat was dropped silently.
+- Earth's soft-ground columns showed as rock: a sparse table lost its keys over the remote.
+- Wind panel overlap.
+- Metal pickers too small for touch.
+- Doubled "(optional)" labels.
+
+**Not built:**
+- Practical exams (real casts at mechanisms).
+- Placement on the real map.
+- Respec.
+
+**Scripts exported (byte-identical to Studio):**
+- New: TrialService, TrainingService, Trials, Training, AlchemyMinigames, AlchemyMinigameUI.
+- Updated: StoryLogic, QuestService, Progression, ProgressionService, DialogueService, MinigameService, MinigameUI, ServerHandler, DownedManager, EnemyService, TuningConfig, Quests, Evidence, Investigation, Minigames, Puzzles, Dialogues, JournalUI, WorldService.
+
 ## 2026-10-16 — Smaller HUD, sheet animations pass 2, evidence props
 
 **Asked (owner):** "Some of the UI is too big: Party UI, Level Up UI, Quest UI, etc. make them readable but not too big"; "look through the spreadsheet again and add in the animations wherever you can"; "for the investigative quests … look for suitable small items like notebooks, trinkets"; "look through the assets for any suitable armor, runes". Backups (per place): `RenseiBackups["Pre-UISize_2026-10-16"]` (the whole `StarterGui.Uis`), `["Pre-Anims2_2026-10-16"]`, `["Pre-EvidenceProps_2026-10-16"]`.
