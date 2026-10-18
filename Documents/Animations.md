@@ -84,7 +84,34 @@ The current weapon skills (Dragonflash, Flurry, Barrage, Scissor Rush, Fan the H
 |---|---|---|
 | `Shared.Emotes` | `Emote_LeanIdle`, `Emote_AeroStep`, `Emote_Anthony`, `Emote_CleanGroove`, `Emote_DefaultDance`, `Emote_Floss`, `Emote_KazotskyKick`, `Emote_LoudLaugh`, `Emote_PeterParker`, `Emote_Thriller` | emote wheel |
 | `Shared.NPCIdles` | `NPC_Chill`, `NPC_Admire`, `NPC_Sit5`, `NPC_Sit3`, `NPC_Kneel`, `NPC_CurledUp`, `NPC_Sit4`, `NPC_Beg`, `NPC_Sleep2`, `NPC_Plank` | emote wheel + NPC idles |
-| `Registry.NPCIdles` (new) | `NPC_LowHandOnGround`, `NPC_HandInPocket`, `NPC_Praise`, `NPC_Transcend`, `NPC_Prisoner`, `NPC_GreatswordEntrance`, `NPC_CrossArms`, `NPC_WallCoverRight`, `NPC_TaiChi` | available to NPCs via the `IdleAnim` attribute |
+| `Registry.NPCIdles` | `NPC_LowHandOnGround`, `NPC_HandInPocket`, `NPC_Praise`, `NPC_Transcend`, `NPC_Prisoner`, `NPC_GreatswordEntrance`, `NPC_CrossArms`, `NPC_WallCoverRight`, `NPC_TaiChi`, `NPC_Blacksmith` (2026-10-18), `NPC_WallCoverLeft` (2026-10-18) | available to NPCs via the `IdleAnim` attribute |
+
+### NPC idles: what loads (tested in Play, 2026-10-18)
+
+- **Working (14):** Chill, Admire, Cross Arms, Hand in Pocket, Praise, Transcend, Tai Chi, Blacksmith Idle, Low Hand On Ground, Kneel, Curled Up, Plank, Greatsword Entrance, and the emote Lean Idle.
+  - **Standing:** Chill, Cross Arms, Hand in Pocket, Praise, Lean Idle, Blacksmith, Tai Chi, Greatsword Entrance, Transcend.
+  - **On the ground:** Admire (lying), Kneel, Curled Up, Low Hand On Ground, Plank.
+- **Broken uploads (8):** Beg, Prisoner, Sit 3, Sit 4, Sit 5, Sleep 2, Wall Cover Left, Wall Cover Right. They're owned by the Rensei group and are Animation assets, but load with length 0 on the server and the client (nothing plays). Re-upload them. The emote wheel's **Sit** (Sit 3) and **Rest** (Sleep 2) use two of them, so those emotes don't play either.
+
+### NPC idle cast (PROPOSAL picks, 2026-10-18)
+
+| NPC | Place | Idle |
+|---|---|---|
+| Drillmaster Vask | Rensei and Tutorial | Cross Arms |
+| Foreman Brask | Rensei (Foundry Yard) | Hand in Pocket |
+| Mirra (night smelter) | Rensei (Foundry Yard) | Blacksmith Idle |
+| Tobin (stoker) | Rensei (Foundry Yard) | Curled Up |
+| Lise (apprentice) | Rensei (Foundry Yard) | Kneel |
+| Placeholder NPC | Rensei | Chill |
+| Calda (Flame trainer) | Rensei | Chill |
+| Veyra (Ice trainer) | Rensei | Transcend |
+| Holt (Earth trainer) | Rensei | Low Hand On Ground |
+| Ansel (Wind trainer) | Rensei | Tai Chi |
+| Brannoc (Metal trainer) | Rensei | Blacksmith Idle |
+| Coach Harlan (Boxing) | Rensei (Lindenmoor) | Cross Arms |
+| Master Thura (Lethwei) | Rensei (Lindenmoor) | Tai Chi |
+
+To change one, set the NPC model's `IdleAnim` attribute to another name from the folders above. `ServerScriptService.NpcIdles` (same file in Rensei and the Tutorial) plays it for any NPC anywhere in Workspace.
 
 ## Fixing the ⏳ ids
 

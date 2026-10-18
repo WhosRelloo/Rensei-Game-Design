@@ -2,6 +2,37 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-18 — NPC idles: every NPC posed, and why none were moving before
+
+**Owner:** "Go through the spreadsheet and use the NPC Idle anims to add idles to all NPC's, trainers, etc." and "Check if the animations actually work in game".
+
+> **Status: fixed and checked in Studio Play** (Rensei): all 13 NPCs are posed and moving on the client, with screenshots of the trainers and the Foundry Yard. The Tutorial's Drillmaster got the same fix. Backups: `ServerStorage.RenseiBackups["Pre-NpcIdles_2026-10-18"]` in both places (the script, every touched NPC, and their previous `IdleAnim` values as an attribute).
+
+### What was wrong (found by testing in game)
+The 10-16 idles were "playing" on the server, but no NPC visibly moved. Three separate causes:
+1. **Every NPC part was anchored.** Roblox doesn't animate anchored parts.
+2. **The joints had a pose baked into them.** All the NPCs except Drillmaster Vask and Placeholder NPC had non-standard Motor6D offsets (the same baked pose, copied between them). The Tutorial's Drillmaster had them too. Animations are made for the standard R6 joints, so once freed these NPCs crumpled to the floor.
+3. **The seven trainers' joints belonged to Lise.** All five alchemy trainers and both style trainers had Motor6Ds whose limbs pointed at **Lise's** arms, legs and head (they were copied from her rig). Their own limbs were attached to nothing, and Lise's limbs were tied to seven other bodies.
+
+Also: the style trainers stand in `World.Map.Lindenmoor`, which the old script didn't watch.
+
+### Fixed
+- **`ServerScriptService.NpcIdles` (rewritten; same file in Rensei and the Tutorial):** watches every non-player character in Workspace, not only `World.NPCs`, including NPCs added later. When an NPC has an idle, it keeps only the HumanoidRootPart anchored, so the NPC still can't fall or be pushed, and frees the parts jointed to it. Props inside a model that aren't jointed to the body (the trainers' scroll stands) stay anchored.
+- **The joints:** the 7 trainers' 42 Motor6Ds now point at their own parts, and every posed NPC's six joints use the standard R6 offsets (copied from `StarterPlayer.StarterCharacter`). Each body was rebuilt around its root, so the edit view matches the game. Feet were checked against the ground, and Coach Harlan and Master Thura were raised 0.5 / 0.41 studs out of the terrain.
+- **Registered** the sheet's missing NPC idles: `NPC_Blacksmith` and `NPC_WallCoverLeft` (`Registry.NPCIdles`). The Tutorial got `NPC_CrossArms`.
+
+### The cast (PROPOSAL)
+Vask: Cross Arms · Brask: Hand in Pocket · Mirra: Blacksmith · Tobin: Curled Up · Lise: Kneel · Placeholder NPC: Chill · Calda: Chill · Veyra: Transcend · Holt: Low Hand On Ground · Ansel: Tai Chi · Brannoc: Blacksmith · Coach Harlan: Cross Arms · Master Thura: Tai Chi. (Before: Chill / Admire on 11 of them. Admire is a lying-down pose, so Mirra, Lise, Veyra and Ansel would have been lying on the floor.) Details in `Animations.md`.
+
+### Tested (Studio Play, Rensei)
+- **Every idle on the sheet, loaded on a rig, server and client:** 14 work. **8 are broken uploads** (length 0): Beg, Prisoner, Sit 3, Sit 4, Sit 5, Sleep 2, Wall Cover Left / Right. All 8 are owned by the group and are Animation assets, so they need re-uploading.
+- **All 13 NPCs on the client:** every one is posed (limbs 70–128° from the default pose) and moving.
+- **Screenshots:** the five trainers (standing, meditating, hand on the ground, Tai Chi, hammering) and the Foundry Yard (Mirra at the crucible, Brask, Tobin crouched, Lise kneeling).
+
+### Side effects to know
+- The emote wheel's **Sit** and **Rest** use Sit 3 and Sleep 2, so they don't play until those are re-uploaded.
+- An NPC with no `IdleAnim` keeps its old setup (all parts anchored).
+
 ## 2026-10-18 — Store live: Developer Product IDs, Creator Plus as a product, live prices, product art
 
 **Owner (2026-10-18):** created five Developer Products in the Creator Dashboard, all with Managed Pricing on:

@@ -11,6 +11,7 @@ This is what's waiting on you, followed by where each piece of today's work is w
 | 3 | **Re-upload 12 broken sheet animations:** Greatsword Idle / Walk / Sheathe / Unsheathe / KO; Katana Walk / Sheathe / Unsheathe; Daggers Sheathe / Unsheathe; Ledge Idle Left / Right | Roblox reports their assets as "AnimationClip loaded is not valid". Their sheet ids are kept in each animation's `SheetId` attribute | Rensei: `Assets.Animations` (see `Animations.md`) |
 | 4 | ~~Save-slot Developer Product~~ **Done 2026-10-18** (3719583607), wired with the three reroll packs | | `Rensei.Slots.ProductId`, `Rensei.Clans.RerollPacks` |
 | 5 | **Upload the product icons** to the five products | They show the default icon now | `Art/Market Icons/*.png` |
+| 6 | **Re-upload 8 NPC idle animations:** Beg, Prisoner, Sit 3, Sit 4, Sit 5, Sleep 2, Wall Cover Left, Wall Cover Right | They load with length 0 (nothing plays). The emote wheel's Sit and Rest use two of them | Rensei: `Assets.Animations` (`Shared.NPCIdles`, `Registry.NPCIdles`); see `Animations.md` |
 
 ## Your call (proposals are in place and can be changed)
 
