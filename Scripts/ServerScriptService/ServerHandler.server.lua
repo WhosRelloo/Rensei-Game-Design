@@ -87,6 +87,7 @@ DialogueService.Start()
 task.spawn(require(ServerScriptService.EnemyService).Start) -- waits for the WCS server first
 require(ServerScriptService.AdminService).Start() -- admin panel (F2), AdminConfig decides who
 require(ServerScriptService.InvestigationService).Start() -- inspect points (RenseiInspect) + Case Board
+require(ServerScriptService.IdentityService).Start() -- Player Identities: encounters, observations, introductions
 require(ServerScriptService.PuzzleService).Start() -- per-player mechanisms (RenseiMechanism) + puzzles
 require(ServerScriptService.MinigameService).Start() -- Pressure Board, Array Restoration
 require(ServerScriptService.MoralityService).Start() -- deeds ledger: conduct, standing, trust, renown
@@ -94,4 +95,6 @@ require(ServerScriptService.TrialService).Start() -- alchemy trials (RenseiTrial
 require(ServerScriptService.TrainingService).Start() -- trainer lessons / exercises (mastery training)
 require(ServerScriptService.RankService).Start() -- public rank / title / clan for the leaderboard
 require(ServerScriptService.SwimService).Start() -- deep water: the Swim traversal state (no fighting / alchemy)
+require(ServerScriptService.CombatDirector).Start() -- enemy squads: encounters, the attack token, surround positions
+require(ServerScriptService.CompassService).Start() -- the places the top-of-screen compass can point at
 script:SetAttribute("Started", os.time())

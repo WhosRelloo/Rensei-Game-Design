@@ -45,7 +45,7 @@ Paths mirror the Studio tree (`Scripts/ServerScriptService/MinigameService.lua` 
 | `ReplicatedStorage/Modules/Data/Rensei/Training.lua` | `ReplicatedStorage.Modules.Data.Rensei.Training` | 2026-10-17 |
 | `ReplicatedStorage/Modules/Data/Rensei/Trials.lua` | `ReplicatedStorage.Modules.Data.Rensei.Trials` | 2026-10-17 |
 | `ReplicatedStorage/Modules/UI/AlchemyMinigameUI.lua` | `ReplicatedStorage.Modules.UI.AlchemyMinigameUI` | 2026-10-17 |
-| `ReplicatedStorage/Modules/UI/JournalUI.lua` | `ReplicatedStorage.Modules.UI.JournalUI` | 2026-10-17 |
+| `ReplicatedStorage/Modules/UI/JournalUI.lua` | `ReplicatedStorage.Modules.UI.JournalUI` | 2026-10-18 |
 | `ServerScriptService/EnemyService.lua` | `ServerScriptService.EnemyService` | 2026-10-18 |
 | `ServerScriptService/ProgressionService.lua` | `ServerScriptService.ProgressionService` | 2026-10-17 |
 | `ServerScriptService/ServerHandler.server.lua` | `ServerScriptService.ServerHandler` | 2026-10-18 |
@@ -97,6 +97,13 @@ Paths mirror the Studio tree (`Scripts/ServerScriptService/MinigameService.lua` 
 | `ServerScriptService/SwimService.lua` | `ServerScriptService.SwimService` | 2026-10-18 |
 | `StarterPlayer/StarterPlayerScripts/ClientHandler.client.lua` | `StarterPlayer.StarterPlayerScripts.ClientHandler` | 2026-10-18 |
 | `StarterPlayer/StarterPlayerScripts/SwimClient.client.lua` | `StarterPlayer.StarterPlayerScripts.SwimClient` | 2026-10-18 |
+| `ReplicatedStorage/Modules/Managers/DamageManager.lua` | `ReplicatedStorage.Modules.Managers.DamageManager` | 2026-10-18 |
+| `ReplicatedStorage/Modules/UI/CombatLogUI.lua` | `ReplicatedStorage.Modules.UI.CombatLogUI` | 2026-10-18 |
+| `ReplicatedStorage/Modules/UI/CompassUI.lua` | `ReplicatedStorage.Modules.UI.CompassUI` | 2026-10-18 |
+| `ReplicatedStorage/Modules/UI/SettingsUI.lua` | `ReplicatedStorage.Modules.UI.SettingsUI` | 2026-10-18 |
+| `ServerScriptService/CombatDirector.lua` | `ServerScriptService.CombatDirector` | 2026-10-18 |
+| `ServerScriptService/CompassService.lua` | `ServerScriptService.CompassService` | 2026-10-18 |
+| `StarterPlayer/StarterPlayerScripts/UIHandler.client.lua` | `StarterPlayer.StarterPlayerScripts.UIHandler` | 2026-10-18 |
 
 Exports so far (all 2026-10-16): the scripts touched by the Assay Bench / Ledger Cipher work, the stuck-dialogue fix (DialogueService, DialogueUI) the morality slice with every engine script it changed, and the emote wheel (see `Documents/Changelog.md`). Each file is byte-identical to the Studio source at the time of export, except `DataManager.lua`: one line names a specific player for a test reset, and that name is replaced with `<redacted>` because this repository is public.
 
@@ -112,3 +119,5 @@ Tab toggle (2026-10-17): HUDUI re-exported.
 Level column removed (2026-10-17): HUDUI re-exported.
 
 Export 2026-10-18: every script the 2026-10-17 / 18 work added or changed (movement state, ledge walk, guns, class skills, weapon styles, the UI pass, the character creator and Creator Plus, swimming, the Iron Rush / Phoenix Drive fixes; see `Documents/Changelog.md`), plus every file above that changed in Studio since its last export. Not exported: `AdminConfig` and the Main Menu's `ClanCodes` (secrets).
+
+Export 2026-10-18 (later): coordinated enemy squads (CombatDirector), the compass (CompassService, CompassUI), the Journal Evidence / Case Board and Class Skill UI revamp, and the speed fixes; see `Documents/Changelog.md`. DamageManager, CombatLogUI, SettingsUI and UIHandler are exported for the first time.

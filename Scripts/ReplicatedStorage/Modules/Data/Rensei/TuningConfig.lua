@@ -176,8 +176,9 @@ TuningConfig.Parkour = {
 	-- combat, touch the ground to reset). PROPOSAL speeds / drain.
 	ClimbStart = 10,
 	ClimbStep = 8, -- Space + W leap up the wall
-	ClimbSpeed = 9, -- studs/s up and down
-	ClimbSideSpeed = 8, -- studs/s sideways
+	ClimbSpeed = 9, -- studs/s up (pulled in steps)
+	ClimbDownSpeed = 7, -- studs/s down (the ClimbDown loop, 2026-10-18)
+	ClimbSideSpeed = 6, -- studs/s sideways (the ClimbSideRight / Left loops; 0.7 of it on a diagonal)
 	ClimbMove = 3, -- stamina per ClimbTickEvery while moving on the wall (12/s)
 	ClimbHang = 1, -- stamina per ClimbTickEvery while hanging still (4/s)
 	ClimbTickEvery = 0.25,
@@ -236,6 +237,55 @@ TuningConfig.Swim = {
 	DrownFraction = 0.06, -- 6% of max health per second: about 17 s from full health to knocked out
 	DrownTick = 1,
 	HeadAbove = 0.4, -- studs: the head counts as underwater when its centre is this far below the surface
+}
+
+-- Coordinated enemy squads (owner prompt "Advanced Swarm NPC Combat AI", 2026-10-18; VV Ultimatum / Archived as a
+-- behaviour reference). ServerScriptService.CombatDirector runs one encounter per target player: enemies surround
+-- the player, but only the holder of that encounter's ATTACK TOKEN may hurt that player (DamageManager enforces it).
+-- The token passes on a strong knockback, death, a long stun, a knock-out, target loss, despawn or getting stuck.
+-- All numbers are PROPOSAL.
+TuningConfig.Squad = {
+	Enabled = true,
+	Tick = 0.2, -- director: token / handoff checks per encounter
+	SlotTick = 0.45, -- director: surround positions (throttled; members walk there between updates)
+	CommitDelay = 0.35, -- a new attacker waits this long after taking the token before its first hit (approach + face)
+	HandoffDelay = 0.2, -- gap between one attacker losing the token and the next getting it (state cleanup, readability)
+	Grace = 0.25, -- after a NORMAL release the old holder's last hit may still land (none after a forced revoke)
+	CastLinger = 1.4, -- a holder that just cast keeps the token this long (its projectile / explosion is still out)
+	Tenure = 9, -- a holder hands over at the next safe moment after this long, if someone else is ready
+	StunHandoff = 0.8, -- seconds stunned (parry, guard break, long hitstun) before the token moves on
+	KnockbackHandoff = 45, -- a knockback at least this strong (studs/s) moves the token at once
+	Separation = 9, -- studs beyond its attack range a holder may be before it counts as separated
+	SeparatedFor = 2.5, -- ... for this long (stuck behind something, or knocked away without a knockback)
+	Recover = 1.2, -- after losing the token by force, seconds before it can take it again
+	RecentPenalty = 6, -- selection: studs added to an enemy that held the token in the last RecentFor seconds
+	RecentFor = 4,
+	BehindPenalty = 5, -- selection: studs added to an enemy behind the player (attacks start where the player can see)
+	MaxMembers = 8, -- per encounter; extra enemies keep their distance (outer reserve ring)
+	ReactiveWindow = 1.5, -- a counter (Cryo Shift) triggered by the player's own hit may land without the token
+	-- surround ring (studs from the player); melee members stand outside attack range while waiting
+	Ring = {Melee = 8.5, Prepare = 6.5, Ranged = 16, Reserve = 13},
+	-- slot angles (degrees) relative to the token holder's side of the player; never in the holder's lane
+	Slots = {70, -70, 125, -125, 180, 35, -35},
+	Drift = 14, -- degrees: slow circling of each waiting slot
+	DriftSpeed = 0.35,
+	SlotHysteresis = 25, -- degrees: a member keeps its slot unless another is this much closer to it
+	TargetSwitchMargin = 8,
+	FairnessCap = 20, FairnessWeight = 0.6, -- PROPOSAL: a waiting member's claim grows 0.6 per second waited, up to 20 s -- studs: an enemy changes target only for a player this much closer than its current one
+	Debug = false, -- Studio only: slot markers + role labels (also: workspace attribute SquadDebug = true)
+	-- personalities change decisions and positioning, not health or damage
+	Personalities = {
+		Aggressor = {Bias = -3, Tenure = 1.0, Ring = 1.0}, -- takes the token readily, presses in
+		Duelist = {Bias = 0, Tenure = 0.8, Ring = 1.1}, -- shorter turns, circles wider
+		Alchemist = {Bias = 1, Tenure = 0.9, Ring = 1.5, Ranged = true}, -- keeps casting distance while waiting
+		Defender = {Bias = 3, Tenure = 0.7, Ring = 1.0}, -- prefers guarding; attacks last
+		Gunner = {Bias = 1, Tenure = 0.9, Ring = 1.0, Ranged = true},
+	},
+	PersonalityOf = {
+		Grunt = "Aggressor", AditScavenger = "Aggressor", Elite = "Duelist",
+		FieldAlchemist = "Alchemist", FrostAlchemist = "Alchemist", GaleAlchemist = "Alchemist", StoneAlchemist = "Alchemist",
+		WardAlchemist = "Defender",
+	},
 }
 
 -- Narrow wall-ledge walk (JumpManager.LedgeWalk, owner 2026-10-17; the Tomb Raider cliff-ledge walk). AUTHORED
@@ -418,18 +468,20 @@ TuningConfig.Weapons = {
 		-- No draw animation exists for the pistols: they move between hip holster and hand instantly.
 		Draw = {},
 		RunAnim = "Guns_Run",
+		WalkAnim = "Guns_Walk", -- Animation ID's sheet "Gun Walk" (2026-10-18)
 		Ranged = true,
 		-- M1 = PISTOL WHIP (owner 2026-10-17: "M1 is a pistol whip, never a shot"): a 4-hit melee string with
 		-- the gun as a blunt weapon, through the normal light-attack pipeline (FistSwing -> AttackRunner,
-		-- hitbox sweep, block / parry). It never fires, never spends a round. No pistol-whip animation exists
-		-- on the sheets yet, so it uses the published fist combo (the guns' heavy already did). PROPOSAL numbers.
+		-- hitbox sweep, block / parry). It never fires, never spends a round. Animations: the sheet's Gun M1 1-4
+		-- (2026-10-18; they replaced the fist-combo stand-ins, which stay as Fallback). AnimPeak = the frame the
+		-- striking hand is furthest forward, read from each animation's keyframes. PROPOSAL numbers.
 		Light = {Hits = {
 			-- gun balance pass 2026-10-18 (owner: "completely audit and balance gun combat"): the whip is a fallback,
 			-- not a full melee kit (was 31 DPS = a melee class's lights; now ~24). PROPOSAL.
-			Hit{Anim = "FistCombo1", Startup = 0.18, Active = 0.08, Recovery = 0.14, Damage = 11, Posture = 6, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(5, 6, 6), Reach = 3},
-			Hit{Anim = "FistCombo2", Startup = 0.18, Active = 0.08, Recovery = 0.14, Damage = 11, Posture = 6, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(5, 6, 6), Reach = 3},
-			Hit{Anim = "FistCombo3", Startup = 0.18, Active = 0.08, Recovery = 0.14, Damage = 11, Posture = 6, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(5, 6, 6), Reach = 3},
-			Hit{Anim = "FistCombo5", Startup = 0.24, Active = 0.1, Recovery = 0.45, Damage = 16, Posture = 12, Stun = 0.85, Velocity = "Knockback", Hitbox = Vector3.new(5, 6, 6), Reach = 3},
+			Hit{Anim = "Guns_Whip1", AnimPeak = 0.22, Fallback = "FistCombo1", Startup = 0.18, Active = 0.08, Recovery = 0.14, Damage = 11, Posture = 6, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(5, 6, 6), Reach = 3},
+			Hit{Anim = "Guns_Whip2", AnimPeak = 0.13, Fallback = "FistCombo2", Startup = 0.18, Active = 0.08, Recovery = 0.14, Damage = 11, Posture = 6, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(5, 6, 6), Reach = 3},
+			Hit{Anim = "Guns_Whip3", AnimPeak = 0.18, Fallback = "FistCombo3", Startup = 0.18, Active = 0.08, Recovery = 0.14, Damage = 11, Posture = 6, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(5, 6, 6), Reach = 3},
+			Hit{Anim = "Guns_Whip4", AnimPeak = 0.10, Fallback = "FistCombo5", Startup = 0.24, Active = 0.1, Recovery = 0.45, Damage = 16, Posture = 12, Stun = 0.85, Velocity = "Knockback", Hitbox = Vector3.new(5, 6, 6), Reach = 3},
 		}},
 		-- SHOOTING MODE (Y toggles it, RMB fires while it's on; Requests.Shoot): one hitscan shot per press,
 		-- the sheet's four Pistol Aim animations take turns (2026-10-18; they were Studio-only "blatt" saves). Damage, magazine, reload and fire rate (Recovery) come
@@ -923,6 +975,36 @@ TuningConfig.Enemies = {
 		Knockable = true, -- gets knocked like a player: grip it (B) to finish it
 		RespawnTime = 45, BodyColor = Color3.fromRGB(45, 45, 55),
 	},
+	-- Forgotten Sites (2026-10-18): Halvard's Adit, Tier I. Grunt-based scavengers picking over the assay lab,
+	-- leashed to it so they don't follow players out of the mine. All PROPOSALS.
+	AditScavenger = {
+		DisplayName = "Adit Scavenger", Level = 3, Health = 450, DamageMult = 0.8,
+		WalkSpeed = 14, AggroRange = 30, LeashRange = 45, AttackRange = 5,
+		Combo = {2, 4}, HeavyChance = 0.15, Pause = {0.7, 1.3},
+		RespawnTime = 120, BodyColor = Color3.fromRGB(90, 80, 70),
+		Dungeon = true, -- Halvard's Adit: TuningConfig.DungeonRespawn decides when it comes back
+	},
+}
+
+-- Dungeon enemies (Def.Dungeon = true; Forgotten Sites). Owner 2026-10-18: "a longer respawn rate so they
+-- can't keep respawning so fast". After Time seconds the spawn also waits until no player is within
+-- ClearRadius studs of it (EnemyService), so a site you are clearing stays cleared. PROPOSAL numbers.
+TuningConfig.DungeonRespawn = {Time = 900, ClearRadius = 80}
+
+-- Locomotion playback (2026-10-18 speed audit; Managers.LocomotionSync, EnemyService). Each walk / run
+-- animation's DESIGN speed: the ground speed (studs/s) it looks right at, at 1x. While it plays, its rate
+-- follows the character's real speed (speed / design, clamped to Min..Max), so the Speed stat, a heavy
+-- weapon, hitstun, casting or carrying change the stride instead of sliding the feet. Design speeds are
+-- the speeds each state was tuned at (walk 12, sprint 24, speedy run 30), so the default look is unchanged.
+-- Weapon runs used to play at a flat 1.2x at sprint speed: design 20 keeps that look.
+TuningConfig.Locomotion = {
+	Min = 0.5, Max = 1.6,
+	Design = {
+		Walk = 12, WalkAnim = 12, Run = 24, SpeedyRun = 30, CrouchWalk = 6, Carrying = 11,
+		Daggers_Run = 20, Greatsword_Run = 20, Guns_Run = 20, Sword_Run = 20,
+		Greatsword_Walk = 10.2, Guns_Walk = 12, Rapier_Walk = 12, Sword_Walk = 12,
+		Boxing_Walk = 12, Lethwei_Walk = 12,
+	},
 }
 
 -- Alchemy trial foes (TrialService, 2026-10-16): Duelist-based, each with its own name and numbers.
@@ -943,6 +1025,12 @@ for Name, Over in pairs({
 	for K, V in pairs(Over) do D[K] = V end
 	D.RespawnTime = 1e9 -- trial foes are spawned per run, never respawned
 	D.TrialFoe = true
+	-- bosses (2026-10-18): the big bar at the top of the screen (HUDUI) instead of a small one in the list.
+	-- "Name, Title" display names split into the bar's name and title; others keep the trial as the title.
+	D.Boss = true
+	local Short, Title = D.DisplayName:match("^(.-),%s*(.+)$")
+	D.BossName = Short or D.DisplayName
+	D.Title = Title or ("Trial of " .. Name:gsub("^Trial", ""))
 	TuningConfig.Enemies[Name] = D
 end
 
@@ -1076,7 +1164,7 @@ TuningConfig.Downed.Grips = {
 	Daggers = {Grip = "Daggers_Grip", Victim = "Daggers_Gripped", Length = 1.2},
 	Sword = {Grip = "Sword_Grip", Victim = "Sword_Gripped", Length = 2.0},
 	Greatsword = {Grip = "Greatsword_Grip", Victim = "Greatsword_Gripped", Length = 1.33},
-	Guns = {Grip = "Guns_Grip", Length = 3.0, Standing = true},
+	Guns = {Grip = "Guns_Grip", Victim = "Guns_Gripped", Length = 3.0}, -- Gun Grip Victim: sheet 2026-10-18
 }
 
 -- ===== Weapon styles (Rensei.Styles; owner 2026-10-17: Boxing and Lethwei are BARE-FIST styles) =====

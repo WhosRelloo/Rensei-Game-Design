@@ -4,8 +4,9 @@
 -- links to their prerequisites. Clicking a node opens its card: what it does, cost, the requirement
 -- checklist (the same SkillTree.Requirements / CanBuy verdict the server uses), Buy / Refund, and a
 -- live preview (your character in a ViewportFrame doing the move, or the stat it changes).
--- A fourth tab, CLASS (owner 2026-10-17), lists the class skills as one column per class family
--- (Rensei.ClassSkills): learn them here, then equip them to hotbar keys 1-4 (used in Combat Mode).
+-- A fourth tab, CLASS (owner 2026-10-17; revamped 2026-10-18), lists the class skills (Rensei.ClassSkills): family
+-- tabs, the family's loadout, one row per skill with its state; learn them here, then equip them to hotbar keys 1-4
+-- (used in Combat Mode).
 -- A GUIDE tab (first; 2026-10-17) ties the tracks together: your standing, what you can learn now, what's one
 -- step away and where to get it (trainers, training, EXP, stats), and the choices with consequences.
 -- Presentation only: SkillTreeService on the server decides every purchase and every equip.
@@ -55,6 +56,7 @@ local TREE_LABEL = {Arms = "ARMS", Body = "BODY", Class = "CLASS", Guide = "GUID
 local TABS = {"Guide", "Alchemy", "Arms", "Body", SkillTree.ClassTree} -- the guide, the circles, then the Class columns
 local GUIDE = "Guide"
 local TIER = {[1] = "I", [5] = "II", [10] = "III"} -- class-skill tier mark, from its level requirement
+local SLOT_ART = "rbxassetid://108980512067469" -- the hotbar's slot plate (Uis.HUD.Bottom slots), for the class loadout
 
 local function New(Class, Props, Children)
 	local I = Instance.new(Class)
@@ -73,6 +75,7 @@ end
 -- ===== State =====
 local Gui, Root, Main, Canvas, CanvasHolder, Zoom, CardBody, Info, Gate, GuideList, RecentreButton
 local StyleButton, StylePanel -- the Class tab's style picker (Rensei.Styles)
+local ClassList, ClassFamily, TabArt -- the Class tab's list, the family it shows, the Inventory tab art
 local Tabs = {}
 local Tree = "Guide" -- the menu opens on the GUIDE tab
 local Selected = nil -- node id on the card
@@ -121,7 +124,7 @@ local function BuildPanel()
 	local Source = Inventory:WaitForChild("MainFrame")
 	Root = New("Frame", {Name = "Mastery", BackgroundTransparency = 1, Size = Inventory.Size, Position = Inventory.Position,
 		AnchorPoint = Inventory.AnchorPoint, ZIndex = Inventory.ZIndex, Parent = Gui})
-	Main = New("Frame", {Name = "MainFrame", BackgroundTransparency = 1, Size = Source:GetAttribute("FullSize") or Source.Size, -- the Bag shrank (2026-10-18); this menu keeps the full size Position = Source.Position,
+	Main = New("Frame", {Name = "MainFrame", BackgroundTransparency = 1, Size = Source:GetAttribute("FullSize") or Source.Size, Position = Source.Position, -- the Bag shrank (2026-10-18); this menu keeps the full size
 		AnchorPoint = Source.AnchorPoint, Parent = Root}, {New("UIAspectRatioConstraint", {AspectRatio = 1.5179678})})
 	Source.main:Clone().Parent = Main
 	local Header = Source.Header:Clone()
@@ -133,6 +136,7 @@ local function BuildPanel()
 		AnchorPoint = Source.Top.AnchorPoint, Parent = Main},
 		{New("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0.012, 0), SortOrder = Enum.SortOrder.LayoutOrder,
 			VerticalAlignment = Enum.VerticalAlignment.Center})})
+	TabArt = Source.Top.Armor
 	for I, Name in ipairs(TABS) do
 		local B = Source.Top.Armor:Clone()
 		B.Name = Name
@@ -196,6 +200,12 @@ local function BuildPanel()
 		ScrollBarImageColor3 = GOLD, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, Visible = false, ZIndex = 4,
 		Size = UDim2.new(1, -12, 1, -8), Position = UDim2.fromOffset(6, 4), Parent = CanvasHolder},
 		{New("UIListLayout", {Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder})})
+	-- the CLASS tab's list (shown instead of the circle, under the loadout line and the style button)
+	ClassList = New("ScrollingFrame", {Name = "ClassSkills", BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 4,
+		ScrollBarImageColor3 = GOLD, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, Visible = false, ZIndex = 4,
+		Size = UDim2.new(1, -12, 1, -46), Position = UDim2.fromOffset(6, 42), Parent = CanvasHolder},
+		{New("UIListLayout", {Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder}),
+		 New("UIPadding", {PaddingTop = UDim.new(0, 2), PaddingBottom = UDim.new(0, 6)})})
 
 	local Card = New("Frame", {Name = "Card", BackgroundColor3 = DARK, BackgroundTransparency = 0.35, Size = UDim2.fromScale(0.345, 0.83),
 		Position = UDim2.fromScale(0.61, 0.125), Parent = Main},
@@ -345,56 +355,161 @@ function MasteryUI.Draw()
 	MasteryUI.Refresh()
 end
 
--- ===== The Class tab: one column per class family =====
--- Each column lists its skills top to bottom in tier order with links to their prerequisites. The column
--- of the class you're fighting as is lit and marked EQUIPPED CLASS.
+-- ===== The Class tab (revamped 2026-10-18) =====
+-- Family tabs across the top (the Inventory's tab art, like this menu's own tabs; a gold mark under the class
+-- you fight as), the family's loadout on the hotbar's slot art (keys 1-4 in Combat Mode), then one row per skill
+-- in tier order: its tier mark (the circles' node style), name, cost / cooldown / prerequisite, and its state with
+-- the reason when it's locked. Every verdict comes from SkillTree / ClassSkills, the rules the server applies.
+-- The card on the right is unchanged: the details, Learn and the Equip keys (SkillTreeService decides).
+local function Num(N)
+	N = tonumber(N) or 0
+	if math.abs(N - math.floor(N)) < 1e-6 then return tostring(math.floor(N)) end
+	return (("%.2f"):format(N):gsub("0+$", ""))
+end
+
 function MasteryUI.DrawClass()
-	local S = CanvasHolder.AbsoluteSize
-	local Count = #ClassSkills.Order
-	local ColW = math.max(74, S.X / Count)
-	local RowH = math.clamp((S.Y - 110) / 5, 52, 86)
-	local Top = -S.Y / 2 + 44 -- under the loadout line
+	local Keep = ClassList.CanvasPosition
+	for _, C in ipairs(ClassList:GetChildren()) do if C:IsA("GuiObject") then C:Destroy() end end
 	local D = Data()
 	local Current = ClassSkills.CharacterFamily(Player.Character)
-	local Pos = {}
-	for C, Family in ipairs(ClassSkills.Order) do
-		local X = (C - (Count + 1) / 2) * ColW
-		local Here = Family == Current
-		New("Frame", {Name = Family, BackgroundColor3 = Here and GOLD or DARK, BackgroundTransparency = Here and 0.9 or 0.65, BorderSizePixel = 0,
-			Size = UDim2.fromOffset(ColW - 8, S.Y - 56), AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromOffset(X, Top), ZIndex = 1, Parent = Canvas},
-			{New("UICorner", {CornerRadius = UDim.new(0, 4)}), New("UIStroke", {Color = GOLD, Transparency = Here and 0.25 or 0.82})})
-		Label(ClassSkills.Display[Family]:upper(), {FontFace = FONT_B, TextSize = 14, TextColor3 = Here and GOLD or TEXT, TextXAlignment = Enum.TextXAlignment.Center,
-			Size = UDim2.fromOffset(ColW - 10, 18), AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromOffset(X, Top + 6), ZIndex = 2, Parent = Canvas})
-		Label(Here and "EQUIPPED CLASS" or "", {FontFace = FONT_B, TextSize = 10, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Center,
-			Size = UDim2.fromOffset(ColW - 10, 14), AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromOffset(X, Top + 24), ZIndex = 2, Parent = Canvas})
-		for _, Node in ipairs(ClassSkills.Nodes(Family)) do
-			Pos[Node.Id] = Vector2.new(X, Top + 50 + (Node.A - 0.5) * RowH)
+	ClassFamily = ClassFamily or Current or ClassSkills.Order[1]
+	local Display = ClassSkills.Display[ClassFamily] or ClassFamily
+	local W = math.max(200, ClassList.AbsoluteSize.X - 10)
+	local O = 0
+	local function Next() O += 1 return O end
+
+	-- family tabs
+	local TabsRow = New("Frame", {Name = "Families", BackgroundTransparency = 1, Size = UDim2.new(1, -6, 0, 32), LayoutOrder = Next(), ZIndex = 4, Parent = ClassList},
+		{New("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 3), SortOrder = Enum.SortOrder.LayoutOrder,
+			VerticalAlignment = Enum.VerticalAlignment.Center})})
+	for I, Family in ipairs(ClassSkills.Order) do
+		local On = Family == ClassFamily
+		local B = TabArt:Clone()
+		B.Name = Family
+		B.LayoutOrder = I
+		B.Active = true
+		B.Size = UDim2.new(1 / #ClassSkills.Order, -3, 1, 0)
+		B.Image = On and TAB_ON or TAB_OFF
+		B.ZIndex = 5
+		local Head = B:FindFirstChild("Head")
+		if Head then
+			Head.Text = (ClassSkills.Display[Family] or Family):upper()
+			Head.TextColor3 = On and Color3.new(1, 1, 1) or Color3.fromRGB(190, 190, 190)
+			Head.ZIndex = 6
 		end
+		if Family == Current then
+			New("Frame", {Name = "Yours", BorderSizePixel = 0, BackgroundColor3 = GOLD, Size = UDim2.fromOffset(6, 6), AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.new(0.5, 0, 1, -1), ZIndex = 7, Parent = B}, {New("UICorner", {CornerRadius = UDim.new(1, 0)})})
+		end
+		B.Parent = TabsRow
+		B.Activated:Connect(function()
+			if ClassFamily == Family then return end
+			ClassFamily = Family
+			ClassList.CanvasPosition = Vector2.zero
+			local First = ClassSkills.Nodes(Family)[1]
+			Selected = First and First.Id or Selected
+			MasteryUI.Draw()
+			if First then MasteryUI.Select(First.Id) end
+		end)
 	end
-	for Id, P in pairs(Pos) do
-		for _, R in ipairs(SkillTree.Nodes[Id].Req) do
-			if Pos[R] then
-				local Lit = SkillTree.Rank(D, R) > 0 and SkillTree.Rank(D, Id) > 0
-				Line(Pos[R], P, Lit and GOLD or LOCKED, Lit and 0.1 or 0.35, Canvas).ZIndex = 2
+
+	-- the loadout
+	local Fits = ClassFamily == Current
+	Label(("<b>%s LOADOUT</b>   <font color='#8C8478'>%s</font>"):format(Display:upper(),
+		Fits and "keys 1-4 in Combat Mode" or ("used when you fight with a " .. Display .. " class")),
+		{TextSize = 13, TextColor3 = GOLD, Size = UDim2.new(1, -6, 0, 18), LayoutOrder = Next(), ZIndex = 4, Parent = ClassList})
+	local SlotSize = math.clamp(math.floor(W / 4) - 14, 42, 62)
+	local SlotRow = New("Frame", {Name = "Loadout", BackgroundTransparency = 1, Size = UDim2.new(1, -6, 0, SlotSize), LayoutOrder = Next(), ZIndex = 4, Parent = ClassList},
+		{New("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder})})
+	local Loadout = D and ClassSkills.Loadout(D, ClassFamily) or {}
+	for I = 1, ClassSkills.Slots do
+		local Id = Loadout[I]
+		local Node = Id and Id ~= "" and SkillTree.Nodes[Id]
+		local S = New("ImageButton", {Name = "Slot" .. I, Image = SLOT_ART, BackgroundTransparency = 1, Size = UDim2.fromOffset(SlotSize, SlotSize),
+			LayoutOrder = I, ZIndex = 5, AutoButtonColor = Node ~= nil, Parent = SlotRow})
+		Label(tostring(I), {FontFace = FONT_B, TextSize = 13, TextColor3 = GOLD, Size = UDim2.fromOffset(16, 16), Position = UDim2.fromOffset(5, 3), ZIndex = 7, Parent = S})
+		local Name = Label(Node and Node.Name or "—", {FontFace = Node and FONT_B or FONT, TextColor3 = Node and TEXT or DIM, TextScaled = true,
+			TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center, Size = UDim2.new(1, -12, 0.55, 0),
+			Position = UDim2.fromScale(0.5, 0.58), AnchorPoint = Vector2.new(0.5, 0.5), ZIndex = 7, Parent = S})
+		New("UITextSizeConstraint", {MaxTextSize = 12, Parent = Name})
+		if Node then S.Activated:Connect(function() MasteryUI.Select(Id) end) end
+	end
+
+	-- the skills
+	local Nodes = ClassSkills.Nodes(ClassFamily)
+	local Learned = 0
+	for _, Node in ipairs(Nodes) do if SkillTree.Rank(D, Node.Id) > 0 then Learned += 1 end end
+	Label(("<b>SKILLS</b>   <font color='#8C8478'>%d of %d learned</font>"):format(Learned, #Nodes),
+		{TextSize = 13, TextColor3 = GOLD, Size = UDim2.new(1, -6, 0, 18), LayoutOrder = Next(), ZIndex = 4, Parent = ClassList})
+	if #Nodes == 0 then
+		Label("No skills have been designed for this class yet.", {TextSize = 13, TextColor3 = DIM, Size = UDim2.new(1, -6, 0, 18), LayoutOrder = Next(), ZIndex = 4, Parent = ClassList})
+	end
+	local RowH = 62
+	local Mark = 34
+	local StatusW = 92
+	local Prev = nil
+	for _, Node in ipairs(Nodes) do
+		local Id = Node.Id
+		local Rank = SkillTree.Rank(D, Id)
+		local CanBuy, Why = SkillTree.CanBuy(D, Id)
+		local Def = ClassSkills.Def(Id)
+		local Row = New("TextButton", {Name = Id, Text = "", AutoButtonColor = true, BackgroundColor3 = DARK, BackgroundTransparency = 0.35,
+			Size = UDim2.new(1, -6, 0, RowH), LayoutOrder = Next(), ZIndex = 4, Parent = ClassList},
+			{New("UICorner", {CornerRadius = UDim.new(0, 4)}), New("UIStroke", {Name = "RowStroke", Color = GOLD, Transparency = 0.78})})
+		local Box = New("Frame", {Name = "Tier", BackgroundColor3 = DARK, Size = UDim2.fromOffset(Mark, Mark), AnchorPoint = Vector2.new(0, 0.5),
+			Position = UDim2.new(0, 10, 0.5, 0), ZIndex = 5, Parent = Row}, {New("UICorner", {CornerRadius = UDim.new(0.18, 0)})})
+		local Stroke = New("UIStroke", {Color = GOLD, Thickness = 2, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = Box})
+		local Glyph = Label(TIER[Node.Level or 1] or "I", {FontFace = FONT_B, TextSize = 15, TextXAlignment = Enum.TextXAlignment.Center,
+			TextYAlignment = Enum.TextYAlignment.Center, Size = UDim2.fromScale(1, 1), ZIndex = 6, Parent = Box})
+		-- the prerequisite thread from the row above (lit once both are learned)
+		local After = {}
+		for _, R in ipairs(Node.Req or {}) do
+			local RN = SkillTree.Nodes[R]
+			if RN and RN.Tree == SkillTree.ClassTree then
+				if Prev and R == Prev.Id then
+					local Lit = SkillTree.Rank(D, R) > 0 and Rank > 0
+					New("Frame", {Name = "Thread", BorderSizePixel = 0, BackgroundColor3 = Lit and GOLD or LOCKED, BackgroundTransparency = Lit and 0.1 or 0.3,
+						Size = UDim2.fromOffset(2, (RowH - Mark) / 2 + 8), AnchorPoint = Vector2.new(0.5, 1),
+						Position = UDim2.new(0, 10 + Mark / 2, 0.5, -Mark / 2), ZIndex = 5, Parent = Row})
+				end
+				table.insert(After, RN.Name)
 			end
 		end
+		local X = 10 + Mark + 12
+		Label(("<b>%s</b>"):format(Node.Name), {TextSize = 15, TextColor3 = TEXT, TextTruncate = Enum.TextTruncate.AtEnd, TextWrapped = false,
+			Size = UDim2.new(1, -(X + StatusW + 8), 0, 18), Position = UDim2.fromOffset(X, 6), ZIndex = 5, Parent = Row})
+		local Facts = {("Tier %s"):format(TIER[Node.Level or 1] or "I"), ("%d MP"):format(Node.Cost or 0)}
+		if Def and Def.Cooldown then table.insert(Facts, Num(Def.Cooldown) .. "s cooldown") end
+		if Def and Def.Stamina then table.insert(Facts, Num(Def.Stamina) .. " stamina") end
+		if #After > 0 then table.insert(Facts, "after " .. table.concat(After, ", ")) end
+		Label(table.concat(Facts, "  ·  "), {TextSize = 12, TextColor3 = DIM, TextTruncate = Enum.TextTruncate.AtEnd, TextWrapped = false,
+			Size = UDim2.new(1, -(X + 8), 0, 15), Position = UDim2.fromOffset(X, 25), ZIndex = 5, Parent = Row})
+		-- the state line: why it's locked (the first requirement not met), or what to do next
+		local Line, Color
+		if Rank > 0 then
+			local Slot = ClassSkills.SlotOf(D, ClassFamily, Id)
+			Line, Color = Slot and ("On key %d."):format(Slot) or "Learned. Equip it from the card.", Slot and GOLD or TEXT
+		elseif CanBuy then
+			Line, Color = ("Ready to learn for %d MP."):format(Node.Cost or 0), GREEN
+		else
+			for _, R in ipairs(SkillTree.Requirements(D, Id)) do
+				if not R[2] then Line = "Needs " .. R[1] break end
+			end
+			-- every requirement met: it's the Mastery Points (the cost isn't in the requirement list)
+			local Have = D and D.Mastery and D.Mastery.Unspent or 0
+			if not Line and Have < (Node.Cost or 0) then Line = ("Needs %d MP (you have %d)."):format(Node.Cost or 0, Have) end
+			Line, Color = Line or (Why and tostring(Why) or "Locked."), Color3.fromRGB(205, 140, 125)
+		end
+		Label(Line, {TextSize = 12, TextColor3 = Color, TextTruncate = Enum.TextTruncate.AtEnd, TextWrapped = false,
+			Size = UDim2.new(1, -(X + 8), 0, 15), Position = UDim2.fromOffset(X, 41), ZIndex = 5, Parent = Row})
+		-- the status word on the right (Refresh writes it: SLOT n / LEARNED / LEARNABLE / LOCKED)
+		local Status = Label("", {FontFace = FONT_B, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Right, Size = UDim2.fromOffset(StatusW, 16),
+			AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 7), ZIndex = 5, Parent = Row})
+		NodeViews[Id] = {Button = Box, Stroke = Stroke, Rank = Status, Glyph = Glyph, Row = Row}
+		Row.Activated:Connect(function() MasteryUI.Select(Id) end)
+		Prev = Node
 	end
-	for Id, P in pairs(Pos) do
-		local Node = SkillTree.Nodes[Id]
-		local Size = math.clamp(RowH * 0.48, 30, 42)
-		local B = New("TextButton", {Name = Id, Text = "", AutoButtonColor = false, BackgroundColor3 = DARK, Size = UDim2.fromOffset(Size, Size),
-			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(P.X, P.Y), ZIndex = 3, Parent = Canvas},
-			{New("UICorner", {CornerRadius = UDim.new(0.18, 0)})})
-		local Stroke = New("UIStroke", {Color = GOLD, Thickness = 2, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = B})
-		local Glyph = Label(TIER[Node.Level or 1] or "I", {FontFace = FONT_B, TextSize = Size * 0.42, TextXAlignment = Enum.TextXAlignment.Center,
-			TextYAlignment = Enum.TextYAlignment.Center, Size = UDim2.fromScale(1, 1), ZIndex = 4, Parent = B})
-		Label(Node.Name, {FontFace = FONT_B, TextSize = 11, TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Center, Size = UDim2.fromOffset(ColW - 12, 14),
-			AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, 2), ZIndex = 4, Parent = B})
-		local Rank = Label("", {TextSize = 10, FontFace = FONT_B, TextXAlignment = Enum.TextXAlignment.Center, Size = UDim2.fromOffset(ColW - 12, 12),
-			AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, 15), ZIndex = 4, Parent = B})
-		NodeViews[Id] = {Button = B, Stroke = Stroke, Rank = Rank, Glyph = Glyph}
-		B.Activated:Connect(function() MasteryUI.Select(Id) end)
-	end
+	ClassList.CanvasPosition = Keep
 end
 
 -- ===== Styles (Rensei.Styles): the style button's text and the picker panel =====
@@ -711,6 +826,13 @@ function MasteryUI.Refresh()
 			V.Rank.TextColor3 = (Slot or Rank > 0) and GOLD or (CanBuy and GREEN or DIM)
 		end
 		if Id == Selected then V.Stroke.Color = Color3.new(1, 1, 1) V.Stroke.Thickness = 3 else V.Stroke.Thickness = 2 end
+		if V.Row then -- the Class tab's rows: the selected one is lit
+			local On = Id == Selected
+			V.Row.BackgroundColor3 = On and GOLD or DARK
+			V.Row.BackgroundTransparency = On and 0.84 or 0.35
+			local RS = V.Row:FindFirstChild("RowStroke")
+			if RS then RS.Transparency = On and 0.15 or 0.78 end
+		end
 	end
 	-- header: MP, stage, stage progress, and what the Truth/Gate trial still needs
 	if D and D.Mastery then
@@ -719,7 +841,11 @@ function MasteryUI.Refresh()
 			Progression.MaxStage, M.StageEarned or 0, Progression.MasteryPerStage)
 		local Ready, Reasons = Progression.GateCheck(D)
 		Gate.Text = Ready and "<font color='#E6CD78'>The Truth/Gate trial is ready.</font>" or ("Trial: " .. (Reasons[1] or ""))
-		if Tree == SkillTree.ClassTree then Gate.Text = LoadoutLine(D) end
+		if Tree == SkillTree.ClassTree then
+			local Fam = ClassSkills.CharacterFamily(Player.Character)
+			Gate.Text = Fam and ("Fighting as <font color='#E6CD78'><b>%s</b></font>. Learn skills with MP, then put them on keys 1-4 for Combat Mode."):format(ClassSkills.Display[Fam]:upper())
+				or LoadoutLine(D)
+		end
 		if StyleButton then
 			local OnClass = Tree == SkillTree.ClassTree
 			StyleButton.Visible = OnClass
@@ -742,14 +868,18 @@ end
 function MasteryUI.ShowTree(Name)
 	Tree = Name
 	local IsGuide = Name == GUIDE
+	local IsClass = Name == SkillTree.ClassTree
 	GuideList.Visible = IsGuide
-	Canvas.Visible = not IsGuide
-	RecentreButton.Visible = not IsGuide
+	ClassList.Visible = IsClass
+	Canvas.Visible = not IsGuide and not IsClass
+	RecentreButton.Visible = not IsGuide and not IsClass
 	Gate.Visible = not IsGuide
 	if IsGuide then
 		Selected = nil
-	elseif Name == SkillTree.ClassTree then
-		local First = ClassSkills.Nodes(ClassSkills.CharacterFamily(Player.Character) or ClassSkills.Order[1])[1]
+	elseif IsClass then
+		-- opens on the class you fight as
+		ClassFamily = ClassSkills.CharacterFamily(Player.Character) or ClassSkills.Order[1]
+		local First = ClassSkills.Nodes(ClassFamily)[1]
 		Selected = First and First.Id
 	else
 		Selected = SkillTree.Roots[Name]

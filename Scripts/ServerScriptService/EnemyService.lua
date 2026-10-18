@@ -27,6 +27,12 @@
 --
 -- Rig attribute AIPassive = true: the enemy still chases, faces and defends but never attacks
 -- (sparring / training targets, tests).
+--
+-- SQUADS (2026-10-18, owner prompt "Advanced Swarm NPC Combat AI"): every enemy is a member of
+-- ServerScriptService.CombatDirector. Enemies on the same player form one encounter; only the holder of its
+-- attack token starts attacks or casts (CanStrike) and only its hits land (DamageManager). The others go to the
+-- surround position the director gives them (SlotFor), face the player and still defend (block / parry / guard
+-- casts). A string stops between hits if the token is taken away. Target changes need TargetSwitchMargin.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -48,6 +54,7 @@ local BlockSkill = require(Modules.Skills.Combat.Block)
 local Stun = require(States.Stun)
 local Attacking = require(States.Attacking)
 local Blocking = require(States.Blocking)
+local CombatDirector = require(game:GetService("ServerScriptService"):WaitForChild("CombatDirector"))
 
 local SPAWN_TAG = "RenseiEnemySpawn"
 local function Alchemy() return require(game:GetService("ServerScriptService").AlchemyService) end -- (lazy: it requires us)
@@ -128,6 +135,11 @@ local function BuildRig(Type, Def, Spawn)
 	Rig:SetAttribute("PhysicalMultiplier", Def.DamageMult)
 	Rig:SetAttribute("CombatMode", true) -- weapon drawn, same as a player in Combat Mode
 	if Def.Knockable then Rig:SetAttribute("Knockable", true) end -- knocked at 0 HP, grip (B) to finish
+	if Def.Boss then -- the top-of-screen boss bar (HUDUI): name, title, health
+		Rig:SetAttribute("Boss", true)
+		Rig:SetAttribute("BossName", Def.BossName or Def.DisplayName)
+		Rig:SetAttribute("Title", Def.Title or "")
+	end
 	Rig:PivotTo(Spawn.CFrame * CFrame.new(0, 3, 0))
 	Rig.Parent = workspace.World.Live
 	return Rig
@@ -145,11 +157,18 @@ local function Brain(E)
 	local NextCast = 0
 	local Walking = false
 
+	-- the walk's rate follows the enemy's own walk speed (TuningConfig.Locomotion: the shared walk is
+	-- designed at 12; a 19-speed duelist strides faster, a slowed one slower) instead of a flat 1x
+	local function WalkRate()
+		local L = Tuning.Locomotion
+		return math.clamp(Humanoid.WalkSpeed / L.Design.Walk, L.Min, L.Max)
+	end
 	local function SetWalking(On)
+		if On and Walking and E.WalkTrack and math.abs(E.WalkTrack.Speed - WalkRate()) > 0.05 then E.WalkTrack:AdjustSpeed(WalkRate()) end
 		if On == Walking then return end
 		Walking = On
 		if E.WalkTrack then
-			if On then E.WalkTrack:Play(0.15) else E.WalkTrack:Stop(0.15) end
+			if On then E.WalkTrack:Play(0.15, 1, WalkRate()) else E.WalkTrack:Stop(0.15) end
 		end
 	end
 
@@ -165,16 +184,22 @@ local function Brain(E)
 			or AttackRunner.IsRunning(Rig) or WC:HasStatusEffects({Stun, Attacking, Blocking})
 	end
 
+	-- the nearest player in aggro range (inside the leash); the current target is kept unless another player is
+	-- TargetSwitchMargin studs closer (no flip-flopping between two players standing near each other)
 	local function PickTarget()
+		local Margin = Tuning.Squad and Tuning.Squad.TargetSwitchMargin or 0
+		local Cur, CurDist = nil, math.huge
 		local Best, BestDist = nil, Def.AggroRange
 		for _, Player in ipairs(Players:GetPlayers()) do
 			local C = Player.Character
 			local R = C and C:FindFirstChild("HumanoidRootPart")
 			if R and Alive(C) and not C:GetAttribute("Knocked") and (Flat(R.Position - E.Home.Position)).Magnitude <= Def.LeashRange then
 				local D = (R.Position - Root.Position).Magnitude
-				if D < BestDist or C == E.Target and D < Def.LeashRange then Best, BestDist = C, D end
+				if C == E.Target and D < Def.LeashRange then Cur, CurDist = C, D end
+				if D < BestDist then Best, BestDist = C, D end
 			end
 		end
+		if Cur and (not Best or Best == Cur or BestDist > CurDist - Margin) then return Cur end
 		return Best
 	end
 
@@ -195,6 +220,7 @@ local function Brain(E)
 				Face(Target)
 				local Aim = Target.HumanoidRootPart.Position - Root.Position
 				Alchemy().CastAs(Rig, A.Affinity, S.Slot, Aim.Magnitude > 0.1 and Aim.Unit or Root.CFrame.LookVector)
+				CombatDirector.NoteCast(Rig) -- its projectile / explosion may still be out: the token stays a moment
 				return true
 			end
 		end
@@ -210,6 +236,7 @@ local function Brain(E)
 		if Weapon and Weapon.Ranged then
 			for I = 1, math.random(Def.Combo[1], Def.Combo[2]) do
 				if not Alive(Rig) or not Alive(Target) or WC:HasStatusEffects({Stun}) or Swimming(Rig) then return end
+				if not CombatDirector.Holds(Rig, Target) then return end -- the token moved on mid-string
 				if not WeaponManager.CanFire(Rig) then return end
 				if (Target.HumanoidRootPart.Position - Root.Position).Magnitude > Range + 6 then return end
 				Face(Target)
@@ -225,12 +252,13 @@ local function Brain(E)
 		local Count = math.min(#Hits, math.random(Def.Combo[1], Def.Combo[2]))
 		for I = 1, Count do
 			if not Alive(Rig) or not Alive(Target) or WC:HasStatusEffects({Stun}) or Swimming(Rig) then return end
+			if not CombatDirector.Holds(Rig, Target) then return end -- the token moved on mid-string
 			if (Target.HumanoidRootPart.Position - Root.Position).Magnitude > Range + 2 then return end
 			Face(Target)
 			local Outcome = AttackRunner.Run(WC, Hits[I], Prefix .. I, {WalkSpeed = 4})
 			if Outcome == "Interrupted" or Outcome == "Whiff" then return end
 		end
-		if math.random() < Def.HeavyChance and Alive(Target) and not WC:HasStatusEffects({Stun}) and not Swimming(Rig) then
+		if math.random() < Def.HeavyChance and Alive(Target) and not WC:HasStatusEffects({Stun}) and not Swimming(Rig) and CombatDirector.Holds(Rig, Target) then
 			local Heavy = Weapon and Weapon.Heavy or Tuning.Heavy
 			Face(Target)
 			AttackRunner.Run(WC, Heavy, Weapon and (Weapon.Class .. "_Heavy") or "Heavy", {WalkSpeed = 3})
@@ -244,6 +272,7 @@ local function Brain(E)
 
 		local Target = PickTarget()
 		E.Target = Target
+		CombatDirector.SetTarget(Rig, Target) -- joins / leaves that player's encounter
 		if not Target then
 			-- leash: walk home and recover
 			local Home = E.Home.Position
@@ -272,6 +301,27 @@ local function Brain(E)
 			end
 		end
 		local ReadyToAttack = os.clock() >= NextAttack and not Rig:GetAttribute("AIPassive") and not Swimming(Rig)
+			and CombatDirector.CanStrike(Rig, Target) -- only the encounter's attack-token holder attacks
+		-- waiting squad members: go to the surround position, face the player, keep apart; never attack
+		if not CombatDirector.Holds(Rig, Target) then
+			local Slot = CombatDirector.SlotFor(Rig)
+			if not Slot then
+				-- no position yet: close to the waiting ring on the side it's already on
+				local FromTarget = Flat(Root.Position - TRoot.Position)
+				FromTarget = FromTarget.Magnitude > 0.1 and FromTarget.Unit or Vector3.new(1, 0, 0)
+				Slot = TRoot.Position + FromTarget * ((Tuning.Squad and Tuning.Squad.Ring.Melee) or (Range + 3))
+			end
+			local Goal = Slot + Push * 0.6 -- local avoidance on top of the slot
+			if (Flat(Goal - Root.Position)).Magnitude > 2.5 then
+				Humanoid:MoveTo(Goal)
+				SetWalking(true)
+			else
+				Humanoid:MoveTo(Root.Position)
+				SetWalking(false)
+				Face(Target)
+			end
+			continue
+		end
 		-- alchemists cast when they can (range, sight, meter, cooldown); otherwise they close in and fight
 		if Def.Alchemy and ReadyToAttack and os.clock() >= NextCast and TryCast(Target, Dist) then
 			NextCast = os.clock() + Rand(Def.Alchemy.Gap)
@@ -373,6 +423,9 @@ function Spawn(Part)
 	end
 	local Rig = BuildRig(Type, Def, Part)
 	local WC = WCS.Character.new(Rig)
+	-- WCS's default props (walk 16) would replace the enemy's own walk speed whenever a status effect
+	-- ends; its tuned speed is the default instead (speed audit 2026-10-18)
+	WC:SetDefaultProps({WalkSpeed = Def.WalkSpeed, JumpPower = Rig.Humanoid.JumpPower, JumpHeight = Rig.Humanoid.JumpHeight, AutoRotate = true})
 	BlockManager.Initiate(Rig)
 	local E = {Rig = Rig, Def = Def, Type = Type, Home = Part, WCS = WC}
 	E.Block = Def.ParryChance and BlockSkill.new(WC) or nil
@@ -386,6 +439,7 @@ function Spawn(Part)
 			require(Managers.AnimationManager).Play(Rig, W.HoldAnim, {Looped = true, Priority = Enum.AnimationPriority.Core})
 		end
 	end
+	CombatDirector.Register(Rig, {Range = E.Range or Def.AttackRange, Type = Type, Ranged = E.Range ~= nil})
 	E.WalkTrack = LoadTrack(Rig, "Walk", true)
 	E.IdleTrack = LoadTrack(Rig, "Idle", true)
 	if E.IdleTrack then E.IdleTrack:Play() end
@@ -393,11 +447,25 @@ function Spawn(Part)
 
 	Rig.Humanoid.Died:Once(function()
 		EnemyService.Active[Rig] = nil
+		CombatDirector.Unregister(Rig, "Died") -- its token (if any) passes on now
 		task.delay(CORPSE_SECONDS, function()
 			pcall(function() WC:Destroy() end)
 			if Rig.Parent then Rig:Destroy() end
 		end)
-		task.delay(Part:GetAttribute("RespawnTime") or Def.RespawnTime, function()
+		-- dungeon enemies (Def.Dungeon: Forgotten Sites) come back slowly, and never while someone is still
+		-- in the site, so a cleared site stays cleared while you explore it (owner 2026-10-18)
+		local Dungeon = Def.Dungeon == true
+		local Wait = Part:GetAttribute("RespawnTime") or (Dungeon and Tuning.DungeonRespawn.Time) or Def.RespawnTime
+		task.delay(Wait, function()
+			while Dungeon and Part.Parent do
+				local Near = false
+				for _, P in ipairs(Players:GetPlayers()) do
+					local Root = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+					if Root and (Root.Position - Part.Position).Magnitude <= Tuning.DungeonRespawn.ClearRadius then Near = true break end
+				end
+				if not Near then break end
+				task.wait(10)
+			end
 			if Part.Parent then Spawn(Part) end
 		end)
 	end)

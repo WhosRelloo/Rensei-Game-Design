@@ -10,6 +10,7 @@ Settings.Defaults = {
 	MusicVolume = 0.5,
 	-- 2026-10-15 settings update
 	CombatLog = true, -- the in-combat badge at the top of the screen (CombatLogUI)
+	Compass = true, -- the minimal compass strip at the top of the screen (CompassUI, 2026-10-18)
 	PostEffects = true, -- bloom / sun rays / depth of field
 	UIAnimations = true, -- UIMotion (off = menus snap, for anyone who prefers still UI)
 	UISounds = true, -- menu open / close sounds
@@ -24,7 +25,7 @@ Settings.Defaults = {
 }
 
 Settings.Toggles = {CameraShake = true, AutoSprint = true, ShiftLock = true, Shadows = true,
-	CombatLog = true, PostEffects = true, UIAnimations = true, UISounds = true}
+	CombatLog = true, Compass = true, PostEffects = true, UIAnimations = true, UISounds = true}
 Settings.Sliders = {SFXVolume = true, MusicVolume = true, FieldOfView = true}
 
 -- Field Of View slider value -> degrees

@@ -174,7 +174,8 @@ function RunBody(WCSCharacter, Def, SkillName, Opts)
 	if Def.HyperArmor then Character:SetAttribute("HyperArmor", ArmorId) end
 
 	local function Finish(Outcome, Results)
-		if Runs[Character] == Token then
+		local Current = Runs[Character] == Token -- no newer attack has taken over this character
+		if Current then
 			SetPhase(Character, Token, nil)
 			Runs[Character] = nil
 			Character:SetAttribute("AttackMult", nil)
@@ -182,7 +183,10 @@ function RunBody(WCSCharacter, Def, SkillName, Opts)
 		end
 		if Character:GetAttribute("HyperArmor") == ArmorId then Character:SetAttribute("HyperArmor", nil) end
 		pcall(function() AttackingState:Stop() end)
-		if Outcome == "Interrupted" or Outcome == "Feinted" then
+		-- the attack's animation ends with the attack (Track:Stop's short default fade). Several animations run
+		-- longer than their attack (speed audit 2026-10-18: up to 1.6 s on class skills) and kept the attack pose
+		-- over walking after you could already move. A newer attack that took over keeps its own animation.
+		if Outcome == "Interrupted" or Outcome == "Feinted" or (Current and Def.Anim) then
 			pcall(function() AnimationManager.Stop(Character, Def.Anim) end)
 			if Def.Fallback then pcall(function() AnimationManager.Stop(Character, Def.Fallback) end) end
 		end

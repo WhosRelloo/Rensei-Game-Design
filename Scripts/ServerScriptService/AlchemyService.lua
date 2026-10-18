@@ -1124,7 +1124,9 @@ local function RunCast(Player, Character, Root, WC, Affinity, Slot, Def, Impl, A
 	-- the windup = the sheet's Cast (+ its CastDelay where it has one: Alloy Divider)
 	local Windup = (Def.Cast + (Def.CastDelay or 0)) * SkillMods.Mult(Character, "Windup") -- Swift Array
 	-- Steady Array: walk at full speed while casting
-	local CastWalk = SkillMods.Get(Character, "CastWalkSpeed") > 0 and 12 * (Character:GetAttribute("SpeedMultiplier") or 1) or Cfg.CastWalkSpeed
+	local CastWalk = SkillMods.Get(Character, "CastWalkSpeed") > 0
+		and game:GetService("StarterPlayer").StarterCharacter.Humanoid.WalkSpeed * (Character:GetAttribute("SpeedMultiplier") or 1) -- the base walk
+		or Cfg.CastWalkSpeed
 	local Attack = {
 		Startup = Windup, Active = Impl.Active, Recovery = Impl.Recovery,
 		Anim = Impl.Anim, Fallback = Impl.Fallback,
@@ -1255,7 +1257,12 @@ function AlchemyService.Cast(Player, Slot, Aim)
 		return
 	end
 
-	return RunCast(Player, Character, Root, WC, Affinity, Slot, Def, Impl, Aim, nil)
+	local Outcome = RunCast(Player, Character, Root, WC, Affinity, Slot, Def, Impl, Aim, nil)
+	-- Player Identities: players who could see the cast note the technique (IdentityService.Witness)
+	if Outcome then
+		task.spawn(function() pcall(function() require(ServerScriptService.IdentityService).Witness(Player, Affinity) end) end)
+	end
+	return Outcome
 end
 
 -- NPC alchemists (EnemyService, 2026-10-17): the SAME cast a player makes -- Transmutation Meter (earned by

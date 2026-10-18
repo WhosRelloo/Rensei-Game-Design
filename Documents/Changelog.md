@@ -2,6 +2,433 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-18 — Speed balancing and animations: audit and fixes
+
+**Owner:** "audit speed balancing and how they affect animations", then "set the base walk speed to 16, fade attack animations out when the attack ends, and scale the run/sprint and enemy walk animations by speed. Leave the per-attack dead-time tuning for later."
+
+The full audit (every walk-speed writer, the walk / run / enemy playback rules, and all 86 attack animations measured against their attack's real timing) is `Documents/Audit - Speed Balancing and Animations 2026-10-18.md`.
+
+### Applied
+
+| Fix | What changed | Tested (Rensei Play) |
+|---|---|---|
+| **A. Base walk speed 16** | `StarterCharacter.Humanoid.WalkSpeed` 12 → **16** (every walk-speed writer reads it). `StarterPlayer.CharacterWalkSpeed` 20 → 16, so the unused value matches. Steady Array's full-speed casting now uses the base instead of a hard-coded 12 (`AlchemyService`) | client **16 at spawn, still 16 after a run** (was 16 → 12); server 16 |
+| **E1. Attack animations end with the attack** | `AttackRunner.Finish` stops the attack's animation (Roblox's short default fade) on every outcome, not only Interrupted / Feinted. It skips this if a newer attack already took over the character, so strings and chains keep their own animation | a 4.2 s animation (WHERE YOU GOING?!) run as a 0.7 s attack **stopped at 0.65 s** (it used to play to 4.2 s); a 3-hit fist string played and stopped normally |
+| **C / D. Run, sprint and enemy walk follow speed** | **Already in place, done by another change made in Studio during this session** (not by this one): `Managers.LocomotionSync` (player walk and run tracks follow real ground speed against `TuningConfig.Locomotion.Design`), and `EnemyService`'s `WalkRate` (enemy walk = walk speed / 12, clamped 0.5–1.6). Nothing was duplicated | walking at 16: walk track **1.33×**; running at 24: Run **~1.0×**; sprinting at 30: SpeedyRun **1.0×** |
+
+- **Errors / profile:** 0 client or server errors; the profile was snapshotted and restored.
+- **Backup:** `RenseiBackups["Pre-SpeedFix_2026-10-18"]` holds AttackRunner and AlchemyService. Its README has the undo steps, including putting the two StarterPlayer values back.
+- **Note for the owner:** `Locomotion.Design.Walk / WalkAnim = 12` says the walk animation looks right at 12. At the new 16 base it plays at 1.33×. If the walk looks hurried, raise those two values toward 14.5–16 (one line in `TuningConfig`).
+- **Still open:** the per-attack dead time (E2; deferred by the owner) and a cast / crouch walk (B).
+
+## 2026-10-18 — Journal Evidence / Case Board and Class Skill UI revamp
+
+**Owner (2026-10-18):** the pasted "RENSEI — JOURNAL INVESTIGATION UI + CLASS SKILL UI REVAMP" prompt.
+- Audit first and reuse existing assets.
+- Evidence becomes a list plus a detail panel.
+- The Case Board gets clue cards, real connections and a server-validated deduction panel.
+- The Class Skill section gets a real revamp.
+- Both must work on mobile and desktop.
+
+> **Status: built and tested in Studio Play** (Rensei, one client, desktop, plus the Journal's narrow / phone layout forced on).
+> - The profile was snapshotted first and restored after every session.
+> - **No server script, remote or data format was changed.** This is UI only.
+
+### 1. Audit findings (before)
+
+**Journal** (`ReplicatedStorage.Modules.UI.JournalUI`, J)
+- **Built with `MenuKit`**, which clones the Settings panel: its frame, header plate, tab art, row plates, the Enable / Disable buttons and the key-bind box.
+- **Opening and tabs:** it opens through `UIState.RegisterMenu`, and rows pop in through UIMotion.
+- **Evidence tab:**
+  - one long column, grouped by case;
+  - each clue took a title row plus a paragraph row;
+  - no selection, no source, no count, no "new" marker.
+- **Case Board:**
+  - a column per case;
+  - each line had a `<` `>` cycler through *every* clue held;
+  - answers were checked by the server (`InvestigationService.Deduce` through `Requests.Investigation`).
+- **Identities tab** (2026-10-18) already had a two-column list / record layout, with a phone fallback (list, then record with Back).
+
+**Data**
+- **Evidence** (`Rensei.Evidence`) has a title, text, quest, an optional Research flag and an optional Technique.
+- **When a clue was found:** `Story.Evidence[id]` holds that time.
+- **Where a clue came from** isn't stored, but every source is in shared content:
+  - inspect points (`Investigation.Inspects`);
+  - minigames;
+  - puzzles;
+  - dialogue `GiveEvidence` actions.
+- **Case Board cases** (`Investigation.Deductions`) have a title, question, lines (Label plus answer evidence), a conclusion and a wrong-answer line.
+
+**Class skills** (`MasteryUI`, K → CLASS)
+- **Layout:** six narrow columns of small "I" squares.
+- **Text:** 10–11 px labels, and every skill read just "LOCKED" with no reason.
+- **The card** on the right already had what matters: the details, requirements, Learn and Equip 1–4.
+- **Data and rules:** `Rensei.ClassSkills` and `Rensei.SkillTree` (16 skills across 6 families).
+- **Server:** `SkillTreeService` decides buy, equip and unequip.
+
+### 2. Asset reuse
+
+| Use | Existing asset |
+|---|---|
+| Journal frame, header, tabs, row plates, buttons, value boxes | the Settings panel art via `MenuKit` (unchanged) |
+| Two-column layout and phone fallback | the Identities tab's split layout, now shared by Evidence and the Case Board |
+| Clue cards | the Stats panel's ornate header plate (`Uis.Stats.MainFrame.Left.Head`) |
+| Pinned-line badge on a card, "NEW", "SOLVED", the clue count | the key-bind box (`MenuKit` BoxProto) |
+| Threads between cards and lines | rotated 1–2 px lines, the same technique `MasteryUI` uses for its tree links |
+| Class family tabs | the Inventory's category tab art, the same art the Mastery menu's own tabs use |
+| Class loadout slots | the hotbar's slot plate (`Uis.HUD.Bottom` slots) |
+| Skill rows, tier marks, state colours | the Mastery menu's own Guide-row style and its node style (rounded square, gold stroke, tier numeral) |
+| Learn / Refund / Equip | unchanged (the card) |
+
+**No new images, textures or icons were added.** Evidence and class skills have no icons in the project, so none are shown rather than invented.
+
+### 3. Files changed
+
+- **`ReplicatedStorage.Modules.UI.JournalUI`:**
+  - new Evidence ledger and Case Board (the section above `Draw.Identities`);
+  - the split layout is now shared;
+  - "new clue" tracking and the tab badge.
+- **`ReplicatedStorage.Modules.UI.MasteryUI`:**
+  - the new `DrawClass`;
+  - a `ClassSkills` list container;
+  - row highlight in `Refresh`;
+  - `ShowTree` handles the Class list;
+  - a new line under the tabs ("Fighting as …").
+- **Backup:** `ServerStorage.RenseiBackups["Pre-JournalClassUI_2026-10-18"]` holds JournalUI, MasteryUI and MenuKit as they were. To undo, put them back. (MenuKit wasn't changed in the end.)
+
+### 4. Evidence (an investigator's ledger)
+
+- **Layout:** the clue list on the left, the selected clue's record on the right (desktop, 1000 px wide or more).
+- **The list:**
+  - the count ("6 clues collected");
+  - clues grouped under their case;
+  - the selected clue gets a gold title, a warmer plate and a gold edge bar.
+- **NEW marker:** a clue picked up during this session shows **NEW** until you look at it, and the tab reads **Evidence (n)**. Clues you already held when you joined count as seen.
+- **The record:**
+  - name;
+  - Clue or Research note;
+  - "Found N min ago";
+  - the clue's own text;
+  - **Source**, read from the content that actually gives it, for example "Examined: Reagent Shelf, Burned Laboratory". The area is added only when the compass list places the inspect point inside one;
+  - **Case**, plus each Case Board case of that investigation, with a **Case Board** button that opens it;
+  - once solved, "[confirmed] It helped prove: …" if this clue was one of the answers;
+  - any **Player Identities** link, labelled as a lead, not proof.
+- **Nothing is invented:** a missing source or link is simply left out. Evidence tracking / marking doesn't exist in the game, so there is no button for it.
+- **Phone layout:** the list, then the record with a **< Back** row.
+
+### 5. Case Board (a structured deduction workspace)
+
+- **Layout:** the case list on the left (solved cases sink to the bottom, marked "(solved)"). The board on the right shows:
+  - the case title and clue count;
+  - the question;
+  - **clue cards**: every clue you hold from that investigation, so the board never hints which ones matter;
+  - the case's **lines** (from its data);
+  - **threads** from each pinned card down to its line.
+- **Interaction:**
+  - pick a line, then the card that answers it, or a card, then a line;
+  - the next empty line activates by itself;
+  - **X** unpins;
+  - tapping a card without an active line shows its text under the board ("inspect without pinning").
+- **Submit:**
+  - it's dimmed and explains itself ("Pin a clue to every line first.") until every line has a clue;
+  - it sends the pins through the existing `Requests.Investigation "Deduce"`;
+  - **the server decides**, with no client-side success state.
+- **Results:**
+  - a wrong answer shows the case's own wrong line in red;
+  - a right answer arrives with the profile sync, and the board turns solved: solid gold threads, the proved answers and the conclusion.
+- **Connections are only what the system supports:**
+  - before solving, threads show *your* pins (thin);
+  - after solving, they show the proved answers (solid).
+  - Nothing links two clues just because they're near each other.
+- **Any case works**, from `Investigation.Deductions`; nothing is hard-coded to the Foundry Yard. Tested on two cases: *The Laboratory Fire* and *Who Drew the Circles*.
+- **Phone layout:** the case list, then the board with a **< Cases** row. The cards use 3 columns when there's room, else 2.
+
+### 6. Class Skill
+
+- **Family tabs:** on the Inventory tab art, with a small gold mark under the class you fight as. The tab opens on that class.
+- **Loadout strip:** the family's 4 keys on the hotbar slot art. A filled slot shows the skill and selects it.
+- **One row per skill**, in tier order:
+  - its tier mark (filled gold once learned);
+  - name;
+  - "Tier · MP · cooldown · stamina · after <prerequisite>" (all from `ClassSkills.Def` / `SkillTree`);
+  - a **state line** with the real reason: "Needs 2 MP (you have 0).", "Needs Level 5", "Needs Bullet Slash or Blood Dash", "Ready to learn for 3 MP.", "On key 1.";
+  - a status word (SLOT n / LEARNED / LEARNABLE / LOCKED, from the same `Refresh` verdicts as before);
+  - a short gold thread to the row above when that row is its prerequisite.
+- **The selected row is lit.** The card on the right is unchanged: details, requirement checklist, cooldown / stamina / hits, and the Learn, Refund and Equip 1–4 buttons, all decided by `SkillTreeService`.
+
+### 7. Compatibility (preserved)
+
+- Quests, Codex and Identities tabs, and Journal open / close.
+- Track and Abandon, Identify, and the deduction remote.
+- `Story.Evidence` / `Story.Deductions` formats.
+- Rewards and quest progression through QuestService.
+- Skill data, `SkillTree` / `ClassSkills` rules, the Buy / Refund / Equip / Unequip requests, loadout saves, the style picker, the circle tabs and the Guide.
+
+### 8. Testing
+
+**Performed (Rensei Play, desktop 1644 × 852):**
+
+| Test | Result |
+|---|---|
+| Evidence, 6 clues in 2 cases | list grouped by case, count, NEW on all 6, tab "Evidence (5)" after one was opened; record shows type, found time, text, source "Examined: Reagent Shelf, Burned Laboratory", case and Case Board link |
+| Case Board, *The Laboratory Fire* | 3 cards; pinning a card fills the active line, moves to the next, tints the card, adds a "1" badge and draws the thread |
+| Wrong answer submitted | **server refused** (case not solved); the case's wrong line shown in red |
+| Right answer submitted | **server solved it** (`Story.Deductions.lab_fire_cause` set); the quest **advanced to stage 3** ("Run the reaction chamber" on the HUD); board turned solved with solid threads and the conclusion |
+| Evidence → "Case Board" button | opened that case's board |
+| Forced phone layout (Journal `ForceNarrow`) | Evidence list → record with < Back; Case Board → board with < Cases, 3 card columns |
+| Identities and Quests tabs after the change | Identities split works; Quests back to the single column |
+| Class tab | family tabs, loadout strip, 5 Fists rows with correct reasons |
+| Learn (5 test MP) | Spin Kick learned (MP 5 → 3); Bear Hug turned LEARNABLE; 540 Kick "Needs Level 5" |
+| Equip to key 1 | loadout slot 1 "Spin Kick"; row "SLOT 1 · On key 1." |
+| Family tab switch (Daggers) | 4 skills, threads between prerequisite rows, tier II mark, "Needs Bullet Slash or Blood Dash" |
+| Errors | 0 client and 0 server game errors or warnings |
+| Profile | restored after each session (test quests, evidence, deduction, MP, learned skill and loadout removed) |
+
+**Fixed during testing:**
+- the case lines inherited the journal rows' centred anchor and sat half off the board;
+- the case list was too cramped for a status label (the count moved onto the board);
+- long line labels overlapped their box, then shrank too small (they now wrap to two lines);
+- the MP-only lock reason showed just "Locked.".
+
+**Not tested (needs a device or more players):**
+- **A real phone or tablet.** The Journal's phone layout was forced on a desktop. The Mastery menu's Class list wasn't seen at phone size: its rows are 62 px and it scrolls, but its panel follows the Inventory's size.
+- **Two players.**
+- **The Dialogue / Minigame / Puzzle evidence sources:** the mapping is code-checked, but only inspect-point sources were seen.
+- **A Player Identities link line:** no test record had one.
+
+### 9. Remaining issues / notes
+
+- **No evidence or class-skill icons exist** in the project, so none are shown. If the owner adds icons (an `Icon` field on evidence or skills), the cards and rows have room for them.
+- **"NEW" lasts one session.** It isn't saved, because adding a profile field would change the save format, which the brief said to avoid.
+- **The Case Board's free dragging** wasn't built: the brief allowed a structured layout instead, and it avoids scaling and input problems on touch.
+
+## 2026-10-18 — Minimal top-of-screen compass
+
+**Owner (2026-10-18):** "a minimal directional compass on the top of the screen (the combat log would be slightly under it, but not overlapping or clipping) that subtly shows players where their areas of interests are… don't make it clutter".
+
+> **Status: built and tested in Studio Play** (Rensei, one client, desktop). The profile was snapshotted and restored. Ranges and sizes are PROPOSAL.
+
+### What you see
+
+- **A thin strip at the top centre** (34 % of the screen width, 220–360 px).
+  - **Markings:** tick marks every 15° and the letters N / E / S / W, with N in gold.
+  - **Backing:** a soft dark band behind the strip keeps it readable against a bright sky.
+  - **Edges:** both ends fade out, so it never reads as a box.
+  - **Centre:** a small gold notch marks your heading. North is world −Z.
+- **At most three marks:**
+
+  | Mark | Means | Notes |
+  |---|---|---|
+  | **Gold diamond** | the nearest unfinished objective of your **tracked quest** (the Journal's tracked quest, or else the oldest active one) | When it's behind you, it stays **pinned to the strip's edge**, smaller, so you always know which way to turn |
+  | **Faint ring** (up to 2) | the nearest **areas you haven't discovered**, within 320 studs of their edge | Their names stay hidden ("Unexplored") until the discovery popup reveals them |
+
+- **Label:** a name and distance (e.g. "Reagent Shelf · 655") fade in under the strip, but only for the mark nearest the centre of your view, within 9°.
+- **Combat log:** the badge now drops in just under the compass (top 42 instead of 12). If the compass is off, it goes back to the very top.
+- **Hidden** during full-screen menus, dialogue, cutscenes and death.
+- **Settings:** new **Gameplay → Compass** toggle (on by default; saved and validated like the others).
+
+### How objectives are found
+
+- **Each kind of objective points at the place that completes it:**
+
+  | Objective | Points at |
+  |---|---|
+  | Visit | the area |
+  | Talk | the NPC with that dialogue |
+  | Evidence | the inspect point that gives that evidence (`Investigation.Inspects[..].Evidence`) |
+  | Mechanism / Puzzle | the puzzle's mechanisms |
+  | Trial flag | the trial marker |
+  | Minigame | the station |
+  | Defeat | the enemy spawn whose enemy has that name |
+
+- **Journal-only steps** (Deduce, Signal): the mark points to the quest's home area (its first Visit), unless you're already in it.
+
+### How it works
+
+- **New `ServerScriptService.CompassService`** publishes the place list to `ReplicatedStorage.CompassPoints`. It rebuilds every 30 s and updates in place.
+  - **Why the server builds it:** the place streams, so a client can't see far-off parts itself.
+  - **What's in it:** 84 points today (14 areas, 13 NPCs, 27 inspect points, 13 mechanisms, 5 trials, 2 stations, 10 enemy spawns).
+  - **Nothing secret:** every point is a visible place in the world. Which points matter to *you* is decided on your client from your own profile copy.
+- **New `ReplicatedStorage.Modules.UI.CompassUI`**, started by `UIHandler`:
+  - picks its targets twice a second;
+  - draws every frame;
+  - each step is wrapped in pcall, so an error hides the compass instead of breaking the HUD.
+
+### Tested (Rensei Play)
+
+| Test | Result |
+|---|---|
+| Points published | 84, all seven kinds |
+| Facing north in Lindenmoor (no quest) | rings for the two undiscovered areas in range, at the right bearings: **Cypress Ridge** −20° (due north), **Bramble Hollow** +27° (true bearing 47°, camera heading 19°) |
+| Ring near the centre | label **"Unexplored · 276"** |
+| Quest started for the test (*The Unburned Lesson*, stage 2: find evidence) | **gold diamond pinned at the right edge** while facing away; facing the lab, it was **centred with "Reagent Shelf · 655"**, the nearest evidence inspect point |
+| In combat | the badge dropped in **under** the compass (top 42): no overlap or clipping (screenshot checked) |
+| Settings open | the compass faded out |
+| Settings → Compass → Disable | compass hidden; combat log back at top 12; the setting **saved through the server's validation** |
+| Readability | first version too faint on the overcast sky; fixed with the dark band and stronger outlines (screenshot checked) |
+| Errors | 0 game errors |
+| Profile | restored (test quests and the setting removed) |
+
+### Also fixed (found while testing)
+
+- **Settings rows had uneven heights.** The **Combat Log** row (added 2026-10-15) and the **Aim (Guns)** row (added 2026-10-17) were drawn smaller than the authored rows, about 65 % and 60 % height. Weapon Skill was slightly short too.
+  - All are now the standard row height, along with the new Compass row.
+
+### Files and backup
+
+- **New:** `ServerScriptService.CompassService`, `ReplicatedStorage.Modules.UI.CompassUI`, the Settings row `StarterGui.Uis.Settings.MainFrame.Container.Compass`.
+- **Changed:**
+  - `CombatLogUI` (`TopY`: under the compass, or at the top without it);
+  - `Rensei.Settings` (`Compass` default and toggle);
+  - `SettingsUI` (sets the `ShowCompass` attribute);
+  - `UIHandler` (starts CompassUI);
+  - `ServerHandler` (starts CompassService);
+  - the Combat Log / Aim / Weapon Skill row sizes.
+- **Backup:** `ServerStorage.RenseiBackups["Pre-Compass_2026-10-18"]` holds the five scripts as they were, plus a README with the undo steps.
+
+### Not tested
+
+- **A real phone or tablet.** The width clamps to 220 px on narrow screens, and Roblox's top bar on mobile has buttons at the corners, so the centre should stay free. Not seen on a device.
+- **The Talk, Defeat, Mechanism / Puzzle, Trial and Minigame mappings.** They are code-checked against the data, but only the Evidence and Visit kinds were run.
+- **Two players.**
+
+### Open (owner)
+
+- Whether discovered areas should ever show (e.g. a faint mark for the area you're heading back to).
+- The 320-stud range for unexplored areas, and the 150° span.
+- An optional custom icon set (a quest sigil, an area glyph) in place of the plain diamond and ring.
+
+## 2026-10-18 — Coordinated enemy squads ("Advanced Swarm NPC Combat AI")
+
+**Owner (2026-10-18):** the pasted "RENSEI — ADVANCED SWARM NPC COMBAT AI" prompt: Archived / VV Ultimatum-style squads. One enemy attacks a player at a time; the rest surround and wait their turn, with clean handoffs.
+
+> **Status: built and tested in Studio Play** (Rensei, one client). The profile was snapshotted first and restored after every session. Every number is PROPOSAL (`TuningConfig.Squad`).
+
+### Audit (before the change)
+
+- **How enemies worked:** each enemy ran its own brain in `EnemyService` (every 0.1 s: pick the nearest player, chase, attack or cast). Nothing coordinated them.
+- **The result:**
+  - a crowd all swung at once;
+  - they stacked on the same spot;
+  - a target could flicker between two players at nearly the same distance.
+- **What was already in place:**
+  - enemies couldn't hurt each other (a `DamageManager` check);
+  - `AttackRunner` already knew whether a rig was mid-attack.
+- **The single hit path:** every melee, weapon and alchemy hit reaches a victim through one function, `DamageManager(Character, Victim, SkillInfo)`. That made it the right place for a hard "only one attacker" rule.
+
+### How it works
+
+**New `ServerScriptService.CombatDirector`** (ModuleScript, about 520 lines; started from `ServerHandler`).
+
+- **Encounters:** one per targeted player. An enemy belongs to the encounter of its current target, which the brain reports every tick.
+  - An encounter dissolves when the player dies, is knocked, leaves, or walks out of every member's leash.
+- **The attack token:** each encounter has at most **one holder**. Only the holder starts attacks or casts.
+  - **It's enforced at the hit as well:** `DamageManager` drops any enemy hit on a player whose token that enemy doesn't hold (returns "IFramed"). Late hitboxes, projectiles, traps and explosions are covered too, so there's never a hidden second attacker.
+  - **Exceptions:**
+    - a 0.25 s **Grace** after a normal end of turn (so the last swing isn't cut off);
+    - **reactive counters** the player triggered (a Cryo Shift riposte);
+    - a cast's projectile may land up to **1.4 s** after the cast (`CastLinger`).
+- **Atomic changes:** a grant or release never yields, so two enemies can never both hold the token.
+- **Handoffs:**
+
+  | Cause | Kind |
+  |---|---|
+  | Death or despawn | forced |
+  | Knocked, gripped or carried | forced |
+  | Knockback of 45 or more | forced |
+  | Stunned for 0.8 s or longer (parry, guard break, long hitstun) | forced |
+  | Separated (beyond reach + 9 studs for 2.5 s: stuck or knocked away) | forced |
+  | Swimming or passive | forced |
+  | Turn over: 9 s × personality, only between attacks and only if someone else is ready | normal |
+
+  - **After a forced release** the old holder gets no grace and sits out 1.2 s (`Recover`).
+  - **The next holder** is chosen 0.2 s later, once the old holder's `AttackRunner` has stopped, so attacks never overlap. It then waits 0.35 s (`CommitDelay`) before striking. That beat is the player's read.
+- **Who goes next (score; lowest wins):**
+  - distance beyond its own waiting ring;
+  - plus its personality's bias;
+  - plus 5 if it's behind the player (no free back-stabs);
+  - plus 6 if it had a turn in the last 4 s;
+  - minus 0.6 per second since its last turn, up to 20 s.
+
+  The last term, fairness, was added during testing (see below) so brawlers and casters alternate.
+- **Personalities** (by enemy type):
+
+  | Personality | Enemy types | Behaviour |
+  |---|---|---|
+  | Aggressor | Bandit, Adit Scavenger | eager |
+  | Duelist | Bandit Duelist | |
+  | Alchemist | Field, Frost, Gale and Stone Alchemists | ranged, wider ring |
+  | Defender | Ward Alchemist | patient |
+  | Gunner | gun bandits | ranged |
+
+- **Waiting members' positions:**
+  - **Ring slots:** every 0.45 s each waiting member gets a slot on a ring around the player: 8.5 studs for melee, 16+ for ranged. Slots sit at angles relative to the holder (70°, −70°, 125°, …), never in its lane, and drift slowly so the ring circles.
+  - **Prepare:** the most likely next attacker gets the closer **Prepare** spot (6.5 studs, ±45°).
+  - **Reachable:** slots are pulled in front of walls (raycast) and must have ground under them.
+  - **No jitter:** a member keeps its slot unless another is 25° better.
+  - **Reserve:** more than 8 members wait on an outer Reserve ring.
+  - Waiting members walk to their slot, then stand and face the player.
+- **Targets don't flicker:** `PickTarget` keeps the current player unless another is at least 8 studs closer (`TargetSwitchMargin`).
+- **Several players:** each player has their own encounter and token. So two players near the same group each face one attacker at a time, and an enemy can't be in two encounters.
+- **Debug (Studio only):** set the workspace attribute `SquadDebug = true` (or `TuningConfig.Squad.Debug`).
+  - Neon markers show the slots.
+  - A label over each member shows its slot number, its role, and why it last gained or lost the token.
+  - Every member always carries the attributes `SquadEncounter`, `SquadRole`, `SquadReason` and `SquadPersonality`.
+
+### Tested (Rensei Play, one client)
+
+**Setup:** the player was anchored at a test spot with 50,000 HP, and every world enemy was set passive. Squads were spawned from a persistent test script.
+
+| Test | Result |
+|---|---|
+| 4 Bandits (fists), 15 s | **at most 1 attacking at any moment** (0 samples with 2+); 16 hits on the player, all by the token holder at the time; 0 blocked, 0 conflicts. Roles Attacker / Prepare / Flank; one Turn-over handoff at 8.6 s, with the new attacker in 0.2 s. Waiting members walked 18–32 studs to their slots |
+| Gate | a non-holder's hit → **"IFramed"**, no damage; the holder's hit → "Hit", 1 damage |
+| Knockback 75 on the holder | released at once; the next attacker took the token after **0.23 s**; the knocked-back bandit's hits are refused |
+| Knockback 20 (below 45) | holder **kept** the token |
+| 1.5 s stun on the holder | released after **1.03 s** (0.8 s threshold + tick); the next took it at 1.23 s |
+| Holder killed | released at once; next attacker after **0.30 s**; the dead one left the encounter |
+| Holder destroyed (despawn) | released at once; next after **0.30 s**; 2 members left |
+| Player teleported 220 studs away | token released in 0.1 s, **encounter dissolved**; back in range → a new attacker in 0.2 s |
+| Mixed squad: 3 alchemists + 2 Bandits, first version | **found a problem:** in 20 s only the two Bandits took turns. Alchemists waiting at 15 studs always lost to Bandits at 6. |
+| After the first fix (distance counted beyond each member's own ring) | the opposite: only alchemists took turns. Fixed with the fairness credit and by measuring melee members from their ring too |
+| Mixed squad, final version, 40 s | **turns rotate: Bandit → Field Alchemist → Bandit → Bandit → Field Alchemist.** Each hit was by the holder; max 1 attacking; 0 conflicts. Alchemists wait at about 15 studs, Bandits at 7–8 |
+| Debug view | slot markers and role labels appear |
+| Errors / profile | 0 errors from the new code; profile restored to the snapshot |
+
+Release reasons logged across the sessions: Turn over 27, Knockback 2, Stunned 2, Died 2 (+1 "Dead", the same thing seen from the tick), Removed 3, Lost target 3, Separated 1.
+
+### Files and backup
+
+- **New:** `ServerScriptService.CombatDirector`.
+- **Changed:**
+  - `EnemyService`:
+    - registers each rig and reports its target;
+    - only attacks or casts while holding the token, and stops a string if the token moves on;
+    - waiting members walk to their slot;
+    - `PickTarget` hysteresis.
+  - `DamageManager`: the token gate; knockback and downslam tell the director; reactive counters are allowed.
+  - `TuningConfig.Squad` (new block).
+  - `ServerHandler` (starts the director).
+- **Backup:** `ServerStorage.RenseiBackups["Pre-SwarmAI_2026-10-18"]` (EnemyService, DamageManager, TuningConfig, ServerHandler as they were). **To undo:**
+  - restore those four;
+  - delete `CombatDirector`.
+- **Switch-off without undoing:** `TuningConfig.Squad.Enabled = false`.
+
+### Not tested / limitations
+
+- **Two real players** (one client only). The per-player encounters are code-checked, and the target-loss test covers the switch.
+- **A real fight with a moving player:** the player was anchored. The handoffs were triggered directly (a `DamageManager` knockback, a Stun status, Health = 0, Destroy, teleport), not by real key presses.
+- **Gun bandits and the Bandit Duelist's block / parry** in a squad: these run through the same gates but weren't run.
+- **Spacing:** two bandits came within 1.9 studs of each other once, while one walked past another to its slot. Slots are spaced, but the walk paths aren't.
+- **No new animations:** waiting members use the existing walk and idle. Taunts, a "readying" stance or circling strafe animations would make the waiting read better; none exist yet, and no IDs were invented.
+- **Performance** wasn't profiled. The director ticks every 0.2 s with work proportional to the members, and slots every 0.45 s with one wall and one ground raycast per member.
+
+### Open (owner)
+
+- Feel: the turn length (9 s), the 0.35 s beat before a new attacker strikes, and the ring sizes, all in `TuningConfig.Squad`.
+- Whether bosses or elites should ignore the token (e.g. a boss plus adds).
+- Optional waiting-stance animations (see above).
+
 ## 2026-10-18 — Weapon hand-placement audit; katana swings fixed
 
 **Owner:** "completely audit and go through all hand placements for all weapons for everything, idles, runs, m1s, crits, etc."
@@ -1741,7 +2168,7 @@ Backup: `ServerStorage.RenseiBackups["Pre-Leaderboard_2026-10-17"]` (HUDUI, Prog
 - License → State Alchemist. A repeat grant is refused, and skipping straight to rank 3 is refused.
 - Level 11 + promotion → Master Alchemist.
 - Level 16 shows "not open yet (WIP)", and rank 4 can't be granted.
-- Clan shows "Unclanned", then "Hawkeye".
+- Clan shows "Unclanned", then the character's clan.
 - A level change updates the row live.
 - Hover, hover onto the card, leave, click-pin, and click-away all behave as described.
 - Loading state shows "Loading".
@@ -1947,7 +2374,7 @@ The test player's save was snapshotted and restored around every run.
 
 **Tested (Studio Play, the owner's real save on slot 2):**
 - **Ye:**
-  - Loaded `Data<UserId>_S2` ("Koda Hawkeye") at schema 4.
+  - Loaded `Data<UserId>_S2` (the owner's character) at schema 4.
   - `SendData` with no profile: no error.
   - A forced teleport failure: 2 tries, then the fallback ran and the teleport cleared.
   - `DataManager:Release`: no kick.
@@ -1957,7 +2384,7 @@ The test player's save was snapshotted and restored around every run.
   - Release, then a failed teleport: slot 2 came back and the player stayed in.
   - Release took 0.67 s on a settled profile. On a profile opened a moment before, it took the full 6 s, because Roblox throttles writes to one key for about 6 s.
   - Play over the real remote still answers the Studio message (next: Tutorial).
-- **Tutorial:** loaded slot 2 ("Koda Hawkeye", step Footwork). Before the fix it would have loaded slot 1.
+- **Tutorial:** loaded slot 2 (the owner's character, step Footwork). Before the fix it would have loaded slot 1.
 - **Consoles:** clean apart from Roblox's own UIBlox warnings and the expected `[FlowTeleport]` test warnings. Test hooks were removed.
 
 **Found while testing:** this project's ProfileService is an older standalone version without `AddUserId`, so profiles carry no GDPR user ids. The keys contain the UserId, so an erasure request is still a key lookup. Upgrading ProfileService (or moving to ProfileStore) would add it.
