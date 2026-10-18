@@ -2,6 +2,51 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-18 — Store live: Developer Product IDs, Creator Plus as a product, live prices, product art
+
+**Owner (2026-10-18):** created five Developer Products in the Creator Dashboard, all with Managed Pricing on:
+
+| Product | ID | List price |
+|---|---|---|
+| New Save Slot | 3719583607 | 200 R$ |
+| Creator Plus | 3719583889 | 100 R$ |
+| Clan Reroll x1 | 3719584065 | 50 R$ |
+| Clan Reroll x5 | 3719584366 | 200 R$ |
+| Clan Reroll x15 | 3719584544 | 550 R$ |
+
+> **Status: wired and tested in Studio Play** (Main Menu, one client). No purchase was completed and no real account was changed. Backups: `ServerStorage.RenseiBackups["Pre-Products_2026-10-18"]` in all three places.
+
+### IDs
+- `Rensei.Slots.ProductId` = 3719583607 in **all three places** (the file must stay identical).
+- `Rensei.Clans.RerollPacks` IDs and prices (50 / 200 / 550) in the Main Menu and Rensei. The Tutorial's `Clans` is an older copy with no packs and no store, so it was left alone.
+- `Rensei.CreatorPlus.ProductId` = 3719583889 (Main Menu).
+
+### Creator Plus is now a Developer Product
+The code expected a Game Pass, and Roblox's Game Pass ownership check can never see a Developer Product, so it's now sold as a one-time product:
+- **`SlotAccount.GrantPlus(UserId, PurchaseId)`** (new): sets `Plus = true` on the player's `RenseiAccounts` record with `UpdateAsync`, skipping a receipt it has already seen. It answers "Granted" / "Already", or nil if the store failed.
+- **`MenuServer.ProcessReceipt`:** grants Creator Plus **only after the account record is saved**, otherwise it returns `NotProcessedYet` so Roblox retries. Ownership is read from the account (cached by `MenuData`), so it covers every save slot.
+- **`SlotAccount` keeps the `Plus` flag** in all three places. Before this, any account write in another place (slot select, favourite, code redeem) would have dropped an unknown field.
+- **`MenuClient`:** "GET CREATOR PLUS" prompts the product, refuses if already owned, and after a purchase asks the server until ownership shows (up to 8 s).
+- **Game Pass still supported:** setting `CreatorPlus.PassId` makes the pass work too (either one unlocks it). `StudioOwns` now applies only while both IDs are 0, so Studio shows the real locked state.
+
+### Live prices
+Managed Pricing means a player can be shown a different price than the list price. In Studio, Roblox reported 160 / 80 / 40 / 160 / 440 R$ for the five products. The reroll buttons and the New Slot card now show the price Roblox reports (`GetProductInfo`), falling back to the config until it answers. The Creator Plus button already did this.
+
+### Tested (Studio Play, Main Menu)
+- **The grant logic, against a throwaway account key (`A-9001`, removed afterwards):** the first grant answered "Granted"; the same receipt again answered "Already"; a slot `Select` afterwards kept `Plus = true`. The owner's real account was never written.
+- **`GetProductInfo`:** all five IDs resolve to the right names and are for sale.
+- **The menu:** the "Plus" call returns `ProductId` 3719583889 and Owned = false; the reroll shop reads 40 / 160 / 440 R$; the New Slot card reads "160 R$"; clicking New Slot opens Roblox's "Buy item: New Save Slot" prompt (closed without buying).
+- **Persistence:** all edits were still in place after a Play / Stop cycle. No new console errors.
+
+### Product art
+Icons for all five products: `Art/Market Icons/*.png` (512×512). Preview page: https://claude.ai/artifact/4bAXdJMuf2uwLMigW7xSjJ. They aren't uploaded to the products yet (the dashboard shows the default icon).
+
+### Not done / for the owner
+- Upload the icons to each product.
+- A completed purchase can only be tested by buying in Studio (a test purchase charges nothing but writes to the real account) or live.
+- **Reroll packs (pre-existing):** rerolls are added to the open save slot's ProfileService profile and granted at once, before that profile next saves. If the server crashed in between, the rolls could be lost. The ProfileService purchase-id pattern would close that gap; not changed here.
+- Only the Main Menu handles receipts. If a purchase isn't granted before the player leaves, Roblox retries the next time they're in the Main Menu.
+
 ## 2026-10-18 — Basic swimming (owner decision 6)
 
 **Owner (2026-10-18):** "Add basic swimming: allow deep water with a swim state (no combat or alchemy while swimming)."

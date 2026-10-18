@@ -6,10 +6,11 @@ This is what's waiting on you, followed by where each piece of today's work is w
 
 | # | What | Why it waits | Where it plugs in |
 |---|---|---|---|
-| 1 | **Create the Creator Plus Game Pass** and send me its ID | Passes are created on your account. Until then the paid options are locked, and buying says "Creator Plus isn't on sale yet." | Main Menu: `ReplicatedStorage.Modules.Data.Rensei.CreatorPlus.PassId` |
+| 1 | ~~Create the Creator Plus Game Pass~~ **Done 2026-10-18** as a Developer Product (3719583889), wired | | Main Menu: `Rensei.CreatorPlus.ProductId` |
 | 2 | **Confirm or change the Creator Plus split.** Free: undo / redo, random, reset. Paid: custom skin colour and 3 saved looks | My proposal | same module |
 | 3 | **Re-upload 12 broken sheet animations:** Greatsword Idle / Walk / Sheathe / Unsheathe / KO; Katana Walk / Sheathe / Unsheathe; Daggers Sheathe / Unsheathe; Ledge Idle Left / Right | Roblox reports their assets as "AnimationClip loaded is not valid". Their sheet ids are kept in each animation's `SheetId` attribute | Rensei: `Assets.Animations` (see `Animations.md`) |
-| 4 | **Save-slot Developer Product** (200 R$ "NEW SLOT") | Also needs an ID from your account. It was already pending before today | Main Menu: `Rensei.Slots.ProductId` (keep the file the same in every place) |
+| 4 | ~~Save-slot Developer Product~~ **Done 2026-10-18** (3719583607), wired with the three reroll packs | | `Rensei.Slots.ProductId`, `Rensei.Clans.RerollPacks` |
+| 5 | **Upload the product icons** to the five products | They show the default icon now | `Art/Market Icons/*.png` |
 
 ## Your call (proposals are in place and can be changed)
 

@@ -19,7 +19,8 @@
 --   "ClearLook", Index -> ok, message, Looks   (Creator Plus)
 -- The surname is the rolled clan's (owner 2026-10-15); no alchemy path is picked here (Affinity "").
 -- Purchases (ProcessReceipt below): a save slot (Slots.ProductId), clan reroll packs (Clans.RerollPacks).
--- Creator Plus is a Game Pass (CreatorPlus.PassId): a custom skin colour and saved looks (2026-10-18).
+-- Creator Plus: a custom skin colour and saved looks (2026-10-18). Sold as a Developer Product
+-- (CreatorPlus.ProductId, bought once, recorded on the account) or a Game Pass (CreatorPlus.PassId).
 -- The starter outfit is the nation's and the body follows the gender (owner 2026-10-15).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -56,7 +57,13 @@ local Busy = {} -- [Player] = true while a call that writes is running
 -- Creator Plus ownership (cached per player; a purchase in this server sets it at once)
 local PlusOwned = {}
 local function OwnsPlus(Player)
-	if CreatorPlus.PassId == 0 then return CreatorPlus.StudioOwns and RunService:IsStudio() end
+	if CreatorPlus.PassId == 0 and CreatorPlus.ProductId == 0 then return CreatorPlus.StudioOwns and RunService:IsStudio() end
+	-- the Developer Product: a flag on the account record (not cached here; MenuData caches the account)
+	if CreatorPlus.ProductId ~= 0 then
+		local Account = MenuData.Account(Player)
+		if Account and Account.Plus then return true end
+	end
+	if CreatorPlus.PassId == 0 then return false end
 	if PlusOwned[Player] ~= nil then return PlusOwned[Player] end
 	local Ok, Owns = pcall(function() return MarketplaceService:UserOwnsGamePassAsync(Player.UserId, CreatorPlus.PassId) end)
 	if not Ok then return false end -- (not cached: asked again next time)
@@ -69,7 +76,7 @@ end)
 
 local function PlusState(Player)
 	local Owned = OwnsPlus(Player)
-	return {Owned = Owned, PassId = CreatorPlus.PassId, Looks = Owned and LookPresets.Get(Player) or nil}
+	return {Owned = Owned, PassId = CreatorPlus.PassId, ProductId = CreatorPlus.ProductId, Looks = Owned and LookPresets.Get(Player) or nil}
 end
 
 local function SetLook(Player, Index, Look)
@@ -285,6 +292,14 @@ local function PackFor(ProductId)
 end
 
 MarketplaceService.ProcessReceipt = function(Info)
+	-- Creator Plus (the Developer Product): saved on the account before the purchase is granted
+	if CreatorPlus.ProductId ~= 0 and Info.ProductId == CreatorPlus.ProductId then
+		local Result = SlotAccount.GrantPlus(Info.PlayerId, Info.PurchaseId)
+		if not Result then return Enum.ProductPurchaseDecision.NotProcessedYet end
+		local Player = Players:GetPlayerByUserId(Info.PlayerId)
+		if Player then MenuData.Account(Player, true) end
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end
 	-- clan rerolls: onto the open save slot (not open = try again later, when it is)
 	local Pack = PackFor(Info.ProductId)
 	if Pack then

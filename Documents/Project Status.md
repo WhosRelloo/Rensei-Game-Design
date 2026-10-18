@@ -61,11 +61,10 @@ Updated **2026-10-18**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
 - **Animations:** many weapon animations are unpublished copies that play only in Studio. 16 IDs from the owner's animation sheet are broken group uploads, so the old animations are used for those.
   - The "NEW RENSEI ANIMS" folder (new uppercut, emotes, etc.) is owned by another group and won't load in Rensei's game; it needs re-uploading under the Rensei group. The animation spreadsheet's new rows haven't been audited yet (link needed).
 - **Affinity:** the Alchemy step was removed from the creator at the owner's request, so players can't choose a path yet; admins can set anyone's path from the admin panel (F2). Studio uses the test setting `ServerScriptService.AlchemyService` attribute `StudioTestAffinity` (never saved, ignored live).
-- **Purchases:** the Developer Product IDs for save slots and reroll packs are placeholders (0), and so is the Creator Plus Game Pass (`CreatorPlus.PassId`).
+- **Purchases:** all five Developer Products are wired (save slot, Creator Plus, three reroll packs; 2026-10-18) and show Roblox's live prices. Not yet done: the product icons in the dashboard, and a completed purchase test.
 - **Sheet animations (2026-10-18):** 12 sheet assets don't load and need re-uploading (list in `Decisions.md`); the old animations play meanwhile.
 - **Not tested yet:** two or more players (leaderboard, others seeing swim / style animations), a real phone or tablet (touch was tested through `ForceMobileControls`), a live server.
 - **Owner hand-off:** `Owner Hand-off 2026-10-18.md` lists what only the owner can do.
-- **Tutorial place:** still loads `Data<UserId>`, not the selected save slot.
 - **Alchemy:** Ice, Wind, Metal and Earth run on placeholder animations (Earth's VFX use the owner's prototype meshes).
 - **Climb animations:** the cleaned versions play only in Studio until published (live keeps the originals).
 - **Quest content:** only the placeholder Foundry Yard quest and bounty exist; real quests, the map and canon lore are the owner's. Not yet verified: two players in one puzzle at once, and puzzle state after a real rejoin (Studio saves were failing with HTTP 500 during testing).

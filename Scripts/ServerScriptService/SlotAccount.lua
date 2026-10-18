@@ -24,6 +24,7 @@ local function Clean(A)
 		Favorite = tonumber(A.Favorite) or 0, -- starred slot, listed first on the slot screen; 0 = none
 		Receipts = type(A.Receipts) == "table" and A.Receipts or {}, -- recent purchase ids (no double grant)
 		Codes = type(A.Codes) == "table" and A.Codes or {}, -- [CODE] = os.time() it was used (ClanCodes)
+		Plus = A.Plus == true, -- owns Creator Plus (the Developer Product, bought once per account)
 	}
 end
 
@@ -108,6 +109,23 @@ function SlotAccount.Grant(UserId, PurchaseId)
 			if table.find(A.Receipts, PurchaseId) then Result = "Already" return nil end
 			if A.Owned >= Slots.Max then Result = "Full" return nil end
 			A.Owned += 1
+			table.insert(A.Receipts, PurchaseId)
+			while #A.Receipts > 20 do table.remove(A.Receipts, 1) end
+			Result = "Granted"
+			return A
+		end)
+	end)
+	return Ok and Result or nil
+end
+
+-- Creator Plus bought (ProcessReceipt). Returns "Granted" | "Already" | nil (store failed: retry later).
+function SlotAccount.GrantPlus(UserId, PurchaseId)
+	local Result
+	local Ok = Retry(function()
+		Store:UpdateAsync("A" .. UserId, function(Raw)
+			local A = Clean(Raw)
+			if table.find(A.Receipts, PurchaseId) then Result = "Already" return nil end
+			A.Plus = true
 			table.insert(A.Receipts, PurchaseId)
 			while #A.Receipts > 20 do table.remove(A.Receipts, 1) end
 			Result = "Granted"

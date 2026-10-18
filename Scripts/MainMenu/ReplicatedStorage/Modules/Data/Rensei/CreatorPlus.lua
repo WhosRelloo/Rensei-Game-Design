@@ -6,12 +6,14 @@
 -- Cosmetic only: no stats, no accessories.
 local CreatorPlus = {}
 
--- TODO(owner): create the Game Pass in the Creator Dashboard and put its ID here. 0 = not set up: the
--- paid options show as locked and buying says so.
+-- How it's sold. The owner made it a Developer Product (2026-10-18, "Creator Plus", 100 R$): bought once,
+-- recorded on the player's account (SlotAccount.GrantPlus, receipt-checked) and kept in every slot.
+-- A Game Pass ID also works (PassId); either one unlocks it. 0 = not used.
+CreatorPlus.ProductId = 3719583889
 CreatorPlus.PassId = 0
 
--- Studio test only: treat the tester as an owner while PassId is 0, so the paid options can be tried.
--- Never applies on a live server.
+-- Studio test only: treat the tester as an owner while neither ID is set, so the paid options can be
+-- tried. Never applies on a live server.
 CreatorPlus.StudioOwns = true
 
 CreatorPlus.LookSlots = 3 -- PROPOSAL

@@ -260,6 +260,20 @@ local function Fresh()
 end
 local Choice = Fresh()
 local Server = nil -- State of the open slot ({Slot, Next, Identity})
+-- Live prices: Managed Pricing can show a player a different price than the config's list price, so
+-- the buttons use what Roblox reports (falling back to the config until it answers).
+local LivePrice = {}
+local function PriceOf(Id, Fallback)
+	if Id and Id ~= 0 and LivePrice[Id] == nil then
+		LivePrice[Id] = false
+		task.spawn(function()
+			local Ok, Info = pcall(function() return MarketplaceService:GetProductInfo(Id, Enum.InfoType.Product) end)
+			if Ok and Info and Info.PriceInRobux then LivePrice[Id] = Info.PriceInRobux end
+		end)
+	end
+	return LivePrice[Id] or Fallback
+end
+PriceOf(Slots.ProductId)
 local Plus = nil -- Creator Plus state from the server ({Owned, PassId, Looks})
 local OpenLooks -- opens the saved-looks panel (or the Creator Plus pitch)
 local function Surname()
@@ -863,6 +877,14 @@ do
 		local B = Button(("%d REROLL%s  ·  %d R$"):format(Pack.Rolls, Pack.Rolls == 1 and "" or "S", Pack.Price), KIT.Gold,
 			{Name = "Pack" .. I, TextSize = 16, Size = UDim2.new(1, 0, 0, 42), LayoutOrder = 1 + I, ZIndex = 32, Parent = Body2})
 		B.Label.ZIndex = 33
+		if Pack.Id ~= 0 then
+			task.spawn(function()
+				local Ok, Info = pcall(function() return MarketplaceService:GetProductInfo(Pack.Id, Enum.InfoType.Product) end)
+				if Ok and Info and Info.PriceInRobux and B.Parent then
+					SetText(B, ("%d REROLL%s  ·  %d R$"):format(Pack.Rolls, Pack.Rolls == 1 and "" or "S", Info.PriceInRobux))
+				end
+			end)
+		end
 		B.Activated:Connect(function()
 			if Pack.Id == 0 then Say("Reroll purchases aren't set up yet.") return end
 			MarketplaceService:PromptProductPurchase(Player, Pack.Id)
@@ -978,6 +1000,8 @@ local function FetchPlus()
 	SyncTools()
 end
 local function BuyPlus()
+	if Plus and Plus.Owned then Say("You already have Creator Plus.") return end
+	if CreatorPlus.ProductId ~= 0 then MarketplaceService:PromptProductPurchase(Player, CreatorPlus.ProductId) return end
 	if CreatorPlus.PassId == 0 then Say("Creator Plus isn't on sale yet.") return end
 	MarketplaceService:PromptGamePassPurchase(Player, CreatorPlus.PassId)
 end
@@ -994,9 +1018,11 @@ BuildLooks = function()
 			Size = UDim2.new(1, 0, 0, 36), ZIndex = 32, LayoutOrder = 3, Parent = LooksBody})
 		local Buy = Z(Button("GET CREATOR PLUS", KIT.Gold, {Name = "BuyPlus", TextSize = 18, Size = UDim2.new(1, 0, 0, 48), LayoutOrder = 4, Parent = LooksBody}), 32)
 		Buy.Activated:Connect(BuyPlus)
-		if CreatorPlus.PassId ~= 0 then
+		local SaleId = CreatorPlus.ProductId ~= 0 and CreatorPlus.ProductId or CreatorPlus.PassId
+		if SaleId ~= 0 then
 			task.spawn(function()
-				local Ok, Info = pcall(function() return MarketplaceService:GetProductInfo(CreatorPlus.PassId, Enum.InfoType.GamePass) end)
+				local Kind = CreatorPlus.ProductId ~= 0 and Enum.InfoType.Product or Enum.InfoType.GamePass
+				local Ok, Info = pcall(function() return MarketplaceService:GetProductInfo(SaleId, Kind) end)
 				if Ok and Info and Info.PriceInRobux and Buy.Parent then SetText(Buy, ("GET CREATOR PLUS  ·  %d R$"):format(Info.PriceInRobux)) end
 			end)
 		end
@@ -1345,7 +1371,7 @@ ShowSlots = function()
 		end)
 	end
 	if Info.Owned < Info.Max then
-		local B = SlotCard(99, "Legendary", "NEW SLOT", ("— %d R$ —"):format(Info.Price), function()
+		local B = SlotCard(99, "Legendary", "NEW SLOT", ("— %d R$ —"):format(PriceOf(Slots.ProductId, Info.Price)), function()
 			if not Info.CanBuy then Say("Slot purchases aren't set up yet.") return end
 			MarketplaceService:PromptProductPurchase(Player, Slots.ProductId)
 		end)
@@ -1354,6 +1380,17 @@ ShowSlots = function()
 end
 MarketplaceService.PromptProductPurchaseFinished:Connect(function(UserId, ProductId, Bought)
 	if UserId ~= Player.UserId or not Bought then return end
+	if CreatorPlus.ProductId ~= 0 and ProductId == CreatorPlus.ProductId then
+		-- the server records it in ProcessReceipt; ask until it shows (a few seconds at most)
+		for _ = 1, 8 do
+			task.wait(1)
+			FetchPlus()
+			if Plus and Plus.Owned then break end
+		end
+		if LooksPanel.Visible then BuildLooks() end
+		Say(Plus and Plus.Owned and "Creator Plus unlocked." or "Purchase received. Creator Plus will unlock in a moment.")
+		return
+	end
 	task.wait(1) -- (the server grants it in ProcessReceipt)
 	if ProductId == Slots.ProductId and SlotScreen.Visible then ShowSlots() return end
 	local State = Remote:InvokeServer("State")

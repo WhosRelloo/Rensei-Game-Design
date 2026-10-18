@@ -58,7 +58,7 @@ Rensei is developed on two tracks that share one codebase (the Roblox place **Ye
 
 ## Next steps, in order
 
-0. **Owner items from 2026-10-18** (`Owner Hand-off 2026-10-18.md`): the Creator Plus Game Pass ID and its free / paid split; re-upload the 12 broken sheet animations; the save-slot Developer Product ID.
+0. **Owner items from 2026-10-18** (`Owner Hand-off 2026-10-18.md`): upload the product icons (`Art/Market Icons`); confirm the Creator Plus free / paid split; re-upload the 12 broken sheet animations. (The five Developer Products are wired.)
 1. **Skill tree design** (owner): nodes, costs, and whether slots unlock through it.
 2. **Owner assets for Ice, Wind, Metal:** VFX folders and move animations to replace the placeholders.
 3. **Publish** the cleaned climb animations (the `Save` under each climb Animation).

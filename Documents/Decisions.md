@@ -91,7 +91,8 @@ This document records established project decisions to keep development consiste
 - **Dialogue close (owner, 2026-10-18):** a small X button on the dialogue box (works with touch). No menu opens over a conversation.
 
 ## Character creation (2026-10-18)
-- **Creator QOL with a paywall, no accessories (owner).** Built as PROPOSAL: free undo / redo, random look and reset; **Creator Plus** (one Game Pass) for a custom skin colour and 3 saved looks. Cosmetic only. The split needs the owner's confirmation and the pass ID (open question).
+- **Creator QOL with a paywall, no accessories (owner).** Built as PROPOSAL: free undo / redo, random look and reset; **Creator Plus** for a custom skin colour and 3 saved looks. Cosmetic only.
+- **Store (owner, 2026-10-18):** five Developer Products with Managed Pricing: New Save Slot 200 R$, Creator Plus 100 R$, Clan Reroll x1 / x5 / x15 at 50 / 200 / 550 R$. Creator Plus is a **Developer Product bought once** (recorded on the account), not a Game Pass.
 
 ## Shelved features
 - The Nemesis system is shelved. Don't implement it unless the owner brings it back.
@@ -124,7 +125,7 @@ This document records established project decisions to keep development consiste
   - Earth's status is Bleed (the prototype's Rising Thorn bled).
 - **Consumables (PROPOSAL):** the Apple heals 8% of max HP over 6s (0.5s ticks), 1s between uses.
 - **Passive health regen:** Roblox's default regen (+1% max HP/s) is active. Keep it or remove it? (Drowning is tuned against it: 6% of max HP per second, PROPOSAL.)
-- **Creator Plus (2026-10-18):** the Game Pass ID (`CreatorPlus.PassId`, 0 = not on sale) and whether the free / paid split is right. The save-slot Developer Product (`Slots.ProductId`) is still 0 too.
+- **Creator Plus (2026-10-18):** whether the free / paid split is right (it's on sale as a Developer Product now).
 - **Broken sheet animations (2026-10-18):** 12 sheet assets don't load ("AnimationClip loaded is not valid"): Greatsword Idle / Walk / Sheathe / Unsheathe / KO, Katana Walk / Sheathe / Unsheathe, Daggers Sheathe / Unsheathe, Ledge Idle Left / Right. They need re-uploading; the old animations stay meanwhile.
 - **Weapon skills vs the skill sheet:** how the sheet maps onto Dragonflash, Flurry, Barrage, Scissor Rush and Fan the Hammer (`Animations.md`).
 - **Names (PROPOSAL):** "Brawler", "Lindenmoor", "Mill Pond", "Gorge Pool". Deeper water than ~5.2 studs needs a raised basin or a hole in the baseplate.
