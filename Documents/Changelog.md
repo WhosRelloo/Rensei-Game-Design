@@ -2,6 +2,40 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-18 — Weapon hand-placement audit; katana swings fixed
+
+**Owner:** "completely audit and go through all hand placements for all weapons for everything, idles, runs, m1s, crits, etc."
+
+> **Status: audited in Studio Play** (all 9 weapon tools: every draw, hold, idle, walk, run, carry, M1, shot, crit, skill and dash animation). **The katana is fixed and checked on the real character.** The other weapons are documented with measurements and wait on the animator's rigs. Backup: `ServerStorage.RenseiBackups["Pre-WeaponGrips_2026-10-18"]` (the Katana tool and the four Sword animations).
+
+### Method
+Test rigs (copies of the player character) with each tool attached exactly as `WeaponManager` does. Each animation was sampled at 11–13 points, measuring three things:
+- whether the hand stays on the grip;
+- whether the visible weapon passes through the torso, head or legs;
+- where the blade tip is at the hit frame.
+
+The bone names each animation moves were read from its keyframes. Screenshots compared current vs converted versions.
+
+### Findings
+- **The weapon never leaves the hand.** In every animation, the hand-to-grip offset is constant: 0.46 studs for the swords, 0.31 for the greatsword, 0.21 for the daggers, 0 for the guns. The one exception is the dagger draw, which pulls the blade from the back.
+- **But most sheet animations' weapon motion was ignored.** They were made on the animator's rig, whose weapon bone is `Hilt` / `Hilt2`. Ours are `Ninjato` / `Greatsword` / `Dagger` / `Right Hand`, so the weapon stayed frozen in its hold pose while the arm swung. The katana's M1 2 cut back across its own face.
+- Full table: `Animations.md`, "Weapon bones and hand placement".
+
+### Fixed: katana
+- The Katana's grip part is renamed `Hilt` with the animator's joint (`MotorC0` (0, −0.65, 0); `MotorC1` chosen so the rest pose is exactly the same). The published M1 1–4 now move the sword as authored, **in a live server too** once the place is published.
+- The four Studio saves that animate the old bone (`Sword_Hold`, `Sword_Heavy`, `Sword_Idle`, `Sword_Run`) got matching `Hilt` poses. The Rapier still uses `Ninjato` and the same Hold, so it's unchanged.
+- **Measured:** the swings no longer pass through the body (M1 2: 1 frame → 0; M1 4: 2 → 0), and M1 3's blade points 5.3 studs forward at the hit (2.5 before).
+- **Checked:** M1 1 frozen at its hit frame on the real character (given the katana with `WeaponManager.Give`, nothing saved), with the hilt in the fist and the blade along the cut.
+
+### Not changed (needs the animator's rigs)
+- **Rapier:** its M1s use a separate root bone (`Handle`), and its idle / walk were made on a pistol rig. M1 2 clips the head.
+- **Greatsword:** converting the tracks made it worse.
+- **Daggers:** the animator's mount is flipped about 175° from ours.
+- **Pistols:** shots move `PistolHandleR`.
+
+### Other measurements
+- **Caestus:** the gauntlet collision boxes touch the head / torso in the guard poses (the gloves are on the fists near the face; nothing visibly wrong).
+- **Pistols:** the whip's 4th hit (FistCombo5) brushes the left leg.
 ## 2026-10-18 — NPC idles: every NPC posed, and why none were moving before
 
 **Owner:** "Go through the spreadsheet and use the NPC Idle anims to add idles to all NPC's, trainers, etc." and "Check if the animations actually work in game".

@@ -9,8 +9,10 @@
 -- (LoadoutService checks), so a client cannot fake a weapon.
 --
 -- Tool layout: grip Parts carry attributes Arm + MotorC0/MotorC1 -> a Motor6D from that arm to
--- the part. The part is named after the animation pose that moves the weapon (Ninjato,
--- Greatsword, Dagger, Right Hand for the pistols), so the weapon animations drive it. Parts with WeldC0/WeldC1 are
+-- the part. The part is named after the animation pose that moves the weapon (Hilt for the katana:
+-- the sheet's M1s animate the animator rig's Hilt bone; Ninjato for the rapier; Greatsword, Dagger,
+-- Right Hand for the pistols), so the weapon animations drive it. An animation whose weapon track
+-- uses another bone name leaves the weapon in its hold pose (Documents/Animations.md, weapon bones). Parts with WeldC0/WeldC1 are
 -- welded straight to their arm (Caestus).
 --
 -- Combat Mode = drawn. Outside Combat Mode a held weapon sits in its holster (grip attribute

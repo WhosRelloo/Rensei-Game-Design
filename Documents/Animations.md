@@ -113,6 +113,25 @@ The current weapon skills (Dragonflash, Flurry, Barrage, Scissor Rush, Fan the H
 
 To change one, set the NPC model's `IdleAnim` attribute to another name from the folders above. `ServerScriptService.NpcIdles` (same file in Rensei and the Tutorial) plays it for any NPC anywhere in Workspace.
 
+## Weapon bones and hand placement (audit 2026-10-18)
+
+**How a weapon sits in the hand:** each weapon Tool has an invisible grip part (the "bone"). `WeaponManager` joins it to the arm with a Motor6D built from the part's `MotorC0` / `MotorC1` attributes, and the visible weapon is welded to it. An animation moves the weapon only through a Pose **with the same name as that bone** (and parented to the arm's pose). The hold pose (`<Class>_Hold`, lowest priority) sets the weapon's angle whenever nothing else moves it.
+
+**What the audit found:** most sheet animations were made on the animator's rig, whose weapon bones are called **`Hilt`** (right hand) and **`Hilt2`** (left), joined at (0, −0.65, 0) with no rotation (`Assets["RELLO IMPORTED ASSETS"]["Uppercut stuff"].Movement`). Our tools used other names, so those animations' weapon motion was silently dropped and the weapon stayed frozen in its hold pose while the arm swung.
+
+| Weapon | Our bone | Animations whose weapon track was ignored | Status |
+|---|---|---|---|
+| Katana | **Hilt** (was Ninjato) | M1 1–4 (`Hilt`) | ✅ **Fixed:** the bone now uses the animator's name and joint, with the rest pose unchanged. The four Studio saves that move `Ninjato` (Hold, Heavy, Idle, Run) got matching `Hilt` poses. Measured: M1 2 / M1 4 no longer pass through the body (1 and 2 frames before → 0), and M1 3's blade points 5.3 studs forward at the hit (2.5 before). Checked on the real character in Play. |
+| Rapier | Ninjato | M1 1–4 (`Handle`, a separate root bone), crit (`Hilt`), idle / walk (`Hilt` + pistol parts: made on a gun rig) | ⚠️ Not changed. Renaming would turn on the idle / walk tracks, which put the blade inside the body in every frame. M1 2 clips the head in 5 of 13 frames. |
+| Greatsword | Greatsword | M1 1–4, crit, run (`Hilt`, `Hilt2`, `Iron Kanabo`) | ⚠️ Not changed. Our grip has a big rotation (tuned for its own draw / hold / carry), and converting the tracks made the crit and M1 2 clip (9 and 3 frames). The current swings already reach 9–10 studs forward. |
+| Daggers | Dagger / DaggerL | M1 1–4 (`Hilt` / `Hilt2`) | ⚠️ Not changed. The animator's dagger mount is flipped about 175° from ours (reverse grip vs forward), and the converted tracks weren't clearly better. |
+| Pistols | Right Hand | shots 1–4 and crit (`PistolHandleR` / `PistolHandleL`) | ⚠️ Not changed. The gun stays in its plain grip while aiming; the animator's pistol rig (`1911Rig`) mounts the gun differently. |
+| Caestus | (welded, can't move) | crit (`BladeBase`) | ➖ Gauntlets are welded to the fists, so nothing to move. |
+
+**What fixes the rest properly:** either the animator re-exports with our bone names, or shares the rig file for each weapon (how the sword / greatsword / daggers / pistols sit on `Hilt`). With that, each tool's grip can match the animator's exactly, as the katana now does.
+
+**Studio-only weapon animations:** Sword Equip / Hold / Heavy / Skill, Rapier Skill, Greatsword Equip / Hold / Idle / Carry, Daggers Equip / Hold / Idle / Skill, Gauntlets Skill and Guns Idle play only in Studio until their `Save` is published.
+
 ## Fixing the ⏳ ids
 
 These 11 ids are owned by the group but still return "AnimationClip loaded is not valid" (re-checked 2026-10-17):
