@@ -1,68 +1,96 @@
 # Animations — sheet to game map
 
-Source: the **Animation ID's** Google Sheet (last pass 2026-10-16, second read). In Studio every animation is an `Animation` object under `ReplicatedStorage.Assets.Animations`, found by **name** (`AnimationManager`). An `Animation` with an empty id plays its local `KeyframeSequence` save in Studio only, and nothing in a live server. Status is from loading each id in Studio Play on 2026-10-16. The Tutorial place's Animations folder was brought in line with Ye's on the same day.
+Sources: the three animation sheets: **general** ("Animation ID's"), **weapon styles** and **skills**. Last pass **2026-10-17 (pass 3)**.
+
+In Studio every animation is an `Animation` object under `ReplicatedStorage.Assets.Animations`, found by **name** (`AnimationManager`).
+- **Empty ID:** an `Animation` with an empty id plays its local `KeyframeSequence` save in Studio only, and nothing in a live server.
+- **Ownership:** every ID on all three sheets is owned by the Rensei group (206818864), the group that owns the game (checked 2026-10-17).
+- **Status:** from loading each id in Studio. The swapped weapon IDs were also loaded and played through AttackRunner in Studio Play.
 
 **Legend:**
 - ✅ live: the published id loads.
-- ⏳ broken: the id on the sheet doesn't load ("AnimationClip loaded is not valid"). The game keeps the previous animation or Studio save, and the sheet id is stored as the attribute `SheetId`.
+- ⏳ broken: the id doesn't load ("AnimationClip loaded is not valid"). The upload is bad and needs re-uploading. The game keeps the previous animation or Studio save, and the sheet id is stored as the attribute `SheetId`.
+- 📦 registered: loads, sits in `Animations.Registry`, and isn't played by anything yet.
 - ➖ not in the sheet yet.
 
-## Weapons
+## Folders
+
+- **`Shared`, `Weapons`:** preloaded on every character by the client (about 140 tracks; Roblox's limit is 256 per Animator).
+- **`Registry`:** resolvable by name (server and NPC playback) but **not** preloaded. Move an entry into `Shared` or `Weapons` when a system starts playing it on players.
+
+## Weapons (general sheet)
 
 | Sheet | Game name | Status | Used by |
 |---|---|---|---|
-| Katana M1 1–4 | `Sword_Light1`–`4` | ✅ | Sword (and Rapier lights 1/3/4) |
+| Katana M1 1–4 | `Sword_Light1`–`4` | ✅ (pass 3: new ids, old ones kept as `PreviousId`) | Sword lights, Rapier lights 1/3/4, Sword dash attack (light 4) |
 | Katana Idle | `Sword_Idle` | ✅ | Sword `IdleAnim` |
-| Katana Sheathe / Unsheathe | `Sword_Unequip` / `Sword_Equip` | ⏳ | Studio save kept |
-| Katana Walk | `Sword_Walk` | ⏳ | — |
-| Greatsword M1 1–4, Idle, Unsheathe | `Greatsword_Light1`–`4`, `_Idle`, `_Equip` | ⏳ | Studio saves kept |
-| Greatsword Sheathe, Walk, GRIP | `Greatsword_Unequip`, `_Walk`, `_Grip` | ⏳ | — (empty until fixed) |
+| Katana Sheathe / Unsheathe / Walk | `Sword_Unequip` / `Sword_Equip` / `Sword_Walk` | ⏳ | Studio saves kept |
+| Greatsword M1 1–4 ("Kanabo") | `Greatsword_Light1`–`4` | ✅ (pass 3; were Studio-only) | Greatsword lights, dash attack (light 1) |
+| Greatsword CRIT ("odachiaircrit") | `Greatsword_Heavy` | ✅ (pass 3) | Greatsword heavy (R), `AnimPeak` 0.83 (Hit) |
+| (old Greatsword heavy, 87785261665755) | `Alchemy_GreatswordOverhead` | ✅ | Coldsteel Smash, Alloy Divider (placeholder) |
+| Greatsword WEAPON SKILL | `Greatsword_Skill` | ✅ | Whirlwind (T) |
 | Greatsword Run | `Greatsword_Run` | ✅ | Greatsword `RunAnim` |
-| Greatsword CRIT | `Greatsword_Heavy` | ✅ (new) | Greatsword heavy (R), `AnimPeak` 0.85; also two alchemy moves that borrow it |
-| Greatsword WEAPON SKILL | `Greatsword_Skill` | ✅ (new) | Whirlwind (G), `AnimPeak` 1.31 (PROPOSAL) |
-| Greatsword KO | `Knocked` (downed pose) | ⏳ | Studio save kept |
+| Greatsword Idle, Sheathe, Unsheathe, Walk, GRIP | `Greatsword_Idle`, `_Unequip`, `_Equip`, `_Walk`, `_Grip` | ⏳ | Studio saves kept / empty |
+| Greatsword GRIP VICTIM ("Greatsword KO", 136479651286488) | stored as `SheetId` on `Knocked` | ⏳ | **Questionable mapping:** this is the greatsword grip-victim column, not a generic knocked pose |
+| Greatsword grip victim, row 17 | `Greatsword_Gripped` | 📦 | |
+| Dagger M1 1–4 ("Hell Dagger") | `Daggers_Light1`–`4` | ✅ (pass 3; were Studio-only) | Daggers lights, dash attack (light 2) |
+| Dagger CRIT (Roblox asset name "Sword Crit"; owner confirmed) | `Daggers_Heavy` | ✅ (pass 3) | Daggers heavy, `AnimPeak` 0.54 (measured, no marker) |
+| Dagger GRIP / GRIP VICTIM | `Daggers_Grip` / `Daggers_Gripped` | 📦 | |
 | Dagger Sheathe / Unsheathe | `Daggers_Unequip` / `Daggers_Equip` | ⏳ | Studio save kept |
-| Rapier Idle / Walk | `Rapier_Idle` / `Rapier_Walk` | ✅ | Rapier `IdleAnim` / `WalkAnim` |
-| Rapier CRIT | `Rapier_Heavy` | ✅ | Rapier heavy (R) |
-| Caestus Idle | `Gauntlets_Idle` | ✅ | Gauntlets `IdleAnim` |
-| Caestus CRIT | `Gauntlets_Heavy` | ✅ (new id 75715098693180; the old one is kept as `PreviousId`) | Gauntlets heavy (R) and Shoulder Charge, `AnimPeak` 0.88 (its `Hit` marker) |
-| Gun (any) | — | ➖ | `Guns_Idle` was cleared: its id is the sheet's Rapier idle (Studio save kept) |
+| Rapier Idle / Walk (Roblox names "Gun Idle Animation" / "Gun Walk"; owner: keep on the Rapier) | `Rapier_Idle` / `Rapier_Walk` | ✅ | Rapier |
+| Rapier CRIT | `Rapier_Heavy` | ✅ | Rapier heavy |
+| Caestus Idle / CRIT | `Gauntlets_Idle` / `Gauntlets_Heavy` | ✅ | Gauntlets |
+| Caestus GRIP / GRIP VICTIM ("Head Smasher") | `Gauntlets_Grip` / `Gauntlets_Gripped` | 📦 | |
+| Gun (any) | — | ➖ | |
 
-## Alchemy, combat, misc
+## Weapon styles (style sheet): Fist styles only
 
-| Sheet | Game name | Status | Used by |
+| Style | Game names | Status |
+|---|---|---|
+| **Boxing** | `Boxing_Light1`–`4`, `_Idle`, `_Walk`, `_Heavy` (Crit), `_Block` | 📦 all load |
+| **Lethwei** | `Lethwei_Light1`–`4`, `_Idle`, `_Walk`, `_Heavy` (Crit), `_Block` | 📦 all load; Block is the same id as Boxing's |
+
+## Skills (skill sheet): all 📦, nothing wired yet
+
+| Class | Game names |
+|---|---|
+| Fist | `Fist_BearHug` (+`Victim`), `Fist_WhereYouGoing`, `Fist_540Kick`, `Fist_SlamDunk` (+`Victim`), `Fist_SpinKick`, shared `Skill_GrabWhiff` |
+| Sword | `Sword_QuickDraw`, `Sword_IaidoBarrage` |
+| Daggers | `Daggers_SlipSlash`, `Daggers_BloodDash`, `Daggers_BulletSlash`, `Daggers_ComeHere` |
+| Greatsword | `Greatsword_HeavyDrop`, `Greatsword_WhirlwindCleave` |
+| Rapier | `Rapier_Ren`, `Rapier_SpeedLunge` |
+| Guns | `Guns_IronRush` (+`Victim`) |
+
+The current weapon skills (Dragonflash, Flurry, Barrage, Scissor Rush, Fan the Hammer) still use Studio-only saves or a gun shot. How the skill sheet maps onto them is an open owner decision.
+
+## Movement and misc (general sheet)
+
+| Sheet | Game name | Status | Notes |
 |---|---|---|---|
-| Clap / Loop / Ground Slam / Arm Extend | `Alchemy_Clap` / `_ClapLoop` / `_GroundSlam` / `_ArmExtend` | ✅ | alchemy casts |
-| Fire 1–5 | `Alchemy_Fire1`, `Alchemy_Ignite` (= Fire 2, also `Alchemy_Fire2`), `_Fire3`–`_Fire5` | ✅ | alchemy casts |
+| Swim Forward | `Swim_Forward` | 📦 | prone stroke, loops 1.5 s. **Swim Idle: no id** |
+| Wall Ledge Walk Left | `LedgeWalk_Left` | 📦 | **standing** side-step along a narrow ledge (not a hang). **Right: no id** |
+| Walk Left | `Walk_Left` | 📦 | **Walk Right: no id** |
+| Forward Glide/Fall, Gliding Neutral | `Fall_Forward`, `Glide_Neutral` | 📦 | |
+| Berserk Transformation, Lock Pick, Assassination | `Misc_BerserkTransform`, `Misc_LockPick`, `Misc_Assassinate` | 📦 | Assassination victim: no id |
+| No! (emote) | `Emote_No` | 📦 | |
+| Clap / Loop / Ground Slam / Arm Extend, Fire 1–5 | `Alchemy_*` | ✅ | alchemy casts |
 | NEW UPPERCUT | `Uppercut` | ✅ | Ctrl+LMB |
-| Build Anim | `Misc_Build` | ✅ | **wired:** loops while a minigame is open (`MinigameService`) |
-| Meditate, Pushups, Bow | `Misc_Meditate`, `Misc_Pushups`, `Misc_Bow` | ✅ | emote wheel |
-| Drag | `Drag` (Shared.Combat.Downed) | ✅ | registered, not wired |
-| Mask Equip, Bandage Use, Arm Blast | `Misc_MaskEquip`, `Misc_BandageUse`, `Misc_ArmBlast` | ✅ | registered, not wired: no masks, bandage item or prosthetics yet |
-| Evil Cinematic | `Misc_EvilCinematic` | ✅ (new) | registered, for a villain cutscene |
-| Cloak/Armor Equip | `Misc_ArmorEquip` | ✅ (new) | registered, for when armor exists |
-| Jump, Fall | — | ➖ | no id yet |
+| Build, Meditate, Pushups, Bow, Drag, Mask, Bandage, Arm Blast, Evil Cinematic, Cloak/Armor | `Misc_*`, `Drag` | ✅ | as before |
+| Jump, Take The L, Trainings | — | ➖ | no id |
 
 ## Emotes and NPC idles
 
 | Folder | Names | Used by |
 |---|---|---|
-| `Shared.Emotes` | `Emote_LeanIdle`, `Emote_AeroStep`, `Emote_Anthony`, `Emote_CleanGroove`, `Emote_DefaultDance`, `Emote_Floss`, `Emote_KazotskyKick`, `Emote_LoudLaugh`, `Emote_PeterParker`, `Emote_Thriller` (Take The L: no id yet) | the emote wheel |
-| `Shared.NPCIdles` | `NPC_Chill`, `NPC_Admire`, `NPC_Sit5`, `NPC_Sit3`, `NPC_Kneel`, `NPC_CurledUp`, `NPC_Sit4`, `NPC_Beg`, `NPC_Sleep2`, `NPC_Plank` (new) | the emote wheel (Kneel / Sit / Rest) and **NPC idles** |
-
-All of these load (✅).
-
-**NPC idles:** `ServerScriptService.NpcIdles` loops an NPC's `IdleAnim` attribute. Picks (PROPOSAL):
-- `NPC_Chill`: Foreman Brask, Tobin, Drillmaster Vask, and the Flame, Earth and Metal trainers.
-- `NPC_Admire`: Lise, Mirra, and the Ice and Wind trainers.
-
-The sheet suggests Lean Idle for some NPCs, but none of them stands against a wall or post yet.
+| `Shared.Emotes` | `Emote_LeanIdle`, `Emote_AeroStep`, `Emote_Anthony`, `Emote_CleanGroove`, `Emote_DefaultDance`, `Emote_Floss`, `Emote_KazotskyKick`, `Emote_LoudLaugh`, `Emote_PeterParker`, `Emote_Thriller` | emote wheel |
+| `Shared.NPCIdles` | `NPC_Chill`, `NPC_Admire`, `NPC_Sit5`, `NPC_Sit3`, `NPC_Kneel`, `NPC_CurledUp`, `NPC_Sit4`, `NPC_Beg`, `NPC_Sleep2`, `NPC_Plank` | emote wheel + NPC idles |
+| `Registry.NPCIdles` (new) | `NPC_LowHandOnGround`, `NPC_HandInPocket`, `NPC_Praise`, `NPC_Transcend`, `NPC_Prisoner`, `NPC_GreatswordEntrance`, `NPC_CrossArms`, `NPC_WallCoverRight`, `NPC_TaiChi` | available to NPCs via the `IdleAnim` attribute |
 
 ## Fixing the ⏳ ids
 
-These 15 ids still return "AnimationClip loaded is not valid" in this place (re-checked 2026-10-16, second pass):
-- Greatsword M1 1–4, Idle, Unsheathe, Sheathe, Walk, GRIP, KO
-- Katana Sheathe, Unsheathe, Walk
-- Dagger Sheathe, Unsheathe
+These 11 ids are owned by the group but still return "AnimationClip loaded is not valid" (re-checked 2026-10-17):
+- Greatsword: Idle, Unsheathe, Sheathe, Walk, GRIP, KO / GRIP VICTIM
+- Katana: Sheathe, Unsheathe, Walk
+- Dagger: Sheathe, Unsheathe
 
-That usually means the wrong asset id was copied, or the animation isn't published where this game can use it (it must belong to the group that owns the game, or to the place owner). To fix one: re-publish or re-copy the id, put it in the sheet, and set it as that `Animation`'s `AnimationId`. The stored `SheetId` attribute shows which one each is.
+Because ownership is correct, the upload itself is bad. Re-export the animation, upload it to the group again, and put the new id on the sheet.

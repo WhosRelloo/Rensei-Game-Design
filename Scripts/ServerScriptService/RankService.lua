@@ -53,6 +53,9 @@ function RankService.Publish(Player)
 	Set(Player, "StateLicense", Rank >= 2)
 	-- an id the list doesn't know shows as saved, never as a made-up nation
 	Set(Player, "Nation", Nation and Nation.Name or (type(NationId) == "string" and NationId or ""))
+	-- the character's name (first + clan surname, filtered at creation) for the leaderboard (owner 2026-10-18)
+	local Name = type(Data.Identity) == "table" and Data.Identity.Name or ""
+	Set(Player, "CharacterName", type(Name) == "string" and Name or "")
 	Set(Player, "ProfileReady", true)
 end
 

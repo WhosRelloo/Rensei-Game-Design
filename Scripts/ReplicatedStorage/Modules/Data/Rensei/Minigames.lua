@@ -144,4 +144,63 @@ return {
 		Empty = "Choose a material for every part first.", Requires = {Quest = {Id = "acq_metal", Is = "Active", Stage = 5}}, Locked = "Brannoc's examination. Not yet."},
 	lesson_metal = {Kind = "MaterialMatch", Title = "MATERIAL DRILL", Parts = 4, Materials = 6,
 		Hint = "Again.", Pass = "Acceptable.", Fail = "Wasteful.", Empty = "Choose a material for every part first.", Requires = {SavedAffinity = "Metal"}},
+	-- ===== World challenges (MinigameService.WorldChallenges, 2026-10-17) =====
+	-- World = true: played in the world (no panel; a small HUD tracker), judged by the server's tick.
+	-- Track picks the difficulty tier from the player's matching stat (MinigameService.TierFor):
+	-- 1 Initiate, 2 Apprentice, 3 Adept, 4 Expert, 5 Master. Tiers[n] overrides fields for that tier.
+	-- Reward = Mastery training through ProgressionService.AddTraining (Source, Mult x the tier's
+	-- multiplier), at most PerDay passes a day -- the stage's 20 MP cap and the Truth/Gate still apply.
+	-- AllowCombat: being hit doesn't cancel it (Combat Read IS a fight). ALL numbers PROPOSALS.
+	combat_read = {
+		Kind = "CombatRead", Title = "COMBAT READ", World = true, Track = "Combat", AllowCombat = true,
+		Hint = "Stay in Combat Mode (E) and read each attack: block or parry lights, parry or dodge heavies, dodge the unblockable (red flash, no guard can stop it).",
+		Pass = "Clean reads. That's what keeps you alive out there.",
+		Fail = "You guessed. Read the shoulders, not the fist.",
+		Reward = {Source = "Exam", Mult = 0.5, PerDay = 2},
+		MaxDrift = 14, -- studs from where it started before it counts as walking away
+		-- Pattern pool per tier: Light, Heavy, Feint (a light that stops short -- don't bite), String (two lights
+		-- back to back), Unblockable (dodge it). HeavyNeedsParry: a heavy blocked counts as a miss.
+		Tiers = {
+			{Name = "Initiate", Attacks = 4, Need = 3, Pool = {"Light"}, Gap = {1.8, 2.4}},
+			{Name = "Apprentice", Attacks = 5, Need = 4, Pool = {"Light", "Light", "Heavy"}, Gap = {1.6, 2.2}},
+			{Name = "Adept", Attacks = 6, Need = 5, Pool = {"Light", "Heavy", "Feint", "String"}, Gap = {1.4, 2.0}, HeavyNeedsParry = true},
+			{Name = "Expert", Attacks = 7, Need = 6, Pool = {"Light", "Heavy", "Feint", "String", "Unblockable"}, Gap = {1.2, 1.8}, HeavyNeedsParry = true},
+			{Name = "Master", Attacks = 8, Need = 8, Pool = {"Heavy", "Feint", "String", "String", "Unblockable"}, Gap = {1.0, 1.6}, HeavyNeedsParry = true},
+		},
+	},
+	-- Phase 8 (2026-10-17): the village's course over the gorge ledge. Numbers PROPOSAL.
+	lindenmoor_run = {
+		Kind = "MovementGauntlet", Title = "LINDENMOOR RUN", World = true, Track = "Movement",
+		Course = "lindenmoor_run", -- Workspace.World.Map.Lindenmoor.LindenmoorRun
+		Hint = "Over the rock ramp, along the cliff ledge, up to the lookout, and back to the bridge.",
+		Pass = "The whole valley in one breath.",
+		Fail = "The creek's still there tomorrow. Again.",
+		Reward = {Source = "Exam", Mult = 0.4, PerDay = 2},
+		MaxDistance = 300,
+		Tiers = {
+			{Name = "Initiate", TimeLimit = 90},
+			{Name = "Apprentice", TimeLimit = 80},
+			{Name = "Adept", TimeLimit = 70},
+			{Name = "Expert", TimeLimit = 80}, -- + wade down the creek
+			{Name = "Master", TimeLimit = 70},
+		},
+	},
+	foundation_run = {
+		Kind = "MovementGauntlet", Title = "FOUNDATION RUN", World = true, Track = "Movement",
+		Course = "foundation_run", -- a Model tagged RenseiGauntlet with attribute GauntletId = this
+		Hint = "Touch the markers in order. Some ask for a move: walk the ledge, climb the wall.",
+		Pass = "Clean route. Your feet know the yard now.",
+		Fail = "Too slow, or you lost the route. Again.",
+		Reward = {Source = "Exam", Mult = 0.4, PerDay = 2},
+		MaxDistance = 160, -- leaving this far from the start ends the run
+		-- TimeLimit per tier; markers with a MinTier attribute only count from that tier up.
+		Tiers = {
+			{Name = "Initiate", TimeLimit = 70}, -- platform, ledge, finish
+			{Name = "Apprentice", TimeLimit = 70}, -- + climb from the ledge
+			{Name = "Adept", TimeLimit = 85}, -- + the far ramp and the corner ledge
+			{Name = "Expert", TimeLimit = 85}, -- + round the corner onto the upper ledge
+			{Name = "Master", TimeLimit = 70}, -- the whole route, tight
+		},
+	},
+
 }

@@ -24,6 +24,7 @@ end
 local JumpCallable = {
 	PlayFX = true,
 	ClimbState = true,
+	TraversalState = true, -- any MovementState kind (climb, wall run, ledge walk); validated there
 	ParkourStamina = true,
 }
 
@@ -92,4 +93,5 @@ require(ServerScriptService.MoralityService).Start() -- deeds ledger: conduct, s
 require(ServerScriptService.TrialService).Start() -- alchemy trials (RenseiTrial arenas)
 require(ServerScriptService.TrainingService).Start() -- trainer lessons / exercises (mastery training)
 require(ServerScriptService.RankService).Start() -- public rank / title / clan for the leaderboard
+require(ServerScriptService.SwimService).Start() -- deep water: the Swim traversal state (no fighting / alchemy)
 script:SetAttribute("Started", os.time())

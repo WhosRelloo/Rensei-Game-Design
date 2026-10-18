@@ -380,6 +380,54 @@ local function Open(Id, Params)
 	if not UIState.IsOpen("Minigame") then Close() end -- refused (in combat)
 end
 
+-- ===== World challenges (Combat Read, Movement Gauntlet): a HUD tracker, not a panel =====
+-- The fight / the run happens in the world, so nothing may cover the screen or take input: a slim strip at
+-- the top shows the title, the tier, the server's latest objective, and a Give up button.
+local Tracker
+local function BuildTracker()
+	local Gui = UIState.Gui
+	Tracker = Make("Frame", {Name = "ChallengeTracker", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.115),
+		Size = UDim2.fromScale(0.36, 0.085), BackgroundColor3 = Color3.fromRGB(16, 14, 12), BackgroundTransparency = 0.2, Visible = false, ZIndex = 20}, Gui)
+	Make("UICorner", {CornerRadius = UDim.new(0, 6)}, Tracker)
+	Make("UIStroke", {Color = GOLD, Transparency = 0.35, Thickness = 1.5}, Tracker)
+	Make("UISizeConstraint", {MinSize = Vector2.new(300, 56)}, Tracker)
+	local Title = Text(Tracker, "", UDim2.fromScale(0.03, 0.06), UDim2.fromScale(0.72, 0.4))
+	Title.Name = "Title" Title.TextColor3 = GOLD Title.ZIndex = 21 Title.TextXAlignment = Enum.TextXAlignment.Left
+	local Line = Text(Tracker, "", UDim2.fromScale(0.03, 0.5), UDim2.fromScale(0.94, 0.42))
+	Line.Name = "Objective" Line.ZIndex = 21 Line.TextXAlignment = Enum.TextXAlignment.Left
+	local Quit = Make("TextButton", {Name = "GiveUp", Text = "GIVE UP", AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(0.98, 0.08),
+		Size = UDim2.fromScale(0.2, 0.36), BackgroundColor3 = Color3.fromRGB(40, 22, 20), TextColor3 = Color3.fromRGB(230, 200, 190),
+		TextScaled = true, FontFace = Title.FontFace, ZIndex = 22}, Tracker)
+	Make("UICorner", {CornerRadius = UDim.new(0, 4)}, Quit)
+	Quit.Activated:Connect(function() if Current and Current.World then Remote:FireServer("Close") end end)
+end
+local function OpenWorld(Id, Params)
+	local Def = Defs[Id]
+	if not Def then return end
+	if not Tracker then BuildTracker() end
+	Current = {Id = Id, World = true}
+	Tracker.Title.Text = Def.Title .. (Params.TierName and ("  ·  " .. string.upper(Params.TierName)) or "")
+	Tracker.Objective.Text = Params.Hint or Def.Hint or ""
+	Tracker.Objective.TextColor3 = Color3.fromRGB(235, 228, 215)
+	Tracker.GiveUp.Visible = true
+	Tracker.Visible = true
+end
+local function WorldUpdate(Progress)
+	if not Tracker or type(Progress) ~= "table" then return end
+	Tracker.Objective.Text = tostring(Progress.Text or "")
+	Tracker.Objective.TextColor3 = Progress.Good == true and Color3.fromRGB(150, 230, 150)
+		or (Progress.Good == false and Color3.fromRGB(235, 130, 120)) or Color3.fromRGB(235, 228, 215)
+end
+local function WorldResult(Ok, Line)
+	if not Tracker then return end
+	local Was = Current
+	Current = nil
+	Tracker.Objective.Text = tostring(Line or "")
+	Tracker.Objective.TextColor3 = Ok and Color3.fromRGB(150, 230, 150) or Color3.fromRGB(235, 130, 120)
+	Tracker.GiveUp.Visible = false
+	task.delay(4, function() if Current == nil or Current ~= Was then if not Current then Tracker.Visible = false end end end)
+end
+
 function MinigameUI.Start()
 	Kit = MenuKit.new("Minigame", "", {})
 	Kit.Rows.Visible = false
@@ -398,7 +446,9 @@ function MinigameUI.Start()
 		if not Remote then return end
 		Remote.OnClientEvent:Connect(function(Kind, A, B, Done)
 			if Kind == "Open" then
-				Open(A, B)
+				if type(B) == "table" and B.World then OpenWorld(A, B) else Open(A, B) end
+			elseif Current and Current.World then
+				if Kind == "Reply" then WorldUpdate(A) elseif Kind == "Result" then WorldResult(A, B) end
 			elseif Kind == "Reply" and Current then
 				if Current.OnReply then Current.OnReply(A) end
 			elseif Kind == "Result" and Current then

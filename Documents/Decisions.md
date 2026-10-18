@@ -51,6 +51,14 @@ This document records established project decisions to keep development consiste
 - **Greatsword (owner):** must feel heavy. Shoulder carry with the blade just behind the head when idle, walking or running; slower movement; a step into each swing; longer hit-pause.
 - **Guns:** no reload button, automatic only.
 - **Weapon animations (owner):** use the group animations that work; keep the old ones for any that don't.
+- **Gun M1 (owner, 2026-10-17, non-negotiable):** M1 with a gun is a melee pistol whip and never fires a bullet; shooting is its own mode (Aim, Y).
+- **Ledge walk (owner, 2026-10-17):** the Tomb Raider narrow cliff-ledge walk, on authored ledges (tagged `RenseiLedge`), facing the wall.
+- **Weapon styles (owner decision 1, 2026-10-17):** Boxing and Lethwei go on **bare fists**, not Gauntlets / Caestus.
+- **Style unlocks (owner, 2026-10-18):** a style is learned **only** from its style trainer once its requirements are met.
+- **Base moveset (owner decision 8, 2026-10-18, "it should stay as selectable"):** every class's existing moveset stays a selectable style, always learned (no trainer). For bare fists it's shown as "Brawler" (the name is PROPOSAL).
+- **Fist skills (owner, 2026-10-18):** Spin Kick is a 1-hit move, 540 Kick a 3-hit move.
+- **Grabs and sticky skills (owner, 2026-10-18):** moves with victim animations work as grabs; a skill that lands sticks to the opponent until they parry or block (Devil Hunter / VV Ultimatum skill logic).
+- **Starting weapons (owner, 2026-10-18):** the creator offers six: Fists, Katana, Rapier, Caestus, Greatsword, Daggers. Enemies still use all eight Common weapons (guns included).
 
 ## Progression
 - Stat Points (levels) and Mastery Points (training) stay **separate**.
@@ -75,6 +83,15 @@ This document records established project decisions to keep development consiste
 - **PvP:** no deeds in arena, duels or self-defence. An unprovoked grip on a player is a capped Local deed (not built until the PvP rules exist).
 - **Titles:** the Renown x Conduct flavour titles (placeholders).
 - **First slice:** M1-M3 + M5 (built 2026-10-16). Taboo canon is left for later.
+
+## World and movement (2026-10-17 / 18)
+- **Starter map (owner, 2026-10-17):** "the Resembool-style Countryside farm village", using the owner's Blender model (RockbellHouse). Built as **Lindenmoor** (the name, layout and sizes are PROPOSAL).
+- **Swimming (owner decision 6, 2026-10-18):** basic swimming in deep water with a swim state: **no combat or alchemy while swimming**. The same rule applies to enemies (owner: "enemies in deep water should also be unable to attack or cast, same as players").
+- **Swimming extras (owner, 2026-10-18):** swim sprint (stamina), diving, breath and drowning, more deep water, and touch buttons for sprint and rise that only show while swimming. The numbers are PROPOSAL.
+- **Dialogue close (owner, 2026-10-18):** a small X button on the dialogue box (works with touch). No menu opens over a conversation.
+
+## Character creation (2026-10-18)
+- **Creator QOL with a paywall, no accessories (owner).** Built as PROPOSAL: free undo / redo, random look and reset; **Creator Plus** (one Game Pass) for a custom skin colour and 3 saved looks. Cosmetic only. The split needs the owner's confirmation and the pass ID (open question).
 
 ## Shelved features
 - The Nemesis system is shelved. Don't implement it unless the owner brings it back.
@@ -106,7 +123,11 @@ This document records established project decisions to keep development consiste
   - Earth Pillars: waves 0.3s apart, 0.35s to cross the line; 1.1s recovery.
   - Earth's status is Bleed (the prototype's Rising Thorn bled).
 - **Consumables (PROPOSAL):** the Apple heals 8% of max HP over 6s (0.5s ticks), 1s between uses.
-- **Passive health regen:** Roblox's default regen (+1% max HP/s) is active. Keep it or remove it?
+- **Passive health regen:** Roblox's default regen (+1% max HP/s) is active. Keep it or remove it? (Drowning is tuned against it: 6% of max HP per second, PROPOSAL.)
+- **Creator Plus (2026-10-18):** the Game Pass ID (`CreatorPlus.PassId`, 0 = not on sale) and whether the free / paid split is right. The save-slot Developer Product (`Slots.ProductId`) is still 0 too.
+- **Broken sheet animations (2026-10-18):** 12 sheet assets don't load ("AnimationClip loaded is not valid"): Greatsword Idle / Walk / Sheathe / Unsheathe / KO, Katana Walk / Sheathe / Unsheathe, Daggers Sheathe / Unsheathe, Ledge Idle Left / Right. They need re-uploading; the old animations stay meanwhile.
+- **Weapon skills vs the skill sheet:** how the sheet maps onto Dragonflash, Flurry, Barrage, Scissor Rush and Fan the Hammer (`Animations.md`).
+- **Names (PROPOSAL):** "Brawler", "Lindenmoor", "Mill Pond", "Gorge Pool". Deeper water than ~5.2 studs needs a raised basin or a hole in the baseplate.
 - **Shock:** which element / moves apply it (built, unused). Bleed beyond daggers (Metal?).
 - **Flame X/C burn:** Scorching Wave and Inferno Lance burn for 2 ticks (PROPOSAL; the sheet lists burn only on Ignite and Phoenix Drive).
 - **Hit-parry numbers:** posture cost 10 and "always cooldown" are PROPOSALS; "VV" wasn't available to check, so they follow Devil Hunter's code.

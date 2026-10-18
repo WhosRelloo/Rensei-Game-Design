@@ -13,6 +13,8 @@ local ResourceManager = require(ReplicatedStorage.Modules.Managers.ResourceManag
 local ItemData = require(ReplicatedStorage.Modules.Data.ItemData)
 local QuestDefs = require(ReplicatedStorage.Modules.Data.Rensei.Quests)
 local StoryLogic = require(ReplicatedStorage.Modules.Data.Rensei.StoryLogic)
+local ClassSkills = require(ReplicatedStorage.Modules.Data.Rensei.ClassSkills)
+local SkillTree = require(ReplicatedStorage.Modules.Data.Rensei.SkillTree)
 
 local Player = Players.LocalPlayer
 local Gui = UIState.Gui
@@ -184,7 +186,129 @@ end
 
 local function UseSlot(Number)
 	if Gui.Dialogue.Visible then return end
+	-- Combat Mode: keys 1-4 use the equipped class skills (items can't be held in Combat Mode anyway).
+	-- The server picks the skill from the saved loadout; only the slot is sent.
+	local Character = Player.Character
+	if Character and Character:GetAttribute("CombatMode") == true and Number >= 1 and Number <= ClassSkills.Slots then
+		UIState.Request("ClassSkill", Number)
+		return
+	end
 	UIState.Request("HoldItem", Number)
+end
+
+-- ===== Guns' shooting mode: a crosshair and a hint while it's on (Requests.Shoot) =====
+local ShootHint
+local function UpdateShooting()
+	local Character = Player.Character
+	local On = Character ~= nil and Character:GetAttribute("ShootingMode") == true
+	if On and not ShootHint then
+		ShootHint = Instance.new("Frame")
+		ShootHint.Name = "ShootingMode"
+		ShootHint.BackgroundTransparency = 1
+		ShootHint.Size = UDim2.fromScale(1, 1)
+		ShootHint.Parent = HUD
+		local Cross = Instance.new("TextLabel")
+		Cross.Name = "Crosshair"
+		Cross.BackgroundTransparency = 1
+		Cross.AnchorPoint = Vector2.new(0.5, 0.5)
+		Cross.Position = UDim2.fromScale(0.5, 0.5)
+		Cross.Size = UDim2.fromOffset(28, 28)
+		Cross.Text = "+"
+		Cross.TextScaled = true
+		Cross.TextColor3 = Color3.fromRGB(240, 220, 160)
+		Cross.TextStrokeTransparency = 0.4
+		Cross.FontFace = HUD.CashFrame.Display.FontFace
+		Cross.Parent = ShootHint
+		local Hint = Cross:Clone()
+		Hint.Name = "Hint"
+		Hint.Position = UDim2.fromScale(0.5, 0.86)
+		Hint.Size = UDim2.fromScale(0.3, 0.025)
+		Hint.Text = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled and "SHOOTING MODE  ·  FIRE to shoot  ·  STOP to leave"
+			or "SHOOTING MODE  ·  RMB fire  ·  Y leave  ·  M1 still pistol-whips"
+		Hint.Parent = ShootHint
+	end
+	if ShootHint then ShootHint.Visible = On end
+end
+
+-- ===== Class skills on the hotbar (Combat Mode) =====
+-- In Combat Mode slots 1-4 show the class skills equipped for the class you're fighting as (its name,
+-- cooldown sweep and seconds) and slots 5-0 dim; out of Combat Mode the bar shows items as before.
+local function SkillFace(Slot)
+	local Face = Slot:FindFirstChild("ClassSkill")
+	if Face then return Face end
+	Face = Instance.new("Frame")
+	Face.Name = "ClassSkill"
+	Face.BackgroundTransparency = 1
+	Face.Size = UDim2.fromScale(1, 1)
+	Face.ZIndex = Slot.ZIndex + 2
+	Face.Parent = Slot
+	local Name = Instance.new("TextLabel")
+	Name.Name = "SkillName"
+	Name.BackgroundTransparency = 1
+	Name.AnchorPoint = Vector2.new(0.5, 0.5)
+	Name.Position = UDim2.fromScale(0.5, 0.5)
+	Name.Size = UDim2.fromScale(0.8, 0.55)
+	Name.TextScaled = true
+	Name.TextWrapped = true
+	Name.FontFace = HUD.CashFrame.Display.FontFace
+	Name.TextColor3 = Color3.fromRGB(235, 215, 150)
+	Name.ZIndex = Face.ZIndex + 2
+	Name.Parent = Face
+	local Cool = Instance.new("Frame")
+	Cool.Name = "Cooldown"
+	Cool.BorderSizePixel = 0
+	Cool.BackgroundColor3 = Color3.new(0, 0, 0)
+	Cool.BackgroundTransparency = 0.4
+	Cool.AnchorPoint = Vector2.new(0.5, 1)
+	Cool.Position = UDim2.fromScale(0.5, 0.88)
+	Cool.Size = UDim2.fromScale(0.76, 0)
+	Cool.ZIndex = Face.ZIndex + 1
+	Cool.Parent = Face
+	local Secs = Name:Clone()
+	Secs.Name = "Seconds"
+	Secs.Size = UDim2.fromScale(0.5, 0.4)
+	Secs.TextColor3 = Color3.new(1, 1, 1)
+	Secs.ZIndex = Face.ZIndex + 3
+	Secs.Parent = Face
+	return Face
+end
+
+local function UpdateSkillSlots()
+	local Character = Player.Character
+	local On = Character ~= nil and Character:GetAttribute("CombatMode") == true
+	local Data = UIState.Data
+	local Family = On and ClassSkills.CharacterFamily(Character) or nil
+	local Loadout = (Family and Data) and ClassSkills.Loadout(Data, Family) or nil
+	local Now = workspace:GetServerTimeNow()
+	for _, Key in ipairs(SlotOrder) do
+		local Slot = HUD.Bottom:FindFirstChild("Slot" .. Key)
+		if Slot then
+			local N = tonumber(Key)
+			local IsSkill = On and N >= 1 and N <= ClassSkills.Slots
+			local Icon = Slot:FindFirstChild("Icon")
+			if Icon then Icon.Visible = not On end
+			Slot.ImageTransparency = (On and not IsSkill) and 0.6 or 0
+			local Face = Slot:FindFirstChild("ClassSkill")
+			if IsSkill then
+				Face = Face or SkillFace(Slot)
+				Face.Visible = true
+				local Id = Loadout and Loadout[N] or ""
+				local Node = Id ~= "" and SkillTree.Nodes[Id] or nil
+				Face.SkillName.Text = Node and Node.Name or ""
+				local Left, Total = 0, 1
+				if Node then
+					local Def = ClassSkills.Def(Id)
+					Left = math.max(0, (Character:GetAttribute("ClassSkillReadyAt_" .. Id) or 0) - Now)
+					Total = Character:GetAttribute("ClassSkillCooldown_" .. Id) or (Def and Def.Cooldown) or 1
+				end
+				Face.Cooldown.Size = UDim2.fromScale(0.76, 0.76 * math.clamp(Left / math.max(Total, 0.01), 0, 1))
+				Face.Seconds.Text = Left > 0 and tostring(math.ceil(Left)) or ""
+				Face.SkillName.TextTransparency = Left > 0 and 0.5 or 0
+			elseif Face then
+				Face.Visible = false
+			end
+		end
+	end
 end
 
 -- ===== Enemy and boss bars =====
@@ -258,8 +382,9 @@ end
 -- RankService.Publish); rows are keyed by the Player instance, never by a name, so two players
 -- with the same display name stay apart. Until a save has loaded (ProfileReady) the row says
 -- "Loading" rather than guessing. Read-only: nothing here sends anything to the server.
--- Art: the game's own HUD pieces -- the Server Info panel and its header banner (HUD.Server), and
--- the leaderboard row bar (Templates.LeaderEntry) behind each row.
+-- Art (owner 2026-10-18): the game's own leaderboard frame (HUD.LeaderBoard: Scroll bar + Container) with one
+-- Templates.LeaderEntry bar per player (name, then "Title  ·  Lv n" in the rank colour); no panel behind it.
+-- The card (hover / tap) keeps the Server Info panel art and shows nation, rank and promotion.
 local Ranks = require(ReplicatedStorage.Modules.Data.Rensei.Ranks)
 local TweenService = game:GetService("TweenService")
 local GuiService = game:GetService("GuiService")
@@ -337,7 +462,8 @@ local function Info(P)
 	local Nation = Ready and P:GetAttribute("Nation") or nil
 	return {
 		Ready = Ready,
-		Name = P.DisplayName,
+		-- the character's name on the board (owner 2026-10-18); the Roblox names stay on the card
+		Name = (Ready and (P:GetAttribute("CharacterName") or "") ~= "") and P:GetAttribute("CharacterName") or P.DisplayName,
 		Level = Ready and tostring(P:GetAttribute("Level") or "?") or "...",
 		Rank = Rank,
 		Title = Ready and (P:GetAttribute("Title") or "?") or "Loading",
@@ -371,7 +497,7 @@ local function FillCard()
 	if not P or not P.Parent then return end
 	for _, C in ipairs(Card.Body:GetChildren()) do if C:IsA("TextLabel") then C:Destroy() end end
 	local I = Info(P)
-	if Card.Banner then Card.Banner.Head.Text = P.DisplayName else CardLine(1, P.DisplayName, LB_GOLD).FontFace = LB_BOLD end
+	if Card.Banner then Card.Banner.Head.Text = I.Name else CardLine(1, I.Name, LB_GOLD).FontFace = LB_BOLD end -- the character name, like the row
 	CardLine(2, "@" .. P.Name, LB_DIM)
 	CardLine(3, "Display name: " .. P.DisplayName)
 	if not I.Ready then
@@ -438,30 +564,30 @@ local function MarkDirty() Dirty = true end
 
 local function AddRow(P)
 	if Rows[P] then return end
-	local Frame = Instance.new("Frame")
+	local Frame = HUD.Parent.Templates.LeaderEntry:Clone()
 	Frame.Name = "Row_" .. P.UserId
-	Frame.Size = UDim2.new(1, 0, 0, ROW_H)
-	Frame.BackgroundTransparency = 1
-	Frame.Parent = Board.List
-	local Bar = Art(Frame, ART_ROW)
+	Frame.Visible = true
 	-- your own row: the bar warmed toward gold
-	Bar.ImageColor3 = P == Player and Color3.fromRGB(255, 225, 160) or Color3.new(1, 1, 1)
-	local Cells = {}
-	for I, Col in ipairs(COLUMNS) do
-		local Pos, Size = ColumnBox(I)
-		Cells[Col.Key] = LbText(Frame, {Name = Col.Key, Button = Col.Key == "Name", Position = Pos, Size = Size, ZIndex = 2})
-	end
-	local Name = Cells.Name
-	Name.MouseEnter:Connect(function() Card.OverName = true if not Card.Pinned or Card.Target ~= P then ShowCard(P) end end)
-	Name.MouseLeave:Connect(function() Card.OverName = false MaybeHide() end)
-	Name.Activated:Connect(function()
+	Frame.ImageColor3 = P == Player and Color3.fromRGB(255, 225, 160) or Color3.new(1, 1, 1)
+	Frame.Parent = Board.List
+	-- the whole bar is the hover / tap target for the card
+	local Hit = Instance.new("TextButton")
+	Hit.Name = "Hit"
+	Hit.Text = ""
+	Hit.BackgroundTransparency = 1
+	Hit.Size = UDim2.fromScale(1, 1)
+	Hit.ZIndex = 5
+	Hit.Parent = Frame
+	local Cells = {Name = Frame:WaitForChild("PlayerName"), Title = Frame:WaitForChild("Rank"), Hit = Hit}
+	Hit.MouseEnter:Connect(function() Card.OverName = true if not Card.Pinned or Card.Target ~= P then ShowCard(P) end end)
+	Hit.MouseLeave:Connect(function() Card.OverName = false MaybeHide() end)
+	Hit.Activated:Connect(function()
 		if Card.Target == P and Card.Pinned then HideCard() else ShowCard(P, true) end
 	end)
-	Rows[P] = {Frame = Frame, Art = Bar, Cells = Cells, Conn = P.AttributeChanged:Connect(MarkDirty),
+	Rows[P] = {Frame = Frame, Art = Frame, Cells = Cells, Conn = P.AttributeChanged:Connect(MarkDirty),
 		NameConn = P:GetPropertyChangedSignal("DisplayName"):Connect(MarkDirty)}
 	Dirty = true
 end
-
 local function RemoveRow(P)
 	local Row = Rows[P]
 	if not Row then return end
@@ -483,14 +609,10 @@ local function DrawLeaderboard()
 			local I = Info(P)
 			Row.Frame.LayoutOrder = Order
 			Row.Cells.Name.Text = I.Name
-			Row.Cells.Title.Text = I.Title
+			Row.Cells.Title.Text = I.Ready and (I.Title .. "  ·  Lv " .. I.Level) or I.Title
 			Row.Cells.Title.TextColor3 = I.Ready and (RANK_COLORS[I.Rank] or LB_TEXT) or LB_DIM
-			Row.Cells.Nation.Text = I.Nation
-			Row.Cells.Nation.TextColor3 = (I.Ready and I.Nation ~= "None") and LB_TEXT or LB_DIM
 		end
 	end
-	local Shown = math.min(#List, MAX_ROWS)
-	Board.Root.Size = UDim2.new(0.2, 0, 0, BANNER_H + HEAD_H + Shown * ROW_H + 12)
 	if Card.Target then
 		if Card.Target.Parent then FillCard() task.defer(PlaceCard) else HideCard() end
 	end
@@ -498,65 +620,18 @@ end
 
 local function BuildLeaderboard()
 	local Root = HUD.LeaderBoard
-	-- the old one-column rows can't hold four columns: the frame is reused, its old children are
-	-- hidden and left in place
-	for _, C in ipairs(Root:GetChildren()) do
-		if C:IsA("GuiObject") then C.Visible = false
-		elseif C:IsA("UIAspectRatioConstraint") or C:IsA("UIListLayout") then C.Parent = nil end
-	end
+	-- the game's own leaderboard art (owner 2026-10-18: "use the leaderboard UI we already have", no dark
+	-- background): the frame's Scroll bar + Container list, one Templates.LeaderEntry bar per player
 	Root.BackgroundTransparency = 1
 	Root.ClipsDescendants = false
-	local Size = Instance.new("UISizeConstraint")
-	Size.MinSize = Vector2.new(280, 0)
-	Size.MaxSize = Vector2.new(380, math.huge)
-	Size.Parent = Root
-	local Scale = Instance.new("UIScale")
-	Scale.Parent = Root
-
-	-- the panel: Server Info's art under everything below the banner
-	local Panel = Instance.new("Frame")
-	Panel.Name = "Panel"
-	Panel.BackgroundTransparency = 1
-	Panel.Position = UDim2.fromOffset(0, BANNER_H / 2)
-	Panel.Size = UDim2.new(1, 0, 1, -BANNER_H / 2)
-	Panel.Parent = Root
-	Art(Panel, ART_PANEL)
-	Banner(Root, "PLAYERS")
-
-	local Head = Instance.new("Frame")
-	Head.Name = "Header"
-	Head.BackgroundTransparency = 1
-	Head.Position = UDim2.fromOffset(0, BANNER_H + 2)
-	Head.Size = UDim2.new(1, 0, 0, HEAD_H)
-	Head.Parent = Root
-	local Rule = Instance.new("Frame") -- a thin gold rule under the column names
-	Rule.BackgroundColor3 = LB_EDGE
-	Rule.BackgroundTransparency = 0.3
-	Rule.BorderSizePixel = 0
-	Rule.Position = UDim2.new(INSET, 0, 1, -1)
-	Rule.Size = UDim2.new(1 - 2 * INSET, 0, 0, 1)
-	Rule.Parent = Head
-	for I, Col in ipairs(COLUMNS) do
-		local Pos, Sz = ColumnBox(I)
-		LbText(Head, {Name = Col.Key, Text = Col.Head:upper(), TextColor3 = LB_GOLD, FontFace = LB_BOLD, TextSize = 13,
-			Position = Pos, Size = Sz})
-	end
-
-	local List = Instance.new("ScrollingFrame")
-	List.Name = "Rows"
+	for _, C in ipairs(Root:GetChildren()) do if C:IsA("GuiObject") then C.Visible = true end end
+	local List = Root:WaitForChild("Container")
 	List.BackgroundTransparency = 1
-	List.BorderSizePixel = 0
-	List.Position = UDim2.fromOffset(0, BANNER_H + HEAD_H + 4)
-	List.Size = UDim2.new(1, 0, 1, -(BANNER_H + HEAD_H + 8))
-	List.CanvasSize = UDim2.new()
 	List.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	List.ScrollBarThickness = 3
-	List.ScrollBarImageColor3 = LB_EDGE
-	List.ScrollingDirection = Enum.ScrollingDirection.Y
-	List.Parent = Root
-	local Layout = Instance.new("UIListLayout")
+	List.CanvasSize = UDim2.new()
+	local Layout = List:FindFirstChildOfClass("UIListLayout") or Instance.new("UIListLayout", List)
 	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Parent = List
+	local Scale = Instance.new("UIScale") -- the card's phone scaling (the board keeps its own scale-sized frame)
 
 	-- the card: the same panel art and banner, left of the board beside the row it describes
 	local CardFrame = Instance.new("Frame")
@@ -631,7 +706,7 @@ local function BuildLeaderboard()
 		local Screen = Root:FindFirstAncestorWhichIsA("ScreenGui")
 		if Screen and Screen.IgnoreGuiInset then Pos += GuiService:GetGuiInset() end
 		local Row = Card.Target and Rows[Card.Target]
-		if Inside(Card.Frame, Pos) or (Row and Inside(Row.Cells.Name, Pos)) then return end
+		if Inside(Card.Frame, Pos) or (Row and Inside(Row.Cells.Hit, Pos)) then return end
 		HideCard()
 	end)
 
@@ -729,6 +804,7 @@ function HUDUI.Start()
 	UIState.Changed:Connect(function(Data)
 		HUD.CashFrame.Display.Text = "$" .. UIState.Format(Data.Money or 0)
 		UpdateHotbar()
+		UpdateSkillSlots()
 		UpdateQuests()
 	end)
 
@@ -744,9 +820,17 @@ function HUDUI.Start()
 		if Number then UseSlot(Number) end
 	end)
 	local function WatchCharacter(Character)
-		Character.ChildAdded:Connect(function() task.defer(UpdateHotbar) end)
-		Character.ChildRemoved:Connect(function() task.defer(UpdateHotbar) end)
+		Character.ChildAdded:Connect(function() task.defer(UpdateHotbar) task.defer(UpdateSkillSlots) end)
+		Character.ChildRemoved:Connect(function() task.defer(UpdateHotbar) task.defer(UpdateSkillSlots) end)
 	end
+	-- the skill faces: cooldown sweeps tick, and Combat Mode / weapon changes swap the bar (cheap: 10 slots)
+	task.spawn(function()
+		while true do
+			pcall(UpdateSkillSlots)
+			pcall(UpdateShooting)
+			task.wait(0.1)
+		end
+	end)
 	if Player.Character then WatchCharacter(Player.Character) end
 	Player.CharacterAdded:Connect(WatchCharacter)
 

@@ -1,6 +1,6 @@
 # Rensei Phase Plan
 
-Updated after every phase. Status as of **2026-10-16**.
+Updated after every phase. Status as of **2026-10-18**.
 
 Legend: ✅ done and playtested · 🟡 partly done · ⬜ not started · 💤 deferred by the owner
 
@@ -32,6 +32,11 @@ Rensei is developed on two tracks that share one codebase (the Roblox place **Ye
 | A11 Ranked PvP arena | 💤 | Doc: "can be added later". |
 | A14 Weapons + inventory pass | ✅ 2026-10-14 | Weapons equip from the inventory (saved, restored on spawn, old hotbar weapons migrated); hotbar = items only. Heavies queue mid-M1-string; full M1 string on whiffs. Holsters fixed (katana was through the right arm, daggers loose). Draw no longer freezes the legs. Respawn animation-loading bug fixed. Climb Space nil error fixed. |
 | C Character creation + start flow | ✅ 2026-10-14 | Menu place (Character Customization): main menu + 6-step creation (nation, first name / surname / gender, look, alchemy path, starting weapon) with a live preview; server-validated, saved once. Tutorial place: dressed arrival + `FinishTutorial`. Ye: arrival routing, the look on every spawn, a placeholder intro cutscene. One shared save across the three places. |
+| A15 Movement state + ledge walk | ✅ 2026-10-17 | Server-owned traversal state (`MovementState`, JumpRemote fixes); the authored narrow-ledge walk (Tomb Raider style, facing the wall). |
+| A16 Guns rework | ✅ 2026-10-17 | M1 is a pistol whip; shooting is its own mode (Aim). Gun balance audit 2026-10-18. |
+| A17 Weapon styles | ✅ 2026-10-18 | Bare fists: Brawler (base), Boxing, Lethwei; taught by style trainers with requirements; the Boxing infinite combo fixed. Other classes: base only until their styles are designed. |
+| A18 Class skills | ✅ 2026-10-17/18 | Mastery menu Class column, 4-slot hotbar loadout; sticky skills (latch until parry / block), victim-animation grabs; Iron Rush and Phoenix Drive aim fixes. |
+| A19 Swimming | ✅ 2026-10-18 | Deep-water swim state (no combat / alchemy, players and enemies), swim sprint, diving, breath and drowning, touch SPRINT / RISE. Mill Pond and Gorge Pool in Lindenmoor. |
 | A12 Mobile buttons | ✅ 2026-10-14 | Touch cluster bottom-right in Rensei's slot art: Attack (hold), Heavy, Block (hold / tap = parry), Feint, Upper, Skill, Dash, Jump (hold = wall run; climb at walls), Fight/Calm, Run (toggle), Slide, Grip, Z/X/C/V with cooldowns. Same code as the keyboard (`ClientActions`). Thumbstick works on walls. |
 
 ## Track B — Master implementation plan
@@ -45,7 +50,7 @@ Rensei is developed on two tracks that share one codebase (the Roblox place **Ye
 | 4 Connected skill tree | ✅ 2026-10-15 | The Mastery tree (K): `Rensei.SkillTree`, `SkillTreeService`, `SkillMods`, `MasteryUI`; buy / refund, effects across combat, alchemy, body and movement (Rello's plan, `plans/2026-10-15-skill-tree.md`). |
 | 5 Complete alchemy progression | 🟡 | All five paths complete (20/20 slots). Skill-tree unlocks not designed. |
 | 6 Quests / dialogue / investigation | ✅ 2026-10-16 (slice) | Staged quests, prerequisites, outcomes, catch-up, conditional dialogue, evidence, Case Board, Journal (J). One complete placeholder quest ("Chalk on the Foundry Wall") + a repeatable bounty. See `Quests, Puzzles and Minigames Proposal.md`. Real content waits on the owner's lore and map. |
-| 7 Puzzles & environment | ✅ 2026-10-16 (slice) | Per-player mechanisms that react to all five alchemy paths, each with a non-alchemy route; puzzles with doors; two UI minigames (Pressure Board, Array Restoration). Graybox Foundry Yard. Assay Bench and Ledger Cipher are designed, not built. |
+| 7 Puzzles & environment | ✅ 2026-10-16 (slice) | Per-player mechanisms that react to all five alchemy paths, each with a non-alchemy route; puzzles with doors; UI minigames (Pressure Board, Array Restoration, Assay Bench, Ledger Cipher). Graybox Foundry Yard. **Starter map Lindenmoor** (2026-10-17): a Countryside farm village south of the hub, with the owner's Blender workshop, a gorge ledge, a bandit camp and two swimmable pools. |
 | 8 Main story | ⬜ | |
 | 9 Cinematic choices | ⬜ | |
 | 10 Endings & legacy | ⬜ | |
@@ -53,13 +58,14 @@ Rensei is developed on two tracks that share one codebase (the Roblox place **Ye
 
 ## Next steps, in order
 
+0. **Owner items from 2026-10-18** (`Owner Hand-off 2026-10-18.md`): the Creator Plus Game Pass ID and its free / paid split; re-upload the 12 broken sheet animations; the save-slot Developer Product ID.
 1. **Skill tree design** (owner): nodes, costs, and whether slots unlock through it.
 2. **Owner assets for Ice, Wind, Metal:** VFX folders and move animations to replace the placeholders.
 3. **Publish** the cleaned climb animations (the `Save` under each climb Animation).
 4. **Publish `infernolance`** to the group. Inferno Lance's animation currently plays only in Studio.
 5. **Tutorial content + the real intro cutscene** (owner). The tutorial calls `FinishTutorial`. Publish the three places for the first live flow test.
 6. **Publish animations** to the group. Several weapon animations are still unpublished copies that only play in Studio.
-7. Mobile buttons, then the ranked arena when the owner wants it.
+7. Two-player and real-device tests (leaderboard, swimming and styles seen by others, touch), then the ranked arena when the owner wants it.
 
 ## Visual status page
 

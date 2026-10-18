@@ -2,6 +2,8 @@
 -- current node and sends back which choice was picked. Number keys 1-9 also pick a choice.
 -- The NPC's line types out letter by letter and the choices appear once it finishes. Clicking or
 -- tapping the text box, or pressing a number key, shows the whole line at once.
+-- The X on the box's top-right corner leaves the conversation (owner 2026-10-18; Esc belongs to
+-- Roblox's own menu, so it can't be relied on). Its tap area is larger than the icon, for touch.
 
 local UserInputService = game:GetService("UserInputService")
 local SoundService = game:GetService("SoundService")
@@ -15,6 +17,7 @@ local CHAR_DELAY = 0.022 -- seconds per letter
 local PAUSES = {["."] = 0.22, ["!"] = 0.22, ["?"] = 0.22, [","] = 0.09, [";"] = 0.12, [":"] = 0.12}
 local TICK_SOUND = "rbxassetid://10066936758"
 local TICK_EVERY = 3 -- letters per tick, so the sound reads as speech rather than a buzz
+local CLOSE_ICON = "rbxassetid://74304540828981" -- the kit's round X (HUD2.Infos.Search.DeletButton)
 
 local DialogueUI = {}
 
@@ -99,6 +102,35 @@ function DialogueUI.Start()
 		if Typing then Finish() end
 	end)
 	Skip.Parent = Dialogue.MainFrame
+
+	-- X: leave the conversation (mouse or tap)
+	local CloseHit = Instance.new("TextButton")
+	CloseHit.Name = "Close"
+	CloseHit.Text = ""
+	CloseHit.BackgroundTransparency = 1
+	CloseHit.AnchorPoint = Vector2.new(0.5, 0.5)
+	CloseHit.Position = UDim2.fromScale(0.975, 0.1) -- on the frame's top-right corner, clear of the text
+	CloseHit.Size = UDim2.fromScale(0.15, 0.66) -- the tap area (~45 px on a landscape phone)
+	CloseHit.ZIndex = 12
+	CloseHit.Parent = Dialogue.MainFrame
+	local CloseAspect = Instance.new("UIAspectRatioConstraint")
+	CloseAspect.AspectRatio = 1
+	CloseAspect.Parent = CloseHit
+	local Icon = Instance.new("ImageLabel")
+	Icon.Name = "Icon"
+	Icon.BackgroundTransparency = 1
+	Icon.Image = CLOSE_ICON
+	Icon.ScaleType = Enum.ScaleType.Fit
+	Icon.AnchorPoint = Vector2.new(0.5, 0.5)
+	Icon.Position = UDim2.fromScale(0.5, 0.5)
+	Icon.Size = UDim2.fromScale(0.46, 0.46)
+	Icon.ZIndex = 13
+	Icon.Parent = CloseHit
+	CloseHit.MouseEnter:Connect(function() Icon.ImageColor3 = Color3.fromRGB(255, 225, 160) end)
+	CloseHit.MouseLeave:Connect(function() Icon.ImageColor3 = Color3.new(1, 1, 1) end)
+	CloseHit.Activated:Connect(function()
+		if Open then UIState.Request("Dialogue", "Close") end
+	end)
 
 	UIState.On("Dialogue", function(P)
 		UIState.CloseMenus()

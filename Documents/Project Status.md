@@ -1,6 +1,6 @@
 # Rensei Project Status
 
-Updated **2026-10-16**. See `Phase Plan.md` for the roadmap, `Changelog.md` for per-phase detail, and `ARCHITECTURE.md` for where everything lives in the place.
+Updated **2026-10-18**. See `Phase Plan.md` for the roadmap, `Changelog.md` for per-phase detail, and `ARCHITECTURE.md` for where everything lives in the place.
 
 ## Current state
 
@@ -33,7 +33,14 @@ Updated **2026-10-16**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
   - Save slots (2 free, up to 5 purchasable), clan surnames rolled with the deck's odds (Clan Index, rerolls by pack or code), catalog hair IDs, colour wheel, female body, nation starter outfits.
 - **Mastery skill tree (K):** buy / refund nodes; combat, alchemy, body and movement effects.
 - **Quests, investigation, puzzles (vertical slice):** staged quests with endings, conditional dialogue, evidence and a Case Board in the Journal (J), per-player environmental puzzles that every alchemy path can solve (each with a non-alchemy route too), and two UI minigames (Pressure Board, Array Restoration). One full placeholder quest, "Chalk on the Foundry Wall", in a graybox Foundry Yard south of the arena, plus a repeatable bandit bounty.
-- **PvE looks:** enemies roll a nation outfit and one of the creator's starting weapons.
+- **PvE looks:** enemies roll a nation outfit and one of the eight Common weapons (guns included).
+- **Added 2026-10-17 / 18** (details in `Changelog.md`):
+  - **Movement:** a server-owned traversal state (`MovementState`); the authored narrow-ledge walk; **basic swimming** in deep water (no combat or alchemy, for players and enemies), with swim sprint, diving, breath / drowning, and touch SPRINT / RISE buttons.
+  - **Combat:** guns' M1 is a pistol whip and shooting is its own mode; **weapon styles** (bare fists: Brawler, Boxing, Lethwei), taught by style trainers; **class skills** in the Mastery menu's Class column, on the hotbar; sticky skills and grabs; Iron Rush and Phoenix Drive aim fixes.
+  - **Progression:** the Mastery menu's GUIDE tab; the challenge framework (difficulty bands, Combat Read, Movement Gauntlet, Lindenmoor Run); alchemist enemies casting the real abilities.
+  - **World:** the starter map **Lindenmoor** (Countryside farm village, the owner's Blender workshop model), with two swimmable pools (Mill Pond, Gorge Pool). See `Starter Map - Countryside Village Layout.md`.
+  - **UI:** smaller Stats / Inventory; the leaderboard on its original art with character names; minimal level-up and codex / area popups; no menus over a conversation; a dialogue X button.
+  - **Character creator:** sharper UI, FACE / BODY camera, undo / redo, random look, reset; **Creator Plus** (custom skin colour, saved looks) built but not on sale; six starting weapons.
 - **Combat log badge:** in combat, shows who hit you and the time until you're out of combat.
 - **Admin panel (F2):** admins only (`AdminConfig`); players, world, self and log tabs, including switching a player's alchemy path.
 - **Items:** consumables on the hotbar; clicking while holding uses one. The Apple heals a little at a time.
@@ -54,12 +61,15 @@ Updated **2026-10-16**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
 - **Animations:** many weapon animations are unpublished copies that play only in Studio. 16 IDs from the owner's animation sheet are broken group uploads, so the old animations are used for those.
   - The "NEW RENSEI ANIMS" folder (new uppercut, emotes, etc.) is owned by another group and won't load in Rensei's game; it needs re-uploading under the Rensei group. The animation spreadsheet's new rows haven't been audited yet (link needed).
 - **Affinity:** the Alchemy step was removed from the creator at the owner's request, so players can't choose a path yet; admins can set anyone's path from the admin panel (F2). Studio uses the test setting `ServerScriptService.AlchemyService` attribute `StudioTestAffinity` (never saved, ignored live).
-- **Purchases:** the Developer Product IDs for save slots and reroll packs are placeholders (0).
+- **Purchases:** the Developer Product IDs for save slots and reroll packs are placeholders (0), and so is the Creator Plus Game Pass (`CreatorPlus.PassId`).
+- **Sheet animations (2026-10-18):** 12 sheet assets don't load and need re-uploading (list in `Decisions.md`); the old animations play meanwhile.
+- **Not tested yet:** two or more players (leaderboard, others seeing swim / style animations), a real phone or tablet (touch was tested through `ForceMobileControls`), a live server.
+- **Owner hand-off:** `Owner Hand-off 2026-10-18.md` lists what only the owner can do.
 - **Tutorial place:** still loads `Data<UserId>`, not the selected save slot.
 - **Alchemy:** Ice, Wind, Metal and Earth run on placeholder animations (Earth's VFX use the owner's prototype meshes).
 - **Climb animations:** the cleaned versions play only in Studio until published (live keeps the originals).
 - **Quest content:** only the placeholder Foundry Yard quest and bounty exist; real quests, the map and canon lore are the owner's. Not yet verified: two players in one puzzle at once, and puzzle state after a real rejoin (Studio saves were failing with HTTP 500 during testing).
-- **Not built:** main story, Assay Bench / Ledger Cipher minigames, escort objectives, factions / reputation.
+- **Not built:** main story, escort objectives, villager NPCs and house interiors in Lindenmoor, a train. (Assay Bench / Ledger Cipher and the first morality slice were built 2026-10-16.)
 
 ## Development rules (unchanged)
 

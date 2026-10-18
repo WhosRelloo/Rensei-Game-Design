@@ -57,7 +57,8 @@ local function GiveRewards(Player, Data, Rewards, Source)
 	for _, Entry in ipairs(Rewards.Codex or {}) do
 		if not Data.Codex[Entry] then
 			Data.Codex[Entry] = os.time()
-			UIService.Notify(Player, "Banner", {Text = "New Entry Unlocked - [" .. Entry .. "]"})
+			-- the minimal CODEX ENTRY card (PopupUI; 2026-10-18 UI pass)
+			UIService.Notify(Player, "Codex", {Name = Entry, Description = "Added to your Journal (J)."})
 		end
 	end
 	if Rewards.Affinity then

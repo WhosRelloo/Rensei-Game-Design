@@ -6,7 +6,7 @@
 -- nation (Customization.RandomLook): the spawn part's Nation attribute, else the enemy type's Nation,
 -- else a random nation. The rig carries Nation / Gender attributes.
 -- Weapons (owner 2026-10-15): every spawn is armed with one of the character creator's starting
--- weapons (Customization.StartWeapons), at random -- or the spawn part's Weapon attribute ("" = fists).
+-- weapons (Customization.CommonWeapons), at random -- or the spawn part's Weapon attribute ("" = fists).
 -- Gun users (Renetti, Sykov) keep their distance (GUN_RANGE) and fire shots instead of a melee string.
 -- Numbers: TuningConfig.Enemies (all PROPOSALS).
 --
@@ -20,6 +20,10 @@
 --     and times the tap to the attack's real startup, after a human-ish reaction delay.
 -- Kills are credited by WorldService (EXP / money / codex / quests) from the Level and
 -- DisplayName attributes set here.
+--
+-- Alchemists (TuningConfig.Enemies.<Type>.Alchemy; 2026-10-17): cast real abilities through AlchemyService.CastAs
+-- on the player's rules (meter from fighting, cooldowns, telegraphs, hitboxes) when the target is in a slot's
+-- range and in line of sight; a Guard slot answers a nearby windup (Ward Alchemist: Steel Guard).
 --
 -- Rig attribute AIPassive = true: the enemy still chases, faces and defends but never attacks
 -- (sparring / training targets, tests).
@@ -46,6 +50,9 @@ local Attacking = require(States.Attacking)
 local Blocking = require(States.Blocking)
 
 local SPAWN_TAG = "RenseiEnemySpawn"
+local function Alchemy() return require(game:GetService("ServerScriptService").AlchemyService) end -- (lazy: it requires us)
+local SightParams = RaycastParams.new()
+SightParams.FilterType = Enum.RaycastFilterType.Include
 local CORPSE_SECONDS = 4
 
 local EnemyService = {}
@@ -64,6 +71,9 @@ end
 
 local function Rand(Range) return Range[1] + math.random() * (Range[2] - Range[1]) end
 
+-- in deep water (SwimService sets the Swim traversal state): no attacks, casts, blocks or parries (owner 2026-10-18)
+local function Swimming(Model) return Model:GetAttribute("Traversal") == "Swim" end
+
 local function Alive(Model)
 	local H = Model and Model.Parent and Model:FindFirstChildOfClass("Humanoid")
 	return H ~= nil and H.Health > 0
@@ -74,12 +84,12 @@ local function Flat(V) return Vector3.new(V.X, 0, V.Z) end
 local SPACING = 4.5 -- PROPOSAL: enemies keep this far apart around a target instead of stacking
 local GUN_RANGE = 18 -- PROPOSAL: how far a gun-armed enemy stands from its target
 
--- the weapon a spawn gets: the part's Weapon attribute, else one of the creator's starting weapons
+-- the weapon a spawn gets: the part's Weapon attribute, else any Common weapon (guns included)
 local function PickWeapon(Part)
 	local Fixed = Part:GetAttribute("Weapon")
 	if type(Fixed) == "string" then return Fixed ~= "" and Fixed or nil end
 	local Pool = {}
-	for _, W in ipairs(Customization.StartWeapons) do if W ~= "" then table.insert(Pool, W) end end
+	for _, W in ipairs(Customization.CommonWeapons or Customization.StartWeapons) do if W ~= "" then table.insert(Pool, W) end end
 	return #Pool > 0 and Pool[math.random(1, #Pool)] or nil
 end
 
@@ -132,6 +142,7 @@ local function Brain(E)
 	local Root = Rig.HumanoidRootPart
 	local WC = E.WCS
 	local NextAttack = 0
+	local NextCast = 0
 	local Walking = false
 
 	local function SetWalking(On)
@@ -167,6 +178,29 @@ local function Brain(E)
 		return Best
 	end
 
+	-- Alchemists: nothing between the caster and the target (no casting through walls)
+	local function InSight(Target)
+		SightParams.FilterDescendantsInstances = {workspace.World.Map}
+		local From = Root.Position + Vector3.new(0, 1.5, 0)
+		local To = Target.HumanoidRootPart.Position + Vector3.new(0, 1.5, 0)
+		return workspace:Raycast(From, To - From, SightParams) == nil
+	end
+	-- the first slot that's in range, in sight and affordable: cast it (blocks while the cast runs)
+	local function TryCast(Target, Dist)
+		local A = Def.Alchemy
+		for _, S in ipairs(A.Slots) do
+			if Dist >= (S.Min or 0) and Dist <= S.Max and Alchemy().CanCastAs(Rig, A.Affinity, S.Slot) and InSight(Target) then
+				Humanoid:MoveTo(Root.Position)
+				SetWalking(false)
+				Face(Target)
+				local Aim = Target.HumanoidRootPart.Position - Root.Position
+				Alchemy().CastAs(Rig, A.Affinity, S.Slot, Aim.Magnitude > 0.1 and Aim.Unit or Root.CFrame.LookVector)
+				return true
+			end
+		end
+		return false
+	end
+
 	-- One string of lights (and maybe a heavy), re-facing the target between hits.
 	local Range = E.Range or Def.AttackRange
 
@@ -175,12 +209,13 @@ local function Brain(E)
 		-- guns: a few shots (empty -> WeaponManager reloads by itself; nothing fires meanwhile)
 		if Weapon and Weapon.Ranged then
 			for I = 1, math.random(Def.Combo[1], Def.Combo[2]) do
-				if not Alive(Rig) or not Alive(Target) or WC:HasStatusEffects({Stun}) then return end
+				if not Alive(Rig) or not Alive(Target) or WC:HasStatusEffects({Stun}) or Swimming(Rig) then return end
 				if not WeaponManager.CanFire(Rig) then return end
 				if (Target.HumanoidRootPart.Position - Root.Position).Magnitude > Range + 6 then return end
 				Face(Target)
-				local Shot = (I - 1) % #Weapon.Light.Hits + 1
-				AttackRunner.Run(WC, WeaponManager.Resolve(Rig, Weapon.Light.Hits[Shot]), Weapon.Class .. "_Light" .. Shot,
+				-- (a gun's M1 is the pistol whip now; its shots are Weapons.Guns.Shots, as in the players' shooting mode)
+				local Shot = (I - 1) % #Weapon.Shots + 1
+				AttackRunner.Run(WC, WeaponManager.Resolve(Rig, Weapon.Shots[Shot]), Weapon.Class .. "_Shot" .. Shot,
 					{WalkSpeed = 6, Strike = WeaponManager.Fire})
 			end
 			return
@@ -189,13 +224,13 @@ local function Brain(E)
 		local Prefix = Weapon and (Weapon.Class .. "_Light") or "Light"
 		local Count = math.min(#Hits, math.random(Def.Combo[1], Def.Combo[2]))
 		for I = 1, Count do
-			if not Alive(Rig) or not Alive(Target) or WC:HasStatusEffects({Stun}) then return end
+			if not Alive(Rig) or not Alive(Target) or WC:HasStatusEffects({Stun}) or Swimming(Rig) then return end
 			if (Target.HumanoidRootPart.Position - Root.Position).Magnitude > Range + 2 then return end
 			Face(Target)
 			local Outcome = AttackRunner.Run(WC, Hits[I], Prefix .. I, {WalkSpeed = 4})
 			if Outcome == "Interrupted" or Outcome == "Whiff" then return end
 		end
-		if math.random() < Def.HeavyChance and Alive(Target) and not WC:HasStatusEffects({Stun}) then
+		if math.random() < Def.HeavyChance and Alive(Target) and not WC:HasStatusEffects({Stun}) and not Swimming(Rig) then
 			local Heavy = Weapon and Weapon.Heavy or Tuning.Heavy
 			Face(Target)
 			AttackRunner.Run(WC, Heavy, Weapon and (Weapon.Class .. "_Heavy") or "Heavy", {WalkSpeed = 3})
@@ -236,7 +271,13 @@ local function Brain(E)
 				end
 			end
 		end
-		local ReadyToAttack = os.clock() >= NextAttack and not Rig:GetAttribute("AIPassive")
+		local ReadyToAttack = os.clock() >= NextAttack and not Rig:GetAttribute("AIPassive") and not Swimming(Rig)
+		-- alchemists cast when they can (range, sight, meter, cooldown); otherwise they close in and fight
+		if Def.Alchemy and ReadyToAttack and os.clock() >= NextCast and TryCast(Target, Dist) then
+			NextCast = os.clock() + Rand(Def.Alchemy.Gap)
+			NextAttack = os.clock() + 0.5
+			continue
+		end
 		-- crowding only steers: in range and ready, the enemy attacks even with an ally beside it
 		if Dist > Range or (Push.Magnitude > 1 and not ReadyToAttack) then
 			local FromTarget = Flat(Root.Position - TRoot.Position)
@@ -272,8 +313,20 @@ local function OnWindup(Attacker)
 	local Startup = StartupOf[Name or ""] or 0.25
 	for Rig, E in pairs(EnemyService.Active) do
 		local Def = E.Def
+		-- Ward Alchemist: a windup close by -> raise its Guard move (Steel Guard), the real ability, if it can
+		local Guard = Def.Alchemy and Def.Alchemy.Guard
+		if Guard and E.Target == Attacker and Alive(Rig) and not Rig:GetAttribute("AIPassive") and not Swimming(Rig) then
+			local ARoot, Root = Attacker:FindFirstChild("HumanoidRootPart"), Rig:FindFirstChild("HumanoidRootPart")
+			if ARoot and Root and (ARoot.Position - Root.Position).Magnitude <= 12 and Alchemy().CanCastAs(Rig, Def.Alchemy.Affinity, Guard) then
+				task.spawn(function()
+					local To = Flat(ARoot.Position - Root.Position)
+					if To.Magnitude > 0.1 then Root.CFrame = CFrame.lookAt(Root.Position, Root.Position + To) end
+					Alchemy().CastAs(Rig, Def.Alchemy.Affinity, Guard, To.Magnitude > 0.1 and To.Unit or Root.CFrame.LookVector)
+				end)
+			end
+		end
 		-- GuardDown (TrialService): a telegraphed opening -- no blocks or parries while it's set
-	if Def.ParryChance and E.Target == Attacker and Alive(Rig) and E.Block and not Rig:GetAttribute("GuardDown") then
+	if Def.ParryChance and E.Target == Attacker and Alive(Rig) and E.Block and not Rig:GetAttribute("GuardDown") and not Swimming(Rig) then
 			local ARoot, Root = Attacker:FindFirstChild("HumanoidRootPart"), Rig:FindFirstChild("HumanoidRootPart")
 			if ARoot and Root and (ARoot.Position - Root.Position).Magnitude <= 12
 				and not AttackRunner.IsRunning(Rig) and not E.WCS:HasStatusEffects({Stun, Attacking}) then
@@ -295,7 +348,7 @@ local function OnWindup(Attacker)
 					local PressIn = Choice == "Parry" and math.max(Reaction, Left - 0.05) or Reaction
 					local Hold = Choice == "Parry" and 0.05 or Rand(Def.BlockHold)
 					task.delay(PressIn, function()
-						if not Alive(Rig) or AttackRunner.IsRunning(Rig) or E.WCS:HasStatusEffects({Stun}) then return end
+						if not Alive(Rig) or AttackRunner.IsRunning(Rig) or E.WCS:HasStatusEffects({Stun}) or Swimming(Rig) then return end
 						local To = Flat(ARoot.Position - Root.Position)
 						if To.Magnitude > 0.1 then Root.CFrame = CFrame.lookAt(Root.Position, Root.Position + To) end
 						E.LastDefence = Choice

@@ -243,9 +243,10 @@ end
 -- Which finisher: an execution with a drawn weapon, else the classic paired grip or a stomp.
 local function GripStyle(Gripper)
 	local Forced = Gripper:GetAttribute("GripStyle")
-	if Forced == "Classic" or Forced == "Stomp" or Forced == "Execution" then return Forced end
+	if Forced == "Classic" or Forced == "Stomp" or Forced == "Execution" or Forced == "Weapon" then return Forced end
 	local Armed = Gripper:GetAttribute("Weapon") and (Gripper:GetAttribute("WeaponDrawn") or Gripper:GetAttribute("EnemyType"))
-	if Armed then return "Execution" end
+	-- the weapon's own grip pair from the sheet (TuningConfig.Downed.Grips), else its heavy as an execution
+	if Armed then return Tuning.Downed.Grips[Gripper:GetAttribute("Weapon")] and "Weapon" or "Execution" end
 	return math.random() < 0.5 and "Classic" or "Stomp"
 end
 
@@ -268,7 +269,12 @@ function DownedManager.Grip(Gripper, Target)
 	Target:SetAttribute("GrippedBy", Gripper.Name)
 	Gripper:SetAttribute("Gripping", Target.Name)
 	Gripper:SetAttribute("GripStyleUsed", Style)
-	if Style == "Classic" then
+	-- the animation pair: bare-handed Classic = the Caestus (Fists) pair, Weapon = the weapon's (sheet, 2026-10-18)
+	local Grips = Tuning.Downed.Grips
+	local Pair = (Style == "Classic" and Grips.Fists) or (Style == "Weapon" and Grips[Gripper:GetAttribute("Weapon") or ""]) or nil
+	if Style == "Weapon" and not Pair then Style = "Execution" end
+	local Attached = Style == "Classic" or (Pair ~= nil and not Pair.Standing)
+	if Attached then
 		-- the gripper takes the target's root position (the grip animations were authored that way)
 		if not Attach(Target, Gripper) then
 			Target:SetAttribute("GrippedBy", nil)
@@ -279,10 +285,16 @@ function DownedManager.Grip(Gripper, Target)
 		StandOver(Gripper, Target, Style == "Stomp" and 1.6 or 2.6)
 	end
 	Lock(Gripper, true)
-	if Style == "Classic" then
-		AnimationManager.Stop(Target, "Knocked")
-		AnimationManager.Play(Target, "Gripped", {Priority = Enum.AnimationPriority.Action4})
-		AnimationManager.Play(Gripper, "Gripping", {Priority = Enum.AnimationPriority.Action4})
+	-- Executioner (skill tree): faster grips
+	local GripTime = Cfg.GripTime / require(game:GetService("ReplicatedStorage").Modules.Managers.SkillMods).Mult(Gripper, "GripSpeed")
+	if Pair then
+		-- the pair plays at its length / the grip time, so it fills the grip
+		local Speed = math.clamp(Pair.Length / GripTime, 0.6, 1.6)
+		if Pair.Victim then
+			AnimationManager.Stop(Target, "Knocked")
+			AnimationManager.Play(Target, Pair.Victim, {Priority = Enum.AnimationPriority.Action4, Speed = Speed, Fallback = "Gripped"})
+		end
+		AnimationManager.Play(Gripper, Pair.Grip, {Priority = Enum.AnimationPriority.Action4, Speed = Speed, Fallback = "Gripping"})
 	else
 		-- the body stays slumped; the gripper finishes it standing
 		local Weapon = Style == "Execution" and Tuning.Weapons[Gripper:GetAttribute("Weapon") or ""]
@@ -297,8 +309,6 @@ function DownedManager.Grip(Gripper, Target)
 		end)
 	end
 
-	-- Executioner (skill tree): faster grips
-	local GripTime = Cfg.GripTime / require(game:GetService("ReplicatedStorage").Modules.Managers.SkillMods).Mult(Gripper, "GripSpeed")
 	local Start, Done = os.clock(), false
 	while os.clock() - Start < GripTime do
 		RunService.Heartbeat:Wait()
@@ -306,7 +316,7 @@ function DownedManager.Grip(Gripper, Target)
 	end
 	Done = os.clock() - Start >= GripTime and Alive(Gripper) and Alive(Target)
 
-	if Style == "Classic" then
+	if Attached then
 		Detach(Gripper)
 		-- step clear of the body (it was released inside the target's root before)
 		if Gripper.Parent and Target.Parent then StandOver(Gripper, Target, 2.6) end
@@ -316,7 +326,9 @@ function DownedManager.Grip(Gripper, Target)
 	if Gripper.Parent then
 		Lock(Gripper, false)
 		AnimationManager.Stop(Gripper, "Gripping")
+		if Pair then AnimationManager.Stop(Gripper, Pair.Grip) end
 	end
+	if Pair and Pair.Victim and Target.Parent then AnimationManager.Stop(Target, Pair.Victim) end
 	if Done then
 		-- credit the gripper like a final hit, then finish
 		local SSS = game:GetService("ServerScriptService")

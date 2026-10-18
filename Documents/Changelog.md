@@ -1,6 +1,1569 @@
 # Rensei Changelog
 
-What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. Backups of every touched script are in `ServerStorage.RenseiBackups`.
+What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
+
+## 2026-10-18 — Basic swimming (owner decision 6)
+
+**Owner (2026-10-18):** "Add basic swimming: allow deep water with a swim state (no combat or alchemy while swimming)."
+
+> **Status: built and tested in Studio Play** (Rensei, one client, real keyboard and mouse). The profile was snapshotted first and restored exactly afterwards. Numbers, the pond's name, spot and size are PROPOSAL.
+
+### How it works
+
+- **Movement:** Roblox's own terrain-water swimming. You float, swim with WASD, and the speed is your walk speed. There's no drowning or stamina drain ("basic").
+- **The game state is server-owned.**
+  - **New `ServerScriptService.SwimService`** checks each player every 0.15 s.
+  - **What counts as deep water:** the Humanoid is in Roblox's Swimming state, or a terrain-water cell at least 60 % full is at the root or 2 studs below it.
+  - **In deep water**, the server puts you in the **Traversal = "Swim"** state. This is the slot `MovementState` already reserved for it, set through the new server-only `MovementState.SetSwim`.
+  - **The state ends** after two dry checks in a row, so it doesn't flicker at the surface.
+- **No combat or alchemy while swimming.**
+  - The Swim state carries the existing `Climbing` status, the same "traversing" gate the ledge walk and wall run use. Every attack, block, alchemy cast, class or weapon skill, shot, sprint, roll and crouch already refuses while it's on.
+  - **Entering the water turns Combat Mode off**, so the weapon goes away. `Requests.CombatMode` refuses to turn it back on while swimming.
+  - **No climbing or wall running from the water:** a client can't replace or end the server's swim state. You leave by swimming to a bank or into the shallow creek.
+  - **A stun doesn't end swimming,** since you're still in the water. Being knocked, gripped or carried, or dying, does.
+- **The shallow creek stays wadeable** (about 1.2 deep). It never counts as swimming.
+- **Animations** are the owner's own `Swim_Idle` (treading water) and `Swim_Forward` (moving). They were already in `Assets.Animations.Registry.Movement` and were moved to `Shared.Movement.Swim`, so every character preloads them and other players see them. `Swim_Sprint` moved too but isn't used yet.
+  - **New `StarterPlayerScripts.SwimClient`** plays them on your own character, above the walk cycle.
+- **Tuning:** `TuningConfig.Swim`.
+
+### Deep water in the map: the Mill Pond (PROPOSAL)
+
+- **Where:** a pond on Mill Creek, **west of the stone bridge**, at world (−110, −553). That's on the creek line, clear of houses, roads and the nearest oak.
+- **Size:** the flat floor is 11 studs across from the centre, and the banks rise back to the meadow by 19.
+- **Depth:**
+  - **5.2 studs deep in the middle.** The floor is the baseplate top (y 0), and the water surface is the creek's (y 5.2), so the pond joins the creek.
+  - The banks shelve through 4.2, 2.6 and 1.8 to the creek's 1.2.
+- **Built by a new map tool, `RenseiMapTools.PondWriter`.** It changes only the voxels within 19 studs.
+  - The place uses terrain **shorelines** (one cell holds ground and water), so the tool writes the voxel channels. Plain `WriteVoxels` left the old mud floor in place.
+- **`TerrainWriter` now notes** that a full terrain rebuild clears the pond, so `PondWriter.Write()` has to be run again after one.
+
+### Tested (Studio Play, real input)
+
+| Step | Result |
+|---|---|
+| Combat Mode on (E), then walk (W) off the south bank into the pond | Roblox Swimming state at 0.95 s; at 1.00 s the server set **Traversal = Swim**, the **Climbing status went on** and **Combat Mode went off** (banner "Combat Mode Off") |
+| Treading water | **Swim_Idle** plays (Movement priority, above the walk cycle) |
+| Swimming forward (W) | **Swim_Forward** plays (the horizontal stroke) |
+| E in the water | Combat Mode stayed off |
+| M1 clicks in the water | no attack started |
+| Alchemy Z and C in the water, **meter filled to 100** | no cast: the meter stayed 100 and no cooldown started |
+| Swim east out of the pond into the shallow creek | the swim state ended (Traversal nil, Climbing off, Running) |
+| **Control on dry footing (the creek):** E, then Z | Combat Mode on; **Ignite cast** (meter 100 → 75). So the same keys work out of the water |
+| Errors | 0 client or server errors |
+| Profile | restored; equal to the snapshot (no changed keys) |
+
+### Files and backup
+
+- **New:** `ServerScriptService.SwimService`, `StarterPlayerScripts.SwimClient`, `RenseiMapTools.PondWriter`, the folder `Assets.Animations.Shared.Movement.Swim`.
+- **Changed:**
+  - `MovementState` (`SetSwim`; Swim survives a stun; a client can't end or replace it);
+  - `Requests.CombatMode` (refused while swimming);
+  - `TuningConfig` (`Swim`);
+  - `ServerHandler` (starts SwimService);
+  - `TerrainWriter` (header note);
+  - the terrain at the pond.
+- **Backup:** `ServerStorage.RenseiBackups["Pre-Swimming_2026-10-18"]`.
+  - It holds the five changed scripts as they were, and **`PondSiteTerrain`** (the original terrain there).
+  - Its README has the undo steps: paste the terrain back, move the swim animations back to `Registry.Movement`, and delete the new scripts.
+
+### Enemies in deep water (added the same day)
+
+**Owner (2026-10-18):** "enemies in deep water should also be unable to attack or cast, same as players."
+
+- **`SwimService` also checks every live enemy rig** (`EnemyService.Active`), using the same deep-water test. In deep water an enemy gets the same **Traversal = Swim** state and **Climbing** status.
+  - `MovementState.SetSwim` now tracks an NPC on its first swim, for the same cleanup on death or removal.
+  - `AlchemyService.CastAs` already refuses casts under the Climbing status.
+- **`EnemyService`'s brain** doesn't start an attack while its rig is swimming. That covers:
+  - melee strings and heavies;
+  - gun shots and alchemy casts;
+  - the Ward Alchemist's Guard cast;
+  - blocks and parries.
+  
+  A string that's already running stops if the enemy ends up in deep water partway through.
+- **Enemies still chase**, swimming after you, and keep their weapon drawn (the brain reads `CombatMode` as "armed"), but they can't use it. On land they fight as before.
+
+**Tested (Studio Play):**
+- **Setup:** the player in the pond. For the test only, the enemy's leash home was moved to the pond (it otherwise swims back to its hub spawn); this was undone afterwards.
+
+| Case | Water | Land (control, same enemy, same distance) |
+|---|---|---|
+| Bandit (Rapier), not passive | in the Swim state, **targeted the player and closed to 3.8 studs, no attack** in 10 s, no damage | **attacked:** Rapier_Light1–4, damage dealt |
+| Field Alchemist, not passive, meter 100 | in the Swim state, **no cast, no melee** in 9 s, meter stayed 100 | **cast Scorching Wave (X)**, plus a Light1–3 string |
+
+- 0 client or server errors.
+- The profile was restored and is equal to the snapshot.
+
+**Backup:** `RenseiBackups["Pre-EnemySwim_2026-10-18"]` (EnemyService, SwimService and MovementState before this step).
+
+### Swimming extras (added the same day)
+
+**Owner (2026-10-18):** "add swimming extras". The numbers are PROPOSAL (`TuningConfig.Swim`).
+
+| Extra | How it works |
+|---|---|
+| **Swim sprint** | Hold **Shift** while swimming and moving. The client asks the server (**new `Requests.Swim`**), and the server sets `SwimSprint` only in the Swim state with at least 10 stamina. While it's on, swim speed is **× 1.6** with the owner's **Swim_Sprint** stroke, and the server drains **14 stamina/s**. It turns off when stamina runs out or the swim ends; let go of Shift to try again |
+| **Diving** | Roblox swims along the camera, so **look down and swim** to dive. **Hold Space to rise**: the game's own Space action doesn't jump in water, so `SwimClient` sets the Humanoid's swim-up input |
+| **Breath and drowning** | **15 s of air** (`Breath` attribute) drains while your head is under the water's surface and refills at 5/s above it or on land. At 0 you're **drowning**: **8 damage per second** through `DownedManager.Damage`, the normal damage path. At 0 HP you're knocked out, not killed, matching "only a grip finishes", and a knocked body floats back up |
+| **Breath bar** | A thin gold "BREATH" bar under the centre of the screen, shown only while you're short of air. It turns red as "DROWNING" (new `SwimHUD`) |
+| **More deep water: the Gorge Pool** | A long pool in the gorge **under the ledge walk** (world 226, −551.5; about 46 × 20 studs, **5.2 deep**). A fall from the ledge now lands in deep water |
+
+**`PondWriter`** now takes a list of pools (Mill Pond, Gorge Pool), each optionally stretched along the creek.
+- **It only ever removes ground.** The first gorge carve rebuilt columns from the generator's heights, and the gorge had been shaped by hand, so it **raised the bank under the ledge by about 4.6 studs**.
+- That was caught by comparing against the backup. The gorge was restored and re-carved with the fixed tool: **no column on the site is higher than before** (the bank under the ledge went 3.7 → 3.6).
+- The Mill Pond was checked the same way: 0 of 169 sampled columns were raised.
+
+**Tested (Rensei Play, real keys):**
+
+| Step | Result |
+|---|---|
+| Shift+W in the Mill Pond for 2.5 s | `SwimSprint` on; speed **12 → 19.2**; **Swim_Sprint** played; stamina **100 → 66.4** (about 14/s) |
+| Let go of Shift (W still held) | **back to 12** at once; `SwimSprint` cleared. (Bug found and fixed here: WalkSpeed is stored as a 32-bit float, so 19.2 read back as 19.2000008 and the speed stayed raised. The comparison now has a tolerance) |
+| Dive: camera looking down, hold W | the head went under (lowest y 1.77); the breath bar drained **15 → 0 in 15.9 s** |
+| Stay down | **drowning at 16.4 s**; **8 damage every ~1.1 s** (14 ticks logged); the bar turned red "DROWNING"; no knock-out (health was high) |
+| Hold Space | rose to the surface (head y 5.38); breath refilled to full; drowning cleared |
+| Drop from ledge height on the water side into the Gorge Pool | landed in the water and **entered the Swim state** |
+| Errors | 0 game errors or warnings (the one client line is the Studio tool noting the test camera) |
+| Profile | restored; equal to the snapshot |
+
+**Files:**
+- **New:** `ServerHandler.Requests.Swim`.
+- **Changed:** `SwimService` (sprint drain, breath, drowning), `SwimClient` (sprint, rise, breath bar), `TuningConfig.Swim`, `PondWriter` (pool list; never raises ground), the terrain at the gorge.
+
+**Backup:** `RenseiBackups["Pre-SwimExtras_2026-10-18"]`.
+- It holds the four scripts as they were, plus **`GorgeSiteTerrain`** (the gorge before the pool).
+- Its README has the undo steps.
+
+### Touch buttons for swimming (added the same day)
+
+**Owner (2026-10-18):** "add touch buttons for swim sprint and rise that only show while swimming."
+
+- **Two hold buttons** in the existing touch cluster (`MobileControls`), using the same slot-plate art:
+  - **SPRINT**, in Dash's spot: held = holding Shift;
+  - **RISE**, in Jump's spot: held = holding Space.
+- **Shown only in the Swim state.** Meanwhile, the on-foot buttons that do nothing in water (Jump, Dash, Fight, Run, Slide) hide, so nothing overlaps. A toggled RUN stops when you enter the water.
+- **Same code path as the keys:** `SwimClient` registers the actions "SwimSprint" and "SwimRise" through `ClientActions`. The server rules (stamina, the Swim state) are unchanged.
+
+**Tested (Rensei Play, with the game's `ForceMobileControls` test switch; buttons pressed and held with the mouse):**
+
+| Step | Result |
+|---|---|
+| On land | Fight, Dash, Jump, Slide and Run shown; no swim buttons |
+| In the Mill Pond | **only SPRINT and RISE shown** (82 px each in a 682 × 715 window) |
+| Hold SPRINT while swimming forward | `SwimSprint` on, speed **19.2**; released → **12** |
+| Dive, then hold RISE | the swim-up input was set **28 times** while held, and the character surfaced |
+| Back on the bank | the on-foot buttons returned and the swim buttons hid |
+| Errors / profile | 0 game errors; profile restored, equal to the snapshot; the test switch was turned off |
+
+**Notes:**
+- **Rising is mostly automatic.** Roblox's buoyancy alone brought the character from the bottom to the surface in 0.75 s, so RISE (and Space) mainly matter for staying near the surface or climbing out.
+- **The game's base walk speed is inconsistent.** It's 12 by the game's own convention (`DefaultWS × SpeedMultiplier`, which the run, crouch and block skills restore to), but WCS characters can start at 16. The swim sprint restores to 12, like the others.
+
+**Backup:** `RenseiBackups["Pre-SwimTouch_2026-10-18"]` (MobileControls, SwimClient).
+
+### Follow-up checks and fixes (same day)
+
+**1. Drowning was too weak (balance fix).**
+- A flat 8 damage per second was out-healed by Roblox's own health regeneration (about 1 % of max health per second, roughly 6/s at 580 HP).
+- In Play, health actually *rose* while drowning (10 → 25 HP), so it could never knock anyone out.
+- **Now:** `TuningConfig.Swim.DrownFraction = 0.06` (PROPOSAL), so each tick deals 6 % of max health, at least the old 8. That's 35/s at 580 HP.
+- **Retested from full health:** 20 s of drowning took 580 → 36 HP (about 17–22 s to a knock-out with regen running).
+- **Retested with health set to 60 at the start of drowning:**
+  - **knocked out at 19.5 s** with 1 HP (not killed);
+  - the swim state and drowning ended at once;
+  - the body floated back up (head y 0.6 → 5.3).
+
+**2. Every enemy type in deep water.**
+- **Run:** the Gale, Ward, Stone and Frost Alchemists, the Bandit Duelist, and bandits with the Sykov (gun) and the Katana, on top of the Bandit (Rapier) and Field Alchemist tested earlier.
+- **Result:** each enemy was moved into the pond with the player, then switched from passive to hostile. **None started an attack or a cast in 7–8 s**, and none left the Swim state.
+- **A test mistake, not a bug:** the first pass switched enemies to hostile *before* moving them, so three alchemists started casts on land and finished them in the pond.
+- **Real edge case (left as is):** an attack or cast that's already running finishes even if its owner (player or enemy) ends up in water partway through. New ones can't start.
+
+**3. Bug fix: Earth spike / rock visuals over water.**
+- **Bug:** `Effects.Alchemy.EarthShapes.Ground` raycast for the ground under a spike. Over water it hit the water surface, and `Terrain:GetMaterialColor(Water)` errors ("Unsupported terrain material"). That stopped the client-side spike visuals for that cast; the damage, run on the server, was unaffected.
+- **Fix:** the ground ray now ignores water, so rock rises from the bed. `GetMaterialColor` is also wrapped, falling back to the default rock look for any other unsupported material.
+- **Verified on the client:**
+  - over both pools, `Ground` returns the floor (y 0);
+  - dry land is unchanged;
+  - the old path still reproduces the error.
+
+**Backup:** `RenseiBackups["Pre-DrownTuning_2026-10-18"]` (SwimService, TuningConfig, EarthShapes). The profile was restored after every session; 0 game errors.
+
+### Not tested
+
+- Two players watching each other's swim animation.
+- A real touch device (the buttons were pressed with the mouse through the game's test switch).
+- An Earth spike cast by a player across water (the fixed function was checked directly).
+- Being knocked out by drowning (needs low health; the damage path is the normal one).
+- Enemies of every type in water (a Bandit and the Field Alchemist were run).
+- Being stunned, knocked or gripped while swimming (code-checked only).
+- Swimming up and down with Space or crouch. Roblox's buoyancy keeps you at the surface; there's no diving.
+
+### Open (owner)
+
+- ~~More deep water elsewhere~~ (the Gorge Pool is added). Whether to rename or move either pool.
+- ~~Drowning or stamina while swimming, a swim sprint, and diving~~: done (see "Swimming extras").
+- ~~Mobile buttons for the swim sprint and rise~~: done (see "Touch buttons for swimming").
+- Deeper water: the baseplate top (y 0) limits pools to about 5.2 deep where the creek's surface is 5.2. Deeper water would need a raised basin or a hole in the baseplate.
+- ~~Whether enemies should also be unable to fight in water.~~ Yes; done (see above).
+
+## 2026-10-18 — Iron Rush and Phoenix Drive fixes; Greatsword / Rapier / Daggers regression
+
+These two misses were noted earlier but not fixed:
+- Iron Rush whiffed at point blank (Sheet Import changelog);
+- Phoenix Drive didn't connect at 10 studs (Phase 8 changelog).
+
+The Phase 9 audit also didn't cover the Greatsword, Rapier and Daggers M1 strings, so they're tested here. No combat numbers were changed.
+
+> **Status: fixed and tested in Studio Play** (Rensei, one client, real keyboard and mouse). The profile was snapshotted first and restored exactly afterwards.
+
+### 1. Iron Rush ran past a close target
+
+**Cause:** the rush is a 0.6 s lunge at speed 70 (about 27 studs) that only stopped at walls. The grab check comes later, at 1.97 s. From point blank, the gunner ran straight past the target and grabbed air.
+
+**Fix:**
+- `MoverManager.Lunge` takes an optional `StopAt` (studs). The lunge also ends once a character is that close in front.
+- `Requests.ClassSkill` passes the skill's `LungeStopAt`.
+- `TuningConfig.ClassSkills.IronRush.LungeStopAt = 3.5`.
+- **Only Iron Rush uses it.** Every other lunge behaves exactly as before.
+
+**Tested (passive bandit, key 1 in Combat Mode):**
+
+| Start distance | Rush | Grab | Final hit | Result |
+|---|---|---|---|---|
+| 2.6 studs (point blank) | stopped after 1.1 studs | 10, latched | 30, knocked 17.9 studs away | full move |
+| 15 studs | carried 12.1 studs, stopped at the target | 10, latched | 30, knocked 40.6 studs away | full move |
+
+### 2. Phoenix Drive landed behind a close target
+
+**Cause:** the crash point came from a 45-stud aim ray that ignored every character. With a level aim (an NPC's, or a player looking straight ahead), the phoenix always crashed about 45 studs out, or at the first wall, past anyone close. Rising Thorn's aim already stops at the first character it crosses.
+
+**Fix (`AlchemyService`, Phoenix kind):**
+- The aim ray now stops at the first character it crosses (excluding the caster), like Rising Thorn.
+- The ground check under that point still ignores characters, so the crash lands on the ground at their feet.
+- `MinRange` (12) still applies.
+
+**Tested:**
+- **Setup:** the Field Alchemist (passive) cast Flame V through `AlchemyService.CastAs` at the player from 10 studs, aiming level.
+- **Before the fix**, the Phase 8 test of the same case did no damage.
+- **Now:**
+  - the crash hit for **70**, and the explosion for **170** (240 total, matching the sheet);
+  - the 5-damage burn ticks followed;
+  - the meter went from 100 to 30, the right V cost.
+
+### 3. Weapon M1 strings (Phase 9 gap)
+
+**Setup:** each weapon equipped through `LoadoutService.Toggle`, four real mouse clicks at a passive bandit 3.5 studs away. Every hit was confirmed by the hitbox (all four came back "Hit"), and the damage was read from the target's health.
+
+| Weapon | Configured (`TuningConfig.Weapons`) | Measured |
+|---|---|---|
+| Greatsword | 30 / 30 / 30 / 38 | **30 / 30 / 30 / 38** |
+| Rapier | 14 / 14 / 14 / 20 | **14 / 14 / 14 / 20** |
+| Daggers | 12 / 12 / 12 / 16 | **12 / 12 / 12 / 16**, plus 2-damage bleed ticks (the Lacerate passive) |
+
+### Test notes
+
+**A second bandit interfered.** One 15-stud Iron Rush run lost its final hit. The cause was another bandit hitting the gunner, which stunned the attack 0.13 s before the final hit; it wasn't the fix. With every enemy made passive, the move completed. This is the same outside interference as the earlier "grip ending early" case.
+
+**Profile:**
+- The test changed `SkillTree`, `SkillLoadout`, `Inventory` (test weapons), `EquippedWeapon` and `Mastery` (training from the hits). All of it was restored, and the profile equals the snapshot.
+- 0 client or server errors.
+- Studio-only test helpers (temporary scripts, a hitbox logger, the raised test health) were removed or ended with Play.
+
+### Files and backup
+
+- **Changed:** `MoverManager`, `ServerHandler.Requests.ClassSkill`, `TuningConfig` (one field), `AlchemyService`.
+- **Backup:** `ServerStorage.RenseiBackups["Pre-SkillAimFix_2026-10-18"]`, holding all four as they were.
+
+### Follow-up: a player-cast Phoenix Drive (tested the same day)
+
+**Setup:**
+- V was unlocked on the test profile (the Mastery node `AL_V`), the meter was filled, and Combat Mode was turned on.
+- The camera was level behind the player, aiming at a bandit 10 studs ahead. Then a real **V** key press.
+
+**Results:**
+- **First cast:** the danger ring was marked about 10 studs ahead, under the target, not 45 studs out. But the passive bandit walked during the 1.5 s cast and took no damage. That's the intended design: the crash point is fixed when the cast starts, and the move "can't be blocked, so it must be dodged".
+- **Second cast, with the bandit held still at 10 studs:**
+  - crash **70**;
+  - explosion **170**;
+  - burn **5 × 4**;
+  - **260 total**, exactly the sheet's number. The meter went 100 → 30.
+
+The profile was restored afterwards, and there were no errors.
+
+### Not tested
+- **Ice Shards** (Ice C) has the same "ignore characters" aim. That's left as is, because a trap is placed, not thrown at someone.
+- Two players.
+
+## 2026-10-18 — UI pass: menus, leaderboard, popups, character creator camera
+
+**These are the owner's queued UI items.** Sizes and timings are PROPOSAL.
+
+> **Status: built and tested in Studio Play** (one client, real mouse). See "Tested" under each item.
+
+### 1. Smaller Stats and Inventory menus (Rensei)
+
+- **Change:** `StarterGui.Uis.Stats.MainFrame` and `Inventory.MainFrame` are scaled to **0.85×**:
+  - Stats: {0.586, 0.605} → {0.498, 0.514};
+  - Inventory: {0.638, 0.747} → {0.542, 0.635}.
+- **The original size** is kept on each frame as a `FullSize` attribute. To undo, set Size back to it.
+- **Why the sizes were edited directly:** UIMotion skips frames that already have a UIScale, so a UIScale couldn't be used.
+- **MasteryUI** sizes its panel from `FullSize` when present, so the Mastery menu keeps its old size.
+- **Tested:** both menus open at the new size, with no clipped text.
+
+### 2. Leaderboard on the original art, with character names (Rensei)
+
+- **Uses the existing UI:** `HUDUI` now fills the original `HUD.LeaderBoard` (its Scroll and Container) with `Templates.LeaderEntry` rows. The dark panel, banner and column header were removed.
+- **Each row shows:**
+  - **the character name** (from the save's `Identity.Name`). It falls back to the Roblox display name until the profile has loaded, or if a character has no name;
+  - **the title and level**, in the rank colour (for example "Initiate · Lv 3").
+- **Hover or tap a row:** opens the existing info card, now titled with the character name.
+- **Server:** `RankService.Publish` sets a `CharacterName` player attribute alongside the existing rank attributes.
+- **Tested:** the row showed a test name ("Alden Varro") on the original art with no dark panel. The test name was set and then removed. The profile was restored afterwards.
+
+### 3. Minimal level-up and codex/area popups (Rensei)
+
+- **`PopupUI` was rewritten.** The old `HUD2.LevelUp` and `NewAreaDiscovered` art is left in place, unused.
+- **Level up** (`HUD2.LevelUpMinimal`): a thin gold line draws out, and a small sigil (two outlined squares turning in opposite directions) settles. Then "LEVEL n" with the rewards underneath ("+3 Stat Points · +20 HP").
+- **New area and codex entry** (`HUD2.EntryMinimal`): a small "NEW AREA" or "CODEX ENTRY" label, the name, an underline that draws in, and the description.
+- **Queue:** all three popups share one centre lane, so they play one after another instead of overlapping.
+- **Reduced Motion:** a fade only.
+- **Fixed:** the label helper passed `Max` to a TextLabel as if it were a property. That error stopped the UI from starting, which also hid the alchemy slots.
+- **Tested:**
+  - a level-up and an area discovery fired together. Level-up showed 0.1–3.8 s, then the area 3.8–8.8 s, with no overlap;
+  - 0 client errors.
+
+### 4. Character creator (Main Menu place)
+
+- **Crisp UI:** the menu's UIScale was allowed to grow to 1.6× on large windows, which made the panel art blurry. It's now **capped at 1.0×**:
+  - `math.clamp(math.min(V.Y/720, V.X/1100), 0.5, 1)`;
+  - it can still shrink to 0.5× on small screens.
+- **Face cam and full body:** **FACE** and **BODY** buttons were added to the rotate bar (`<  FACE  BODY  >`), and the active one is highlighted.
+  - **FACE:** a close-up of the head and shoulders, offset so the panel doesn't cover the face.
+  - **BODY:** the full character on the pedestal.
+  - **Default per step:** the Face step opens on FACE; the other steps open on BODY. Once the player picks a view, it stays until they leave the creator.
+- **Depth of field:** while in the creator, the blur follows the camera, so the character stays sharp and the background is softly blurred. Leaving the creator restores the menu's normal blur.
+- **Tested** (Play, real mouse):
+  - the empty slot opened the creator on the FACE close-up;
+  - BODY switched to the full-body shot, with the character in focus;
+  - SLOTS returned to the save-slot screen;
+  - **no character was created.** Slot 1 stayed EMPTY and slot 2 (the owner's real character, Level 3) was untouched;
+  - 0 game errors (only Roblox CoreGui UIBlox warnings).
+
+### 5. Creator QOL and Creator Plus (Main Menu place, plus one rendering change in Rensei)
+
+**Request:** "add more QOL features for character customization, with some behind a paywall for more accessibility (NO ACCESSORIES)". The free/paid split and the slot count are **PROPOSAL**. Everything is cosmetic: no stats, no accessories.
+
+**Free for everyone.** A tool bar above the turn buttons: `UNDO  REDO  RANDOM  RESET  LOOKS`.
+- **Undo / redo:**
+  - covers every look change: face, hair, colours, nation, gender, random and reset;
+  - the keyboard works too (Ctrl+Z, Ctrl+Y or Ctrl+Shift+Z), but not while typing in a text box;
+  - one colour-wheel drag counts as one step, and the history holds 60 steps;
+  - the buttons dim when there's nothing to undo or redo.
+- **Random:** a random look true to your nation and gender: skin, hair colour, preset hair, eyes, brows and mouth. Your typed hair IDs stay.
+- **Reset:** back to the nation's default look. Nation, gender and name stay.
+
+**Creator Plus** (one Game Pass, config in `ReplicatedStorage.Modules.Data.Rensei.CreatorPlus`):
+- **Custom skin colour:**
+  - a colour wheel under the 8 skin swatches (the same wheel as hair colour);
+  - picking a swatch goes back to a preset;
+  - without the pass, an "UNLOCK WITH CREATOR PLUS" button shows instead.
+- **Saved looks:**
+  - **3 looks** kept on the account and loadable into any new character, in any slot;
+  - each slot has LOAD, SAVE HERE / OVERWRITE and CLEAR;
+  - loading sets the nation, gender and look; the name and clan stay.
+- **Without the pass**, LOOKS (shown as "LOOKS +") opens a Creator Plus panel listing the two features and a GET CREATOR PLUS button. That panel shows the pass's price once it exists.
+- **Panel position:** on the right, so the character stays visible.
+
+**Server rules (MenuServer):**
+- Ownership is checked with `UserOwnsGamePassAsync` and cached. A purchase in the same server unlocks at once.
+- **Create** refuses a custom skin from a non-owner: "Custom skin colours are part of Creator Plus. Pick a skin swatch instead."
+- **New calls:** `Plus` (returns ownership and the saved looks), `SaveLook`, `ClearLook`. Saving and clearing need the pass, and every look is cleaned by `Customization.Clean` before it's stored.
+- **New `ServerScriptService.LookPresets`:** stores the looks in DataStore `RenseiLooks`, key `"L" .. UserId`, written only by the menu server. **In Studio the looks are kept in memory only**, so testing never writes the live store.
+
+**Skin colour in saves:** `Appearance.Skin` is now a preset id (as before) **or** 6 hex digits.
+- **New in `Customization`:** `SkinColorOf` and `IsCustomSkin`. `Clean` keeps a hex skin.
+- **Both places are updated**, so a custom skin also renders in game:
+  - `Customization` in both places (the file stays the same in every place);
+  - `AppearanceService` in both places (Main Menu `ReplicatedStorage.Modules`, Rensei `ServerScriptService`).
+- Old saves are unchanged (preset ids load as before).
+
+**Before going live (owner):**
+1. Create the Game Pass in the Creator Dashboard and put its ID in `CreatorPlus.PassId`. While it's 0, the paid options are locked and buying says "Creator Plus isn't on sale yet."
+2. `CreatorPlus.StudioOwns = true` makes Studio testers count as owners while `PassId` is 0. It never applies on a live server, and you can set it to false to see the locked view in Studio.
+
+**Tested (Studio Play, real mouse and keyboard):**
+- **Tool bar:**
+  - RANDOM changed the look (skin FFCC99 → EAB892, new eyes);
+  - UNDO restored it exactly, and REDO brought the random look back;
+  - RESET returned to the Amestrian default, and Ctrl+Z undid the reset;
+  - UNDO/REDO dimmed and lit up correctly.
+- **Custom skin (Studio counted as an owner):**
+  - the wheel first showed the current preset without changing it, and the swatch stayed selected;
+  - a click set skin #706AEA on the character, and the swatches deselected.
+- **Saved looks:**
+  - SAVE HERE stored look 1, which then read "Amestrian · Male · custom skin";
+  - after RESET, LOAD brought back skin 706AEA;
+  - CLEAR emptied the slot again.
+- **Forged requests**, all refused: slot 9 ("No such look slot."), an unknown nation ("That look isn't complete."), a non-table argument.
+- **Locked view (test switch off):**
+  - the tool bar showed "LOOKS +";
+  - the skin wheel was hidden behind the unlock button, which opened the Creator Plus panel;
+  - GET CREATOR PLUS said "Creator Plus isn't on sale yet.";
+  - a forged SaveLook from the non-owner was refused ("Saved looks are part of Creator Plus.").
+- **Errors:** 0 game errors or warnings on the client and the server.
+- **No character was created.** Slot 1 stayed EMPTY, and the owner's real character (slot 2) is unchanged.
+- **Rensei:** both changed scripts compile. `Clean` keeps a hex skin and maps it to the right colour; old preset ids are unchanged.
+
+**Not tested:**
+- **The Create refusal for a non-owner's custom skin.** Reaching that check needs a rolled clan, which would spend the slot's free roll on your live save, so it was only code-checked.
+- A real Game Pass purchase (no pass exists yet).
+- The live `RenseiLooks` DataStore. Studio uses memory by design.
+- A character *spawning* with a saved custom skin in Rensei. **Tested instead (Rensei Play):** applying a look with skin `706aea` to the player's character coloured the head, torso, arms and legs 706AEA. Re-applying the saved identity then restored FFCC99. Nothing was saved.
+- Touch.
+
+### 6. Starting weapons: six (Main Menu, plus Rensei's enemy pool)
+
+**Owner (2026-10-18):** "Fists, Katana, Rapier, Caestus, Greatsword, Daggers".
+
+- **`Customization.StartWeapons`** (both places, so the file stays the same everywhere) is now those six. Renetti and Sykov (the guns) are off the creator.
+- **New `Customization.CommonWeapons`:** all eight Common weapons, guns included.
+- **Rensei `EnemyService`** used `StartWeapons` as the random enemy weapon pool. It now uses `CommonWeapons`, so bandits still carry guns. Only the creator changed.
+- **Existing characters keep their weapon.** The list is only checked when a character is created.
+
+**Tested (Studio Play, real mouse):**
+- the Weapon step shows the six in a 2×3 grid;
+- Daggers selects and shows its stats card;
+- a forged Create with Renetti or Sykov was refused ("Pick a starting weapon."). Daggers passed the weapon check and stopped at "Roll your clan first.", so nothing was created;
+- slot 1 stayed EMPTY and the owner's real character is unchanged;
+- 0 client errors;
+- both places' scripts compile.
+
+**Backup:** Rensei `EnemyService` (as it was before) is in `RenseiBackups["Pre-CreatorPlus_2026-10-18"]`. The `Customization` copies from before today are already backed up there and in `Pre-CreatorQOL_2026-10-18`.
+
+**Tested in Rensei Play:** 5 bandits spawned with Rapier, **Sykov** (a gun), Caestus, Daggers and Rapier. The guns are still in the enemy pool.
+
+### 7. Menus no longer open over a conversation (Rensei; Phase 9 finding 1)
+
+**Before:** pressing K during an NPC dialogue opened the Mastery menu on top, with the dialogue's choices still showing underneath.
+
+**Fix:** `UIState.ToggleMenu` refuses to open a menu while `Uis.Dialogue` is visible, just as it already did in combat. Closing a menu is never blocked, and this covers every registered menu (Mastery, Stats, Inventory and the rest).
+
+**Backup:** `RenseiBackups["Pre-DialogueMenuFix_2026-10-18"].UIState`.
+
+**Tested (Rensei Play, real keys, at Drillmaster Vask):**
+- E opened the dialogue;
+- **K did nothing**: only the dialogue was showing;
+- key 5 ("That's enough for now") closed it;
+- **K then opened the Mastery menu** as normal, and K closed it;
+- 0 client or server errors.
+
+**Profile:** snapshotted before the session and restored afterwards: no changed keys, equal field for field.
+
+**Finding: Esc doesn't close a dialogue.** `DialogueUI` listens for Esc, but Roblox takes Esc for its own menu, so the game sees it as already handled and ignores it. In Studio, Esc opened Roblox's menu, which then swallowed every key until Esc was pressed again. **Fixed with an X button (section 8).**
+
+### 8. A close (X) button on the dialogue box (Rensei)
+
+**Owner (2026-10-18):** "Add a small X close button on the dialogue box (works on mobile too)."
+
+- **Look:** the kit's own round X (the same art as the inventory search's clear button), on the box's top-right corner, clear of the text. It turns gold on hover.
+- **What it does:** sends the normal close request. The server ends the conversation and the HUD bars come back, the same as leaving through a choice. It works mid-line too.
+- **Touch:** the icon is small (20 px), but its invisible tap area is larger: **44×44 px** in a 682×715 window, about 45 px on a landscape phone, which meets Roblox's recommended minimum. The tap area overlaps the text box by only a 4 px corner.
+- **Built in code** by `DialogueUI.Start`, under `Uis.Dialogue.MainFrame.Close`.
+- **Backup:** `RenseiBackups["Pre-DialogueMenuFix_2026-10-18"].DialogueUI`.
+
+**Tested (Rensei Play, real mouse and keys, at Drillmaster Vask):**
+- the X shows on the corner;
+- clicking it closed the dialogue mid-line, and the HUD bars came back;
+- talking again reopened it normally;
+- key 5 still closes through "That's enough for now" (the first press finishes the typing line, as designed);
+- 0 client or server errors.
+
+**Profile:**
+- Snapshotted and restored exactly: no changed keys.
+- The first test session was stopped before its restore. The next session's full profile matched the earlier full snapshot (taken in an earlier session) field for field, apart from the empty `Styles` / `StyleUnlocks` keys the style system added on purpose earlier. So nothing leaked into the save.
+
+**Not tested:** a real touch device (Studio can't emulate one through these tools).
+
+### 9. Owner decision 8: the base moveset stays a selectable style (Rensei)
+
+**Owner (2026-10-18):** "it should stay as selectable".
+
+- **Nothing in the game changed.** It already worked this way: every class's existing moveset is the "Base" style. For bare fists it's shown as **Brawler**, a name that's still PROPOSAL.
+- **Base is always learned:** no trainer and no requirements. It's listed in the style picker, can be picked at any time out of combat, and is the fallback when no other style is saved.
+- **The comment in `Rensei.Styles`** now records the decision (it used to say "decision 8 still open").
+
+**Checked (Edit, fresh module copy):**
+- Fists lists Base, Boxing and Lethwei.
+- A brand-new save has Base learned (Boxing not) and uses Base.
+- A Boxing player who saved Boxing gets Boxing; switching back saves and uses Base.
+- Weapon classes list Base only.
+- **Same rule everywhere:** the server's switch (`StyleService.Select`) and the picker (`MasteryUI`) both use `Styles.Unlocked`, which always allows Base.
+- **Earlier Play tests already covered** switching back to Base (Fist Styles changelog: "Base after styles").
+
+**Backup:** `RenseiBackups["Pre-Decision8_2026-10-18"].Styles`.
+
+### 10. The CODEX ENTRY card now shows for real unlocks (Rensei, bug fix)
+
+**The bug:** the minimal CODEX ENTRY card (section 3) listens for a "Codex" event. Both places that unlock codex entries still sent the old generic "Banner" text, so the card never appeared:
+- `QuestService` (quest rewards);
+- `WorldService` (an enemy with a `CodexEntry` attribute defeated).
+
+**The fix:**
+- Both now send **"Codex" {Name = the entry, Description = "Added to your Journal (J)."}**.
+- Codex entries have no description text in the data, so the card points to the Journal (J) instead of inventing lore.
+
+**Backup:** `RenseiBackups["Pre-CodexPopup_2026-10-18"]` (QuestService, WorldService).
+
+**Tested (Rensei Play, real input):**
+- **Setup:** a bandit was given a test-only `CodexEntry` ("Studio Test Entry") and 5 HP, then defeated with two real M1 clicks.
+- **Result:**
+  - the client received **Codex: Studio Test Entry**;
+  - the card showed **CODEX ENTRY / Studio Test Entry / Added to your Journal (J).**;
+  - 0 errors.
+- **Profile:** the codex entry, EXP and training from the kill were removed (restored to the snapshot).
+
+### Files
+
+| Place | Changed |
+|---|---|
+| Rensei | `HUDUI`, `MasteryUI`, `RankService`, `PopupUI`, `Stats.MainFrame`, `Inventory.MainFrame`, `Customization` (skin helpers, weapon lists), `ServerScriptService.AppearanceService` (skin colour), `EnemyService` (weapon pool), `UIState` (no menus over dialogue), `DialogueUI` (X button), `Rensei.Styles` (comment only) |
+| Main Menu | `StarterPlayerScripts.MenuClient`, `MenuServer`, `Customization`, `Modules.AppearanceService`, **new** `CreatorPlus`, **new** `ServerScriptService.LookPresets` |
+
+### Backups
+
+- **Rensei:** `ServerStorage.RenseiBackups["Pre-UIPass_2026-10-18"]` (the four scripts, plus a README on the `FullSize` attribute).
+- **Main Menu:** `ServerStorage.RenseiBackups["Pre-CreatorQOL_2026-10-18"]`:
+  - `MenuClient` (the original), `MenuClient_AfterCamera` (with the camera work, before Creator Plus);
+  - `Customization`, `AppearanceService`, `MenuServer`.
+- **Rensei:** `ServerStorage.RenseiBackups["Pre-CreatorPlus_2026-10-18"]` (`Customization`, `AppearanceService`).
+
+### Not tested
+
+- Touch and phone screen sizes for any of these.
+- The leaderboard with two or more players.
+- Turning the character in FACE view.
+
+### Still open (owner)
+
+- **Starting weapons:** done (section 6).
+- **Creator Plus:** built (section 5). It needs the Game Pass ID, and the owner should confirm or change the free/paid split.
+
+## 2026-10-18 — Animation sheet import, sticky skills, style trainers, Boxing fix, gun balance
+
+All tested in Studio Play (one client) unless marked otherwise. Every combat number is PROPOSAL.
+
+**Backup:** `ServerStorage.RenseiBackups["Pre-SheetImport_2026-10-18"]` (TuningConfig, DownedManager, LedgeWalk, Requests.ClassSkill, WeaponManager, Styles, StoryLogic, StyleService, ProfileData, Dialogues, DialogueService, MasteryUI). Every changed animation keeps its old published id in the attribute `PreviousId`.
+
+### 1. Animation sheet import
+
+- **Transcription:** all 95 IDs from the sheet screenshots were transcribed and checked. 61 were already registered.
+- **The 34 new ones:** each was verified with Roblox as an animation owned by Rensei whose name matches the sheet label (for example "greatsword m4", "Pistol 1", "WALL WALK RIGHT").
+- **Loading:** checked in Play by loading every one on a live character.
+
+**Working and wired (load in game):**
+
+| What | Before | Now |
+|---|---|---|
+| Gun shots `Guns_Light1–4` | Studio-only "blatt" saves (nothing live) | sheet **Pistol Aim 1–4**, timed on their HitFrame (0.35 s) |
+| Gun heavy | the fist heavy | sheet **Pistol Crit** (HitFrame 0.70 s) |
+| Gun run | Studio-only | sheet **Dual Gun Run** |
+| Rapier M1 1–4 | borrowed 3 katana swings | sheet **Rapier 1–4** (Hit markers 0.37 s) |
+| Rapier crit | old id | sheet crit (fastest motion 0.43 s) |
+| Greatsword M1 4 | old id | sheet "greatsword m4" (Hit 0.78 s; windup 0.46 → 0.55 s) |
+| Katana / Dagger run | Studio-only | sheet Run ("Dagger Run") |
+| Grips | registered but never used | **per-weapon grip finishers** (see 3) |
+| Ledge walk right | Walk Left played backwards | sheet **Wall Ledge Walk Right** |
+| Swim Idle / Swim Sprint / Walk Right / Ground Interaction | — | registered for future systems (swimming, strafing, ground interactions) |
+
+The emote "No!" (80946728550958) was already registered as `Emote_No`.
+
+**Broken in the sheet — owner action needed.** The engine rejects these: "AnimationClip loaded is not valid", or the download fails. Each was put back to its previous behaviour, with the sheet id kept in the attribute `SheetId`. Re-export and re-upload them, then put the new id in `AnimationId`.
+
+| Animation | Sheet id |
+|---|---|
+| Greatsword Idle | 125386811877833 |
+| Greatsword Walk | 76985284126069 |
+| Greatsword Unsheathe | 122309498454912 |
+| Greatsword Sheathe | 78181583295596 |
+| Katana Walk | 110642878390298 |
+| Katana Unsheathe | 138826683613033 |
+| Katana Sheathe | 135958788270981 |
+| Dagger Unsheathe | 82218741773055 |
+| Dagger Sheathe | 120069108676683 |
+| Greatsword Grip Victim (KO) | 136479651286488 (the previous working id is back) |
+| Wall Ledge Idle Left / Right | 134041804221664 / 111740908967094 |
+
+The last ID is also the existing NPC "Wall Cover Right" idle, which therefore doesn't play either.
+
+### 2. Fist skills
+
+- **Spin Kick:** now **one hit**, the big kick at 1.12 s of the animation, played at 1.25× so it lands at 0.9 s. Tested: **28** damage.
+- **540 Kick:** now **three hits**, its kicks at 0.13 / 0.40 / 0.82 s. Tested: **12 / 12 / 22**.
+- The skill tree descriptions are updated.
+
+### 3. Grabs, the latch, and grip finishers
+
+- **Victim-animation moves are grabs:** Bear Hug, Slam Dunk and Iron Rush, the only skills with victim animations. They were already grabs; they now also hold the victim for the whole move (the latch).
+- **Latch (Devil Hunter / VV Ultimatum skill logic):** once a skill hit **lands** (not blocked, not parried):
+  - the victim is welded **in front of the attacker** for the rest of the move;
+  - it follows the attacker's lunges and stays stunned between hits, so the remaining hits connect;
+  - it's released just before the final hit, so the finisher's knockback works, or when the move ends, is interrupted, or either dies.
+  - A blocked or parried hit never latches. It never puts the victim inside a wall (raycast).
+  - **Tested:** the 540 Kick and Bear Hug held the victim at exactly 2.8 studs during the move and released it at the end.
+- **Grip finishers (B on a knocked target):** the sheet's GRIP / GRIP VICTIM pairs per weapon (`TuningConfig.Downed.Grips`), played to fill the 2 s grip:
+  - **bare hands** use the Caestus (Fists) pair, replacing the Studio-only pair;
+  - **Katana, Greatsword, Daggers and Caestus** use their own pair;
+  - **Guns** play the execution shot over the slumped body;
+  - **Rapier** keeps the Execution finisher (no grip animation on the sheet).
+  - **Tested:** a Katana grip on a knocked Elite played `Sword_Grip`, finished in 2.02 s and killed it.
+  - **Not re-verified:** the B key itself in this session (the request path is unchanged).
+
+### 4. Fighting styles: trainer-only unlocks, Boxing infinite fixed
+
+- **Styles are learned only from their trainer, once the requirements are met:**
+  - **Boxing:** Coach Harlan, Lindenmoor square. Level 4, Speed 4.
+  - **Lethwei:** Master Thura, by the Lindenmoor barn. Level 6, Strength 5.
+- **Pieces:**
+  - New profile key `StyleUnlocks` (additive).
+  - `Rensei.Styles` gains `Unlock`, `Unlocked`, `Missing` and `Ready`.
+  - StoryLogic conditions `StyleReady` / `StyleUnlocked` / `NotStyleUnlocked`.
+  - Dialogue choices can use `ShowIf`.
+  - New dialogue action `UnlockStyle`; StyleService re-checks the requirements.
+  - The two trainer NPCs, with their dialogues.
+- **Picker:** unlearned styles show **LOCKED**, with the trainer, where to find them, and what's still needed.
+- **Tested:**
+  - at level 1 the lesson shows greyed out as **[Needs Level 4, Speed 4]**, and clicking it does nothing;
+  - with the requirements met (test values, restored afterwards), "Teach me Boxing" taught it;
+  - Boxing could then be selected;
+  - Lethwei was refused: "You haven't learned Lethwei. Master Thura teaches it, at the Lindenmoor farm, by the barn."
+- **Boxing infinite:**
+  - **Cause:** the finisher stunned for 0.75 s, past its recovery plus the next jab's startup, so the string looped forever.
+  - **Fix:** finisher stun 0.35 s, recovery 0.45 s, still no knockback.
+  - **Tested** with continuous M1 spam: after each full string the target got about **0.42 s free** before the next jab landed.
+
+### 5. Gun combat audit and balance
+
+**Audit (before):**
+
+| | Melee classes | Guns (shooting) |
+|---|---|---|
+| Damage per second | 30–37 at 3.5–5 studs | burst 40–54, sustained 30–37, at **90 studs** |
+| Stun per hit | — | 0.3 s per shot, so the Renetti (0.30 s between shots) could **stunlock from 90 studs** |
+| Posture | 15–20 /s | 11.5–20 /s, from range |
+| M1 | each class's own string | the pistol whip matched a full melee string (31 DPS) |
+| Range penalty | — | **none** |
+
+**Changes:**
+- **Shots:** stun 0.3 → **0.12 s** (a flinch, shorter than any gun's fire interval); posture 6 → **3**.
+- **Falloff:** full damage to 25 studs, down to **50% at 90**. Point Blank (+20% within 12) is kept.
+- **Per gun** (damage / magazine / reload / recovery):
+  - **Revolver:** 20 / 6 / 2.0 / 0.36
+  - **Renetti:** 10 / 12 / 1.6 / 0.20
+  - **Forge Tac:** 24 / 7 / 2.0 / 0.45
+  - **Sykov:** 13 / 10 / 1.7 / 0.24
+  - **Result:** sustained 21–27 DPS (melee 30–37), burst 29–41 before falloff.
+- **Pistol whip:** 11 / 11 / 11 / 16, about 24 DPS.
+- Enemy gunners use the same numbers.
+- **Tested** (Revolver, real shoot request): **24** damage at 8 studs (Point Blank), **17** at 40, **10** at 85. The shots carry 0.12 s stun and 3 posture.
+
+### Not tested
+
+- Rapier, Greatsword M1 4, gun heavy and Pistol shot animations swung with real input. They load in game and are timed from their markers; the swings weren't checked visually.
+- Slam Dunk and Iron Rush with the latch (only the 540 Kick and Bear Hug were run).
+- The latch against a real player victim (network ownership hand-off) and two players.
+- Mobile.
+- Balance and feel.
+
+## 2026-10-18 — Weapon styles: Boxing and Lethwei on bare fists
+
+**Owner decision 1 (2026-10-17): Boxing and Lethwei go on bare fists** (not Gauntlets/Caestus). This implements the original prompt's Phase 4 (the three-style system) for its first target. Every combat number is PROPOSAL.
+
+> **Status: built and tested in Studio Play** (one client, real keyboard and mouse). See "Tested" below.
+
+### What a style is
+
+A style is a combat moveset for one class. It replaces that class's **light combo and heavy** and its **idle, walk and block poses**. Everything else stays shared:
+- uppercut, aerial, dash attack;
+- block/parry rules, posture, hitstop, stun, downed;
+- class skills.
+
+Damage still goes through AttackRunner → HitboxManager → DamageManager; there's no new damage path.
+
+| | Base ("Brawler") | Boxing | Lethwei |
+|---|---|---|---|
+| Identity | The existing fist moveset | Pressure: even jab chains that keep the target close, walking forward while punching | Close and brutal: snappy elbows, knees and headbutts that crush guards, but risky on a whiff |
+| Lights | 17×3 + 24, posture 8×3 + 14, knockback finisher | 15×3 + 20, posture 6×3 + 10, **no knockback finisher** (Pull), walk speed 16 while attacking | 16×3 + 26, **posture 12×3 + 20**, recovery 0.2 (0.6 on the finisher), knockback finisher, walk speed 12 |
+| Heavy | 32 dmg / 38 posture | **Peek-a-boo**: 28 / 30, **hyper armour** | 34 / **55 posture** (guard crusher), cooldown 1.5 |
+| Hit timing | — | each animation's authored "Punch" marker (0.32 s; heavy 0.58 s) | its "Punch" marker (0.12–0.18 s; heavy 0.42 s) |
+
+### Pieces
+
+- **New `Rensei.Styles`** (registry):
+  - Classes → styles: name, description, available, idle/walk/block pose names.
+  - `Fists` = bare hands: Base, Boxing, Lethwei, and **Third: NOT YET DESIGNED** (not selectable).
+  - Sword, Rapier, Greatsword, Daggers, Guns and Gauntlets: Base, plus three NOT YET DESIGNED slots.
+  - Helpers: `ClassOf`, `Valid`, `Selectable`, `Saved`, `Active`, `Tuning`.
+- **`TuningConfig.Styles`:** the combat numbers per class and style, with the fist fallback animations if a style animation can't load.
+- **`SkillData`:** generates `Style_<Id>_Light1–4` and `Style_<Id>_Heavy`.
+- **Combat hooks:**
+  - `FistSwing` and `Heavy` use the active style's light combo and heavy, falling back to the weapon's or the fists'.
+  - `Block` plays the style's guard pose.
+  - `WeaponManager` (client) plays the style's idle and walk while bare-handed in Combat Mode.
+- **Animations:** Boxing and Lethwei were moved from `Assets.Animations.Registry` to `Assets.Animations.Shared.Styles`, so every character preloads them (other players see them too).
+- **Save:**
+  - Profile `Styles = {}`, `[Class] = id`. It's additive: Reconcile fills old saves, with no schema bump and no reset.
+  - **New `StyleService`:**
+    - every spawn (from `LoadoutService.Restore`), it sets the character attribute `Style` from the save;
+    - on every weapon change, it re-resolves the style for the new class, so a fist style can never apply to a sword.
+- **Switching (new `Requests.Style`):**
+  - The client sends only a style id.
+  - The server checks: it belongs to the class you're fighting as, it's available, you're alive, **out of combat** (the 12 s combat tag), and free to act (not attacking, stunned, blocking, traversing, knocked, gripped or carried).
+  - Then it saves the choice. It's covered by the request rate limiter.
+  - The server alone sets the attribute that combat reads.
+- **UI:**
+  - **Mastery menu (K), Class tab:** a **STYLE: … ▾** button beside the loadout line opens a picker panel. It shows the class's available styles with descriptions and ACTIVE/SELECT, and works by tap on mobile. Unfinished styles are hidden.
+  - **HUD:** the Combat Mode tag reads **"COMBAT MODE · BOXING"**, and the entry banner matches.
+
+### Files
+
+- **New:** `Rensei.Styles`, `ServerScriptService.StyleService`, `Requests.Style`, the `Assets.Animations.Shared.Styles` folder.
+- **Changed:** `TuningConfig`, `SkillData`, `FistSwing`, `Heavy`, `Block`, `WeaponManager`, `ProfileData`, `LoadoutService`, `MasteryUI`, `CombatModeUI`.
+- **Backup:** `RenseiBackups["Pre-FistStyles_2026-10-17"]`, with a README for the moved animations and the new modules.
+
+### Tested (Studio Play, real input unless noted)
+
+- **Old save:** Reconcile added `Styles = {}` with no reset. The spawn set the character's style to Base.
+- **Picker:** K → Class → STYLE ▾ → Boxing selected through the UI, and the profile saved `Styles = {Fists: "Boxing"}`.
+- **HUD:** the tag reads **"COMBAT MODE · BOXING"**.
+- **Boxing on a camp bandit:**
+  - `Style_Boxing_Light1–4` hit for **15 / 15 / 15 / 20**;
+  - the Peek-a-boo heavy hit the **same** target for **28** (no knockback finisher, as designed).
+  - **Animations seen:** Boxing_Light1/2, Boxing_Heavy, **Boxing_Block** (guard), **Boxing_Idle**, **Boxing_Walk**.
+- **Lethwei on a camp bandit:**
+  - lights hit for **16 / 16 / 16 / 26**; the finisher knocked the target away;
+  - the heavy hit for **34**, landing on the second bandit, which had walked into range.
+- **Base after styles:** Light1/Light2 hit for 17 each.
+- **Switching rules:**
+  - **refused in combat** ("Catch your breath first: no switching styles mid-fight.");
+  - Lethwei can't be forced while a sword is drawn.
+- **Forged requests**, all refused: Third (not designed), Style1 (a weapon placeholder), an unknown id, a number, a 5,000-character string, a table.
+- **Weapon switching:** drawing the Katana switched to the Sword's Base; putting it away returned to the saved fist style.
+- **Persistence:**
+  - **respawn** kept Lethwei;
+  - **rejoin** (a full stop/start, so a real save and load) came back with Lethwei.
+- **Errors:** 0 game errors or warnings on the server and the client.
+- **Profile:** restored afterwards. The only difference from the original save is the new empty `Styles` key.
+
+### Fixed during testing
+
+- **Style attacks had no hitbox, so they couldn't hit.** The base attacks get theirs from a `LightHitbox` default inside TuningConfig. Style attacks now inherit the class's light and heavy hitboxes unless a style sets its own.
+- **Picker layout at small window sizes:** the panel now scrolls, and the rows are taller so descriptions fit. The STYLE button moved, so it no longer covers the loadout line.
+- **Test confusion (not a game bug):** the camp's second, non-passive bandit kept interrupting and taking hits. Later tests made both passive and tracked both.
+
+### Not tested
+
+- Parry timing against each style.
+- Another player watching the style animations; two players.
+- Touch (the picker uses tappable buttons; not run on a device).
+- The STYLE button text wraps onto two lines at very small window sizes.
+- Balance and feel.
+
+### Owner decisions still open
+
+- ~~**Decision 8:** should the existing moveset be a selectable "Base" style?~~ **Resolved 2026-10-18.** The owner said: "it should stay as selectable". See the Styles entry in the UI Pass changelog (section 9). The name "Brawler" is still PROPOSAL.
+- **Unlocks:** styles are all available. No unlock rule exists in the progression design (trainers or skill tree could gate them later).
+
+## 2026-10-17 — Phase 8: expansion on tested systems (alchemist roster, Lindenmoor Run)
+
+**Unified prompt, Phase 8 ("avoid expanding content faster than the underlying systems can support").** I scoped this to expansions on systems already tested today. Every number is PROPOSAL.
+
+### NPC casting: all 20 abilities verified
+
+**Setup:** one NPC (the Gale Alchemist rig, brain set to passive) cast every ability of all five paths through `AlchemyService.CastAs` at the player, 10 studs away.
+
+**Result:** **all 20 ran with no error**, charged the right meter cost (Z 25, X/C 35, V 70) and started their cooldown. 17 of 20 damaged the player. The three that didn't:
+
+| Ability | Why no damage |
+|---|---|
+| Cryo Shift | A counter; expected |
+| Steel Guard | A shield; expected |
+| Phoenix Drive (Flame V) | Didn't connect at 10 studs. Not used by any NPC (ultimates are excluded); worth a look when tuning |
+
+`CastAs` returns "Whiff" for projectiles, traps and pillars, because their damage lands after the cast returns. Judge them by the damage, not the return value.
+
+### Three new hostile alchemists (`TuningConfig.Enemies`)
+
+Each is built like the Field and Ward Alchemists: real abilities, meter earned by fighting, the line-of-sight check, and the free-to-act check.
+
+| Enemy | Path | Casts | Reflex | HP / Lv | Spawn (`Map.AlchemistSpawns`) |
+|---|---|---|---|---|---|
+| Frost Alchemist | Ice | X Coldsteel Smash at 0–9, C Ice Shards (trap) at 6–22 | **Z Cryo Shift** (counter) | 700 / 6 | outside the Frozen Research Station's west entrance (−160, 1, −60). The interior is sealed by its ice-door puzzle, and the brain has no pathfinding |
+| Gale Alchemist | Wind | X Gale Burst at 0–9, Z Air Slash at 10–45 | — | 600 / 6 | south of the Silent Observatory (118, 1, 84) |
+| Stone Alchemist | Earth | X Tectonic Shift at 0–9, Z Rising Thorn at 6–18 | **C Earth Wall** | 850 / 7 | east of the Cracked Footbridge (−88, 1, 98) |
+
+**Nations:** Drachman, Xingnese and Aerugonian, matching the path's trainer.
+
+**Tested:**
+- All three spawned with the configured HP, level and nation.
+- Each cast the right slot at the right range under its own brain:
+  - Frost: X at 7 studs, C at 14;
+  - Gale: X at 6, Z at 19;
+  - Stone: X at 6, Z at 13.
+- **Stone:** raised Earth Wall against a windup.
+- **Frost:** raised Cryo Shift against a windup once its earlier Ice Shards trap had expired. While a trap is still live, the Frost Alchemist counts as busy and falls back to normal defence.
+- 0 errors.
+
+### Lindenmoor Run (new movement gauntlet)
+
+**Course:** the existing Movement Gauntlet framework; the course is `Map.Lindenmoor.LindenmoorRun`, defined as `Rensei.Minigames.lindenmoor_run`.
+
+**Route:**
+1. Start pad north of the bridge.
+2. Up the rock ramp onto the West Shelf.
+3. **Along the cliff ledge.** The marker requires `LedgeWalk`, so you can't just walk past it.
+4. Up to the lookout.
+5. Expert and above: wade down Mill Creek.
+6. Finish on the bridge.
+
+**Numbers:**
+- Time limits 90 / 80 / 70 / 80 / 70 s.
+- MaxDistance 300.
+- Reward: Exam × 0.4, twice a day (the same as the Foundation Run).
+
+**Tested (Initiate):**
+- **Passed in 62.6 s.** The route to the ramp and the long way back round the bluff were walked by the character (server MoveTo); the ledge leg used real keys.
+- **Reward:** +24 Mastery training through the normal Exam allowance; a daily count of 1; the record shows Passed with best tier 1.
+- **Walk-through:** a full on-foot run of the route took 66 s at walking pace.
+
+**Not tested:** the higher bands (including the creek marker); a fully hand-played run; the touch controls.
+
+### Files
+
+- **Changed:** `TuningConfig` (3 enemies), `Rensei.Minigames` (`lindenmoor_run`).
+- **Map:** `AlchemistSpawns` (+3 spawns), `Lindenmoor.LindenmoorRun` (5 markers and a start pad).
+- **Backup:** `RenseiBackups["Pre-Phase8_2026-10-17"]`.
+
+### Not done in Phase 8
+
+These are deliberately left for later, as PROPOSALs:
+- a trainer demonstration NPC;
+- new puzzles;
+- the Equivalent Exchange minigame;
+- more progression nodes.
+
+They need content or owner direction rather than more systems.
+
+## 2026-10-17 — Phase 9: regression and playable-state audit
+
+**Setup:** Studio Play, one client, real keyboard and mouse unless noted. The profile was snapshotted before testing and restored exactly afterwards (verified field by field).
+
+| Area | Result |
+|---|---|
+| Spawn | The player spawns in the Lindenmoor square (earlier session) |
+| Walk, jump, dash | Pass. Dash burst 107 studs/s; jump +7.5; the states run Jumping → Freefall → Landed → Running |
+| Wall climb | Pass. Airborne Space at a tall wall → server `Climb` session; W climbed y 6.5 → 19.1; Space let go cleanly |
+| Ledge walk | Pass (gorge ledge, real keys; see Phase 7/8) |
+| Combat Mode and fists | Pass. E on; 4 × M1 ran Light1 → Light4; F blocked |
+| Alchemy | Pass. Z cast Ignite (meter 100 → 75, cooldown started) |
+| Class-skill hotbar | Pressing 1 in Combat Mode with an empty loadout did nothing, with no error. The full equip-and-use test is in the Class Skills changelog |
+| Dialogue | Pass. E at the Drillmaster opened the dialogue with its choices, including the Combat Read drill; a choice closed it |
+| Mastery menu | Pass. K opens on the Guide tab |
+| Combat → reward | Pass. An M1 kill on a camp bandit credited +50 EXP (25 × level 2) and Mastery Defeat training |
+| Errors | 0 game errors or warnings on the server and the client. The only errors were my own test-command mistakes |
+| Save round-trip | Pass. After the restore, Play stopped and ProfileService saved. A read-only `GetAsync` of the stored profile (`PlayerData` / `Data<UserId>`, slot 1) **matches the pre-test snapshot field for field**, with the session lock released, so no test data leaked into the save. Reloading it in Play wasn't redone (the Studio connector got stuck starting Play). Loading the profile in Play worked in every session today |
+
+### Findings
+
+1. **K opens the Mastery menu on top of an open dialogue.** The dialogue's choices stay visible under the menu. It's cosmetic, and both still work. The fix would be to have UIState block the menu while a dialogue is open. Not changed.
+2. **The prompt and Combat Mode share E.** In Combat Mode, E toggles Combat Mode instead of talking. Out of it, E talks. This looks intentional (prompts hide in combat); noted for the controls doc.
+3. **Test artifacts (not game bugs), worth knowing when testing:**
+   - a leftover `CombatState` attribute blocks the ledge walk;
+   - movement is camera-relative, so teleporting a character without turning the camera reverses W/A/S/D;
+   - scripted `Humanoid:MoveTo` can't drive the ledge walk, which reads the player's own input.
+
+### Not covered
+
+- Mobile/touch controls (no device emulation through the tools).
+- Two players.
+- Weapon classes other than fists in this pass. Guns and Sword were run earlier today; Greatsword, Rapier and Daggers M1 strings were not.
+- The character creator and the queued UI list.
+- A live server.
+
+## 2026-10-17 — Starter map: Lindenmoor, a Countryside farm village (Phase 7)
+
+**Added (owner: "Build the starter map as the Resembool-style Countryside farm village" and "use the model that's open in blender as well").** Layout doc: `Starter Map - Countryside Village Layout.md`. The name, layout, sizes and area texts are all PROPOSAL.
+
+### Where
+
+- **Location:** a new terrain region **south of the graybox hub**, centred on world (0, 8, −650). It spans about x ±330 and z −980..−296.
+- **Hub link:** the north road ramps down to the baseplate and continues as a dirt strip to the hub at z −110.
+- **Spawn:** players now spawn **in the village square** (`Lindenmoor.Square.LindenmoorSpawn`, a copy of the old spawn's settings).
+- **Old spawn:** `Workspace.SpawnLocation` is **disabled, not deleted**. Set its `Enabled` back to true and disable `LindenmoorSpawn` to restore the old start.
+
+### The Blender model
+
+- The **RockbellHouse** scene open in Blender (unsaved) was **read, not changed**, through the Blender MCP add-on's local socket. The session's Blender tools weren't connected.
+- Every piece of the model was measured: 249 box pieces with their exact position, rotation and size, plus colours averaged from each material's texture.
+- **Rebuilt in Studio as Parts** (`ServerStorage.RenseiMapTools.HouseBuilder` + `RockbellHouseData`):
+  - **Scale:** 1 m = 3.5 studs, so the 2.15 m door is 7.5 studs.
+  - **Conversion:** Blender Z-up → Roblox Y-up.
+  - **Rebuilt specially:** the gable becomes two wedges, the octagonal pole a cylinder, and the "AUTO MAIL" lettering a SurfaceGui text on the sign board.
+  - **Skipped:** the ground and path planes (the terrain replaces them).
+- **Why Parts and not a mesh import:** there's no file-import tool from here, and an EditableMesh MeshPart doesn't persist without publishing an asset to your account.
+- **To use the real mesh and textures later:** export from Blender and import with Studio's 3D Importer. The house model's pivot (its ground origin) is where to drop it.
+- **Uses:**
+  - **Workshop Hill:** the model exactly as authored, with the sign, banner, utility pole, wires, low stone yard walls and mailbox. This is `Lindenmoor.Workshop.AutomailWorkshop`.
+  - **Village:** the 9 houses are the same model recoloured. There are 5 palettes (the original cream/green, white/blue, peach/brown, pale blue/white, cream/red), without the sign, banner or yard props.
+- **Material choices:** clapboard → WoodPlanks; shingles → Slate; stone → Cobblestone (Brick read pinkish); whitewash → Plaster; glass → Glass.
+
+### What's there
+
+| Feature | Notes |
+|---|---|
+| Village square | Cobblestone, a covered well, 4 benches, a notice board, the spawn |
+| Roads | Dirt: the main N–S road to the hub, the E–W lane, the hill path, the farm track, the camp trail |
+| 9 houses | Around the square and along both roads |
+| Automail workshop | On Workshop Hill (+16), reached by the hill path |
+| Mill Creek | Meandering, **about 1.2 deep and wadeable**. Deeper water (2.4) put characters into Roblox's default Swimming state, and swimming isn't designed yet (owner decision 6) |
+| Stone arch bridge | Where the main road crosses the creek: ramps, parapets, arch ring, piers |
+| Station | Platform with a ramp, a brick station house, a canopy, a "LINDENMOOR" sign, rails on sleepers (scenery) with buffer stops and a timber trestle over the creek |
+| Farm | Red barn, hay bales, a fenced wheat field and a fenced cabbage field |
+| Fences | Post and rail along the north road, the farm track and the fields |
+| Lamps | 16 lamp posts with warm PointLights |
+| Trees | 158: rows of cypress on Cypress Ridge, along the north road and around the hill; oaks behind houses and in the meadows; a thicket at the camp |
+| Gorge ledge | A rock cliff on the creek's north bank with an **authored `RenseiLedge`** strip (46 long, 1.4 deep, Front face toward the cliff). There's a shelf at each end: the West Shelf (reached by a ramp) and the East Shelf, which joins the Gorge Lookout plateau (with a bench). The bluff above has steep sides |
+| Bramble Hollow | Bandit camp: two tents, a fire pit (Fire + light), log seats, crates, and **2 `Grunt` spawns** (`RenseiEnemySpawn`, copied from the existing GruntSpawn) |
+| Discovery areas | 8 `RenseiArea` volumes (no overlaps): Lindenmoor (×2 boxes), Workshop Hill, Mill Creek Bridge, Lindenmoor Station, Cypress Ridge, Bramble Hollow, Gorge Lookout. Each has PROPOSAL descriptions |
+| Entrance sign | "LINDENMOOR" signpost on the north road, readable both ways |
+
+- **Parts:** about 3,430 in `Workspace.World.Map.Lindenmoor`. Small props don't cast shadows. Area volumes have no collision, query or touch.
+- **Terrain:** about 79k cells; it was empty before.
+
+### Map tools (`ServerStorage.RenseiMapTools`, used only in Edit; nothing requires them at runtime)
+
+| Tool | What it does |
+|---|---|
+| `LindenmoorGen` | The layout (roads, plots, features) and the heightmap/material functions |
+| `TerrainWriter` | Writes the terrain from `LindenmoorGen` |
+| `RockbellHouseData` | The Blender model's pieces |
+| `HouseBuilder` | Builds a house from the data, with optional palette, props, sign and banner |
+| `Templates.AutomailHouse` | The built house |
+
+**Terrain detail:** Roblox draws a voxel's surface half a voxel (2 studs) above `y0 + occupancy × 4`. The writer compensates, so the terrain lands on the designed heights. Measured: mean error 0.06 studs over 650 samples; every house sits exactly on its pad.
+
+**Backup:** `ServerStorage.RenseiBackups["Pre-StarterMap_2026-10-17"]` holds the old SpawnLocation and a README with the revert steps (delete the `Lindenmoor` model, clear the terrain, re-enable the old spawn, delete the map tools).
+
+### Tested (Studio Play, one client)
+
+- **Spawn:** the player spawned in the square (root at y 11 on ground 8). Discovery fired for "Lindenmoor".
+- **Bandit camp:** 2 bandits spawned at Bramble Hollow.
+- **Gorge ledge (real keys):**
+  - stepping onto the strip started `LedgeWalk` within 0.6 s;
+  - walking west → stepped off onto the West Shelf at the strip's end;
+  - walking east → one session along the full 41 studs → stepped off onto the East Shelf and onto the lookout. The server never ended it.
+- **Hill path:** the character walked from the lane up to the workshop (Humanoid MoveTo reached every waypoint).
+- **Creek:** wading along the bed stayed in the Running state (no Swimming) at 1.2 deep. At 2.4 deep it swam, so the depth was lowered.
+- **Errors:** 0 game warnings or errors on the server and the client (only Roblox CoreGui UIBlox warnings).
+- **Profile:** area discovery writes `Areas` to the profile. The new areas (Lindenmoor, Mill Creek Bridge, Workshop Hill, Gorge Lookout) were removed after each session. The profile was verified unchanged otherwise (Mastery all zero, level 1, 0 EXP, empty flags/minigames/skill tree/loadout) before Play stopped.
+
+### Not tested
+
+- Walking every road, fence line and house pad by hand (spot checks only).
+- The station platform ramp and the bridge with real input (geometry checked visually).
+- Fighting the camp bandits.
+- Performance on a low-end device or mobile (about 3.4k parts plus 16 lights).
+- Two players.
+- The map edges: the terrain ends in a steep edge at the region's south, east and west borders. Barriers or more terrain are a later decision.
+
+### Screenshots
+
+In `images/Starter Map/`. 2–5 were taken before the terrain-offset fix (the ground sat 2 studs high, so foundations look slightly buried there); 1 is after it.
+
+### Missing / owner decisions
+
+- Villager NPCs and their dialogue. No content was invented; the existing hub NPCs weren't moved.
+- House interiors (the houses are closed shells).
+- A train.
+- Real Blender meshes and textures (see above).
+- Swimming and real water depth (decision 6).
+- The name "Lindenmoor".
+
+## 2026-10-17 — Mastery menu GUIDE tab (unified progression presentation)
+
+**Added (unified prompt, Phase 4).** The new tab sits on top of the existing progression. No progression rules changed: Truth/Gate, 20 Mastery Points per stage and the hourly allowances are untouched.
+
+### Mastery menu (K)
+
+- **Tabs:** `Guide | [Path] Alchemy | Arms | Body | Class`. **GUIDE opens by default.**
+- **Guide tab sections:**
+  - **Standing:** level, stage, Mastery Points, stats.
+  - **Ready now:** nodes you can learn this moment, in any category.
+  - **One step away:** nodes missing exactly one thing, with the hint for it (deduplicated), e.g. "Needs level 5", "Learn Spin Kick first", "2 more Mastery Points".
+  - **Where to progress:**
+    - trainers (by `TrainerPath`, with compass direction and distance);
+    - lessons and exercises, with today's count against the daily limit.
+  - **Choices with consequences:** forks, and what each one closes off.
+- **Clicking a row** jumps to that node in its own tab.
+- A short explainer card at the top says how Mastery is earned.
+
+### Data
+
+`Rensei.SkillTree` gains:
+- `SkillTree.Category(Node)` (Alchemy / Arms / Body / Class);
+- `SkillTree.Missing(Data, Id)`, which returns what's missing with a kind (`Stage`, `Prereq`, `Stat`, `Level`, `Fork`, `MP`, `Maxed`) and a player-facing hint;
+- `CategoryOrder`.
+
+### Files and tests
+
+- **Changed:** `Rensei.SkillTree`, `MasteryUI`.
+- **Backup:** `RenseiBackups["Pre-ProgressionGuide_2026-10-17"]`.
+- **Tested (Studio Play):** K opens on the Guide; every section rendered on a fresh profile; clicking rows jumped to the right node and tab. 0 errors.
+- **Not tested:** a profile far into the tree (only a fresh profile and the test states); a touch device.
+
+## 2026-10-17 — Challenge framework: difficulty bands, Combat Read, Movement Gauntlet
+
+**Added (unified prompt, Phase 5).** This extends the existing `MinigameService`; it isn't a second framework.
+
+### Difficulty bands (5)
+
+The band comes from the stat that matches the challenge's track:
+
+| Track | Stats |
+|---|---|
+| Combat | Strength / Speed |
+| Movement | Speed |
+| Alchemy | Alchemy |
+| Knowledge | Intelligence |
+
+| Band | Stat range |
+|---|---|
+| Initiate | 1–4 |
+| Apprentice | 5–8 |
+| Adept | 9–12 |
+| Expert | 13–16 |
+| Master | 17+ |
+
+- **Reward multiplier by band:** 0.6 / 0.8 / 1.0 / 1.2 / 1.5 (PROPOSAL).
+- **Rewards** go through `ProgressionService.AddTraining`, so the hourly allowance and the 20-per-stage rule still apply.
+- **Daily caps:** a per-challenge daily limit kept in `Story.Flags` ("day:count").
+
+### World challenges (new kind)
+
+- In-world, with Begin / Tick / End hooks and a server watcher. A challenge ends on:
+  - death;
+  - entering combat (unless the challenge allows it);
+  - walking too far away;
+  - **GIVE UP** on the HUD tracker.
+- **Combat Read** (`combat_read`):
+  - Started from the Drillmaster's dialogue ("StartMinigame").
+  - A sparring foe (15% damage, can't die) performs a band-sized plan of attacks. You must answer each correctly: block, parry or dodge, judged by the server from real hit results.
+  - Rewards ×0.5, twice a day.
+- **Movement Gauntlet** (`foundation_run`):
+  - A timed checkpoint course (`RenseiGauntlet` tag, markers `CP1–CP6`).
+  - Checkpoints can require a traversal kind (e.g. reach CP by ledge walk) or a minimum band.
+  - Time limit per band: 70 / 70 / 85 / 85 / 70 s (PROPOSAL; higher bands add checkpoints).
+  - Started from the pad tagged `RenseiChallenge` in `LedgeCourse.FoundationRun`.
+- **HUD:** a ChallengeTracker panel shows the step, timer and result.
+
+### Files and tests
+
+- **Changed:** `MinigameService` (+ `MinigameService.WorldChallenges`), `Rensei.Minigames`, `MinigameUI`, `TuningConfig` (Enemies.Sparring), `SkillData`, `Rensei.Dialogues`; map `LedgeCourse.FoundationRun`.
+- **Backup:** `RenseiBackups["Pre-ChallengeFramework_2026-10-17"]`.
+- **Tested (Studio Play):**
+  - Combat Read failed on wrong answers, and passed with a real block. The reward was +30 training, and the daily count was recorded.
+  - The Gauntlet passed, including the checkpoint that requires a ledge walk.
+  - A UI minigame closed when the player entered combat.
+  - The profile was snapshotted and restored, and verified all zero before Play stopped.
+- **Not tested:** bands above Initiate in play (the band math was checked, not played); two players running challenges at once; touch.
+- **Not built (PROPOSAL from the brief):** the Equivalent Exchange minigame; a trainer demonstration NPC.
+
+## 2026-10-17 — Alchemist NPCs cast the real abilities
+
+**Added (unified prompt, Phase 6).** NPCs now run the same alchemy pipeline as players: meter, cooldowns, AttackRunner, hitboxes, block / parry / dodge. Before this, trial "alchemy" was only arena hazards.
+
+### AlchemyService
+
+- The cast body is factored into `RunCast(...)`. `AlchemyService.Cast(Player, Slot, Aim)` keeps every player check (affinity, built ability, clan rule, skill-tree unlock), then calls it.
+- **New `AlchemyService.CastAs(Character, Affinity, Slot, Aim, Opts)`** for NPCs only:
+  - refuses any player character;
+  - needs Combat Mode, no cast in progress, and the character free to act;
+  - `Opts.HoldFor` auto-releases charged moves.
+- **New `AlchemyService.CanCastAs(Character, Affinity, Slot)`:** built ability, not casting, **free to act**, off cooldown, enough meter.
+- **Player-only parts are skipped for NPCs:** the puzzle cost waiver, meter tells, puzzle reactions.
+- **NPC meter** is earned the same way as a player's (Regen 0; filled by hits, blocks and parries).
+
+### EnemyService (brain)
+
+- `Def.Alchemy = {Affinity, Slots = {{Slot, Min, Max}}, Gap, Guard}`.
+- When ready to attack, the NPC casts the first slot that is in range, in line of sight (no casting through map walls) and affordable. It stops, faces the target and casts. The gap between casts is a random `Gap` (PROPOSAL 1.5–3 s).
+- **Guard reflex:** when its target winds up within 12 studs, an NPC with `Guard` raises it (Steel Guard), if it can act.
+
+### Enemies (`TuningConfig.Enemies`, all numbers PROPOSAL)
+
+| Enemy | Path | Casts | Health | Spawn |
+|---|---|---|---|---|
+| Field Alchemist | Flame | X (Scorching Wave) at 0–14 studs, Z (Ignite) at 7–40 | 650 | Burned Laboratory |
+| Ward Alchemist | Metal | C at 0–12, X at 8–30, **Guard Z (Steel Guard)** | 800 | Silent Forge |
+
+Both use the normal leash (60).
+
+### Fixed during testing
+
+`CanCastAs` didn't check "free to act", so the Ward's guard reflex passed its check while the Ward was mid-swing, and `CastAs` then refused it. `CanCastAs` now checks the same free-to-act rule. A busy Ward makes no cast attempt and falls back to its normal block/parry roll.
+
+### Files and tests
+
+- **Changed:** `AlchemyService`, `EnemyService`, `TuningConfig`; map `AlchemistSpawns`.
+- **Backup:** `RenseiBackups["Pre-NPCAlchemy_2026-10-17"]`.
+- **Tested (Studio Play, one client):**
+  - `CastAs` on a player character is refused.
+  - **Line of sight:** no cast through the Burned Laboratory wall.
+  - **Field Alchemist brain:** cast X (Scorching Wave) up close, and Z (Ignite) at 20 studs.
+  - **Ward Alchemist brain:** cast C at 9 studs and hit the player.
+  - **Guard reflex:** an idle windup made the Ward raise Steel Guard; a windup during its own swing made no cast attempt.
+  - **Player regression:** a real **Z** key press cast Ignite; cooldown and meter (100 → 75) behaved as before.
+  - 0 game errors on the server and the client.
+  - The profile was verified all zero before Play stopped. Combat training earned during the test (+2 progress) was reverted first.
+- **Not tested:**
+  - All 20 abilities through `CastAs` (only Ignite, Scorching Wave, the Metal C and Steel Guard ran).
+  - The Ward's reflex from a natural player swing; the test fired the windup signal from the server, because the Ward's melee kept the player stunned.
+  - Two players.
+  - Balance and feel.
+- **Limits:** the brain has no pathfinding (as before); alchemists walk straight at the target. There is no friendly trainer alchemist that demonstrates moves yet.
+
+## 2026-10-17 — Class Skills: a dedicated column in the Mastery menu, equipped to the hotbar
+
+**Added (owner prompt "Skill Tree & Class Skill Hotbar").** Design and audit: `Skill Tree Class Skills - Audit and Design.md`.
+
+### Mastery menu (K): new CLASS tab
+
+- **Tabs:** `[Path] Alchemy | Arms | Body | Class`. The first three are unchanged: alchemy moves, general combat techniques and passives.
+- **Class tab layout:**
+  - One column per class family: Fists · Sword · Rapier · Greatsword · Daggers · Guns.
+  - The column for the class you're fighting as is lit and marked **EQUIPPED CLASS**.
+  - Each column lists its skills in tier order (marks I / II / III) with links to their prerequisites.
+- **Node states:** LOCKED / LEARNABLE / LEARNED / SLOT n.
+- **Header line:** the current class's loadout.
+- **Card:**
+  - description, class, tier;
+  - cooldown, stamina, number of hits, hyper armour;
+  - whether it fits your current class;
+  - an animation-missing warning if its animation can't load;
+  - cost and requirements (hidden once learned);
+  - **Learn** / **Refund** (the existing Mastery Point rules: refundable until the Truth/Gate trial seals the stage);
+  - for a learned skill: **equip to key 1–4** and **Remove**.
+
+### Skills (the skill sheet's names and animations; every number PROPOSAL)
+
+| Class | Skills |
+|---|---|
+| Fists | Spin Kick, Bear Hug (grab), 540 Kick, Slam Dunk (grab), WHERE YOU GOING?! |
+| Sword | Quick Draw, Iaido Barrage |
+| Rapier | Speed Lunge, Ren |
+| Greatsword | Heavy Drop, Whirlwind Cleave |
+| Daggers | Slip Slash, Bullet Slash, Blood Dash (bleed), COME HERE!! |
+| Guns | Iron Rush (grab) |
+
+- **Requirements:** a prerequisite in the same column, a character level (tier I = 1, II = 5, III = 10), and 2–5 Mastery Points. All skills are in ring 1, so none waits on the unbuilt trial.
+- **Hit times:** taken from each animation's own markers (HitFrame, Stab, Slash1/2, FirstHit/FinalHit). Where there are none, from its measured fastest-motion peaks.
+- **Grabs:**
+  - They're `UNBLOCKABLE`: they beat block and parry, and a dodge or i-frames avoid them.
+  - On a hit, the victim is held: stunned, placed in front (never through a wall) and playing its victim animation.
+  - On a miss, *Grab Whiff* plays and the move ends early.
+
+### Families (`Rensei.ClassSkills.Families`)
+
+- `Fists` = unarmed **and** Gauntlets (Caestus). The other five map one to one.
+- Pending owner decision 1 on the Fist styles; changing this is a one-line edit.
+
+### Hotbar
+
+- **4 slots per family** (PROPOSAL), saved as profile `SkillLoadout[Family]`.
+- **In Combat Mode:** keys **1–4**, and tapping hotbar slots 1–4 on mobile, use the equipped class skills. Slots 1–4 show the skill's name and a cooldown sweep with seconds; slots 5–0 dim.
+- **Out of Combat Mode:** unchanged. Items are held as before (the server already refused items in Combat Mode, so nothing is lost).
+- **Switching weapons** switches to that family's own loadout; nothing is deleted.
+- **T** stays the weapon's built-in skill.
+
+### Server (all decisions)
+
+- **Learning:** `SkillTree.CanBuy` / `SkillTreeService.Buy`, plus a new **Level** requirement.
+- **Equipping:** `SkillTreeService.Equip(Id, Slot)` / `Unequip(Family, Slot)` through `Requests.SkillTree`. It needs the skill learned and a valid slot, and is refused in combat. A skill is never in two slots. A refunded skill comes off its loadout.
+- **Using:** `Requests.ClassSkill(Slot)`, where the client sends only the slot. The server checks:
+  - Combat Mode on, alive;
+  - not stunned, attacking, blocking, traversing, knocked, gripped or carried;
+  - the skill fits the current family;
+  - cooldown (kept server-side per player and skill, so a death doesn't reset it), stamina.
+
+  Then it runs `AttackRunner.Run`: the existing hitbox, damage, block / parry, hitstop, interrupts and recovery. It's covered by the ServerHandler request rate limiter.
+- **Data:**
+  - `TuningConfig.ClassSkills` holds the combat numbers.
+  - SkillData gains `Class_<Id>`, `Class_<Id>Final` and `Class_<Id>Grab`.
+  - `AttackRunner` gains an optional `Opts.AfterStrike` hook, which skips the remaining hits after a missed grab.
+- **Save:** `ProfileData.SkillLoadout = {}` is additive; Reconcile fills it on old saves (verified on a real Studio profile). No schema bump. Ownership uses the existing `SkillTree` table.
+- **Animations:** the 20 skill-sheet animations moved from `Animations.Registry.Skills` to `Animations.Shared.ClassSkills`, so attackers and grab victims have them loaded.
+
+### Files
+
+- **New:** `Rensei.ClassSkills`, `Requests.ClassSkill`.
+- **Changed:** `Rensei.SkillTree` (Class nodes, Level requirement), `TuningConfig` (ClassSkills), `SkillData`, `ProfileData`, `SkillTreeService`, `Requests.SkillTree`, `AttackRunner`, `MasteryUI`, `HUDUI`.
+- **Backup:** `ServerStorage.RenseiBackups["Pre-ClassSkills_2026-10-17"]`.
+
+### Tested (Studio Play, one client)
+
+**Server rules** (real SkillTreeService, on a Studio profile; restored afterwards):
+- learn works, and a second purchase is refused ("Already maxed");
+- the level gate works (540 Kick: "Needs level 5");
+- equipping something unlearned is refused;
+- an equipped skill moves between slots rather than duplicating;
+- Fists and Sword keep separate loadouts;
+- a bad slot and a bad family are refused.
+
+**Use** (real `Requests.ClassSkill`):
+- Bear Hug grabbed the training dummy: it was snapped in front, and no whiff penalty was applied.
+- Bear Hug with nobody near: whiff, the move ended at 0.30 s, and stamina 100 → 80.
+- Spin Kick on the Blocking dummy and Quick Draw with a Sword each ran their full Startup / Active / Recovery.
+- Refused: on cooldown, an empty slot, out of Combat Mode, no stamina, and bad slot values (no errors).
+
+**Real input:**
+- K opened the menu; the Class tab showed 6 columns and 16 nodes with the right states and the loadout line.
+- Clicking the card's slot 3 moved Spin Kick to slot 3 (server-confirmed).
+- E entered Combat Mode: slots 2 / 3 showed Bear Hug / Spin Kick and 5–0 dimmed.
+- Pressing **3** ran Spin Kick: its animation played, with an 8 s cooldown sweep.
+- E again restored the normal bar.
+
+**Persistence:**
+- Learned skills and the loadout survived a full Play stop and restart (save → load).
+- The pre-existing profile gained `SkillLoadout` with no reset.
+
+0 game warnings or errors on the server and the client.
+
+**Found and fixed:** on a learned skill, the equip buttons sat just below the card's visible area. The card now hides cost and requirements once a skill is learned.
+
+### Not tested
+
+- A touch device (the hotbar slots are the existing tappable buttons, so tapping uses the same path).
+- A grab on another **player** (only on an NPC dummy).
+- Two players at once.
+- Refunding an equipped skill (the code removes it from the loadout; not run).
+- The Rapier, Greatsword, Daggers and Guns skills beyond their definitions compiling. Only Spin Kick, Bear Hug and Quick Draw were actually run.
+- Hit feel and balance.
+- A live server.
+
+**Test-data note:** one Studio session stopped before the profile restore ran, so the test's +20 MP, three learned skills and loadout saved to the Studio profile. They were reversed exactly in the next session and verified after a further restart: 0 MP, nothing learned, empty loadout.
+
+## 2026-10-17 — Guns: M1 is a pistol whip; shooting is its own mode
+
+**Changed (owner, non-negotiable: "M1 with a gun is a melee pistol whip and never fires a bullet"):**
+
+**What was wrong:** `FistSwing` sent a gun's M1 down a `Ranged` branch that fired a hitscan shot (`WeaponManager.Fire`), and the gun's "light" hits *were* shots.
+
+**M1 now:**
+- **4-hit pistol-whip string** through the normal light-attack pipeline (AttackRunner, server hitbox sweep, block / parry / posture / stun, the combo chaining rules).
+- The gunshot branch is removed from `FistSwing`, so **M1 cannot reach `WeaponManager.Fire`**: no round spent, no tracer, no raycast.
+- No pistol-whip animation exists on any sheet, so it uses the published fist combo (FistCombo1/2/3/5), which the guns' heavy already used.
+
+**Shooting mode:**
+- **Y** (rebindable "Aim (Guns)" in Settings) toggles it, with a gun drawn in Combat Mode.
+- While it's on, **RMB fires**. RMB is Feint the rest of the time. **M1 stays the pistol whip even in shooting mode.**
+- The server owns the mode (character attribute `ShootingMode`) and ends it when Combat Mode ends, the gun is put away or changed, or the character is knocked, gripped, carried or dies.
+- Each shot is `Requests.Shoot("Fire", AimDir)`. The server checks:
+  - the mode, the gun, Combat Mode;
+  - free to act (not stunned, attacking, blocking, traversing or downed);
+  - a round in the magazine and not reloading.
+
+  Then it runs through AttackRunner + `WeaponManager.Fire` (aim validated, range, raycast, DamageManager rules). Fire rate is the gun's Recovery (one attack at a time).
+- The shots moved to `TuningConfig.Weapons.Guns.Shots` (SkillData `Guns_Shot1–4`).
+- **Visuals:** a crosshair and a mode hint on the HUD while shooting mode is on.
+- **Mobile:** an **AIM / STOP** button (Slide's spot, which is hidden in Combat Mode) and a **FIRE** button that only shows while shooting.
+
+**Ammo / reload:**
+- Unchanged by design. Per-gun magazines (Revolver 6, Renetti 15, Forge Tac 7, Sykov 10) are kept while holstered.
+- **Automatic reload when empty** (`Decisions.md`: "Guns: no reload button, automatic only").
+- There is no reserve-ammo system; magazines refill.
+- No shot can go out during a reload. CooldownUI already shows rounds and the reload bar.
+
+**Also updated:**
+- `EnemyService` gunners fire with the new `Shots`.
+- Fan the Hammer (T) is unchanged; it's its own input.
+
+**Files:**
+- **Changed:** `TuningConfig` (Guns.Light = pistol whip, Guns.Shots), `SkillData`, `FistSwing`, `WeaponManager` (clears `ShootingMode` on unequip), `EnemyService`, `Requests.CombatMode`, `Keybinds`, `Rensei.Settings` (Aim bindable), `ClientHandler`, `HUDUI`, `MobileControls`, the Settings panel (new "Aim (Guns)" row).
+- **New:** `Requests.Shoot`.
+- **Backup:** `RenseiBackups["Pre-GunRepair_2026-10-17"]`.
+
+**Tested (Studio Play, real keyboard and mouse, Revolver given to the character, no profile change):**
+- 4 × M1 → `Guns_Light1–4` (pistol whip), ammo stayed **6/6**.
+- Y → shooting mode on, crosshair shown.
+- M1 in shooting mode → pistol whip, ammo unchanged.
+- RMB → `Guns_Shot1`, `Guns_Shot2`, ammo 6 → 5 → 4.
+- Emptied the magazine → automatic reload; an RMB during the reload fired nothing; refilled to 6.
+- Y → mode off; RMB then fired nothing.
+- Y then E (leave Combat Mode) → shooting mode ended by itself.
+- An enemy Renetti gunner fired `Guns_Shot1–4` and hit the player (580 → 489).
+- 0 warnings or errors on the server and the client.
+
+**Not tested:** mobile buttons on a touch device; the Settings rebind of Aim; two players.
+
+**Missing assets:** a pistol-whip animation; published gun shot animations (`Guns_Light1–4` are Studio-only saves); gunshot, muzzle-flash and reload sounds and VFX.
+
+## 2026-10-17 — Ledge walk reworked: authored ledges, facing the wall
+
+**Changed (owner reference: the Tomb Raider narrow cliff-ledge walk).** The earlier version auto-detected ledges from geometry and put your back to the wall. It's replaced.
+
+### Authoring convention (for map builders)
+
+- Make a thin part along the wall: about 1.4 deep and 1 high, its top face is the foothold.
+- **Tag it `RenseiLedge`** (CollectionService; Tag Editor in Studio).
+- Turn it so its **Front face points at the wall**. Its length (Size.X) is the whole walkable path; its two ends are the endpoints. Keep it level.
+- **Joining:** two ledges whose ends are within **1.5 studs** (and within 0.75 studs in height) join. A straight joint continues; an angled joint is a supported corner.
+- **Exits:** past an end with walkable ground just beyond it (a platform), the player steps off onto it.
+- **Every other end stops the player:** a gap, a dead end, or an unsupported corner. There are no automatic jumps.
+- Untagged parts and ordinary walls are never traversable.
+
+### Behaviour
+
+- **Enter:** stand on a ledge for 2 checks (0.3 s), by walking onto it or dropping onto it. You turn to **face the wall**, held about 1 stud off it.
+- **Move:** the move input (camera-relative, like walking) projected along the ledge, at 5 studs/s.
+  - Obstacles stop you.
+  - At a joined corner the body turns smoothly and the travel direction sticks while the input is held.
+- **Leave:**
+  - step off at a platform end;
+  - hold away from the wall for 0.3 s (step down);
+  - **Space** = hop back off the wall;
+  - **Space while pushing toward the wall** = hop up into the existing **climb**;
+  - the server ends it (stun, knock, grip, carry, death, or the body leaving the authored strip).
+- Combat, dash, sprint and crouch are off on the ledge (the `Climbing` status). No stamina cost.
+- **Server:** `MovementState` accepts `LedgeWalk` only over an authored strip, inside its endpoints plus a 1.5-stud lag tolerance. It re-checks every 0.5 s and ends it with reason `OffLedge`.
+
+### Graybox test course
+
+`Workspace.World.Map.LedgeCourse` (delete it when real map ledges exist):
+- **L1:** platform → gap.
+- **L2:** gap → supported inner corner → **L3** → platform.
+- **L5:** platform → unsupported outer corner.
+- An **untagged look-alike strip** against an ordinary wall.
+- Two ramps.
+
+### Fixed during testing
+
+- The head and hair touched the wall at a 0.75 gap and tipped the body back about 12°. The gap is now 1.0 and the body is level.
+- Character-relative input made the player ping-pong at platform exits when the camera faced the other way. Input is now camera-relative, with a sticky direction at corners.
+- The ledge → climb hand-off fired before the body was airborne. It now waits for the airborne state.
+
+### Tested (Studio Play, real keys, the test course)
+
+- Entry on L1 (server-confirmed, facing the wall, level).
+- Left and right; stops at L1's gap end.
+- Steps off at L1's start platform and stays off (no re-grab loop).
+- L2 → inner corner → L3 → end platform in **one session**: the body turned to face WallB, kept moving with the input held, and stepped off onto the platform.
+- Stops at L5's **unsupported outer corner**.
+- **No** ledge walk on the untagged look-alike strip.
+- Space = hop off.
+- **W + Space = climb** (server `Climb` session, climbing up).
+- Stun → ended (`Stun`), Climbing status removed, one re-entry after.
+- Death → ended (`Dead`); the respawned character starts clean.
+- Forged ledge requests in the open and beside an ordinary wall → `Refused:NoLedge`.
+- A ledge walk whose body is moved off the strip → ended about 1.4 s later.
+- 0 warnings or errors on the server and the client.
+
+### Not tested
+
+- Touch controls (they use the same `MoveDirection` and Jump action).
+- Two players watching each other.
+- Long repeated-traversal soak.
+- Real map ledges (none exist yet).
+
+### Limits
+
+- The server's 1.5-stud lag tolerance means a gap narrower than about 3 studs doesn't trip the server check. The client still always stops at gaps.
+- **Animation:** the only ledge animation ("Wall Ledge Walk Left") is posed **back to the wall**. It plays as a stand-in, but a face-the-wall sidestep (left, right, idle), plus entry, corner and pull-up animations, are needed. Put the new name in `TuningConfig.LedgeWalk.Anim`.
+
+## 2026-10-17 — Standing ledge walk
+
+**Added (owner: "build the standing ledge-walk that the existing animation supports"):** `JumpManager.LedgeWalk`, a client module that is part of JumpManager, not a separate controller.
+
+**What it does:**
+- **Entering:** walk onto a narrow ledge and you step into it automatically. The ledge needs:
+  - a tall wall within 2.5 studs;
+  - ground at most 3 studs wide out from the wall;
+  - a drop of at least 6 studs past the edge.
+
+  The conditions must hold for 2 checks in a row (0.3 s), so brushing past a ledge never snaps you onto it.
+- **On the ledge:**
+  - Your back is to the wall, held 0.9 studs off it by the climb's AlignPosition / AlignOrientation movers.
+  - You sidestep at 6 studs/s with the move input (WASD or the thumbstick), projected onto the wall.
+  - Gentle curves are followed. Sharp corners stop you.
+- **Stops (you stay on the ledge):** the ledge's end, an obstacle, or a corner.
+- **Ends:**
+  - the wall ending: you walk on normally;
+  - the ledge widening into a platform;
+  - holding away from the wall for 0.3 s: you step off (a tap doesn't);
+  - Space / the jump button: you hop up and away;
+  - the server ending it: stun, knock, grip, carry or death.
+- **Locked out on the ledge:** combat, dash, sprint and crouch, via the `Climbing` status the server sets for every traversal kind.
+- **Stamina:** none.
+
+**Animation:**
+- `LedgeWalk_Left` (sheet 129382412379032) moved from `Animations.Registry` to `Shared.Movement.Default`, so clients preload it.
+- Moving right plays it backwards until a Wall Ledge Walk Right exists.
+- Standing still holds its first frame, because there's no ledge idle yet.
+
+**Server:**
+- `MovementState` gains the kind `LedgeWalk`. A start needs a wall in reach **and** ground under the feet, and both are re-checked every 0.5 s.
+- New JumpRemote call `TraversalState(State, Kind, Seq)` covers any kind. `ClimbState` stays for compatibility.
+
+**Client backoff:**
+- The client doesn't ask while it can see `Stun` / `Climbing` on itself (crouch included).
+- After the server ends or refuses a ledge walk, it waits `RefusedCooldown` (2 s) before asking again.
+
+**Config:** `TuningConfig.LedgeWalk` (all values PROPOSAL). `FaceWall = true` flips the pose to face the wall, if the animation turns out to be meant that way.
+
+**Other:** SettingsUI's shift lock leaves AutoRotate alone during the ledge walk too.
+
+**Backup:** `ServerStorage.RenseiBackups["Pre-LedgeWalk_2026-10-17"]` (JumpManager, MovementState, ServerHandler, TuningConfig, SettingsUI). To restore, also delete `JumpManager.LedgeWalk` and move `LedgeWalk_Left` back to the Registry.
+
+**Tested (Studio Play, one client, on a temporary graybox ledge built only inside the Play session):**
+- Auto-entry: the server confirmed it, the character has its back to the wall at 0.9 studs, and the animation is paused.
+- **D:** sidestepped right at 6 studs/s with the animation reversed. Walking into the wide platform ended the walk and normal walking resumed.
+- **A:** sidestepped left and stopped before a crate. With the crate removed, it stopped at the ledge's end (x = −215) instead of walking off.
+- **W:** a short tap kept you on the ledge. Holding it stepped you off; you fell, with movers cleared and AutoRotate restored.
+- **Space:** hopped off, up and away from the wall.
+- **Server stun:** ended it (`Stun`), removed the `Climbing` status and the client let go. There were no requests during the stun and one re-entry after it.
+- 0 game warnings or errors.
+
+**Not tested:**
+- Mobile thumbstick and jump button (they use the same `MoveDirection` / Jump action, but haven't been tried on a touch device).
+- Curved walls.
+- Real map ledges (there are no narrow ledges in the graybox map yet).
+- Two players at once.
+- A live server.
+- Whether the pose reads right with the back to the wall: the animation's arms sit behind the body, which suggests back to the wall, but it's the owner's call.
+
+**Found and fixed during testing:** while the server kept refusing (for example a lingering stun), the client retried every 0.8 s. It now pre-checks its statuses and backs off.
+
+**Still missing (assets):** Wall Ledge Walk Right, a ledge idle, and hang / shimmy / mantle animations for the hanging version.
+
+## 2026-10-17 — Movement state foundation: a server-owned traversal state, and the JumpRemote fixes
+
+**Added: `ReplicatedStorage.Modules.Managers.MovementState`.** It holds the one traversal state of each character, and only the server writes it.
+
+**Character attributes:**
+- `Traversal` = `Climb` or `WallRun`. `Ledge` and `Swim` are reserved for their phases. nil means on foot or airborne.
+- `TraversalSession` = `"<seq>:<kind>:<reason>"`. It is a single string, so it changes atomically.
+
+**Start (JumpRemote `ClimbState` → `MovementState.Request`):** the server refuses unless all of these hold:
+- the character is alive;
+- it is not knocked, gripped, gripping, carried or carrying;
+- it is not stunned;
+- a map wall is in reach: 16 raycasts at body and head height, `Traversal.ValidateReach` = 9 studs.
+
+**End:** the server ends the state on:
+- stun (the WCS `StatusEffectAdded` / `Started` signals);
+- the downed attributes being set;
+- death;
+- the wall leaving reach (2 checks in a row, checked every 0.5 s, and only while a traversal is active);
+- a wall run outliving `WallRunDuration` × Acrobat + 1 s.
+
+It also starts and stops the `Climbing` status. That fixes stacked `Climbing` statuses that could linger, since the old stop removed only one.
+
+**Client (`JumpManager`):**
+- Every climb or wall run is a numbered session.
+- When the server ends or refuses the client's *current* session, the client lets go (`LetGoClimb` / `EndWallRun`). Client and server can no longer disagree about being on a wall.
+- **New behaviour:** being stunned, knocked or gripped now drops you off a wall. Before, a stun never broke a climb.
+- A late "ended" for an older session is ignored.
+
+**Fixed: JumpRemote `ClimbState`.** It used to start or stop the `Climbing` status on any request, with no checks. It is now validated as described above.
+
+**Fixed: JumpRemote `PlayFX`.** It used to broadcast any effect module, with any arguments the client sent, to every player. Now:
+- **Allowed types:** only `Climb` (side, and only while the server has you climbing), `WallJump` (optional side), `Roll` (a finite, non-zero direction, normalised server-side) and `DoubleJump` (only if enabled).
+- **Rejected:** dead or downed characters.
+- **Throttle:** at most one per type per `Traversal.FXMinInterval` (0.12 s).
+
+**Config:** `TuningConfig.Traversal` (ValidateReach, CheckEvery, MissesToEnd, WallRunGrace, FXMinInterval). All values are PROPOSALs.
+
+**Wiring:** `CharacterHandler` calls `MovementState.Track(Character, CharacterState)` for every player character. All state lives in plain tables and is dropped when the character is removed.
+
+**Not changed:** climb and wall-run feel, speeds, stamina costs and controls. The dormant `Skills.Combat.Air` (an older WCS copy of climbing, never given to any character) is untouched.
+
+**Backup:** `ServerStorage.RenseiBackups["Pre-MovementState_2026-10-17"]` (JumpManager, CharacterHandler, TuningConfig). To restore, also delete `Managers.MovementState`.
+
+**Tested (Studio Play, one client):**
+- **Server logic**, through the real modules, 16 checks, all passing:
+  - refused with no wall in reach;
+  - accepted at a wall;
+  - bad kind and NaN session number handled;
+  - stun ends it;
+  - a stale stop for an older session is ignored and the current stop works;
+  - knocked ends it and refuses a new one;
+  - moving away from the wall ends it (`NoWall`);
+  - a wall run hits the time cap at about 4 s;
+  - death ends it.
+- **PlayFX:** an unknown type, a NaN direction, a bad side, a non-string type and throttled repeats are all refused without errors.
+- **Real keyboard input:**
+  - Space on a wall grabbed it and the server confirmed it. A server-side stun then made the client let go: anchors removed, AutoRotate back, climb pose stopped.
+  - A second climb (W held to the top) was confirmed and then ended by the vault, with no false drop.
+  - Holding Space beside a wall started a wall run, the server confirmed it, and releasing Space ended it.
+- No script errors.
+
+**Not tested:**
+- Two players at once.
+- Mobile touch input.
+- High ping (the 9-stud reach includes latency slack, but it hasn't been tested at 200 ms+).
+- A live server.
+- The tests used lowered gravity (only in the Play session) to have time to press keys.
+
+**Known limit:** climb stamina is still charged by the client's requests. A modified client could skip the charges and hang on a wall indefinitely. The server now ensures there is a real wall, but it doesn't drain climb stamina itself.
+
+## 2026-10-17 — Animation sheet pass 3: weapon M1 / crit swaps and the Registry
+
+**Changed (owner: "use the new Katana M1, Greatsword M1 + crit and Dagger M1 + crit IDs from the sheet"):**
+
+**Swapped to the sheet's IDs.** All of these are published under the Rensei group, and each old ID is kept as the `PreviousId` attribute:
+- **Katana M1 1–4** → `Sword_Light1–4`. The Rapier borrows lights 1, 3 and 4, so it picks these up too.
+- **Greatsword M1 1–4 and CRIT** → `Greatsword_Light1–4` and `Greatsword_Heavy`. The Greatsword dash attack also gets the new light 1.
+- **Dagger M1 1–4 and CRIT** → `Daggers_Light1–4` and `Daggers_Heavy`.
+- **Live effect:** the Daggers and Greatsword M1s were Studio-only saves before, so they now play in a live server for the first time.
+
+**Timing (`TuningConfig`):**
+- `AnimPeak` is now each animation's `Hit` keyframe:
+  - Sword: 0.35 / 0.32 / 0.32 / 0.30
+  - Greatsword: 0.53 / 0.52 / 0.53 / 0.60, crit 0.83
+  - Daggers: 0.37 / 0.40 / 0.45 / 0.42
+- The Dagger CRIT has no marker, so it uses its measured fastest motion, 0.54.
+- The dash attacks that borrow these swings (Rising Cut, Cleaving Charge, Shadow Step) were updated to match.
+- Startup, Active, Recovery, damage and hitboxes are unchanged.
+- Dagger M1 3 reaches AttackRunner's 2.2× speed cap. Its hit frame still lands inside the active window.
+
+**Alchemy kept as it was:**
+- The previous Greatsword heavy is now `Shared.Alchemy.Alchemy_GreatswordOverhead`.
+- Coldsteel Smash (Ice X) and Alloy Divider (Metal V) point at it, so their placeholder swing doesn't change.
+
+**New folder `Assets.Animations.Registry`:**
+- It holds 59 sheet animations that load but aren't used by any system yet:
+  - movement: swim, ledge walk, walk left, fall / glide
+  - class grips: Caestus, Daggers, Greatsword victim
+  - misc: berserk, lock pick, assassinate, "No!"
+  - 9 NPC idles
+  - the **Boxing** and **Lethwei** style sets
+  - all 20 skill-sheet animations
+- AnimationManager finds them by name (server and NPC playback). Clients **don't** preload this folder, which keeps each character at about 140 loaded tracks, under Roblox's 256 limit.
+- Move an animation into `Shared` / `Weapons` when a system starts playing it on players.
+
+**Backup:** `ServerStorage.RenseiBackups["Pre-AnimSheet3_2026-10-17"]` (TuningConfig and the whole Animations folder, including the removed Studio saves).
+
+**Tested (Studio Play, one client):**
+- 21 of the swapped, preserved and registered animations load on the client Animator. Each reports its real length, so the ID is valid at runtime.
+- AttackRunner was run with the real TuningConfig definitions for Sword, Greatsword and Daggers (M1 1–4 and heavy each). The client played every new animation at the expected speed: Sword 1.25 / 1.14 / 1.14 / 0.86, Greatsword 1.15 / 1.13 / 1.15 / 1.13 with crit 1.34, Daggers 2.00 / 2.16 / 2.20 / 1.75 with crit 1.54.
+- An NPC played `NPC_TaiChi` from the Registry by name.
+- No script errors.
+
+**Not tested:**
+- Hits on a target (the swings were whiffs).
+- The keyboard / mouse input path: the simulated clicks didn't reach the game, so the swings were started through AttackRunner directly.
+- A live server.
+- How the new swings look next to the Greatsword's shoulder-carry pose.
+
+**Still broken (bad uploads, need re-upload):** Greatsword Idle / Sheathe / Unsheathe / Walk / Grip / KO, Katana Sheathe / Unsheathe / Walk, Dagger Sheathe / Unsheathe.
 
 ## 2026-10-17 — Leaderboard: level column removed
 

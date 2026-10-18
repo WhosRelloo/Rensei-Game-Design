@@ -14,8 +14,12 @@
 --   "Create", Choice  -> ok, message   (Choice: Origin, FirstName, Gender, Weapon,
 --                                       Appearance = {Skin, Hair, HairIds, HairColor, Eyes, Brows, Mouth, Outfit})
 --   "Play"            -> ok, message   (teleports to the next place in the flow)
+--   "Plus"            -> {Owned, PassId, Looks}   (Creator Plus: owned? and the saved looks if so)
+--   "SaveLook", {Index, Look = {Origin, Gender, Appearance}} -> ok, message, Looks   (Creator Plus)
+--   "ClearLook", Index -> ok, message, Looks   (Creator Plus)
 -- The surname is the rolled clan's (owner 2026-10-15); no alchemy path is picked here (Affinity "").
 -- Purchases (ProcessReceipt below): a save slot (Slots.ProductId), clan reroll packs (Clans.RerollPacks).
+-- Creator Plus is a Game Pass (CreatorPlus.PassId): a custom skin colour and saved looks (2026-10-18).
 -- The starter outfit is the nation's and the body follows the gender (owner 2026-10-15).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -34,6 +38,8 @@ local MenuData = require(script.Parent.MenuData)
 local SlotAccount = require(script.Parent.SlotAccount)
 local ClanCodes = require(script.Parent.ClanCodes)
 local FlowTeleport = require(script.Parent.FlowTeleport)
+local LookPresets = require(script.Parent.LookPresets)
+local CreatorPlus = require(ReplicatedStorage.Modules.Data.Rensei.CreatorPlus)
 
 Players.CharacterAutoLoads = false -- the menu has no avatar; the client shows a preview rig
 MenuData.Start()
@@ -46,6 +52,31 @@ Players.PlayerAdded:Connect(Focus)
 for _, P in ipairs(Players:GetPlayers()) do Focus(P) end
 
 local Busy = {} -- [Player] = true while a call that writes is running
+
+-- Creator Plus ownership (cached per player; a purchase in this server sets it at once)
+local PlusOwned = {}
+local function OwnsPlus(Player)
+	if CreatorPlus.PassId == 0 then return CreatorPlus.StudioOwns and RunService:IsStudio() end
+	if PlusOwned[Player] ~= nil then return PlusOwned[Player] end
+	local Ok, Owns = pcall(function() return MarketplaceService:UserOwnsGamePassAsync(Player.UserId, CreatorPlus.PassId) end)
+	if not Ok then return false end -- (not cached: asked again next time)
+	PlusOwned[Player] = Owns
+	return Owns
+end
+MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(Player, PassId, Bought)
+	if Bought and PassId == CreatorPlus.PassId and CreatorPlus.PassId ~= 0 then PlusOwned[Player] = true end
+end)
+
+local function PlusState(Player)
+	local Owned = OwnsPlus(Player)
+	return {Owned = Owned, PassId = CreatorPlus.PassId, Looks = Owned and LookPresets.Get(Player) or nil}
+end
+
+local function SetLook(Player, Index, Look)
+	if not OwnsPlus(Player) then return false, "Saved looks are part of Creator Plus." end
+	local Ok, Why = LookPresets.Set(Player, Index, Look)
+	return Ok, Ok and (Look and "Look saved." or "Look cleared.") or Why, LookPresets.Get(Player)
+end
 
 local function Filtered(Player, Text)
 	local Ok, Result = pcall(function()
@@ -143,6 +174,9 @@ local function Create(Player, Choice)
 	end
 	local Look = Customization.Clean(Nation, Choice.Appearance)
 	Look.Body = Gender
+	if Customization.IsCustomSkin(Look) and not OwnsPlus(Player) then
+		return false, "Custom skin colours are part of Creator Plus. Pick a skin swatch instead."
+	end
 	Look.Outfit = Customization.OutfitFor(Nation)
 	for _, Id in ipairs(Look.HairIds) do
 		if not AppearanceService.LoadHair(Id) then return false, "Hair ID " .. Id .. " didn't load. Clear it or try another." end
@@ -200,6 +234,7 @@ end
 ReplicatedStorage.Remotes.MenuRemote.OnServerInvoke = function(Player, Call, Arg)
 	if Call == "State" then return State(Player) end
 	if Call == "Slots" then return SlotList(Player) end
+	if Call == "Plus" then return PlusState(Player) end
 	if Call == "Hair" then
 		local Id = Customization.ParseHairId(tostring(Arg))
 		if not Id then return false, "That isn't a Roblox ID." end
@@ -227,6 +262,11 @@ ReplicatedStorage.Remotes.MenuRemote.OnServerInvoke = function(Player, Call, Arg
 		if Call == "Redeem" then return Redeem(Player, Arg) end
 		if Call == "Create" then return Create(Player, Arg) end
 		if Call == "Play" then return Play(Player) end
+		if Call == "SaveLook" then
+			if type(Arg) ~= "table" then return false, "Something went wrong." end
+			return SetLook(Player, Arg.Index, Arg.Look)
+		end
+		if Call == "ClearLook" then return SetLook(Player, Arg, nil) end
 		return false, "Unknown request."
 	end)
 	Busy[Player] = nil
@@ -269,4 +309,4 @@ MarketplaceService.ProcessReceipt = function(Info)
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end
 
-Players.PlayerRemoving:Connect(function(Player) Busy[Player] = nil end)
+Players.PlayerRemoving:Connect(function(Player) Busy[Player] = nil PlusOwned[Player] = nil end)

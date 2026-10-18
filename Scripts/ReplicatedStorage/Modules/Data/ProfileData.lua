@@ -59,6 +59,11 @@ return {
 	},
 
 	SkillTree = {}, -- [NodeId] = rank (Modules.Data.Rensei.SkillTree)
+	-- [Family] = {Id or "", ...}: the class skills on hotbar keys 1-4 in Combat Mode, kept per class family
+	-- (Rensei.ClassSkills). Additive: Reconcile fills it on older saves.
+	SkillLoadout = {},
+	Styles = {}, -- [Class] = style id (Rensei.Styles; "Fists" = bare hands). Additive: Reconcile fills old saves.
+	StyleUnlocks = {}, -- [StyleId] = true once its style trainer taught it (Rensei.Styles.Unlock). Additive.
 
 	Money = 0,
 	Settings = {}, -- validated by Requests.Settings; defaults in Rensei.Settings

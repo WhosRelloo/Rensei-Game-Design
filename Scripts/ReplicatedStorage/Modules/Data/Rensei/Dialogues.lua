@@ -15,7 +15,9 @@
 --     },
 --   }
 -- Action kinds: StartQuest, CompleteSignal (fires QuestService.Signal(Player, "Signal", Target)),
---   SetFlag, GiveEvidence, GiveItem, StartMinigame, Deed (records a Rensei.Deeds deed once).
+--   SetFlag, GiveEvidence, GiveItem, StartMinigame, Deed (records a Rensei.Deeds deed once),
+--   UnlockStyle {Style = "Boxing"} (a style trainer teaches a weapon style; requirements re-checked server-side).
+-- Choice keys: Requires (greyed out unless met, with Show = "Locked"), ShowIf (hidden unless met).
 -- Conditions: see StoryLogic (incl. morality: Deed, NotDeed, Standing, Trait, Trust, Renown).
 -- Layout: the box fits about 240 characters of Text and 3-4 Choices before rows spill off-screen.
 -- Key names below match Controls / Keybinds / CombatModeUI / UIHandler as of 2026-10-14; update
@@ -39,6 +41,7 @@ Dialogues.tutorial_drillmaster = {
 				{Text = "\"How do I fight?\"", Next = "fight"},
 				{Text = "\"How do I keep from getting hit?\"", Next = "guard"},
 				{Text = "\"How do I get around this place?\"", Next = "move"},
+				{Text = "\"Run me through a drill.\" (Combat Read)", Action = {Kind = "StartMinigame", Minigame = "combat_read"}},
 				Leave,
 			},
 		},
@@ -48,6 +51,7 @@ Dialogues.tutorial_drillmaster = {
 				{Text = "\"Fighting.\"", Next = "fight"},
 				{Text = "\"Defending.\"", Next = "guard"},
 				{Text = "\"The streets.\"", Next = "move"},
+				{Text = "\"A drill.\" (Combat Read)", Action = {Kind = "StartMinigame", Minigame = "combat_read"}},
 				Leave,
 			},
 		},
@@ -716,5 +720,52 @@ do
 		busy = "You're mid-way through someone else's teaching. Finish the job.",
 	}})
 end
+
+-- ===== Style trainers (owner 2026-10-18: styles are learned only from a style trainer + requirements) =====
+-- PROPOSAL characters and lines. The requirements live in Rensei.Styles (Unlock); the "Teach me" choice is
+-- greyed out with them until met (StyleReady), hidden once learned (ShowIf NotStyleUnlocked).
+local function StyleTrainer(Speaker, Style, Lines)
+	return {
+		Speaker = Speaker,
+		Start = "start",
+		Nodes = {
+			start = {
+				Text = Lines.Start,
+				Alt = {{Requires = {StyleUnlocked = Style}, Text = Lines.Known}},
+				Choices = {
+					{Text = Lines.Ask, Requires = {StyleReady = Style}, ShowIf = {NotStyleUnlocked = Style}, Show = "Locked",
+						Action = {Kind = "UnlockStyle", Style = Style}, Next = "learned"},
+					{Text = "\"What does it take?\"", ShowIf = {NotStyleUnlocked = Style}, Next = "needs"},
+					{Text = "\"Tell me about the style.\"", Next = "about"},
+					{Text = "\"That's all.\""},
+				},
+			},
+			needs = {Text = Lines.Needs, Choices = {{Text = "\"Something else.\"", Next = "start"}, {Text = "\"I'll be back.\""}}},
+			about = {Text = Lines.About, Choices = {{Text = "\"Something else.\"", Next = "start"}, {Text = "\"That's all.\""}}},
+			learned = {Text = Lines.Learned, Choices = {{Text = "\"Thank you.\""}}},
+		},
+	}
+end
+
+Dialogues.style_boxing = StyleTrainer("Coach Harlan", "Boxing", {
+	Start = "Chin down, hands up. I'm Harlan. I've taught half the farmhands in this valley to throw a straight punch. "
+		.. "Most of them still can't.",
+	Known = "Hands up. You know the work now. The rest is miles.",
+	Ask = "\"Teach me Boxing.\"",
+	Needs = "Feet before fists. Come back at level 4 with your Speed at 4, and I'll put you through the work.",
+	About = "Pressure. Jab, jab, cross, and keep them in front of you. When they cover up, the peek-a-boo walks straight "
+		.. "through. Your hits are lighter, so don't stop throwing them.",
+	Learned = "That's the base. Keep the elbows in and your feet moving. Pick it when you train (Mastery, Class tab).",
+})
+
+Dialogues.style_lethwei = StyleTrainer("Master Thura", "Lethwei", {
+	Start = "Where I was born, we fight with nine limbs: fists, elbows, knees, feet and the head. "
+		.. "Here they call it brawling. I am Thura.",
+	Known = "Your elbows remember. Good. Hard ground makes hard bones.",
+	Ask = "\"Teach me Lethwei.\"",
+	Needs = "Strength. Your arms must not break before their guard does. Level 6, Strength 5. Then come back.",
+	About = "Short strikes, close. Break the guard, then put them down. If you miss, you are open. So don't miss.",
+	Learned = "Now you have the shape of it. The rest you learn by being hit. Choose it when you train (Mastery, Class tab).",
+})
 
 return Dialogues

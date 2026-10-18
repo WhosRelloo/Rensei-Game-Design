@@ -53,7 +53,9 @@ local function Show(Player, Session)
 	local Labels, Locked, Shown = {}, {}, {}
 	for _, Choice in ipairs(Node.Choices or {}) do
 		local Ok = StoryLogic.Meets(Choice.Requires, Data, Player)
-		if Ok or Choice.Show == "Locked" then
+		-- ShowIf: hide the choice entirely unless these conditions pass (e.g. once a style is learned)
+		local Visible = StoryLogic.Meets(Choice.ShowIf, Data, Player)
+		if Visible and (Ok or Choice.Show == "Locked") then
 			table.insert(Shown, {Choice = Choice, Locked = not Ok})
 			local Label = Choice.Text
 			if Choice.Requires and Choice.Requires.Evidence and Ok then
@@ -138,6 +140,12 @@ local Actions = {
 	end,
 	-- morality: records a deed (Rensei.Deeds) once; repeatables follow their daily cap
 	Deed = function(Player, Action) require(ServerScriptService.MoralityService).Record(Player, Action.Deed) end,
+	-- a style trainer teaches a weapon style (Rensei.Styles; StyleService re-checks the requirements)
+	UnlockStyle = function(Player, Action)
+		local Ok, Message = require(ServerScriptService.StyleService).Unlock(Player, Action.Style)
+		if Message then UIService.Notify(Player, "Toast", {Text = Message}) end
+		if Ok then ProgressionService.Sync(Player) end
+	end,
 	-- alchemy trainers (TrainingService re-checks the path and the daily limit): the conversation closes
 	-- first, so the minigame / drill has the screen
 	Lesson = function(Player, Action)

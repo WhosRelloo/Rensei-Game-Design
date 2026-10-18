@@ -18,6 +18,8 @@
 --   SavedAffinity = "Flame" | {...}   the SAVED path is one of these (not Studio's stand-in)
 --   Level = n                         minimum level
 --   Item = "name"                     holds an inventory item
+--   StyleReady = "Boxing"             meets that style's trainer requirements (Rensei.Styles.Unlock)
+--   StyleUnlocked / NotStyleUnlocked = "Boxing"   the style is / isn't learned yet
 -- Morality (MoralityService; Rensei.Factions / Rensei.Deeds):
 --   Deed = "id" | {...}               deeds on the ledger
 --   NotDeed = "id" | {...}            deeds NOT on the ledger
@@ -117,6 +119,12 @@ function StoryLogic.Meets(Requires, Data, Player)
 		local Mine = (Player and Player:GetAttribute("Affinity")) or (Data.Identity and Data.Identity.Affinity) or ""
 		if not table.find(List(Requires.Affinity), Mine) then return false end
 	end
+	if Requires.StyleReady or Requires.StyleUnlocked or Requires.NotStyleUnlocked then
+		local Styles = require(script.Parent.Styles)
+		if Requires.StyleReady and not Styles.Ready(Data, Requires.StyleReady) then return false end
+		if Requires.StyleUnlocked and not Styles.Unlocked(Data, Requires.StyleUnlocked) then return false end
+		if Requires.NotStyleUnlocked and Styles.Unlocked(Data, Requires.NotStyleUnlocked) then return false end
+	end
 	if Requires.NoAffinity and ((Data.Identity and Data.Identity.Affinity) or "") ~= "" then return false end
 	if Requires.SavedAffinity and not table.find(List(Requires.SavedAffinity), (Data.Identity and Data.Identity.Affinity) or "") then return false end
 	if Requires.Level and (Data.Level or 1) < Requires.Level then return false end
@@ -150,6 +158,14 @@ function StoryLogic.LockLabel(Requires, EvidenceDefs)
 	if E then return "[Evidence: " .. ((EvidenceDefs and EvidenceDefs[E] and EvidenceDefs[E].Title) or E) .. "]" end
 	local A = List(Requires.Affinity)[1]
 	if A then return "[" .. A .. " Alchemy]" end
+	if Requires.StyleReady then
+		local S = require(script.Parent.Styles).Def(Requires.StyleReady)
+		local U = S and S.Unlock or {}
+		local Parts = {}
+		if U.Level then table.insert(Parts, "Level " .. U.Level) end
+		for Stat, Need in pairs(U.Stats or {}) do table.insert(Parts, Stat .. " " .. Need) end
+		return "[Needs " .. table.concat(Parts, ", ") .. "]"
+	end
 	if Requires.Level then return "[Level " .. Requires.Level .. "]" end
 	if Requires.Item then return "[Item: " .. Requires.Item .. "]" end
 	for F, V in pairs(Requires.Standing or {}) do

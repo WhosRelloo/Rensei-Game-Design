@@ -82,7 +82,8 @@ function WorldService.Credit(Victim, Player)
 	local Entry = Victim:GetAttribute("CodexEntry")
 	if type(Entry) == "string" and Entry ~= "" and not Data.Codex[Entry] then
 		Data.Codex[Entry] = os.time()
-		UIService.Notify(Player, "Banner", {Text = "New Entry Unlocked - [" .. Entry .. "]"})
+		-- the minimal CODEX ENTRY card (PopupUI; 2026-10-18 UI pass)
+		UIService.Notify(Player, "Codex", {Name = Entry, Description = "Added to your Journal (J)."})
 		ProgressionService.Sync(Player)
 	end
 	QuestService.Signal(Player, "Defeat", Victim:GetAttribute("QuestTarget") or Victim:GetAttribute("DisplayName") or Victim.Name)

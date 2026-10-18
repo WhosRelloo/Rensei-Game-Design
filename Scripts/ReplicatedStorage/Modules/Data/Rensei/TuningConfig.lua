@@ -199,6 +199,78 @@ TuningConfig.Parkour = {
 	WallRunChainDelay = 0.25, -- after kicking off, how soon you can catch a DIFFERENT wall
 }
 
+-- Traversal state (Managers.MovementState, 2026-10-17). The server owns which traversal a character is in
+-- and ends it on stun / knock / grip / carry / death or when the wall is gone. ALL PROPOSALS.
+TuningConfig.Traversal = {
+	ValidateReach = 9, -- server: a wall must be this close to start / keep a climb or wall run (client reach 5 + lag slack)
+	CheckEvery = 0.5, -- server re-check interval while a traversal is active (nothing runs while none is)
+	MissesToEnd = 2, -- consecutive re-checks without a wall in reach before the server ends it
+	WallRunGrace = 1.0, -- seconds past Parkour.WallRunDuration (x Acrobat) before the server ends a wall run
+	FXMinInterval = 0.12, -- per effect type: the fastest one player may broadcast a movement effect (JumpRemote PlayFX)
+}
+
+-- Basic swimming (owner decision 6, 2026-10-18: "allow deep water with a swim state (no combat or alchemy while
+-- swimming)"). Roblox's own terrain-water swimming moves the character; the SERVER (SwimService) decides the
+-- Traversal = "Swim" state, which carries the Climbing status (no attacks, alchemy, skills, sprint, roll or crouch)
+-- and puts the weapon away (Combat Mode off; it can't be turned on while swimming). Numbers are PROPOSAL.
+TuningConfig.Swim = {
+	CheckEvery = 0.15, -- server check interval per player
+	WaterOccupancy = 0.6, -- a terrain-water cell at least this full at the root (or just below it) counts as deep water
+	Below = 2, -- studs below the root also checked (a floating character's root sits near the surface)
+	ExitChecks = 2, -- checks in a row out of deep water before the swim state ends (no flicker at the surface)
+	AnimIdle = "Swim_Idle", AnimMove = "Swim_Forward", -- the owner's registry animations (now in Shared.Movement.Swim)
+	MoveThreshold = 0.1, -- MoveDirection magnitude above which the forward stroke plays
+	-- extras (owner 2026-10-18: "add swimming extras"), all PROPOSAL:
+	-- swim sprint: hold the sprint key (Shift) while swimming and moving; costs stamina (server-drained)
+	AnimSprint = "Swim_Sprint",
+	SprintMult = 1.6, -- x your normal walk speed
+	SprintStamina = 14, -- stamina per second while sprint-swimming
+	SprintMinStamina = 10, -- needed to start a sprint
+	-- breath: drains while your head is under the water's surface (diving), refills above it
+	BreathMax = 15, -- seconds of air
+	BreathRefill = 5, -- seconds of air regained per second at the surface / on land
+	-- damage per DrownTick once out of air (through DownedManager: at 0 HP you're knocked out, not killed):
+	-- DrownFraction of max health, at least DrownDamage. A flat 8 was out-healed by Roblox's own regen (~1% of
+	-- max health per second, about 6/s at 580 HP), so drowning could never knock anyone out (tested 2026-10-18).
+	DrownDamage = 8,
+	DrownFraction = 0.06, -- 6% of max health per second: about 17 s from full health to knocked out
+	DrownTick = 1,
+	HeadAbove = 0.4, -- studs: the head counts as underwater when its centre is this far below the surface
+}
+
+-- Narrow wall-ledge walk (JumpManager.LedgeWalk, owner 2026-10-17; the Tomb Raider cliff-ledge walk). AUTHORED
+-- ledges only: parts tagged Tag, front face toward the wall, length = the path (see JumpManager.LedgeWalk for
+-- the authoring rules). No stamina cost. ALL numbers PROPOSALS.
+TuningConfig.LedgeWalk = {
+	Enabled = true,
+	Tag = "RenseiLedge", -- CollectionService tag for a ledge strip
+	FaceWall = true, -- face the wall (the reference); kept for clarity
+	-- Animation while on the ledge. The sheet's only ledge animation, "Wall Ledge Walk Left" (LedgeWalk_Left), is
+	-- posed BACK to the wall; it's the closest asset until a face-the-wall sidestep exists (upload it, put its name
+	-- here). It plays backwards for moving right and holds its first frame standing still.
+	Anim = "LedgeWalk_Left", AnimRight = "LedgeWalk_Right",
+	AnimSpeed = 1,
+	WallGap = 1.0, -- how far the root sits from the strip's front edge (the wall); closer and the head / hair
+	-- touch the wall and physics tips the body back
+	Speed = 5, -- sidestep studs/s
+	EndMargin = 0.6, -- how close to an end the body's centre may get
+	JoinDistance = 1.5, -- ledge ends this close (and level within JoinHeight) continue into each other
+	JoinHeight = 0.75,
+	PlatformStep = 1.2, -- how far past an end to look for a platform to step off onto
+	BodyHalfWidth = 1.1, -- obstacle probe along the ledge
+	InputDeadzone = 0.35,
+	CheckEvery = 0.15, -- entry check interval (client; only while on your feet and free)
+	EnterChecks = 2, -- consecutive checks standing on a ledge before stepping in
+	Responsiveness = 120, -- AlignPosition responsiveness
+	StepOffHold = 0.3, -- hold away from the wall this long to step down
+	StepOffSpeed = 10,
+	HopAway = 18, HopUp = 28, -- Space: hop back off the wall
+	ClimbHop = 26, -- Space while pushing toward the wall: hop up into the climb
+	RegrabCooldown = 0.8, -- after leaving, how soon you can step onto a ledge again
+	RefusedCooldown = 2, -- after the server ends / refuses it
+	ServerTolerance = 1.5, -- studs past an endpoint the server allows (lag) before it ends the ledge walk
+}
+
 TuningConfig.Feint = {
 	Stamina = 10,
 	Cooldown = 2.0,
@@ -216,6 +288,9 @@ TuningConfig.Feint = {
 -- 2026-10-16 (sheet pass 2): Greatsword CRIT -> _Heavy (peak 0.85: its vfx/sfx/comboStep markers at 0.88),
 -- Greatsword WEAPON SKILL -> _Skill (peak 1.31, first big swing; PROPOSAL), Caestus CRIT -> Gauntlets_Heavy
 -- (its Hit marker, 0.88).
+-- 2026-10-17 (sheet pass 3): Katana M1 1-4, Greatsword M1 1-4 + CRIT, Dagger M1 1-4 + CRIT now play the
+-- sheet ids (all published under the Rensei group); AnimPeak = each one's Hit keyframe (Dagger CRIT has none:
+-- measured fastest motion, 0.54). The old greatsword overhead lives on as Alchemy_GreatswordOverhead.
 -- Anim fields name animations in ReplicatedStorage.Assets.Animations (the weapon sets live in
 -- Animations.Weapons). AnimPeak = the moment of fastest limb motion measured from the source
 -- KeyframeSequence (the swing); AttackRunner sets the playback speed so that moment lands in the
@@ -230,16 +305,17 @@ TuningConfig.Weapons = {
 		-- Combat Mode (E) draws / sheathes. SwapAt = when the weapon moves between holster and hand.
 		-- The draw animation starts with the right hand on the right hip, so the holster sits there
 		-- and sheathing plays the draw backwards (the hand ends exactly on the holster).
-		Draw = {Equip = "Sword_Equip", SwapAt = 0.05, Unequip = "Sword_Equip", UnequipReverse = true, UnequipSpeed = 1.2, UnequipSwapAt = 0.7},
+		Draw = {Equip = "Sword_Equip", SwapAt = 0.05, Unequip = "Sword_Equip", UnequipReverse = true, UnequipSpeed = 1.2, UnequipSwapAt = 0.7}, -- Sword_Sheathe: sheet id broken (2026-10-18)
 		RunAnim = "Sword_Run",
+		WalkAnim = "Sword_Walk", -- Animation ID's sheet (2026-10-18)
 		IdleAnim = "Sword_Idle", -- Animation ID's sheet (2026-10-16)
 		HoldAnim = "Sword_Hold",
-		-- M1 1-4 from the Animation ID's sheet (2026-10-16); AnimPeak re-measured from the new keyframes
+		-- M1 1-4 from the Animation ID's sheet (pass 3, 2026-10-17: Katana1-4); AnimPeak = each animation's Hit keyframe
 		Light = {Hits = {
-			Hit{Anim = "Sword_Light1", AnimPeak = 0.38, Startup = 0.24, Active = 0.08, Recovery = 0.18, Damage = 20, Posture = 9, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(7, 6, 8), Reach = 4},
-			Hit{Anim = "Sword_Light2", AnimPeak = 0.31, Startup = 0.24, Active = 0.08, Recovery = 0.18, Damage = 20, Posture = 9, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(7, 6, 8), Reach = 4},
-			Hit{Anim = "Sword_Light3", AnimPeak = 0.28, Startup = 0.24, Active = 0.08, Recovery = 0.18, Damage = 20, Posture = 9, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(7, 6, 8), Reach = 4},
-			Hit{Anim = "Sword_Light4", AnimPeak = 0.38, Startup = 0.30, Active = 0.10, Recovery = 0.50, Damage = 27, Posture = 16, Stun = 0.9, Velocity = "Knockback", Hitbox = Vector3.new(8, 6, 9), Reach = 4},
+			Hit{Anim = "Sword_Light1", AnimPeak = 0.35, Startup = 0.24, Active = 0.08, Recovery = 0.18, Damage = 20, Posture = 9, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(7, 6, 8), Reach = 4},
+			Hit{Anim = "Sword_Light2", AnimPeak = 0.32, Startup = 0.24, Active = 0.08, Recovery = 0.18, Damage = 20, Posture = 9, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(7, 6, 8), Reach = 4},
+			Hit{Anim = "Sword_Light3", AnimPeak = 0.32, Startup = 0.24, Active = 0.08, Recovery = 0.18, Damage = 20, Posture = 9, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(7, 6, 8), Reach = 4},
+			Hit{Anim = "Sword_Light4", AnimPeak = 0.30, Startup = 0.30, Active = 0.10, Recovery = 0.50, Damage = 27, Posture = 16, Stun = 0.9, Velocity = "Knockback", Hitbox = Vector3.new(8, 6, 9), Reach = 4},
 		}},
 		Heavy = {Anim = "Sword_Heavy", AnimPeak = 0.38, Startup = 0.42, Active = 0.12, Recovery = 0.5, Damage = 36, Posture = 40, Stun = 0.9, Velocity = "Knockback", Hitbox = Vector3.new(8, 7, 9), Reach = 4.5, Step = 18, Cooldown = 1.3},
 		-- Dragonflash: a lunging slash.
@@ -251,20 +327,20 @@ TuningConfig.Weapons = {
 	Rapier = {
 		Display = "Rapier",
 		-- Borrows the sword's draw / sheathe, run, idle and hold (same grip as the katana).
-		Draw = {Equip = "Sword_Equip", SwapAt = 0.05, Unequip = "Sword_Equip", UnequipReverse = true, UnequipSpeed = 1.2, UnequipSwapAt = 0.7},
+		Draw = {Equip = "Sword_Equip", SwapAt = 0.05, Unequip = "Sword_Equip", UnequipReverse = true, UnequipSpeed = 1.2, UnequipSwapAt = 0.7}, -- Sword_Sheathe: sheet id broken (2026-10-18)
 		RunAnim = "Sword_Run",
 		IdleAnim = "Rapier_Idle", -- Animation ID's sheet (2026-10-16)
 		WalkAnim = "Rapier_Walk", -- Animation ID's sheet (2026-10-16)
 		HoldAnim = "Sword_Hold",
-		-- No rapier M1 set exists yet: lights 1/3/4 BORROW the sword set, light 2 is "sTab M2".
+		-- Rapier M1 1-4 from the Animation ID's sheet (2026-10-18), timed on their "Hit" markers (0.37 s).
 		Light = {Hits = {
-			Hit{Anim = "Sword_Light1", AnimPeak = 0.38, Startup = 0.18, Active = 0.07, Recovery = 0.14, Damage = 14, Posture = 6, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(4, 5, 10), Reach = 5},
-			Hit{Anim = "Rapier_Light2", AnimPeak = 0.29, Startup = 0.18, Active = 0.07, Recovery = 0.14, Damage = 14, Posture = 6, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(4, 5, 10), Reach = 5},
-			Hit{Anim = "Sword_Light3", AnimPeak = 0.28, Startup = 0.18, Active = 0.07, Recovery = 0.14, Damage = 14, Posture = 6, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(4, 5, 10), Reach = 5},
-			Hit{Anim = "Sword_Light4", AnimPeak = 0.38, Startup = 0.24, Active = 0.08, Recovery = 0.45, Damage = 20, Posture = 12, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(4, 5, 11), Reach = 5.5},
+			Hit{Anim = "Rapier_Light1", AnimPeak = 0.37, Startup = 0.18, Active = 0.07, Recovery = 0.14, Damage = 14, Posture = 6, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(4, 5, 10), Reach = 5},
+			Hit{Anim = "Rapier_Light2", AnimPeak = 0.37, Startup = 0.18, Active = 0.07, Recovery = 0.14, Damage = 14, Posture = 6, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(4, 5, 10), Reach = 5},
+			Hit{Anim = "Rapier_Light3", AnimPeak = 0.37, Startup = 0.18, Active = 0.07, Recovery = 0.14, Damage = 14, Posture = 6, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(4, 5, 10), Reach = 5},
+			Hit{Anim = "Rapier_Light4", AnimPeak = 0.37, Startup = 0.24, Active = 0.08, Recovery = 0.45, Damage = 20, Posture = 12, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(4, 5, 11), Reach = 5.5},
 		}},
-		-- Rapier CRIT from the Animation ID's sheet (2026-10-16): three thrusts; timed on the first (0.44s)
-		Heavy = {Anim = "Rapier_Heavy", AnimPeak = 0.44, Startup = 0.34, Active = 0.1, Recovery = 0.4, Damage = 30, Posture = 30, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(4, 5, 12), Reach = 6, Step = 22, Cooldown = 1.1},
+		-- Rapier CRIT from the Animation ID's sheet (2026-10-18 id; no marker: timed on its fastest motion, 0.43 s)
+		Heavy = {Anim = "Rapier_Heavy", AnimPeak = 0.43, Startup = 0.34, Active = 0.1, Recovery = 0.4, Damage = 30, Posture = 30, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(4, 5, 12), Reach = 6, Step = 22, Cooldown = 1.1},
 		-- Flurry: five fast thrusts.
 		Skill = {Name = "Flurry", Anim = "Rapier_Skill", AnimSpeed = 0.9, Startup = 0.18, Active = 0.45, MultiHit = 5, Recovery = 0.35, Damage = 6, Posture = 4, Stun = 0.35, Velocity = "Pull", Hitbox = Vector3.new(5, 5, 10), Reach = 5, Stamina = 18, Cooldown = 6},
 		-- Precision: +25% damage against a target that is winding up or recovering (counter-hit).
@@ -295,8 +371,9 @@ TuningConfig.Weapons = {
 	Greatsword = {
 		Display = "Greatsword",
 		-- Its equip animation pulls it off the back (weapon in hand from frame 0); sheathing plays it backwards.
-		Draw = {Equip = "Greatsword_Equip", SwapAt = 0, Unequip = "Greatsword_Equip", UnequipReverse = true, UnequipSpeed = 1.4, UnequipSwapAt = 0.85},
+		Draw = {Equip = "Greatsword_Equip", SwapAt = 0, Unequip = "Greatsword_Equip", UnequipReverse = true, UnequipSpeed = 1.4, UnequipSwapAt = 0.85}, -- Greatsword_Sheathe: sheet id broken (2026-10-18)
 		RunAnim = "Greatsword_Run",
+		WalkAnim = "Greatsword_Walk", -- Animation ID's sheet (2026-10-18)
 		HoldAnim = "Greatsword_Hold",
 		-- Heavy feel (user request 2026-10-14; PROPOSAL numbers): carried on the shoulder with the blade
 		-- just behind the head while idle / walking / running, slower to move with, every swing steps
@@ -306,12 +383,12 @@ TuningConfig.Weapons = {
 		SwingStep = 12, -- forward step (studs/s) late in each light's windup
 		HitstopMult = 1.4,
 		Light = {AttackWalkSpeed = 10, Hits = { -- slower than other weapons' 14 (heavy weapon; was 4)
-			Hit{Anim = "Greatsword_Light1", AnimPeak = 0.78, Startup = 0.40, Active = 0.12, Recovery = 0.32, Damage = 30, Posture = 16, Stun = 0.55, Velocity = "Pull", Hitbox = Vector3.new(10, 7, 10), Reach = 5},
-			Hit{Anim = "Greatsword_Light2", AnimPeak = 0.62, Startup = 0.40, Active = 0.12, Recovery = 0.32, Damage = 30, Posture = 16, Stun = 0.55, Velocity = "Pull", Hitbox = Vector3.new(10, 7, 10), Reach = 5},
-			Hit{Anim = "Greatsword_Light3", AnimPeak = 1.11, Startup = 0.40, Active = 0.12, Recovery = 0.32, Damage = 30, Posture = 16, Stun = 0.55, Velocity = "Pull", Hitbox = Vector3.new(10, 7, 10), Reach = 5},
-			Hit{Anim = "Greatsword_Light4", AnimPeak = 0.44, Startup = 0.46, Active = 0.14, Recovery = 0.6, Damage = 38, Posture = 28, Stun = 1.0, Velocity = "Knockback", Hitbox = Vector3.new(11, 7, 11), Reach = 5},
+			Hit{Anim = "Greatsword_Light1", AnimPeak = 0.53, Startup = 0.40, Active = 0.12, Recovery = 0.32, Damage = 30, Posture = 16, Stun = 0.55, Velocity = "Pull", Hitbox = Vector3.new(10, 7, 10), Reach = 5},
+			Hit{Anim = "Greatsword_Light2", AnimPeak = 0.52, Startup = 0.40, Active = 0.12, Recovery = 0.32, Damage = 30, Posture = 16, Stun = 0.55, Velocity = "Pull", Hitbox = Vector3.new(10, 7, 10), Reach = 5},
+			Hit{Anim = "Greatsword_Light3", AnimPeak = 0.53, Startup = 0.40, Active = 0.12, Recovery = 0.32, Damage = 30, Posture = 16, Stun = 0.55, Velocity = "Pull", Hitbox = Vector3.new(10, 7, 10), Reach = 5},
+			Hit{Anim = "Greatsword_Light4", AnimPeak = 0.78, Startup = 0.55, Active = 0.14, Recovery = 0.6, Damage = 38, Posture = 28, Stun = 1.0, Velocity = "Knockback", Hitbox = Vector3.new(11, 7, 11), Reach = 5},
 		}},
-		Heavy = {Anim = "Greatsword_Heavy", AnimPeak = 0.85, Startup = 0.55, Active = 0.14, Recovery = 0.6, Damage = 50, Posture = 55, Stun = 1.0, Velocity = "Knockback", Hitbox = Vector3.new(10, 8, 11), Reach = 5, Step = 14, Cooldown = 1.6, HyperArmor = true},
+		Heavy = {Anim = "Greatsword_Heavy", AnimPeak = 0.83, Startup = 0.55, Active = 0.14, Recovery = 0.6, Damage = 50, Posture = 55, Stun = 1.0, Velocity = "Knockback", Hitbox = Vector3.new(10, 8, 11), Reach = 5, Step = 14, Cooldown = 1.6, HyperArmor = true},
 		-- Whirlwind: two spinning hits all around you.
 		Skill = {Name = "Whirlwind", Anim = "Greatsword_Skill", AnimPeak = 1.31, Startup = 0.45, Active = 0.35, MultiHit = 2, Recovery = 0.5, Damage = 22, Posture = 18, Stun = 0.6, Velocity = "Pull", Hitbox = Vector3.new(16, 8, 16), Reach = 0, HyperArmor = true, WalkSpeed = 4, Stamina = 25, Cooldown = 9},
 		-- Unyielding: heavy and skill windups have hyper armour (you take damage but are not stunned).
@@ -320,16 +397,16 @@ TuningConfig.Weapons = {
 
 	Daggers = {
 		Display = "Daggers",
-		Draw = {Equip = "Daggers_Equip", EquipSpeed = 1.3, SwapAt = 0, Unequip = "Daggers_Equip", UnequipReverse = true, UnequipSpeed = 1.6, UnequipSwapAt = 0.95},
+		Draw = {Equip = "Daggers_Equip", EquipSpeed = 1.3, SwapAt = 0, Unequip = "Daggers_Equip", UnequipReverse = true, UnequipSpeed = 1.6, UnequipSwapAt = 0.95}, -- Daggers_Sheathe: sheet id broken (2026-10-18)
 		RunAnim = "Daggers_Run",
 		HoldAnim = "Daggers_Hold",
 		Light = {Hits = {
-			Hit{Anim = "Daggers_Light1", AnimPeak = 0.24, Startup = 0.15, Active = 0.07, Recovery = 0.12, Damage = 12, Posture = 5, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 6), Reach = 3.5},
-			Hit{Anim = "Daggers_Light2", AnimPeak = 0.39, Startup = 0.15, Active = 0.07, Recovery = 0.12, Damage = 12, Posture = 5, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 6), Reach = 3.5},
-			Hit{Anim = "Daggers_Light3", Startup = 0.15, Active = 0.07, Recovery = 0.12, Damage = 12, Posture = 5, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 6), Reach = 3.5},
-			Hit{Anim = "Daggers_Light4", AnimPeak = 0.29, Startup = 0.2, Active = 0.08, Recovery = 0.42, Damage = 16, Posture = 10, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(6, 6, 7), Reach = 3.5},
+			Hit{Anim = "Daggers_Light1", AnimPeak = 0.37, Startup = 0.15, Active = 0.07, Recovery = 0.12, Damage = 12, Posture = 5, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 6), Reach = 3.5},
+			Hit{Anim = "Daggers_Light2", AnimPeak = 0.40, Startup = 0.15, Active = 0.07, Recovery = 0.12, Damage = 12, Posture = 5, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 6), Reach = 3.5},
+			Hit{Anim = "Daggers_Light3", AnimPeak = 0.45, Startup = 0.15, Active = 0.07, Recovery = 0.12, Damage = 12, Posture = 5, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 6), Reach = 3.5},
+			Hit{Anim = "Daggers_Light4", AnimPeak = 0.42, Startup = 0.2, Active = 0.08, Recovery = 0.42, Damage = 16, Posture = 10, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(6, 6, 7), Reach = 3.5},
 		}},
-		Heavy = {Anim = "Daggers_Heavy", AnimPeak = 0.51, Startup = 0.3, Active = 0.1, Recovery = 0.45, Damage = 28, Posture = 26, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(6, 6, 8), Reach = 4, Step = 20, Cooldown = 1.0},
+		Heavy = {Anim = "Daggers_Heavy", AnimPeak = 0.54, Startup = 0.3, Active = 0.1, Recovery = 0.45, Damage = 28, Posture = 26, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(6, 6, 8), Reach = 4, Step = 20, Cooldown = 1.0},
 		-- Scissor Rush: six quick cuts while moving in.
 		Skill = {Name = "Scissor Rush", Anim = "Daggers_Skill", AnimSpeed = 1.35, Startup = 0.2, Active = 0.9, MultiHit = 6, Recovery = 0.35, Damage = 5, Posture = 4, Stun = 0.35, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 7), Reach = 3.5, Lunge = 40, LungeTime = 0.25, Stamina = 20, Cooldown = 7},
 		-- Lacerate: hits make the target bleed (3 ticks of 2 over 1.5s; refreshes).
@@ -342,25 +419,41 @@ TuningConfig.Weapons = {
 		Draw = {},
 		RunAnim = "Guns_Run",
 		Ranged = true,
-		-- One hitscan shot per click; the four "blatt" shot animations take turns. Damage, magazine,
-		-- reload and fire rate (Recovery) come from Items below.
+		-- M1 = PISTOL WHIP (owner 2026-10-17: "M1 is a pistol whip, never a shot"): a 4-hit melee string with
+		-- the gun as a blunt weapon, through the normal light-attack pipeline (FistSwing -> AttackRunner,
+		-- hitbox sweep, block / parry). It never fires, never spends a round. No pistol-whip animation exists
+		-- on the sheets yet, so it uses the published fist combo (the guns' heavy already did). PROPOSAL numbers.
 		Light = {Hits = {
-			Hit{Shot = true, Anim = "Guns_Light1", AnimPeak = 0.24, Startup = 0.12, Active = 0.02, Recovery = 0.2, Damage = 15, Posture = 6, Stun = 0.3, Hitbox = Vector3.new(2, 2, 2), Range = 90, Class = "BLOCKABLE"},
-			Hit{Shot = true, Anim = "Guns_Light2", AnimPeak = 0.19, Startup = 0.12, Active = 0.02, Recovery = 0.2, Damage = 15, Posture = 6, Stun = 0.3, Hitbox = Vector3.new(2, 2, 2), Range = 90, Class = "BLOCKABLE"},
-			Hit{Shot = true, Anim = "Guns_Light3", AnimPeak = 0.18, Startup = 0.12, Active = 0.02, Recovery = 0.2, Damage = 15, Posture = 6, Stun = 0.3, Hitbox = Vector3.new(2, 2, 2), Range = 90, Class = "BLOCKABLE"},
-			Hit{Shot = true, Anim = "Guns_Light4", AnimPeak = 0.16, Startup = 0.12, Active = 0.02, Recovery = 0.2, Damage = 15, Posture = 6, Stun = 0.3, Hitbox = Vector3.new(2, 2, 2), Range = 90, Class = "BLOCKABLE"},
+			-- gun balance pass 2026-10-18 (owner: "completely audit and balance gun combat"): the whip is a fallback,
+			-- not a full melee kit (was 31 DPS = a melee class's lights; now ~24). PROPOSAL.
+			Hit{Anim = "FistCombo1", Startup = 0.18, Active = 0.08, Recovery = 0.14, Damage = 11, Posture = 6, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(5, 6, 6), Reach = 3},
+			Hit{Anim = "FistCombo2", Startup = 0.18, Active = 0.08, Recovery = 0.14, Damage = 11, Posture = 6, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(5, 6, 6), Reach = 3},
+			Hit{Anim = "FistCombo3", Startup = 0.18, Active = 0.08, Recovery = 0.14, Damage = 11, Posture = 6, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(5, 6, 6), Reach = 3},
+			Hit{Anim = "FistCombo5", Startup = 0.24, Active = 0.1, Recovery = 0.45, Damage = 16, Posture = 12, Stun = 0.85, Velocity = "Knockback", Hitbox = Vector3.new(5, 6, 6), Reach = 3},
 		}},
+		-- SHOOTING MODE (Y toggles it, RMB fires while it's on; Requests.Shoot): one hitscan shot per press,
+		-- the sheet's four Pistol Aim animations take turns (2026-10-18; they were Studio-only "blatt" saves). Damage, magazine, reload and fire rate (Recovery) come
+		-- from Items below. Reload is automatic when the magazine runs dry (Decisions.md: no reload button).
+		Shots = {
+			Hit{Shot = true, Anim = "Guns_Light1", AnimPeak = 0.35, Startup = 0.12, Active = 0.02, Recovery = 0.2, Damage = 15, Posture = 3, Stun = 0.12, Hitbox = Vector3.new(2, 2, 2), Range = 90, Class = "BLOCKABLE"},
+			Hit{Shot = true, Anim = "Guns_Light2", AnimPeak = 0.35, Startup = 0.12, Active = 0.02, Recovery = 0.2, Damage = 15, Posture = 3, Stun = 0.12, Hitbox = Vector3.new(2, 2, 2), Range = 90, Class = "BLOCKABLE"},
+			Hit{Shot = true, Anim = "Guns_Light3", AnimPeak = 0.35, Startup = 0.12, Active = 0.02, Recovery = 0.2, Damage = 15, Posture = 3, Stun = 0.12, Hitbox = Vector3.new(2, 2, 2), Range = 90, Class = "BLOCKABLE"},
+			Hit{Shot = true, Anim = "Guns_Light4", AnimPeak = 0.35, Startup = 0.12, Active = 0.02, Recovery = 0.2, Damage = 15, Posture = 3, Stun = 0.12, Hitbox = Vector3.new(2, 2, 2), Range = 90, Class = "BLOCKABLE"},
+		},
 		-- Pistol Whip: a close-range melee answer.
-		Heavy = {Anim = "FistHeavy", Startup = 0.3, Active = 0.1, Recovery = 0.4, Damage = 22, Posture = 30, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(6, 6, 7), Reach = 3.5, Step = 12, Cooldown = 1.2},
+		Heavy = {Anim = "Guns_Heavy", AnimPeak = 0.70, Startup = 0.3, Active = 0.1, Recovery = 0.4, Damage = 22, Posture = 30, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(6, 6, 7), Reach = 3.5, Step = 12, Cooldown = 1.2},
 		-- Fan the Hammer: three rapid shots (uses 3 rounds).
 		Skill = {Name = "Fan the Hammer", Anim = "Guns_Light2", AnimSpeed = 1.6, Startup = 0.12, Active = 0.36, Recovery = 0.3, HitTimes = {0.12, 0.27, 0.42}, Damage = 11, Posture = 5, Stun = 0.3, Hitbox = Vector3.new(2, 2, 2), Range = 70, Spread = 1.5, Class = "BLOCKABLE", Stamina = 15, Cooldown = 6},
-		-- Point Blank: +20% shot damage within 12 studs.
-		Passive = {Name = "Point Blank", Range = 12, Mult = 1.2},
+		-- Point Blank: +20% shot damage within 12 studs. Falloff (balance pass 2026-10-18): full damage to 25 studs,
+		-- then down to 50% at 90 -- range buys safety, not damage.
+		Passive = {Name = "Point Blank", Range = 12, Mult = 1.2, Falloff = {Start = 25, End = 90, Min = 0.5}},
 		Items = {
-			Revolver = {Damage = 24, Magazine = 6, Reload = 1.8, Recovery = 0.32},
-			Renetti = {Damage = 12, Magazine = 15, Reload = 1.4, Recovery = 0.16},
-			["Forge Tac"] = {Damage = 28, Magazine = 7, Reload = 1.7, Recovery = 0.38},
-			Sykov = {Damage = 15, Magazine = 10, Reload = 1.5, Recovery = 0.2},
+			-- balance pass 2026-10-18 (PROPOSAL): sustained DPS (reloads included) 21-27 vs melee lights 30-37;
+			-- burst 29-41 before falloff. Was 30-37 sustained / 40-54 burst at 90 studs.
+			Revolver = {Damage = 20, Magazine = 6, Reload = 2.0, Recovery = 0.36},
+			Renetti = {Damage = 10, Magazine = 12, Reload = 1.6, Recovery = 0.2},
+			["Forge Tac"] = {Damage = 24, Magazine = 7, Reload = 2.0, Recovery = 0.45},
+			Sykov = {Damage = 13, Magazine = 10, Reload = 1.7, Recovery = 0.24},
 		},
 	},
 }
@@ -484,7 +577,7 @@ TuningConfig.Alchemy = {
 		-- overhead swing. PLACEHOLDER animation: the greatsword heavy (FistHeavy where it isn't published).
 		ColdsteelSmash = {
 			Kind = "Melee", Release = "GroundSlam", Element = "IceElement",
-			Anim = "Greatsword_Heavy", AnimPeak = 0.85, Fallback = "FistHeavy",
+			Anim = "Alchemy_GreatswordOverhead", AnimPeak = 0.85, Fallback = "FistHeavy",
 			Active = 0.15, Recovery = 0.5,
 			Hitbox = Vector3.new(8, 7, 9), Reach = 4.5,
 			Step = 28, StepTime = 0.15, -- a step into the swing
@@ -642,7 +735,7 @@ TuningConfig.Alchemy = {
 		-- the greatsword heavy.
 		AlloyDivider = {
 			Kind = "Cleave", Release = "GroundSlam", Element = "MetalElement",
-			Anim = "Greatsword_Heavy", AnimPeak = 0.85, Fallback = "FistHeavy",
+			Anim = "Alchemy_GreatswordOverhead", AnimPeak = 0.85, Fallback = "FistHeavy",
 			Active = 0.1, Recovery = 1.2, -- PROPOSAL recovery (high risk)
 			Length = 30, Width = 6, -- PROPOSAL: the line
 			TrueDamage = true,
@@ -759,6 +852,59 @@ TuningConfig.Downed = {
 --   Elite only: ParryChance / BlockChance per incoming attack it sees coming; Reaction = how long
 --   it takes to notice a windup; BlockHold = how long a held guard lasts.
 TuningConfig.Enemies = {
+	-- Combat Read's sparring partner (MinigameService.WorldChallenges): attacks only when the drill tells it to,
+	-- can't be hurt (AdminGod), never respawns, gives nothing. PROPOSAL.
+	Sparring = {
+		DisplayName = "Sparring Partner", Level = 0, Health = 1000, DamageMult = 0.15,
+		WalkSpeed = 10, AggroRange = 25, LeashRange = 40, AttackRange = 5,
+		Combo = {1, 1}, HeavyChance = 0, Pause = {1, 1},
+		RespawnTime = 1e6, BodyColor = Color3.fromRGB(150, 140, 120),
+	},
+	-- Alchemist NPCs (2026-10-17): they cast REAL abilities through AlchemyService.CastAs, on the player's rules --
+	-- Transmutation Meter earned by fighting (they start at 0, like a player), the slot cooldowns, the clap / slam
+	-- telegraph, the abilities' own hitboxes and block / parry / dodge rules -- plus line of sight and range.
+	--   Alchemy = {Affinity, Slots = {{Slot, Min, Max}, ...} (tried in order: the first in range, in sight and
+	--   affordable is cast), Gap = {min, max} s between casts, Guard = a slot cast in answer to a nearby windup}.
+	-- Between casts they fight with their fists (which is how they earn meter). ALL numbers PROPOSALS.
+	FieldAlchemist = {
+		DisplayName = "Field Alchemist", Level = 5, Health = 650, DamageMult = 0.9, WalkSpeed = 14,
+		AggroRange = 45, LeashRange = 60, AttackRange = 5, Combo = {2, 3}, HeavyChance = 0.1, Pause = {0.8, 1.4},
+		RespawnTime = 40, Nation = "Amestrian", BodyColor = Color3.fromRGB(120, 60, 50),
+		-- controls space: Scorching Wave (a cone) when you crowd it, Ignite (a fireball) when you keep away
+		Alchemy = {Affinity = "Flame", Slots = {{Slot = "X", Min = 0, Max = 14}, {Slot = "Z", Min = 7, Max = 40}}, Gap = {1.5, 3}},
+	},
+	WardAlchemist = {
+		DisplayName = "Ward Alchemist", Level = 6, Health = 800, DamageMult = 0.85, WalkSpeed = 12,
+		AggroRange = 40, LeashRange = 60, AttackRange = 5, Combo = {2, 3}, HeavyChance = 0.15, Pause = {0.9, 1.5},
+		RespawnTime = 45, Nation = "Xerxian", BodyColor = Color3.fromRGB(90, 95, 105),
+		-- defensive: raises Steel Guard (a frontal shield) when you start an attack close by -- go round it or wait
+		-- it out; Metal Bind up close, Crushing Anvil at range
+		Alchemy = {Affinity = "Metal", Slots = {{Slot = "C", Min = 0, Max = 12}, {Slot = "X", Min = 8, Max = 30}}, Gap = {2, 3.5}, Guard = "Z"},
+	},
+	-- Phase 8 roster (2026-10-17): one hostile alchemist per remaining path, at that path's investigation site.
+	FrostAlchemist = {
+		DisplayName = "Frost Alchemist", Level = 6, Health = 700, DamageMult = 0.85, WalkSpeed = 13,
+		AggroRange = 40, LeashRange = 60, AttackRange = 5, Combo = {2, 3}, HeavyChance = 0.15, Pause = {0.9, 1.5},
+		RespawnTime = 45, Nation = "Drachman", BodyColor = Color3.fromRGB(150, 175, 200),
+		-- punishes greed: answers a close windup with Cryo Shift (a counter), lays Ice Shards traps at range,
+		-- Coldsteel Smash (breaks shields) when you crowd it
+		Alchemy = {Affinity = "Ice", Slots = {{Slot = "X", Min = 0, Max = 9}, {Slot = "C", Min = 6, Max = 22}}, Gap = {1.8, 3.2}, Guard = "Z"},
+	},
+	GaleAlchemist = {
+		DisplayName = "Gale Alchemist", Level = 6, Health = 600, DamageMult = 0.85, WalkSpeed = 16,
+		AggroRange = 50, LeashRange = 65, AttackRange = 5, Combo = {2, 3}, HeavyChance = 0.1, Pause = {0.7, 1.2},
+		RespawnTime = 40, Nation = "Xingnese", BodyColor = Color3.fromRGB(170, 190, 160),
+		-- keeps you out: Gale Burst pushes you off when you close in, Air Slash when you back off
+		Alchemy = {Affinity = "Wind", Slots = {{Slot = "X", Min = 0, Max = 9}, {Slot = "Z", Min = 10, Max = 45}}, Gap = {1.5, 2.8}},
+	},
+	StoneAlchemist = {
+		DisplayName = "Stone Alchemist", Level = 7, Health = 850, DamageMult = 0.9, WalkSpeed = 12,
+		AggroRange = 40, LeashRange = 60, AttackRange = 5, Combo = {2, 3}, HeavyChance = 0.2, Pause = {1.0, 1.6},
+		RespawnTime = 50, Nation = "Aerugonian", BodyColor = Color3.fromRGB(140, 115, 85),
+		-- slow and solid: raises an Earth Wall against a close windup, Tectonic Shift (ring) up close,
+		-- Rising Thorn under you at range
+		Alchemy = {Affinity = "Earth", Slots = {{Slot = "X", Min = 0, Max = 9}, {Slot = "Z", Min = 6, Max = 18}}, Gap = {2, 3.5}, Guard = "C"},
+	},
 	Grunt = {
 		DisplayName = "Bandit", Level = 2, Health = 400, DamageMult = 0.8,
 		WalkSpeed = 14, AggroRange = 40, LeashRange = 90, AttackRange = 5,
@@ -805,20 +951,94 @@ end
 -- overrides TuningConfig.DashAttack (anything left out is inherited). ALL numbers are PROPOSALS.
 -- Animations are the weapons' own swings (fist fallback until they're published).
 TuningConfig.WeaponDashAttacks = {
-	Sword = {Name = "Rising Cut", Anim = "Sword_Light4", AnimPeak = 0.38, Startup = 0.18, Active = 0.12, Recovery = 0.42,
+	Sword = {Name = "Rising Cut", Anim = "Sword_Light4", AnimPeak = 0.30, Startup = 0.18, Active = 0.12, Recovery = 0.42,
 		Damage = 26, Posture = 16, Reach = 5, Hitbox = Vector3.new(8, 6, 9), Lunge = 70, LungeTime = 0.26, Cooldown = 2.2},
 	Rapier = {Name = "Lunging Thrust", Anim = "Rapier_Light2", AnimPeak = 0.29, Startup = 0.14, Active = 0.1, Recovery = 0.35,
 		Damage = 20, Posture = 10, Reach = 6.5, Hitbox = Vector3.new(4, 5, 11), Lunge = 85, LungeTime = 0.3, Velocity = "Pull", Cooldown = 1.8},
-	Greatsword = {Name = "Cleaving Charge", Anim = "Greatsword_Light1", AnimPeak = 0.78, Startup = 0.32, Active = 0.16, Recovery = 0.6,
+	Greatsword = {Name = "Cleaving Charge", Anim = "Greatsword_Light1", AnimPeak = 0.53, Startup = 0.32, Active = 0.16, Recovery = 0.6,
 		Damage = 34, Posture = 24, Stun = 0.8, Reach = 5, Hitbox = Vector3.new(11, 7, 9), Lunge = 50, LungeTime = 0.3, HyperArmor = true,
 		Stamina = 16, Cooldown = 3.0},
-	Daggers = {Name = "Shadow Step", Anim = "Daggers_Light2", AnimPeak = 0.39, Startup = 0.12, Active = 0.16, MultiHit = 2, Recovery = 0.3,
+	Daggers = {Name = "Shadow Step", Anim = "Daggers_Light2", AnimPeak = 0.40, Startup = 0.12, Active = 0.16, MultiHit = 2, Recovery = 0.3,
 		Damage = 11, Posture = 6, Reach = 4, Hitbox = Vector3.new(6, 6, 8), Lunge = 90, LungeTime = 0.22, Velocity = "Pull", Cooldown = 1.6},
 	Gauntlets = {Name = "Shoulder Charge", Anim = "Gauntlets_Heavy", AnimPeak = 0.88, Startup = 0.18, Active = 0.14, Recovery = 0.45,
 		Damage = 24, Posture = 22, Stun = 0.8, Reach = 4, Hitbox = Vector3.new(7, 6, 8), Lunge = 75, LungeTime = 0.26, Cooldown = 2.2},
 	Guns = {Name = "Pistol Whip", Anim = "FistHeavy", Startup = 0.16, Active = 0.12, Recovery = 0.4,
 		Damage = 18, Posture = 16, Reach = 4, Hitbox = Vector3.new(6, 6, 7), Lunge = 60, LungeTime = 0.24, Cooldown = 2.0},
 }
+
+-- ===== Class skills (owner 2026-10-17: Skill Tree "Class Skills" column + hotbar) =====
+-- The skill sheet's class skills, learned in the Mastery menu's Class tab (Rensei.SkillTree, Tree "Class"),
+-- equipped to a 4-slot loadout per class family (Rensei.ClassSkills) and used with hotbar keys 1-4 in
+-- Combat Mode (Requests.ClassSkill -> AttackRunner). SkillData: Class_<Id>, Class_<Id>Final (last hit),
+-- Class_<Id>Grab (the grab hit). Hit times are seconds from the start at AnimSpeed 1, taken from each
+-- animation's own markers where it has them (HitFrame, Stab, Slash1/2, FirstHit/FinalHit) and from its
+-- measured limb-motion peaks otherwise. EVERY number is a PROPOSAL.
+--   Grab = {VictimAnim, Hold, Damage, Posture}: the first hit is a grab. On a hit the victim is held (stunned
+--     for Hold seconds, placed in front, playing VictimAnim); on a whiff "Skill_GrabWhiff" plays and the
+--     move ends. Final = the last hit's overrides. LungeAt / Lunge / LungeTime: a forward burst at that time.
+--   Status = {Name, ...}: applied on hit (StatusManager), e.g. Blood Dash's bleed.
+local GrabClass = "UNBLOCKABLE" -- grabs beat block and parry; a dodge or i-frames still avoid them
+TuningConfig.ClassSkills = {
+	-- Fists (unarmed and Gauntlets)
+	-- owner 2026-10-18: Spin Kick is ONE hit (the big kick at 1.12 s of the animation, played at 1.25x -> 0.9 s),
+	-- 540 Kick is THREE (its kicks at 0.13 / 0.40 / 0.82 s, leg-motion peaks). PROPOSAL numbers.
+	SpinKick = {Anim = "Fist_SpinKick", AnimSpeed = 1.25, HitTimes = {0.9}, Startup = 0.85, Active = 0.1, Recovery = 0.35,
+		Damage = 28, Posture = 18, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(8, 6, 8), Reach = 2, WalkSpeed = 6, Stamina = 15, Cooldown = 8},
+	Kick540 = {Anim = "Fist_540Kick", AnimSpeed = 1, HitTimes = {0.13, 0.40, 0.82}, Startup = 0.08, Active = 0.79, Recovery = 0.35,
+		Damage = 12, Posture = 10, Stun = 0.6, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 8), Reach = 4,
+		Final = {Damage = 22, Posture = 22, Stun = 0.9, Velocity = "Knockback"}, Stamina = 20, Cooldown = 10},
+	BearHug = {Anim = "Fist_BearHug", AnimSpeed = 1, HitTimes = {0.28, 0.69}, Startup = 0.23, Active = 0.52, Recovery = 0.75,
+		Grab = {VictimAnim = "Fist_BearHugVictim", Hold = 1.4, Damage = 4, Posture = 0},
+		Damage = 26, Posture = 20, Stun = 0.8, Hitbox = Vector3.new(5, 6, 5), Reach = 2.5, Stamina = 20, Cooldown = 12},
+	SlamDunk = {Anim = "Fist_SlamDunk", AnimSpeed = 1, HitTimes = {0.44, 2.09}, Startup = 0.39, Active = 1.76, Recovery = 0.4,
+		Grab = {VictimAnim = "Fist_SlamDunkVictim", Hold = 2.3, Damage = 4, Posture = 0},
+		Damage = 40, Posture = 35, Stun = 1.0, Velocity = "Knockback", Hitbox = Vector3.new(5, 6, 5), Reach = 2.5, HyperArmor = true, Stamina = 25, Cooldown = 15},
+	WhereYouGoing = {Anim = "Fist_WhereYouGoing", AnimSpeed = 1, HitTimes = {0.82, 1.10, 1.42, 1.94}, Startup = 0.77, Active = 1.23, Recovery = 0.6,
+		Damage = 9, Posture = 6, Stun = 0.6, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 8), Reach = 3.5,
+		Final = {Damage = 20, Posture = 18, Stun = 0.9, Velocity = "Knockback"}, LungeAt = 0.6, Lunge = 50, LungeTime = 0.2, Stamina = 30, Cooldown = 18},
+	-- Sword
+	QuickDraw = {Anim = "Sword_QuickDraw", AnimSpeed = 1, HitTimes = {0.88}, Startup = 0.83, Active = 0.11, Recovery = 0.45,
+		Damage = 34, Posture = 26, Stun = 0.9, Velocity = "Knockback", Hitbox = Vector3.new(7, 6, 10), Reach = 4.5, LungeAt = 0.7, Lunge = 80, LungeTime = 0.2, Stamina = 18, Cooldown = 9},
+	IaidoBarrage = {Anim = "Sword_IaidoBarrage", AnimSpeed = 1, HitTimes = {0.47, 0.72, 0.99, 1.23}, Startup = 0.42, Active = 0.87, Recovery = 0.5,
+		Damage = 9, Posture = 7, Stun = 0.5, Velocity = "Pull", Hitbox = Vector3.new(8, 6, 9), Reach = 4,
+		Final = {Damage = 18, Posture = 16, Stun = 0.9, Velocity = "Knockback"}, WalkSpeed = 4, Stamina = 24, Cooldown = 13},
+	-- Daggers
+	SlipSlash = {Anim = "Daggers_SlipSlash", AnimSpeed = 1, HitTimes = {0.42, 0.89}, Startup = 0.37, Active = 0.58, Recovery = 0.45,
+		Damage = 12, Posture = 6, Stun = 0.5, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 7), Reach = 3.5,
+		Final = {Damage = 18, Posture = 12, Stun = 0.8, Velocity = "Knockback"}, Stamina = 14, Cooldown = 7},
+	BulletSlash = {Anim = "Daggers_BulletSlash", AnimSpeed = 1, HitTimes = {0.42, 0.71}, Startup = 0.37, Active = 0.40, Recovery = 0.5,
+		Damage = 12, Posture = 6, Stun = 0.5, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 8), Reach = 4,
+		Final = {Damage = 18, Posture = 12, Stun = 0.8, Velocity = "Knockback"}, LungeAt = 0.3, Lunge = 90, LungeTime = 0.25, Stamina = 18, Cooldown = 9},
+	BloodDash = {Anim = "Daggers_BloodDash", AnimSpeed = 1, HitTimes = {0.79}, Startup = 0.74, Active = 0.11, Recovery = 0.6,
+		Damage = 22, Posture = 14, Stun = 0.7, Velocity = "Knockback", Hitbox = Vector3.new(6, 6, 9), Reach = 4,
+		Status = {Name = "Bleed"}, LungeAt = 0.6, Lunge = 100, LungeTime = 0.25, Stamina = 18, Cooldown = 10},
+	ComeHere = {Anim = "Daggers_ComeHere", AnimSpeed = 1, HitTimes = {0.19, 0.38, 0.61, 0.86}, Startup = 0.14, Active = 0.78, Recovery = 0.3,
+		Damage = 7, Posture = 5, Stun = 0.5, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 8), Reach = 4,
+		Final = {Damage = 16, Posture = 14, Stun = 0.8, Velocity = "Knockback"}, Stamina = 24, Cooldown = 14},
+	-- Greatsword
+	HeavyDrop = {Anim = "Greatsword_HeavyDrop", AnimSpeed = 1, HitTimes = {0.92, 1.67}, Startup = 0.87, Active = 0.86, Recovery = 0.3,
+		Damage = 30, Posture = 30, Stun = 0.8, Velocity = "Pull", Hitbox = Vector3.new(10, 8, 11), Reach = 5,
+		Final = {Damage = 42, Posture = 40, Stun = 1.0, Velocity = "Knockback"}, LungeAt = 1.03, Lunge = 50, LungeTime = 0.2, HyperArmor = true, WalkSpeed = 4, Stamina = 25, Cooldown = 12},
+	WhirlwindCleave = {Anim = "Greatsword_WhirlwindCleave", AnimSpeed = 1, HitTimes = {0.92, 1.65}, Startup = 0.87, Active = 0.84, Recovery = 0.6,
+		Damage = 26, Posture = 22, Stun = 0.7, Velocity = "Pull", Hitbox = Vector3.new(16, 8, 16), Reach = 0,
+		Final = {Damage = 36, Posture = 32, Stun = 1.0, Velocity = "Knockback"}, HyperArmor = true, WalkSpeed = 4, Stamina = 28, Cooldown = 14},
+	-- Rapier
+	SpeedLunge = {Anim = "Rapier_SpeedLunge", AnimSpeed = 1, HitTimes = {0.39}, Startup = 0.34, Active = 0.11, Recovery = 0.4,
+		Damage = 26, Posture = 18, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(4, 5, 12), Reach = 6, LungeAt = 0.2, Lunge = 110, LungeTime = 0.22, Stamina = 16, Cooldown = 8},
+	Ren = {Anim = "Rapier_Ren", AnimSpeed = 1, HitTimes = {0.65, 0.93, 1.33}, Startup = 0.6, Active = 0.79, Recovery = 0.45,
+		Damage = 14, Posture = 9, Stun = 0.6, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 9), Reach = 4,
+		Final = {Damage = 24, Posture = 18, Stun = 0.9, Velocity = "Knockback"}, LungeAt = 0.4, Lunge = 50, LungeTime = 0.2, Stamina = 24, Cooldown = 13},
+	-- Guns
+	IronRush = {Anim = "Guns_IronRush", AnimSpeed = 1, HitTimes = {1.97, 2.75}, Startup = 1.92, Active = 0.89, Recovery = 0.5,
+		Grab = {VictimAnim = "Guns_IronRushVictim", Hold = 0.85, Damage = 10, Posture = 0},
+		Damage = 30, Posture = 26, Stun = 0.9, Velocity = "Knockback", Hitbox = Vector3.new(5, 6, 6), Reach = 3, LungeAt = 0.08, Lunge = 70, LungeTime = 0.6, Stamina = 22, Cooldown = 14,
+		LungeStopAt = 3.5}, -- (2026-10-18) the rush ends at the target instead of running past it from point blank
+}
+for Id, Def in pairs(TuningConfig.ClassSkills) do
+	Def.Id = Id
+	Def.Fallback = Def.Fallback or "FistCombo5"
+	if Def.Grab then Def.GrabClass = GrabClass end
+end
 
 -- Fist fallbacks for any weapon animation that is not in the game (or not published yet).
 do
@@ -828,8 +1048,9 @@ do
 		for I, H in ipairs(W.Light.Hits) do
 			H.Fallback = H.Fallback or LightFallback[I] or "FistCombo1"
 			-- combo hits (not the finisher, not gunshots) hold the target long enough to chain
-			if I < #W.Light.Hits and not W.Ranged then H.Stun = math.max(H.Stun or 0, TuningConfig.Light.MinStun) end
+			if I < #W.Light.Hits and not H.Shot then H.Stun = math.max(H.Stun or 0, TuningConfig.Light.MinStun) end
 		end
+		for I, H in ipairs(W.Shots or {}) do H.Fallback = H.Fallback or LightFallback[I] or "FistCombo1" end
 		W.Heavy.Fallback = W.Heavy.Fallback or "FistHeavy"
 		W.Heavy.Telegraph = true -- crit warning flash during the windup
 		-- IdleAnim: standing idle while drawn. HoldAnim: weapon-only pose kept under every other
@@ -841,6 +1062,78 @@ do
 		for K, V in pairs(TuningConfig.WeaponDashAttacks[Class] or {}) do Dash[K] = V end
 		Dash.Fallback = Dash.Fallback or "FistCombo1"
 		W.DashAttack = Dash
+	end
+end
+
+-- Grip finishers from the Animation ID's sheet (2026-10-18): GRIP + GRIP VICTIM per class, played as a pair
+-- with the target attached (DownedManager "Weapon" style; bare hands = the Caestus (Fists) pair). Length = the
+-- gripper animation's length: both play at Length / GripTime so the pair fills the grip. Standing = no victim
+-- animation on the sheet: the body stays slumped and the gripper stands over it. No row = the class keeps
+-- the Execution finisher (its heavy, twice).
+TuningConfig.Downed.Grips = {
+	Fists = {Grip = "Gauntlets_Grip", Victim = "Gauntlets_Gripped", Length = 2.23},
+	Gauntlets = {Grip = "Gauntlets_Grip", Victim = "Gauntlets_Gripped", Length = 2.23},
+	Daggers = {Grip = "Daggers_Grip", Victim = "Daggers_Gripped", Length = 1.2},
+	Sword = {Grip = "Sword_Grip", Victim = "Sword_Gripped", Length = 2.0},
+	Greatsword = {Grip = "Greatsword_Grip", Victim = "Greatsword_Gripped", Length = 1.33},
+	Guns = {Grip = "Guns_Grip", Length = 3.0, Standing = true},
+}
+
+-- ===== Weapon styles (Rensei.Styles; owner 2026-10-17: Boxing and Lethwei are BARE-FIST styles) =====
+-- A style replaces its class's light combo and heavy; everything else (uppercut, aerial, dash attack, block
+-- / parry rules, posture, hitstop) stays shared. Hit times come from each animation's authored "Punch"
+-- marker (AnimPeak). The "Base" style is the class's existing moveset (TuningConfig.Light / Heavy).
+-- ALL NUMBERS PROPOSAL until playtested.
+TuningConfig.Styles = {
+	Fists = {
+		-- Boxing: tight, even jab chains that keep the target in range (no knockback finisher), walking
+		-- forward while punching; the Peek-a-boo heavy rolls through hits (hyper armour) but hits lighter.
+		Boxing = {
+			AttackWalkSpeed = 16,
+			Light = {Hits = {
+				{Anim = "Boxing_Light1", AnimPeak = 0.32, Startup = 0.22, Active = 0.08, Recovery = 0.16, Damage = 15, Posture = 6, Stun = 0.65, Velocity = "Pull", Reach = 3.2},
+				{Anim = "Boxing_Light2", AnimPeak = 0.32, Startup = 0.22, Active = 0.08, Recovery = 0.16, Damage = 15, Posture = 6, Stun = 0.65, Velocity = "Pull", Reach = 3.2},
+				{Anim = "Boxing_Light3", AnimPeak = 0.32, Startup = 0.22, Active = 0.08, Recovery = 0.16, Damage = 15, Posture = 6, Stun = 0.65, Velocity = "Pull", Reach = 3.2},
+				-- owner 2026-10-18 "fix boxing infinite combo'ing": the string looped because the finisher stunned (0.75 s)
+				-- past its recovery + the next jab's startup (0.30 + 0.22 s). Now 0.35 s stun / 0.45 s recovery: after a full
+				-- string the target is free ~0.32 s before the next jab can land (block / dodge window). Still no knockback.
+				{Anim = "Boxing_Light4", AnimPeak = 0.32, Startup = 0.24, Active = 0.08, Recovery = 0.45, Damage = 20, Posture = 10, Stun = 0.35, Velocity = "Pull", Reach = 3.4},
+			}},
+			Heavy = {Anim = "Boxing_Heavy", AnimPeak = 0.58, Startup = 0.46, Active = 0.12, Recovery = 0.45, Damage = 28, Posture = 30, Stun = 0.9,
+				Velocity = "Knockback", Reach = 3.8, Step = 18, Cooldown = 1.2, WalkSpeed = 12, HyperArmor = true},
+		},
+		-- Lethwei: short, snappy elbows / knees / headbutts that crush guards (high posture damage) but leave
+		-- you open on a whiff (longer recovery); the finisher and the heavy knock the target away.
+		Lethwei = {
+			AttackWalkSpeed = 12,
+			Light = {Hits = {
+				{Anim = "Lethwei_Light1", AnimPeak = 0.18, Startup = 0.16, Active = 0.06, Recovery = 0.2, Damage = 16, Posture = 12, Stun = 0.6, Velocity = "Pull", Reach = 3.2},
+				{Anim = "Lethwei_Light2", AnimPeak = 0.18, Startup = 0.16, Active = 0.06, Recovery = 0.2, Damage = 16, Posture = 12, Stun = 0.6, Velocity = "Pull", Reach = 3.2},
+				{Anim = "Lethwei_Light3", AnimPeak = 0.15, Startup = 0.14, Active = 0.06, Recovery = 0.2, Damage = 16, Posture = 12, Stun = 0.6, Velocity = "Pull", Reach = 3.2},
+				{Anim = "Lethwei_Light4", AnimPeak = 0.12, Startup = 0.14, Active = 0.08, Recovery = 0.6, Damage = 26, Posture = 20, Stun = 0.9, Velocity = "Knockback", Reach = 3.4},
+			}},
+			Heavy = {Anim = "Lethwei_Heavy", AnimPeak = 0.42, Startup = 0.42, Active = 0.12, Recovery = 0.6, Damage = 34, Posture = 55, Stun = 1.0,
+				Velocity = "Knockback", Reach = 3.6, Step = 12, Cooldown = 1.5, WalkSpeed = 10},
+		},
+	},
+}
+do
+	local LightFallback = {"FistCombo1", "FistCombo2", "FistCombo3", "FistCombo5"}
+	for Class, List in pairs(TuningConfig.Styles) do
+		for Id, S in pairs(List) do
+			S.Class, S.Id = Class, Id
+			-- the class's own hitbox boxes unless a style sets its own (the sweep needs one)
+			local BaseHits = (TuningConfig.Weapons[Class] and TuningConfig.Weapons[Class].Light.Hits) or TuningConfig.Light.Hits
+			local BaseHeavy = (TuningConfig.Weapons[Class] and TuningConfig.Weapons[Class].Heavy) or TuningConfig.Heavy
+			for I, H in ipairs(S.Light.Hits) do
+				H.Hitbox = H.Hitbox or (BaseHits[I] or BaseHits[1]).Hitbox
+				H.Fallback = H.Fallback or LightFallback[I] or "FistCombo1"
+				if I < #S.Light.Hits then H.Stun = math.max(H.Stun or 0, TuningConfig.Light.MinStun) end
+			end
+			S.Heavy.Hitbox = S.Heavy.Hitbox or BaseHeavy.Hitbox
+			S.Heavy.Fallback = S.Heavy.Fallback or "FistHeavy"
+			S.Heavy.Telegraph = true
+		end
 	end
 end
 

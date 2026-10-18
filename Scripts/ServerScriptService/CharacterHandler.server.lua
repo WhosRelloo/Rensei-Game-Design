@@ -11,6 +11,7 @@ local Tuning = require(Modules.Data.Rensei.TuningConfig)
 local DataManager = require(script.DataManager)
 local ProgressionService = require(game:GetService("ServerScriptService"):WaitForChild("ProgressionService"))
 local AnimManager = require(Modules.Managers.AnimationManager)
+local MovementState = require(Modules.Managers.MovementState)
 local WCS = require(Framework.WCS)
 local WCSCharacter = WCS.Character
 
@@ -43,6 +44,8 @@ Players.PlayerAdded:Connect(function(Player)
 		
 		local CharacterState = WCSCharacter.new(Character)
 		BlockManager.Initiate(Character)
+		-- the server-owned traversal state ends on stun / knock / grip / carry / death (MovementState)
+		MovementState.Track(Character, CharacterState)
 		
 		coroutine.wrap(function()
 			-- (bounded: a player who leaves, or whose save never loads, doesn't leave this waiting forever)
