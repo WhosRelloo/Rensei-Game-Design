@@ -20,8 +20,10 @@ Perception.CautiousMult = 1.3 -- sight (and, in Plan 2, hearing) while Cautious
 Perception.CallRadius = 40 -- an Alert NPC brings in the NPCs this close
 Perception.Falloff = 0.75 -- at the edge of its range an NPC fills at 1 - 0.75 = 25% of the point-blank rate
 
--- movement by horizontal root speed (base walk 16): walking x1, running x1.5, sprinting x2
-Perception.Move = {{Max = 17, Mult = 1}, {Max = 24, Mult = 1.5}, {Max = math.huge, Mult = 2}}
+-- movement by horizontal root speed: walking x1, running x1.5, sprinting x2. The breakpoints are the
+-- midpoints between the game's gaits (walk 16, run 24, sprint 30; Run.lua), so physics jitter and speed
+-- bonuses don't flip a runner into a sprinter.
+Perception.Move = {{Max = 20, Mult = 1}, {Max = 27, Mult = 1.5}, {Max = math.huge, Mult = 2}}
 
 -- Range in studs; Fill = awareness per second at point blank, fully visible, in the primary cone
 Perception.Types = {

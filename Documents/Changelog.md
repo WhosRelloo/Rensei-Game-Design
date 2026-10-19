@@ -49,7 +49,7 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
     - cones: `Primary` 110° (full rate) and `Peripheral` 160° (half rate); behind that, nothing;
     - thresholds and timers: `Suspicious` 0.35, `Drain` 0.25/s, `Memory` 3 s, `InvestigateTime` 8 s, `SearchTime` 25 s, `CautiousTime` 180 s;
     - multipliers: `CautiousMult` 1.3, `CallRadius` 40, `Falloff` 0.75 (a range's edge fills at 25%);
-    - movement multiplier: x1 / x1.5 / x2 at speed ≤17 / ≤24 / above;
+    - movement multiplier: x1 / x1.5 / x2 at speed ≤20 / ≤27 / above;
     - five perception types (Grunt, Elite, Agent, Hunter, Witness), each with a Range and a Fill rate;
     - `EnemyTypes` maps TuningConfig enemies to perception types (unlisted enemies are Grunt);
     - `AlwaysAware`: Sparring and the five Trial foes keep the old distance aggro;
@@ -57,6 +57,7 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
   - **every perception number is a PROPOSAL (spec §18.7)**, for the owner to tune;
   - nothing calls it yet; no existing script changed;
   - test `Test_Perception` (Edit mode): RED was "Perception is not a valid member", then PASS 4 / FAIL 0.
+  - review fix: the movement breakpoints moved from 17 / 24 to 20 / 27. These are the midpoints between the game's gaits (walk 16, run 24, sprint 30 in Run.lua), so physics jitter and speed bonuses don't flip a runner into a sprinter. The test now covers 24 (run) and 24.4 (run with jitter): RED was "run with jitter: expected 1.5, got 2", then PASS 4 / FAIL 0.
 - Note: commit e6f9408 (Task 1) carries a "Claude Sonnet 5.5" co-author line by mistake; it should read Claude Opus 5.5 (not rewritten: the branch is shared).
 
 ## 2026-10-19 — Plans: Morality × Reputation roadmap + Plan 1 (Foundation)

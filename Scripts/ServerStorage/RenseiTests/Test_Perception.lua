@@ -11,7 +11,8 @@ return {
 		T.Eq(P.ConeMult(Fwd, Vector3.new(0, 10, 0)), 1, "straight above counts as seen")
 	end,
 	Movement = function(T)
-		T.Eq(P.MoveMult(0), 1); T.Eq(P.MoveMult(16), 1); T.Eq(P.MoveMult(20), 1.5); T.Eq(P.MoveMult(30), 2)
+		T.Eq(P.MoveMult(0), 1); T.Eq(P.MoveMult(16), 1, "walk"); T.Eq(P.MoveMult(24), 1.5, "run")
+		T.Eq(P.MoveMult(24.4), 1.5, "run with jitter"); T.Eq(P.MoveMult(30), 2, "sprint")
 	end,
 	RateFallsOffAndStopsAtRange = function(T)
 		local Near = P.Rate("Grunt", 0, 1, 1, 1, 1, false)
