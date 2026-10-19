@@ -35,6 +35,7 @@ In Studio every animation is an `Animation` object under `ReplicatedStorage.Asse
 | Greatsword grip victim, row 17 | `Greatsword_Gripped` | 📦 | |
 | Dagger M1 1–4 ("Hell Dagger") | `Daggers_Light1`–`4` | ✅ (pass 3; were Studio-only) | Daggers lights, dash attack (light 2) |
 | Dagger CRIT (Roblox asset name "Sword Crit"; owner confirmed) | `Daggers_Heavy` | ✅ (pass 3) | Daggers heavy, `AnimPeak` 0.54 (measured, no marker) |
+| Daggers tool (2026-10-18) | one dagger, right hand only (the left `DaggerL` / `DaggerOff` removed) | ✅ | owner request |
 | Dagger GRIP / GRIP VICTIM | `Daggers_Grip` / `Daggers_Gripped` | 📦 | |
 | Dagger Sheathe / Unsheathe | `Daggers_Unequip` / `Daggers_Equip` | ⏳ | Studio save kept |
 | Rapier Idle / Walk (Roblox names "Gun Idle Animation" / "Gun Walk"; owner: keep on the Rapier) | `Rapier_Idle` / `Rapier_Walk` | ✅ | Rapier |

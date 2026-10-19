@@ -26,7 +26,7 @@ Updated **2026-10-18**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
   - Devil Hunter dash in 8 directions, including shift lock and sprint.
   - Run, slide (outside Combat Mode), shift lock (Alt).
   - Directional climb, wall run, wall-to-wall chaining.
-- **Weapons:** Sword (Katana), Rapier, Gauntlets, Greatsword, Daggers, Guns.
+- **Weapons:** Sword (Katana), Rapier, Gauntlets, Greatsword, Daggers (one dagger, right hand; 2026-10-18), Guns.
   - Each has a combo, heavy, skill (T) and passive.
   - Equipped from the inventory (not the hotbar); the choice is saved and comes back on respawn.
 - **Start flow:** main menu + character creation (separate place) → Tutorial place → intro cutscene → Ye. See `Start Flow and Character Creation.md`.
