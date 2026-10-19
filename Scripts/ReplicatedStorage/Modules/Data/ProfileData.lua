@@ -4,7 +4,7 @@
 -- KEEP THIS FILE THE SAME IN EVERY PLACE (data-storage audit 2026-10-18: the menu and tutorial had an older copy;
 -- harmless while Reconcile only adds keys, but a fresh slot made there started without the newer sections).
 return {
-	SchemaVersion = 4, -- 2: SkillTree (was AlchemyTree) + Mastery.StageSpend; 3: Story + quest stages; 4: Morality
+	SchemaVersion = 5, -- 2: SkillTree (was AlchemyTree) + Mastery.StageSpend; 3: Story + quest stages; 4: Morality; 5: places, rumours, heat, licence
 
 	Level = 1,
 	Exp = 0, -- progress inside the current level
@@ -99,7 +99,14 @@ return {
 		Trust = {}, -- [NpcName] = sum
 		Renown = 0,
 		Taboo = {}, -- reserved (owner canon pending)
+		Places = {}, -- schema 5: [RegionId] = {Known = {[DeedId] = {[FactionId] = os.time() heard}}}
+		Rumours = {}, -- schema 5: word on the road (RumourService), at most 20 live
+		Heat = {}, -- schema 5: [Jurisdiction] = {Value, At} (HeatService, Plan 2)
+		News = {}, -- schema 5: the last 10 "word reached <place>" reason lines
+		Seeded = false, -- schema 5: deeds from before places existed were spread everywhere once
 	},
+	-- The Licence path (schema 5; LicenceService, Plan 4, is the only writer). Path "" | "State" | "Circle".
+	Licence = {Path = "", Since = 0, Orders = {}, Refused = {}, Revoked = 0},
 	-- Player Identities (2026-10-18; IdentityService is the only writer): this investigator's records of
 	-- other players' characters. Bounded (Rensei.Identities.MaxRecords). Additive: Reconcile fills old saves.
 	Identities = {

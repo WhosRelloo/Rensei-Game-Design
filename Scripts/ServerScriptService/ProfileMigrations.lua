@@ -39,6 +39,15 @@ local Migrations = {
 		end
 		Data.Morality.Renown = Data.Morality.Renown or 0
 	end,
+	-- 4 -> 5: Morality × Reputation (2026-10-19): where deeds have been heard (Places), word on the road
+	-- (Rumours), Heat per jurisdiction, the reason lines (News) + the Licence path. Additive.
+	[4] = function(Data)
+		Data.Morality = Data.Morality or {}
+		for _, K in ipairs({"Places", "Rumours", "Heat", "News"}) do
+			Data.Morality[K] = Data.Morality[K] or {}
+		end
+		Data.Licence = Data.Licence or {Path = "", Since = 0, Orders = {}, Refused = {}, Revoked = 0}
+	end,
 }
 
 local ProfileMigrations = {}

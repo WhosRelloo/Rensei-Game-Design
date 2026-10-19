@@ -5,6 +5,12 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 ## 2026-10-19 — Plan 1: Foundation (in progress)
 
 - Task 1: TestKit (ServerStorage.RenseiTests) — Studio test runner; self-test PASS 4 / FAIL 0
+- Task 2: Schema 5, in all three places (Rensei, Tutorial, Main Menu):
+  - `ProfileMigrations`: new step `[4]` (4 → 5, additive) adds `Morality.Places / Rumours / Heat / News` and `Licence = {Path = "", Since = 0, Orders = {}, Refused = {}, Revoked = 0}`; an existing `Licence` and the deed ledger are left alone;
+  - `ProfileData`: `SchemaVersion = 5`, the four new `Morality` tracks + `Seeded = false`, and the new `Licence` block;
+  - byte-identical in all three places: `ProfileMigrations` 7aac8c12 → 08185f97 (2811 bytes), `ProfileData` 7d86af52 → a494cec4 (7554 bytes); backups in `ServerStorage.RenseiBackups["Pre-Foundation_2026-10-19"]` in each place;
+  - test `ServerStorage.RenseiTests.Test_Schema5` (Rensei, Edit mode): PASS 4 / FAIL 0.
+- Note: commit e6f9408 (Task 1) carries a "Claude Sonnet 5.5" co-author line by mistake; it should read Claude Opus 5.5 (not rewritten: the branch is shared).
 
 ## 2026-10-19 — Plans: Morality × Reputation roadmap + Plan 1 (Foundation)
 
