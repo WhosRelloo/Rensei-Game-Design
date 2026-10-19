@@ -464,11 +464,16 @@ function Air:ClimbLoop(Character, Normal)
 		-- alone let the legs drag over a ledge strip while climbing past it (the humanoid kept trying to stand on it:
 		-- state flicker and +99 / -58 studs/s jolts). Chest and shin probes push the hang point out as needed.
 		local Out = 0
-		for _, Dy in ipairs({0.5, -2, -2.9}) do -- chest, shins, feet
+		for _, Dy in ipairs({0.5, -2, -2.9, -3.6}) do -- chest, shins, feet, just below the feet (climbing down)
 			local Low = workspace:Raycast(Target + Vector3.new(0, Dy, 0) + Normal * 1.5, -Normal * Probe, WallProbe)
 			if Low then Out = math.max(Out, (Low.Position - Hit.Position):Dot(Normal)) end
 		end
-		Align.Position = Hit.Position + Normal * (WALL_GAP + Out) - Vector3.new(0, 3, 0)
+		-- glide in / out from the wall (at most ClimbOutRate studs/s) instead of jumping a strip's depth in one frame
+		local Desired = Hit.Position + Normal * (WALL_GAP + Out) - Vector3.new(0, 3, 0)
+		local DN = (Desired - Align.Position):Dot(Normal)
+		local MaxStep = (P.ClimbOutRate or 10) * Dt
+		if math.abs(DN) > MaxStep then Desired -= Normal * (DN - math.sign(DN) * MaxStep) end
+		Align.Position = Desired
 		if self.AlignOrientation and self.AlignOrientation.Parent then
 			self.AlignOrientation.CFrame = CFrame.new(Hit.Position, Hit.Position - Normal)
 		end

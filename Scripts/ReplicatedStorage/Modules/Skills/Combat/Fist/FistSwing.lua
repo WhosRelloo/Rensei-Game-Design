@@ -39,11 +39,11 @@ local FistSwing = WCS.RegisterSkill("FistSwing")
 local GroundParams = RaycastParams.new()
 GroundParams.FilterType = Enum.RaycastFilterType.Exclude
 
-local function Airborne(Character)
+local function Airborne(Character, Depth)
 	local Root = Character:FindFirstChild("HumanoidRootPart")
 	if not Root then return false end
 	GroundParams.FilterDescendantsInstances = {Character, workspace.World.Visuals, workspace.World.Live}
-	return workspace:Raycast(Root.Position, Vector3.new(0, -4.5, 0), GroundParams) == nil
+	return workspace:Raycast(Root.Position, Vector3.new(0, -(Depth or 4.5), 0), GroundParams) == nil
 end
 
 local function HorizontalSpeed(Character)
@@ -105,7 +105,10 @@ function FistSwing:OnStartServer()
 	-- check here covers falls. Inside an air juggle, lights continue the combo instead.
 	local Queued = Character:GetAttribute("JumpAttackQueued")
 	Character:SetAttribute("JumpAttackQueued", nil)
-	if (Queued or Airborne(Character)) and not self.Character:HasStatusEffects({AirCombo}) then
+	-- the server's own check only for a character clearly high up (a real fall, past a jump's apex): the server sees a player ~0.3 s
+	-- late, so a light clicked just before landing used to come out as a dive that fizzled on landing. The client
+	-- queues the jump attack whenever it's really airborne (fluidity pass 2026-10-18)
+	if (Queued or Airborne(Character, 14)) and not self.Character:HasStatusEffects({AirCombo}) then
 		if not Ready(Character, "AerialReadyAt", Tuning.Aerial) then return end
 		SwingVFX.new(Character):Start(Players:GetPlayers())
 		local A = Tuning.Aerial

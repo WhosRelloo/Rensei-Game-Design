@@ -125,7 +125,24 @@ local function Attack(Began, Uppercut)
 		local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
 		local HState = Humanoid and Humanoid:GetState()
 		local Airborne = HState == Enum.HumanoidStateType.Jumping or HState == Enum.HumanoidStateType.Freefall
-		if Airborne or os.clock() - LastSpace <= JumpAttackWindow then
+		-- about to land (less than JumpAttackLandLead s until the feet touch down): a normal light. A jump attack sent
+		-- then reached the server after landing and played a 0.16 s scrap of dive that can't hit (fluidity 2026-10-18)
+		local Root = Airborne and Character:FindFirstChild("HumanoidRootPart")
+		if Root then
+			local Params = RaycastParams.new()
+			Params.FilterType = Enum.RaycastFilterType.Exclude
+			Params.FilterDescendantsInstances = {Character}
+			local Ground = workspace:Raycast(Root.Position, Vector3.new(0, -60, 0), Params)
+			if Ground then
+				local Leg = Character:FindFirstChild("Left Leg")
+				local Height = Root.Position.Y - Ground.Position.Y - ((Leg and Leg.Size.Y or 2) + Root.Size.Y / 2)
+				local G, Up = workspace.Gravity, Root.AssemblyLinearVelocity.Y
+				local ToLand = (Up + math.sqrt(math.max(0, Up * Up + 2 * G * math.max(0, Height)))) / G
+				local Lead = require(game:GetService("ReplicatedStorage").Modules.Data.Rensei.TuningConfig).Light.JumpAttackLandLead
+				if ToLand < (Lead or 0.25) then Airborne = false end
+			end
+		end
+		if Airborne or (not Root and os.clock() - LastSpace <= JumpAttackWindow) then
 			RequestRemote:FireServer("JumpAttack")
 			return
 		end

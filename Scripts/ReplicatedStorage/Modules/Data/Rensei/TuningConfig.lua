@@ -45,6 +45,8 @@ local LightHitbox = Vector3.new(6, 6, 7)
 --     (scaled to Rensei's 16 below).
 TuningConfig.Light = {
 	ComboReset = 2.0, -- seconds after a swing ends before the combo starts over (DH; was 1.0)
+	JumpAttackLandLead = 0.25, -- s: an M1 this close to landing is a normal light, not a jump attack (it reached the
+	-- server after landing and fizzled; fluidity pass 2026-10-18, PROPOSAL)
 	WhiffRecovery = 0.15, -- extra recovery when a swing hits nothing (and the combo resets)
 	AttackWalkSpeed = 14, -- walk speed while swinging (DH 13/15; was 6)
 	MinStun = 0.6, -- every weapon's non-finisher lights stun at least this long (DH Stuntime)
@@ -180,6 +182,7 @@ TuningConfig.Movement = {
 TuningConfig.Parkour = {
 	GrabBuffer = 0.25, -- s: Space pressed in the air this long before a wall is in reach still grabs it (fluidity 2026-10-18)
 	ClimbProbeExtra = 2, -- studs added to the climb's wall probe so it finds the wall behind a jutting ledge / trim
+	ClimbOutRate = 10, -- studs/s the climber glides out from / back to the wall past a jutting ledge (was an instant jump)
 	-- Directional climb (controls doc: tap Space on a wall, WASD moves on it, stamina drain, no
 	-- combat, touch the ground to reset). PROPOSAL speeds / drain.
 	ClimbStart = 10,

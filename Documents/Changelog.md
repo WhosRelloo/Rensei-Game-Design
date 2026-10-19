@@ -93,9 +93,38 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 3. **An 8-second chain on an enemy** (the cap test above), the **Boxing finisher**, and **every class's finisher** on the same enemy.
 4. **Climb-down with the old code vs the new**, side by side (the numbers above).
 
+### Follow-up (same day, after Studio's Play start recovered)
+
+**Climbing past a jutting ledge, now smooth.** The hang point used to jump a strip's depth (1.4 studs) out from the wall in one frame. It now glides at up to `Parkour.ClimbOutRate = 10` studs/s, and a probe just below the feet sees a protrusion early when climbing down.
+- **Measured over the whole chain:** the worst velocity while climbing went 99 → 48 → **15 studs/s**.
+- The climb-down hand-over to the ledge walk still works.
+
+**Jump attacks that fizzled.**
+- **Problem:** an M1 just before landing came out as a jump attack. The server, which sees the player about 0.3 s late, started the dive after the landing, and it ended at once (a 0.16 s scrap, no hit, wasted input).
+- **Client fix:** the client now estimates the time until the feet touch down (height and fall speed under gravity). Under `Light.JumpAttackLandLead = 0.25` s, the click is a normal light, so the combo continues.
+- **Server fix:** the server's own airborne check (meant for falls) only fires with no ground within 14 studs. A normal jump's apex no longer turns a light into a dive.
+
+| Click after the jump | State | Result |
+|---|---|---|
+| 0.08 s | rising | aerial |
+| 0.18 s | rising | aerial |
+| 0.28 s | falling | normal light |
+| 0.36 s | falling | normal light |
+
+**Complex combat chain.** Real inputs went through `ClientActions`, the same path as the keyboard and touch buttons, against a passive Bandit with huge health:
+- dash → M1 dash-cancel → M1 + R (queued heavy) → M1 + feint → M1 → M1 → M1 (finisher) → uppercut → 3 air M1s → jump → aerial.
+
+Results:
+- **Feint:** the feinted Light2 came out next (the feint keeps the combo's place).
+- **Boxing string:** Light2, 3 and 4 all landed; the finisher stunned 0.8 s and knocked back.
+- **Uppercut:** launched the target about 10.7 studs; all 3 air M1s landed; the target was free after 2.35 s, under the 3 s cap.
+- **No errors** and no stuck combat states.
+- **Two whiffs, both from positioning:** the dash-cancel M1 and the queued heavy (the 9-stud dash carried the attacker into or past the target).
+
 ### Not yet tested
-- Two players; a real phone; live latency (the grace and buffer were sized for it, but only Studio was measured).
-- A complex combat chain mixing dash-cancel, feint, a queued heavy and an uppercut juggle against a live enemy. A Studio Play-start hang blocked the last run (see the status note).
+- Two players.
+- A real phone.
+- Live latency: the grace, buffer and landing lead were sized for it, but only Studio was measured.
 
 ### Files
 Rensei and Tutorial:
@@ -105,6 +134,7 @@ Rensei and Tutorial:
 - `Managers.JumpManager`;
 - `Skills.Combat.Fist.FistSwing`;
 - `Skills.Combat.Air` (legacy copy: landing only);
+- `StarterPlayerScripts.ClientHandler` (jump attack near landing);
 - `Data.Rensei.TuningConfig`.
 
 Rensei only: `Managers.JumpManager.LedgeWalk` and `Managers.MovementState`.
