@@ -73,7 +73,7 @@ local function GroundHeavy(Character)
 	Character.Instance:SetAttribute("HeavyReadyAt", Now + Cooldown)
 	Character.Instance:SetAttribute("HeavyCooldown", Cooldown) -- for the cooldown bar
 	for _,Anim in pairs(Humanoid.Animator:GetPlayingAnimationTracks()) do
-		Anim:Stop()
+		if Anim.Priority ~= Enum.AnimationPriority.Core then Anim:Stop() end -- keep the base idle / walk (2026-10-19)
 	end
 	AttackRunner.Run(Character, Def, Name, {
 		WalkSpeed = Def.WalkSpeed or Tuning.Heavy.WalkSpeed,
@@ -119,7 +119,7 @@ function Heavy:OnStartServer()
 		GroundHeavy(Character)
 	else
 		for _,Anim in pairs(Humanoid.Animator:GetPlayingAnimationTracks()) do
-			Anim:Stop()
+			if Anim.Priority ~= Enum.AnimationPriority.Core then Anim:Stop() end -- keep the base idle / walk (2026-10-19)
 		end
 	end
 	if InAir and workspace:GetServerTimeNow() - LastWallJump > 1 then

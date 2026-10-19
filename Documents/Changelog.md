@@ -2,6 +2,67 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-19 — Legs on the dagger idle, blocks and parries; no more stock Roblox idle
+
+**Owner:**
+- "for the dagger idle, make the legs use the base idle animations since they aren't animated in the dagger idle";
+- "Fix the legs for blocking as well & parries";
+- "fix characters sometimes being the default roblox idle" (screenshot: arms and legs hanging straight).
+
+> **Status: built and tested in Studio Play** (Rensei), with a probe reading the live animation tracks and hip joints. Mirrored to the Tutorial (same code; not run there).
+>
+> **Animation sheet re-checked first:** no new or changed ids. The Dagger **Idle** cell is still empty, so the game uses the Studio-authored `Daggers_Idle` (unpublished; plays in Studio only until it's uploaded).
+>
+> **Backups:** `ServerStorage.RenseiBackups["Pre-BaseIdle_2026-10-19"]` (both places) and `["Pre-DaggerIdleLegs_2026-10-19"]` (Rensei).
+
+### What was wrong (found live)
+1. **Everything was stopped, the base idle included.** Block (every F press, so parries too), Heavy and the hit reaction stopped *every* playing track. That included the Animate script's base idle and walk, which carry the legs. The block and style-guard poses don't key the legs at all, so the legs dropped to the rest pose.
+2. **The base idle never came back.** Roblox's stock Animate (injected because `StarterCharacterScripts` was empty) only restarts its idle when the idle *changes*. Once its track was stopped from outside, it still believed the idle was playing. A character standing still stayed frozen (arms and legs straight) until it moved. **Measured:** a fresh spawn had **no tracks playing at all**.
+3. **Roblox's own idle, sometimes.** The injected Animate came with two Roblox idles; AnimationManager replaced only the first, so the second (Roblox's "look around") played about 1 loop in 10. It also started Roblox's idle on spawn before the ids were swapped.
+4. **The dagger idle's legs.** The legs are keyed at weight 0, so they hung off the swaying torso instead of animating.
+5. **Found while testing:** after a block, the weapon idle (dagger, style stances) never resumed. WeaponManager also thought its track was still playing.
+
+### Fixes
+- **`StarterCharacterScripts.Animate` (new).**
+  - Roblox's stock R6 Animate, now installed in the game so Roblox doesn't inject its own copy.
+  - It carries Rensei's idle and walk only (`Shared.Movement.Default`).
+  - It re-plays the base idle or walk whenever something has stopped it.
+- **Block, Heavy (both paths), DamageManager hit reaction:** they stop every track **except the base layer** (Core priority: the Animate idle and walk, and the weapon hold). Guard, heavy and hit poses still replace everything they key.
+- **WeaponManager:**
+  - the weapon idle, weapon walk and weapon hold re-play if something stopped them;
+  - the walk part is Rensei only, since the Tutorial has no weapon walk.
+- **`Daggers_Idle`:** the leg poses were removed (594 poses). The base idle now drives the legs; the torso, arms, head and dagger keep the dagger idle.
+
+### Tests (Studio Play, real input actions)
+| Check | Result |
+|---|---|
+| Spawn, standing still | Rensei idle playing (`99650759123617`); no Roblox idle |
+| Every track force-stopped (what a ragdoll does) | base idle, weapon hold and dagger idle all back within 0.6 s |
+| Dagger idle | `Daggers_Idle` + base idle; the hips move exactly as in the plain idle |
+| Hold block (bare-handed Boxing guard, and with daggers) | the guard on the arms; the legs keep the base idle (not the rest pose) |
+| Tap F (parry), release block | the base idle never drops; the dagger idle comes back after the block |
+
+**Not changed:** the parry animations themselves (Parry1 / Parry2 / ParryFlinch) already animate the legs; their frozen legs came from the block path above.
+
+### Also logged (no change yet)
+- **New Automail animations from the owner** (load-tested, all OK):
+  - Mecha Arm Aim `125033765857278` (1.12 s);
+  - Cannon Charge `70940393329813` (0.80 s);
+  - Cannon Shoot `117668751587041` (0.43 s).
+  - They drive the arm's own joints (`fake arm`, `1`–`4`).
+- **The owner's new model** `Workspace."StarterCharacterMeca arm2"` (MecArm: `fake arm` + segments 1–4, 5 FX) matches those joints and is the one the Mecha Arm plan will use. It sits in Workspace, so it should move to ReplicatedStorage / ServerStorage before any publish.
+
+### Files
+Rensei and Tutorial:
+- `StarterPlayer.StarterCharacterScripts.Animate` (new);
+- `Skills.Combat.Block`;
+- `Skills.Combat.Heavy`;
+- `Managers.DamageManager`;
+- `Managers.WeaponManager`;
+- `Assets.Animations.Weapons.Daggers.Daggers_Idle` (Save).
+
+Exported to `Scripts/` and hash-checked against Studio. The `DamageManager` export also picks up the 2026-10-19 `ArmorResist` change, which hadn't been mirrored yet.
+
 ## 2026-10-19 — Design: Morality × Reputation, consequences and rewards (spec, not built)
 
 **Owner:** "make a plan where the morality system intertwines with a reputation system... with real consequences and rewards... ON THEME".

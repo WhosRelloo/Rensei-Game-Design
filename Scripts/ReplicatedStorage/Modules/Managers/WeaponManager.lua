@@ -567,7 +567,8 @@ else
 		local HoldTrack, HoldName = nil, nil
 		local CarryTrack, CarryTrackName = nil, nil
 		local function SetHold(Character, Name)
-			if Name == HoldName then return end
+			-- (also re-played when something stopped it: a ragdoll stops every track)
+			if Name == HoldName and (not HoldTrack or HoldTrack.IsPlaying) then return end
 			if HoldTrack then HoldTrack:Stop(0.15) end
 			HoldTrack, HoldName = nil, nil
 			if Name and AnimationManager.Has(Character, Name) then
@@ -619,7 +620,8 @@ else
 				local Want = Humanoid and Name and Drawn and AnimationManager.Has(Character, Name)
 					and Humanoid.MoveDirection.Magnitude < 0.1 and Character:GetAttribute("CombatState") == nil
 					and Humanoid.FloorMaterial ~= Enum.Material.Air
-				if Want and IdleName ~= Name then
+				-- (or it was stopped from outside: a block / heavy / hit reaction stops the non-base tracks)
+				if Want and (IdleName ~= Name or not (IdleTrack and IdleTrack.IsPlaying)) then
 					StopIdle()
 					IdleTrack = AnimationManager.Play(Character, Name, {Looped = true, Priority = Enum.AnimationPriority.Idle})
 					IdleName = IdleTrack and Name
@@ -635,7 +637,7 @@ else
 				local WantWalk = Humanoid and Walk and Drawn and AnimationManager.Has(Character, Walk)
 					and Humanoid.MoveDirection.Magnitude >= 0.1 and not Sprinting and Character:GetAttribute("CombatState") == nil
 					and Humanoid.FloorMaterial ~= Enum.Material.Air and not Character:GetAttribute("Carrying")
-				if WantWalk and WalkName ~= Walk then
+				if WantWalk and (WalkName ~= Walk or not (WalkTrack and WalkTrack.IsPlaying)) then
 					StopWalk()
 					WalkTrack = AnimationManager.Play(Character, Walk, {Looped = true, Priority = Enum.AnimationPriority.Movement})
 					WalkName = WalkTrack and Walk

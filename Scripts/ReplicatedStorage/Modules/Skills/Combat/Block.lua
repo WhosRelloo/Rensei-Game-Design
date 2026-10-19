@@ -128,8 +128,10 @@ function Block:OnStartClient()
 	-- a hit-parry keeps the hit reaction; the guard pose comes once the stun is over (if still held)
 	while self:GetState().IsActive and self.Character:HasStatusEffects({Stun}) do task.wait() end
 	if not self:GetState().IsActive then return end
+	-- every track but the base layer (Core: the Animate idle / walk, which carries the legs -- the guard
+	-- poses don't key them -- and the weapon hold). Stopping those too froze the legs straight. (2026-10-19)
 	for _, Anim in pairs(Humanoid.Animator:GetPlayingAnimationTracks()) do
-		Anim:Stop()
+		if Anim.Priority ~= Enum.AnimationPriority.Core then Anim:Stop() end
 	end
 	-- the active style's guard pose when it has one (Boxing / Lethwei bare-handed), else the shared one
 	local _, Style = Styles.Active(Character.Instance)

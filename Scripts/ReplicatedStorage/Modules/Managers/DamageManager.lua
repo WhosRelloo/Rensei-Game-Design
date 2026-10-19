@@ -64,10 +64,16 @@ end
 
 -- Damage resistance window (Victim attributes DamageResist = fraction, DamageResistUntil = server time).
 -- TrueDamage attacks (Alloy Divider) ignore it.
+-- ArmorResist (2026-10-19): a standing resistance while bound to the Alchemic Armor (RitualService); it stacks
+-- multiplicatively with any window.
 local function Resist(Victim, IgnoreResist)
 	if IgnoreResist then return 0 end
-	if (Victim:GetAttribute("DamageResistUntil") or 0) <= workspace:GetServerTimeNow() then return 0 end
-	return math.clamp(Victim:GetAttribute("DamageResist") or 0, 0, 0.9)
+	local Standing = math.clamp(Victim:GetAttribute("ArmorResist") or 0, 0, 0.9)
+	local Window = 0
+	if (Victim:GetAttribute("DamageResistUntil") or 0) > workspace:GetServerTimeNow() then
+		Window = math.clamp(Victim:GetAttribute("DamageResist") or 0, 0, 0.9)
+	end
+	return math.clamp(1 - (1 - Standing) * (1 - Window), 0, 0.9)
 end
 
 -- No infinite combos (owner 2026-10-18): a target kept in hitstun without a break for HitStun.MaxChain seconds
@@ -384,7 +390,8 @@ return function(Character,Victim,SkillInfo)
 			VictimHumanoid.Animator:LoadAnimation(ReplicatedStorage.Assets.Animations.Shared.Combat.HitReaction["Knockback"]):Play()
 		else
 			for _,Anim in pairs(VictimHumanoid.Animator:GetPlayingAnimationTracks()) do
-				Anim:Stop()
+				-- not the base layer (Core: the Animate idle / walk under the legs, the weapon hold) (2026-10-19)
+				if Anim.Priority ~= Enum.AnimationPriority.Core then Anim:Stop() end
 			end
 			
 			local HitReactionNumber = math.random(1,3)
