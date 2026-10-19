@@ -2,6 +2,27 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-19 — Design: Morality × Reputation, consequences and rewards (spec, not built)
+
+**Owner:** "make a plan where the morality system intertwines with a reputation system... with real consequences and rewards... ON THEME".
+
+> **Status: design approved section by section; the written spec awaits review. Nothing built.** Spec: `specs/2026-10-19-morality-reputation-consequences-design.md`.
+
+**The owner's choices:**
+- the three layers (Licence, Equivalent Exchange, nations);
+- every kind of payoff;
+- players can act on reputation (opt-in bounties and arrests);
+- Taboo as secret power that is hunted once discovered;
+- lore-true but bounded nation tensions;
+- a consequence layer plus a rumour network.
+
+**The design, in brief:**
+- deeds spread as **rumours** between places over real time, and can be suppressed;
+- **Heat → Wanted 0–5** with NPC and player hunters;
+- the **State Licence vs the Circle** decides power and price;
+- every reward shows its **Price**;
+- 10 build slices (R1–R10), each with an acceptance test.
+
 ## 2026-10-18 — Data storage audit (all phases)
 
 **Owner:** "Completely audit and fix all datastorage after all phases".
