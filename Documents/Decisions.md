@@ -141,6 +141,7 @@ This document records established project decisions to keep development consiste
 - **Player Identities (2026-10-18, PROPOSALS):** 40 records per investigator, 120 s between encounters, witness range 60 studs, a 10-minute lock after a wrong name, and naming allowed from the Suspected stage (2 kinds of observation and 2 encounters).
 - **Forgotten Sites (2026-10-18, PROPOSALS):** dungeon respawn 15 min with an 80-stud clear radius; Halvard's Adit rewards ($180, 775 EXP, the strongbox cache); the site's name and story.
 - **Unused owner assets:** Windup, WindStep, Icechainfx, IceEruption, Pale Assassin Cloak (from "ASSETS TO EXPORT"). Where should they go?
+- **Fluidity numbers (2026-10-18, PROPOSALS):** hitstun chain cap 3.0 s + 0.6 s break; grab buffer 0.25 s; server climb grace 0.5 s; climb → ledge reach 1.5 studs, settle 0.3 s; landing on the move at 1.8×.
 - **Skill tree:** nodes, costs, prerequisites, and whether alchemy slots unlock through it.
 - **Grip:** PvP / permadeath / anti-gank consequences of a grip finisher.
 - **Clans:** roster, rarities, roll weights, bonuses; which abilities count as "Stone Abilities".

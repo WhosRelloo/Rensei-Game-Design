@@ -2,6 +2,115 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-18 — Fluidity pass: combat, M1s, movement, climb → ledge walk; Boxing knockback; no infinite combos
+
+**Owner:**
+- "completely audit combat fluidity, m1 fluidity, movement fluidity, and make it smoother to go from a climb into a ledge walk. Always publish the changes to the changelog";
+- "make it so the 4th in boxing does a knock back, I don't want any infinite combos";
+- "For the fluidity tests try the most complex things you can".
+
+> **Status: built and tested in Studio Play** (Rensei), with chained real-input runs (keyboard / mouse) and server and client probes. The same changes are mirrored into the Tutorial place where its code has them (no ledges or styles there).
+>
+> **Backups:** `ServerStorage.RenseiBackups["Pre-Fluidity_2026-10-18"]` in both places (every touched script, as it was).
+>
+> **Numbers:** all new numbers are PROPOSALS in `TuningConfig`. No attack timing (startup, active, recovery) was changed: the owner deferred per-attack timing earlier today.
+
+### Climb → ledge walk (the owner's request)
+
+**Before (measured):**
+- climbing down onto a ledge let go of the wall, fell, landed, and then needed 0.3–0.5 s standing still before the ledge walk started;
+- the S key still held from climbing down walked you **backwards off the ledge**, and you fell to the ground 7.5 studs below.
+
+**Now:**
+- **Direct hand-over.** Climbing down onto an authored ledge on the same wall (feet within 1.5 studs), or sideways with your feet already at it, hands straight over to the ledge walk:
+  - the server replaces the climb session with the ledge session, so there's no let-go, fall, landing or wait;
+  - the body eases onto the strip over 0.3 s;
+  - the climb pose blends into the ledge pose over 0.25 s;
+  - the S you climbed down with is ignored until you release it.
+  - **Measured:** the ledge walk is live 0.08 s after the feet reach the ledge, the body comes down at 9.4 studs/s (no fall), and it stands exactly on the strip; holding S 3 more seconds no longer steps you off.
+- **Server height check.** The server allowed the root at most 6 studs over the strip and refused the hand-over at 6.51, because it sees a descending climber slightly late. Now `LedgeWalk.ServerAbove = 7`.
+
+### Climbing (found by the chained tests)
+
+**Sprint-jump grabs were refused mid-air.**
+- **Cause:** the server sees a moving player about 0.3 s late in Studio (more live). A sprint-jump grab arrived while the server still had the player 10.4 studs from the wall, outside its 9-stud reach, so the climb was refused and you dropped.
+- **Fix:** a start request that fails *only* the wall / ledge check is now re-checked for up to `Traversal.ValidateGrace = 0.5` s before it's refused. Stun / knock / grip refusals stay immediate, and a stop request cancels the re-check.
+- **Measured:** the grab was accepted 0.35 s after the request.
+
+**Grab buffer.**
+- **Problem:** a sprint jump is only about 0.3 s airborne, and Space pressed a moment before the wall was in reach did nothing (you hit the wall and fell).
+- **Fix:** that press is now remembered for `Parkour.GrabBuffer = 0.25` s and grabs as soon as the wall is in reach.
+
+**False "top of the wall" vault.**
+- **Problem:** climbing past anything that juts out (the LedgeCourse ledge strip juts 1.4 studs) left the climber hanging off *its* face. Above it, the 4-stud wall probe fell 0.05 studs short of the real wall, so the climb vaulted you off mid-wall as if it were the top.
+- **Fix:** the probe is now 4 + `Parkour.ClimbProbeExtra = 2` studs.
+
+**Legs dragging over a jutting strip.**
+- **Problem:** the hang point only checked head height, so the legs dragged over the strip. The humanoid kept trying to stand on it: state flicker and +99 / −58 studs/s jolts.
+- **Fix:** chest, shin and foot probes push the hang point out as needed (worst jolt 99 → 48 studs/s on the first fix).
+
+### Combat / M1
+
+**Boxing:**
+- **The 4th hit knocks back** (stun 0.8, like the Rapier and Daggers finishers).
+- **Measured:** it pushes the target 39.9 studs; the other finishers push 40–43 on the same enemy.
+
+**No infinite combos.** Every M1 string was audited from the live numbers (stun vs recovery + the next windup):
+
+| String | Finisher | Loop check |
+|---|---|---|
+| Fists, Katana, Rapier, Caestus, Greatsword, Daggers, Guns, Lethwei | knockback | knocked 40+ studs; dash can't cancel recovery, so the next hit arrives after the stun ends |
+| Boxing (before) | pull, stun 0.35 | free 0.40 s |
+| Boxing (now) | knockback | as above |
+
+- **Loophole found: a feint reset the combo.** 1-2-3, feint 4, then 1 landed inside hit 3's stun, so the string restarted without ever reaching the finisher (limited only by the feint's 2 s cooldown). **A feint now keeps the combo's place:** the feinted hit comes next.
+- **Universal safety net (`DamageManager`).** A target held in unbroken hitstun for `HitStun.MaxChain = 3.0` s gets no more stun from further hits (damage still lands) for `HitStun.ChainBreak = 0.6` s.
+  - **Measured on a dummy hit every 0.42 s for 8 s:** stunned 0–3.00, free 3.00–3.90, stunned again, free 6.90–7.80.
+  - A normal 4-hit string (about 1.8 s) never reaches it.
+  - It protects players from enemy chains too.
+
+**M1 animations: follow-through re-timed.** Audit of all 36 M1 hits:
+- every finisher's animation ended 0.23–0.40 s before its recovery, so you stood in idle while still locked;
+- pistol whips 2–4 were slowed to 0.6× and cut off halfway;
+- dagger hits 1–3 ran 0.10–0.15 s past the swing and were cut off.
+
+**Fix:** after the impact frame, the rest of a light's or heavy's animation is re-speeded to end exactly with the attack. Hit timing and every number are unchanged, and class skills keep their own timing (grab pairs stay in sync).
+- **Measured:** the Lethwei finisher now plays through to the end of its recovery (2.77 s) instead of freezing for 0.25 s, and held-M1 strings chain with no dead frames.
+
+### Movement
+- **Landing on the move.** The landing animation (authored at Action priority) replaced the run's legs for 0.5 s while sliding at sprint speed. Moving, it now blends in at Movement priority and plays at 1.8×; standing still, it plays as before.
+- **Checked and fine:**
+  - walk → run → speedy run after 2 s;
+  - sprint jumps keep sprint speed;
+  - the dash eases 107 → 16 studs/s and the roll fades out;
+  - sprint is hold-Shift, by design.
+
+### Complex chained tests (real inputs, recorded every frame)
+1. **The full traversal chain:**
+   - sprint → jump → buffered air grab → climb up past the L1 strip → sideways → climb down → **ledge walk hand-over** → walk the ledge → W+Space hop back into the climb → climb to the top → vault.
+   - The first runs exposed the three climbing bugs above. After the fixes the whole chain runs end to end with no errors.
+2. **A held M1 string:** a 4-hit Lethwei string held through, plus the next string. Chains cleanly; finisher retime confirmed.
+3. **An 8-second chain on an enemy** (the cap test above), the **Boxing finisher**, and **every class's finisher** on the same enemy.
+4. **Climb-down with the old code vs the new**, side by side (the numbers above).
+
+### Not yet tested
+- Two players; a real phone; live latency (the grace and buffer were sized for it, but only Studio was measured).
+- A complex combat chain mixing dash-cancel, feint, a queued heavy and an uppercut juggle against a live enemy. A Studio Play-start hang blocked the last run (see the status note).
+
+### Files
+Rensei and Tutorial:
+- `Managers.AnimationManager` (Fade, Retime);
+- `Managers.AttackRunner`;
+- `Managers.DamageManager`;
+- `Managers.JumpManager`;
+- `Skills.Combat.Fist.FistSwing`;
+- `Skills.Combat.Air` (legacy copy: landing only);
+- `Data.Rensei.TuningConfig`.
+
+Rensei only: `Managers.JumpManager.LedgeWalk` and `Managers.MovementState`.
+
+Exported to `Scripts/` (hash-checked against Studio), except the legacy `Skills/Combat/Air.lua`, which isn't mirrored.
+
 ## 2026-10-18 — Daggers: one dagger, in the right hand
 
 **Owner:** "for the dagger model for the dagger class, I only want 1 dagger in the player's right hand".

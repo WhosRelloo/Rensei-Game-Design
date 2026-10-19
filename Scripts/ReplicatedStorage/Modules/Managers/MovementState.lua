@@ -95,7 +95,7 @@ if RunService:IsServer() then
 				local P = Part.CFrame:PointToObjectSpace(Root.Position)
 				local S = Part.Size
 				if math.abs(P.X) <= S.X / 2 + Tol and math.abs(P.Z) <= S.Z / 2 + Tol + 1
-					and P.Y >= S.Y / 2 - 1 and P.Y <= S.Y / 2 + 6 then
+					and P.Y >= S.Y / 2 - 1 and P.Y <= S.Y / 2 + (Tuning.LedgeWalk.ServerAbove or 6) then
 					return true
 				end
 			end
@@ -202,6 +202,18 @@ if RunService:IsServer() then
 		return true
 	end
 
+	-- the place check for a kind (a wall in reach, or an authored ledge under the root)
+	local function PlaceOk(Character, Kind)
+		if Kind == "LedgeWalk" then return LedgeNear(Character) end
+		return WallInReach(Character)
+	end
+
+	-- Latency grace (fluidity pass 2026-10-18): the server sees a moving player's position a little late (in
+	-- Studio ~0.3 s: a sprint-jump grab arrived while the server still had the player 10 studs from the wall,
+	-- and the climb was refused mid-air). A request that fails ONLY the place check is re-checked for
+	-- Traversal.ValidateGrace s before it's refused. Stun / knock / grip refusals stay immediate.
+	local PendingReq = {} -- [Character] = token of the request being re-checked; cleared on resolve / stop / leave
+
 	-- JumpRemote "ClimbState" (via JumpManager.ClimbState): On = start / stop, Kind, Seq = client session number.
 	function MovementState.Request(Player, On, Kind, Seq)
 		local Character = Player.Character
@@ -209,6 +221,7 @@ if RunService:IsServer() then
 		if type(Seq) ~= "number" or Seq ~= Seq or Seq % 1 ~= 0 or math.abs(Seq) > 2^31 then Seq = 0 end
 		local Current = Sessions[Character]
 
+		PendingReq[Character] = nil -- any newer request (start or stop) supersedes one still being re-checked
 		if not On then
 			-- a client never ends the server's swim state
 			if Current and Current.Kind == "Swim" then return end
@@ -221,23 +234,42 @@ if RunService:IsServer() then
 		if type(Kind) ~= "string" or not MovementState.Kinds[Kind] then return end
 		-- no climbing / wall running from the water: the server's swim state stays until dry land
 		if Current and Current.Kind == "Swim" then return end
-		local Why = Refusal(Character)
-			or (Kind == "LedgeWalk" and not LedgeNear(Character) and "NoLedge")
-			or (Kind ~= "LedgeWalk" and not WallInReach(Character) and "NoWall") or nil
-		if Why then
-			if Current then
+		local function Refuse(Why)
+			if Sessions[Character] and Sessions[Character].Kind ~= "Swim" then
 				Sessions[Character] = nil
 				SetClimbing(Character, false)
 			end
 			Publish(Character, Seq, "None", "Refused:" .. Why)
-			return
 		end
-		-- climb <-> wall run hand straight over; a new session replaces the old one
-		local S = {Kind = Kind, Seq = Seq, Started = os.clock(), Token = {}, Misses = 0}
-		Sessions[Character] = S
-		SetClimbing(Character, true)
-		Publish(Character, Seq, Kind)
-		Watch(Character, S)
+		local function Accept()
+			-- climb <-> wall run <-> ledge walk hand straight over; a new session replaces the old one
+			local S = {Kind = Kind, Seq = Seq, Started = os.clock(), Token = {}, Misses = 0}
+			Sessions[Character] = S
+			SetClimbing(Character, true)
+			Publish(Character, Seq, Kind)
+			Watch(Character, S)
+		end
+		local Why = Refusal(Character)
+		if Why then Refuse(Why) return end
+		if PlaceOk(Character, Kind) then Accept() return end
+		local Grace = Tuning.Traversal.ValidateGrace or 0
+		if Grace <= 0 then Refuse(Kind == "LedgeWalk" and "NoLedge" or "NoWall") return end
+		local Token = {}
+		PendingReq[Character] = Token
+		task.spawn(function()
+			local Until = os.clock() + Grace
+			while os.clock() < Until do
+				task.wait(0.05)
+				if PendingReq[Character] ~= Token or not Character.Parent then return end -- superseded / gone
+				local Now = Refusal(Character)
+				if Now then PendingReq[Character] = nil Refuse(Now) return end
+				if PlaceOk(Character, Kind) then PendingReq[Character] = nil Accept() return end
+			end
+			if PendingReq[Character] == Token then
+				PendingReq[Character] = nil
+				Refuse(Kind == "LedgeWalk" and "NoLedge" or "NoWall")
+			end
+		end)
 	end
 
 	-- Every player character (CharacterHandler): end traversal the moment the character is stunned,
@@ -268,6 +300,7 @@ if RunService:IsServer() then
 		table.insert(Conns, Character.AncestryChanged:Connect(function(_, Parent)
 			if Parent then return end
 			Sessions[Character] = nil
+			PendingReq[Character] = nil
 			for _, C in ipairs(Conns) do C:Disconnect() end
 			Tracked[Character] = nil
 		end))

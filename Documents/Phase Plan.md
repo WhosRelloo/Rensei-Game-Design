@@ -35,6 +35,7 @@ Rensei is developed on two tracks that share one codebase (the Roblox place **Ye
 | A15 Movement state + ledge walk | ✅ 2026-10-17 | Server-owned traversal state (`MovementState`, JumpRemote fixes); the authored narrow-ledge walk (Tomb Raider style, facing the wall). |
 | A16 Guns rework | ✅ 2026-10-17 | M1 is a pistol whip; shooting is its own mode (Aim). Gun balance audit 2026-10-18. |
 | A20 Directional climbing + speed audit | ✅ 2026-10-18 | Climb up / down / sideways on the sheet's animations; WCS default-walk-speed and sprint float fixes; `LocomotionSync`. Rensei and Tutorial. |
+| A21 Fluidity pass | ✅ 2026-10-18 | Climb → ledge walk hand-over; climb latency grace, grab buffer, jutting-ledge fixes; M1 follow-through retime; landing blend; Boxing finisher knockback; anti-infinite (feint keeps combo place, 3 s stun-chain cap). Chained real-input tests. |
 | A17 Weapon styles | ✅ 2026-10-18 | Bare fists: Brawler (base), Boxing, Lethwei; taught by style trainers with requirements; the Boxing infinite combo fixed. Other classes: base only until their styles are designed. |
 | A18 Class skills | ✅ 2026-10-17/18 | Mastery menu Class column, 4-slot hotbar loadout; sticky skills (latch until parry / block), victim-animation grabs; Iron Rush and Phoenix Drive aim fixes. |
 | A19 Swimming | ✅ 2026-10-18 | Deep-water swim state (no combat / alchemy, players and enemies), swim sprint, diving, breath and drowning, touch SPRINT / RISE. Mill Pond and Gorge Pool in Lindenmoor. |

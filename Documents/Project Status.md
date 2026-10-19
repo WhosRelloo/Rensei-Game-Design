@@ -46,6 +46,14 @@ Updated **2026-10-18**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
   - **Forgotten Sites:** the framework, plus the first Tier I site, **Halvard's Adit** (sluices or Ice, a winch, an assay ring, guards, a vault and a hidden cache). Dungeon enemies respawn slowly (15 min, and only when the site is empty).
   - **Directional climbing** (up / down / sideways, with the sheet's animations), the **boss bar** at the top of the screen, **Field Notes** (one-time hints) and the updated Tutorial Wall beat.
   - **Speed audit:** base walk speed 16 (owner); the WCS default-walk-speed and sprint float bugs are fixed; walk and run animations follow the real speed (`LocomotionSync`).
+- **Fluidity pass (2026-10-18, late):**
+  - climb → ledge walk hands straight over;
+  - sprint-jump grabs no longer refused (server latency grace, grab buffer);
+  - no false top-out vaults or leg-drag past jutting ledges;
+  - M1 follow-through re-timed (no idle freeze after finishers);
+  - landing blends into the run;
+  - Boxing's 4th hit knocks back;
+  - no infinite combos (a feint keeps the combo's place, plus a 3 s hitstun-chain cap).
 - **Combat log badge:** in combat, shows who hit you and the time until you're out of combat.
 - **Admin panel (F2):** admins only (`AdminConfig`); players, world, self and log tabs, including switching a player's alchemy path.
 - **Items:** consumables on the hotbar; clicking while holding uses one. The Apple heals a little at a time.

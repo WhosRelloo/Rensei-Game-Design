@@ -8,7 +8,9 @@
 --                               (Rensei.Styles: Boxing / Lethwei bare-handed). With a gun it's the PISTOL WHIP string:
 --                               M1 never shoots (shooting is its own mode: Y, then RMB; Requests.Shoot).
 -- The combo carries on through hits AND whiffs (holding / clicking into the air plays the whole
--- string; owner request 2026-10-14); a feint, an interrupt or a pause (Light.ComboReset) resets it.
+-- string; owner request 2026-10-14); an interrupt or a pause (Light.ComboReset) resets it. A FEINT keeps its
+-- place (2026-10-18): the feinted hit comes next. Resetting on a feint let 1-2-3-feint-1-2-3 restart inside
+-- hit 3's stun and never reach the finisher ("no infinite combos").
 -- A whiff still costs the extra whiff recovery (AttackRunner).
 -- All numbers: TuningConfig.
 
@@ -167,7 +169,9 @@ function FistSwing:OnStartServer()
 		end or nil,
 	})
 	self.LastEnded = os.clock()
-	if (Outcome ~= "Hit" and Outcome ~= "Whiff") or Combo >= #Hits then
+	if Outcome == "Feinted" then
+		self:SetMetadata(Combo - 1) -- the feinted hit is next
+	elseif (Outcome ~= "Hit" and Outcome ~= "Whiff") or Combo >= #Hits then
 		self:SetMetadata(0)
 	end
 	-- R pressed during this swing: the heavy comes out now (Heavy.TakeQueued; not after a stun / feint)

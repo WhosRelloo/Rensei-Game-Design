@@ -158,8 +158,13 @@ function RunBody(WCSCharacter, Def, SkillName, Opts)
 	-- the attack's own animation + telegraph (after the prelude, when there is one)
 	local function BeginAttack()
 		if Def.Anim then
+			-- lights and heavies: the follow-through after the impact is re-timed to end with the attack (fluidity
+			-- pass 2026-10-18; AnimationManager Retime). Skills keep their authored timing (grab pairs stay in sync).
+			local Follow = Opts.Feintable or tostring(SkillName):match("Heavy$") ~= nil
 			AnimationManager.Play(Character, Def.Anim, {
 				Priority = Enum.AnimationPriority.Action3, Speed = AnimSpeed(Def), Fallback = Def.Fallback,
+				FollowAt = Follow and (Def.Startup + Def.Active * (Def.AnimPeak and 0.5 or 1)) or nil,
+				EndAt = Follow and Total or nil,
 			})
 		end
 		-- crit telegraph: heavies warn the defender for the whole windup

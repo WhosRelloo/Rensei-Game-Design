@@ -12,6 +12,10 @@
 -- Ordinary walls and untagged ledges are never traversable.
 --
 -- Entering: stand on a ledge (walk or drop onto it) for EnterChecks checks. You turn to face the wall.
+-- From a climb (2026-10-18): climbing down (or sideways at foot level) onto a ledge on the same wall hands
+-- straight over -- no let-go, no fall, no landing, no wait (JumpManager.ClimbLoop -> Enter with FromClimb): the
+-- body settles onto the strip over ClimbSettle s, the climb pose blends into the ledge pose, and the key you
+-- climbed down with (S) doesn't step you off until you let go of it.
 -- Moving: the move input (WASD / thumbstick, camera-relative like normal walking) along the ledge. Round a joined
 -- corner the travel direction sticks while the input is held, so the corner doesn't stall it.
 -- Leaving: step off at a platform end; hold away from the wall StepOffHold s (step down); Space = hop back off
@@ -67,15 +71,17 @@ local MapParams = RaycastParams.new()
 MapParams.FilterType = Enum.RaycastFilterType.Include
 
 -- The ledge the root stands on, and the distance along it, or nil.
-function LedgeWalk.Under(Root)
+-- (From = another point to look down from, e.g. JumpManager's climb looks a little toward the wall)
+function LedgeWalk.Under(Root, From)
 	LedgeParams.FilterDescendantsInstances = CollectionService:GetTagged(C().Tag)
-	local Hit = workspace:Raycast(Root.Position, Vector3.new(0, -5, 0), LedgeParams)
+	local Origin = From or Root.Position
+	local Hit = workspace:Raycast(Origin, Vector3.new(0, -5, 0), LedgeParams)
 	if not Hit or Hit.Normal.Y < 0.7 then return nil end
 	local L = LedgeWalk.Info(Hit.Instance)
 	if not L then return nil end
 	local T = (Hit.Position - L.Center):Dot(L.Along)
 	if math.abs(T) > L.Half then return nil end
-	return L, T, Root.Position.Y - L.Center.Y
+	return L, T, Origin.Y - L.Center.Y
 end
 
 -- Another ledge joined to this one's end (Side = +1 / -1): returns its info and the distance along it at the
@@ -109,8 +115,18 @@ local function PlatformBeyond(L, Side)
 end
 
 
-function LedgeWalk.Enter(Air, Character, L, T, RootHeight)
+-- the root's height above the floor when standing (R6: leg + half the root)
+function LedgeWalk.StandHeight(Character)
+	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+	local Root = Character:FindFirstChild("HumanoidRootPart")
+	local Leg = Character:FindFirstChild("Left Leg")
+	if Humanoid and Humanoid.RigType == Enum.HumanoidRigType.R6 and Leg and Root then return Leg.Size.Y + Root.Size.Y / 2 end
+	return (Humanoid and Humanoid.HipHeight or 2) + (Root and Root.Size.Y / 2 or 1)
+end
+
+function LedgeWalk.Enter(Air, Character, L, T, RootHeight, Opts)
 	local Cfg = C()
+	Opts = Opts or {}
 	local Player = Players.LocalPlayer
 	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
 	local Root = Character:FindFirstChild("HumanoidRootPart")
@@ -119,21 +135,28 @@ function LedgeWalk.Enter(Air, Character, L, T, RootHeight)
 
 	Air.TraversalState(Player, true, "LedgeWalk")
 	Humanoid.AutoRotate = false
-	local Align = MoverManager.AlignPosition(Character, {P = RootAt(L, T, RootHeight), Max = Vector3.one * math.huge, R = Cfg.Responsiveness})
+	-- from a climb: start soft and firm up, so the body eases down onto the strip instead of snapping
+	local Settle = Opts.FromClimb and (Cfg.ClimbSettle or 0) or 0
+	local SettleFrom = os.clock()
+	local Align = MoverManager.AlignPosition(Character, {P = RootAt(L, T, RootHeight), Max = Vector3.one * math.huge,
+		R = Settle > 0 and (Cfg.ClimbSettleResponsiveness or 20) or Cfg.Responsiveness})
 	local Orient = MoverManager.LookAt(Character, {C = CFrame.lookAt(Vector3.zero, L.Wall), Max = math.huge})
 	-- poses (sheet 2026-10-18): Walk Left / Walk Right while moving, the ledge idle of the side you last moved to
 	-- while standing. With no AnimRight the left walk plays backwards (the old behaviour).
 	local Current, CurrentTrack, LastLeft = nil, nil, true
+	local Blend = Opts.FromClimb and Cfg.ClimbBlend or nil -- the first pose blends in from the climb pose
 	local function Pose(Name, Speed)
 		if Name ~= Current then
 			if CurrentTrack then CurrentTrack:Stop(0.15) end
-			CurrentTrack = Name and AnimationManager.Play(Character, Name, {Looped = true, Priority = Enum.AnimationPriority.Action}) or nil
+			CurrentTrack = Name and AnimationManager.Play(Character, Name, {Looped = true, Priority = Enum.AnimationPriority.Action, Fade = Blend}) or nil
+			Blend = nil
 			Current = Name
 		end
 		if CurrentTrack and Speed then CurrentTrack:AdjustSpeed(Speed) end
 	end
 	Pose(Cfg.IdleLeft or Cfg.Anim, Cfg.IdleLeft and 1 or 0)
 	local AwaySince = nil
+	local AwayLatched = Opts.FromClimb == true -- climbed down with S: ignore "away" until it's released
 	local Sticky = nil -- the travel direction kept round a joined corner while the input is held
 
 	local function Exit(Reason, Hop)
@@ -192,8 +215,14 @@ function LedgeWalk.Enter(Air, Character, L, T, RootHeight)
 			Dir = Sticky -- just round a corner: keep going while the input is held
 		end
 
+		if Settle > 0 then
+			local K = math.clamp((os.clock() - SettleFrom) / Settle, 0, 1)
+			Align.Responsiveness = (Cfg.ClimbSettleResponsiveness or 20) + (Cfg.Responsiveness - (Cfg.ClimbSettleResponsiveness or 20)) * K
+			if K >= 1 then Settle = 0 end
+		end
+		if AwayLatched and Move:Dot(-L.Wall) < 0.3 then AwayLatched = false end
 		-- holding away from the wall (and not along it): step down off the ledge
-		if Dir == 0 and Move:Dot(-L.Wall) > 0.75 then
+		if Dir == 0 and not AwayLatched and Move:Dot(-L.Wall) > 0.75 then
 			AwaySince = AwaySince or os.clock()
 			if os.clock() - AwaySince >= Cfg.StepOffHold then Exit("StepOff") return end
 		else

@@ -83,6 +83,27 @@ local function Unfreeze(Track)
 	FrozenSpeed[Track] = nil
 end
 
+-- Follow-through retime (fluidity pass 2026-10-18). Data.FollowAt = seconds after Play when the attack's impact
+-- frame plays; Data.EndAt = seconds after Play when the attack ends. At FollowAt the rest of the animation is
+-- re-speeded to end exactly at EndAt: a finisher whose animation was shorter than its recovery no longer stands
+-- frozen in idle while still locked, and one that ran past its attack is no longer cut off mid-motion. The impact
+-- timing (and every attack number) is unchanged. Hitstop-aware: during a freeze the restored speed is set instead.
+local function Retime(Track, Data)
+	if not (Data.FollowAt and Data.EndAt) or Data.EndAt - Data.FollowAt < 0.05 then return end
+	local Started = os.clock()
+	task.delay(Data.FollowAt, function()
+		if not Track.IsPlaying or Track.Looped or Track.Length <= 0 then return end
+		local Frozen = FrozenSpeed[Track]
+		local Animator = Frozen and Frozen.Animator
+		local FreezeLeft = Animator and math.max(0, (FrozenUntil[Animator] or 0) - os.clock()) or 0
+		local Left = Track.Length - Track.TimePosition
+		local Time = Data.EndAt - (os.clock() - Started) - FreezeLeft
+		if Left <= 0.01 or Time <= 0.03 then return end
+		local Speed = math.clamp(Left / Time, 0.25, 3)
+		if Frozen then Frozen.Speed = Speed else Track:AdjustSpeed(Speed) end
+	end)
+end
+
 if RunService:IsClient() then
 	function AnimManager.Initiate()
 		local Player = Players.LocalPlayer
@@ -152,7 +173,7 @@ if RunService:IsClient() then
 			LoadedAnims[Character][Animation].Priority = Data.Priority or LoadedAnims[Character][Animation].Priority
 			LoadedAnims[Character][Animation].Looped = Data.Looped
 			-- Play() resets the speed to 1, so the speed is applied after it.
-			LoadedAnims[Character][Animation]:Play()
+			LoadedAnims[Character][Animation]:Play(Data.Fade) -- Data.Fade = blend-in seconds (nil = Roblox's 0.1)
 			Unfreeze(LoadedAnims[Character][Animation])
 			if Data.Reverse then
 				-- played backwards from its last frame (sheathing with an equip animation)
@@ -160,6 +181,7 @@ if RunService:IsClient() then
 				TimePosition = math.max(0, LoadedAnims[Character][Animation].Length - 0.02)
 			else
 				LoadedAnims[Character][Animation]:AdjustSpeed(Speed)
+				Retime(LoadedAnims[Character][Animation], Data)
 			end
 			LoadedAnims[Character][Animation].TimePosition = TimePosition
 			
@@ -175,10 +197,10 @@ if RunService:IsClient() then
 		end
 	end
 
-	function AnimManager.Stop(Character,Animation)
-		-- silent when missing: an unpublished weapon animation is simply not loaded
+	function AnimManager.Stop(Character,Animation,Fade)
+		-- silent when missing: an unpublished weapon animation is simply not loaded. Fade = blend-out seconds.
 		if LoadedAnims[Character] and LoadedAnims[Character][Animation] then
-			LoadedAnims[Character][Animation]:Stop()
+			LoadedAnims[Character][Animation]:Stop(Fade)
 		end
 	end
 
@@ -240,6 +262,7 @@ else
 				TimePosition = math.max(0, Track.Length - 0.02)
 			else
 				Track:AdjustSpeed(Speed)
+				Retime(Track, Data)
 			end
 			Track.TimePosition = TimePosition
 			

@@ -244,8 +244,14 @@ function Air:OnConstructClient()
 		if not Humanoid or not Root then return end
 		local State = Humanoid:GetState()
 		local InAir = State == Enum.HumanoidStateType.Freefall or State == Enum.HumanoidStateType.Jumping
-		if not InAir then AirSince = nil return end
+		if not InAir then AirSince = nil Air.GrabBufferUntil = nil return end
 		AirSince = AirSince or os.clock()
+		-- a buffered grab (Space pressed just before the wall was in reach): take it now
+		if Air.GrabBufferUntil and os.clock() <= Air.GrabBufferUntil and not self.ClimbConn and not self.WallRunConn and HitObject(Character) then
+			Air.GrabBufferUntil = nil
+			self:OnStartClient()
+			return
+		end
 		if os.clock() - AirSince < 0.12 or self.WallRunConn then return end
 		if not HoldingJump() then return end
 		local CharacterState = WCSCharacter.GetCharacterFromInstance(Character)
@@ -353,6 +359,27 @@ function Air:ClimbLoop(Character, Normal)
 		end
 	end
 
+	-- climb -> ledge walk (2026-10-18): an authored ledge on THIS wall right under you takes over directly. The
+	-- server's traversal session is replaced (MovementState: a new session replaces the old one), so there's no
+	-- let-go, fall, landing or entry wait in between. Down: a ledge within ClimbDownReach of the feet; sideways:
+	-- only one the feet are already at (ClimbSideReach), so climbing past a ledge doesn't grab it.
+	local function LedgeHandoff(Y, X)
+		local LW = Tuning.LedgeWalk
+		if not (LW and LW.Enabled and LW.FromClimb) then return false end
+		-- look under the body and a little toward the wall (the shin probe keeps the climber off the strip's front)
+		local L, T, Height = LedgeWalk.Under(Root)
+		if not L then L, T, Height = LedgeWalk.Under(Root, Root.Position - Normal * 1.6) end
+		if not L or L.Wall:Dot(-Normal) < 0.7 then return false end
+		local Stand = LedgeWalk.StandHeight(Character)
+		if Height - Stand > (Y < 0 and LW.ClimbDownReach or LW.ClimbSideReach) then return false end
+		if self.ClimbConn then self.ClimbConn:Disconnect() self.ClimbConn = nil end
+		EffectModules["Hang"].locally(Character, self.CurrentSide, "Destroy")
+		MoverManager.ClearMovers(Character)
+		for _, Name in ipairs(ClimbAnims) do AnimationManager.Stop(Character, Name, LW.ClimbBlend) end
+		LedgeWalk.Enter(self, Character, L, T, Stand, {FromClimb = true})
+		return true
+	end
+
 	local function LetGo()
 		if self.ClimbConn then self.ClimbConn:Disconnect() self.ClimbConn = nil end
 		EffectModules["Hang"].locally(Character, self.CurrentSide, "Destroy")
@@ -388,7 +415,11 @@ function Air:ClimbLoop(Character, Normal)
 
 		-- the wall must continue that way (probe at head height, like the grab, a little ahead)
 		local Right = (-Normal):Cross(Vector3.yAxis).Unit
-		local function WallAt(Pos) return workspace:Raycast(Pos + Vector3.new(0, 3, 0) + Normal * 1.5, -Normal * 4, WallProbe) end
+		-- probe length: 4 + ClimbProbeExtra. With a flat 4, climbing past anything that juts out (a ledge strip,
+		-- trim, a beam) left the climber hanging off ITS face; above it the real wall was just out of reach and the
+		-- climb vaulted you off mid-wall as if it were the top (fluidity pass 2026-10-18, LedgeCourse L1)
+		local Probe = 4 + (P.ClimbProbeExtra or 0)
+		local function WallAt(Pos) return workspace:Raycast(Pos + Vector3.new(0, 3, 0) + Normal * 1.5, -Normal * Probe, WallProbe) end
 		if Y ~= 0 and not WallAt(Align.Position + Vector3.yAxis * Y * 0.5) then
 			if Y > 0 then
 				-- top of the wall: vault onto the ledge
@@ -404,6 +435,7 @@ function Air:ClimbLoop(Character, Normal)
 			StopStepping()
 			return
 		end
+		if (Y < 0 or X ~= 0) and LedgeHandoff(Y, X) then return end
 
 		-- up: pull by pull (a new step when the last one finished); down / sideways: a steady shuffle
 		local Surge, Side = 1, (Y ~= 0) and 0.7 or 1
@@ -421,14 +453,22 @@ function Air:ClimbLoop(Character, Normal)
 		local Vertical = Y > 0 and P.ClimbSpeed * Surge or P.ClimbDownSpeed
 		local Delta = Right * X * P.ClimbSideSpeed * Side * Dt + Vector3.yAxis * Y * Vertical * Dt
 		local Target = Align.Position + Delta
-		local Hit = workspace:Raycast(Target + Vector3.new(0, 3, 0) + Normal * 1.5, -Normal * 4, WallProbe)
+		local Hit = workspace:Raycast(Target + Vector3.new(0, 3, 0) + Normal * 1.5, -Normal * Probe, WallProbe)
 		if not Hit then return end
 		if Y < 0 and workspace:Raycast(Root.Position, Vector3.new(0, -3.3, 0), WallProbe) then
 			LetGo() -- climbed down to the ground
 			return
 		end
 		Normal = Hit.Normal
-		Align.Position = Hit.Position + Normal * WALL_GAP - Vector3.new(0, 3, 0)
+		-- keep the WHOLE body clear of anything jutting out of the wall (fluidity pass 2026-10-18): the head probe
+		-- alone let the legs drag over a ledge strip while climbing past it (the humanoid kept trying to stand on it:
+		-- state flicker and +99 / -58 studs/s jolts). Chest and shin probes push the hang point out as needed.
+		local Out = 0
+		for _, Dy in ipairs({0.5, -2, -2.9}) do -- chest, shins, feet
+			local Low = workspace:Raycast(Target + Vector3.new(0, Dy, 0) + Normal * 1.5, -Normal * Probe, WallProbe)
+			if Low then Out = math.max(Out, (Low.Position - Hit.Position):Dot(Normal)) end
+		end
+		Align.Position = Hit.Position + Normal * (WALL_GAP + Out) - Vector3.new(0, 3, 0)
 		if self.AlignOrientation and self.AlignOrientation.Parent then
 			self.AlignOrientation.CFrame = CFrame.new(Hit.Position, Hit.Position - Normal)
 		end
@@ -605,7 +645,13 @@ function Air:OnStartClient()
 					Humanoid.JumpHeight = DefaultJH
 					self.DoubleJump = true
 
-					AnimationManager.Play(Character,"DefaultLanding")
+					-- landing on the move (fluidity pass 2026-10-18): the landing (authored at Action priority) used to
+					-- replace the run's legs for 0.5 s while sliding at sprint speed. Moving, it now blends in at Movement
+					-- priority and plays quicker (a short dip); standing still it plays as before.
+					local Moving = Humanoid.MoveDirection.Magnitude > 0.1
+					AnimationManager.Play(Character,"DefaultLanding",{
+						Priority = Moving and Enum.AnimationPriority.Movement or nil, Speed = Moving and 1.8 or 1,
+					})
 
 					JumpConn:Disconnect()
 				end
@@ -745,6 +791,12 @@ function Air:OnStartClient()
 			Humanoid.JumpHeight = DefaultJH * 2--self.DoubleJumpMultiplier
 			AnimationManager.Play(Character,"DoubleJump")
 			Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+		elseif (Humanoid:GetState() == Enum.HumanoidStateType.Jumping or Humanoid:GetState() == Enum.HumanoidStateType.Freefall)
+			and not Intersection and not Air.AirUses.Climb then
+			-- grab buffer (fluidity pass 2026-10-18): Space in the air a moment BEFORE the wall is in reach still grabs
+			-- it (the Heartbeat below takes it the moment the wall comes in reach). A sprint jump is only ~0.3 s
+			-- airborne, and a press just early used to do nothing -- you hit the wall and dropped.
+			Air.GrabBufferUntil = os.clock() + (Tuning.Parkour.GrabBuffer or 0)
 		end
 	end
 end

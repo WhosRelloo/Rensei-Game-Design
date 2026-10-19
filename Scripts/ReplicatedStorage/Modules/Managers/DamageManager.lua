@@ -70,6 +70,34 @@ local function Resist(Victim, IgnoreResist)
 	return math.clamp(Victim:GetAttribute("DamageResist") or 0, 0, 0.9)
 end
 
+-- No infinite combos (owner 2026-10-18): a target kept in hitstun without a break for HitStun.MaxChain seconds
+-- takes no more stun from further hits (damage still lands) for HitStun.ChainBreak seconds -- a real window to
+-- block, parry or dash out. Every legitimate string (4 lights, + heavy / skill / juggle) ends well inside it.
+local StunChains = {} -- [Victim] = {Start = os.clock() of the unbroken stun, FreeUntil}; cleared on Destroying
+local function ChainedStun(Victim, VictimState, StunTime)
+	local Max = Tuning.HitStun.MaxChain
+	if not Max or StunTime <= 0 then return StunTime end
+	local Now = os.clock()
+	local C = StunChains[Victim]
+	if not C then
+		C = {}
+		StunChains[Victim] = C
+		Victim.Destroying:Once(function() StunChains[Victim] = nil end)
+	end
+	if C.FreeUntil and Now < C.FreeUntil then return 0 end
+	if not C.Start or not VictimState:HasStatusEffects({StateModules["Stun"]}) then
+		C.Start, C.FreeUntil = Now, nil -- a fresh chain: the target was free when this hit landed
+		return StunTime
+	end
+	local Left = math.max(0, Max - (Now - C.Start))
+	if StunTime >= Left then
+		-- this hit would carry the stun to the cap: it ends there, then ChainBreak s in which hits don't stun
+		C.Start, C.FreeUntil = nil, Now + Left + (Tuning.HitStun.ChainBreak or 0.6)
+		return Left
+	end
+	return StunTime
+end
+
 return function(Character,Victim,SkillInfo)
 	if not SkillInfo then return end
 	-- A knocked target can't be hurt or moved by attacks; only a grip finishes it.
@@ -267,6 +295,7 @@ return function(Character,Victim,SkillInfo)
 		
 		local StunTime = SkillInfo.StunTime or 0.5
 		if Armored then StunTime = 0 end
+		StunTime = ChainedStun(Victim, VictimState, StunTime) -- no infinite combos
 		if StunTime ~= 0 then
 			-- hitstun: no jumping, a slow shuffle (Devil Hunter); knockbacks below still pin the victim
 			MoverManager.Movement(Victim,{D = StunTime,JH = 0,WS = Tuning.HitStun.WalkSpeed})

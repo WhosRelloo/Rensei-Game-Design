@@ -68,7 +68,13 @@ TuningConfig.Heavy = {
 }
 
 -- Walk speed while hit-stunned (DH lets a stunned fighter shuffle at 4/15; was 0). Jumping stays off.
-TuningConfig.HitStun = {WalkSpeed = 4}
+TuningConfig.HitStun = {
+	WalkSpeed = 4,
+	-- no infinite combos (owner 2026-10-18; DamageManager): after MaxChain s of unbroken hitstun, hits stop
+	-- stunning for ChainBreak s so the target can act. A full string is ~1.8 s; string + heavy / skill ~2.6 s. PROPOSAL
+	MaxChain = 3.0,
+	ChainBreak = 0.6,
+}
 
 -- Launcher + jump attack.
 --   Ctrl + LMB (ground or air) -> Uppercut: launches the target and you upward together
@@ -172,6 +178,8 @@ TuningConfig.Movement = {
 
 -- Parkour stamina (controls doc). One climb and one wall run per airtime; landing resets both.
 TuningConfig.Parkour = {
+	GrabBuffer = 0.25, -- s: Space pressed in the air this long before a wall is in reach still grabs it (fluidity 2026-10-18)
+	ClimbProbeExtra = 2, -- studs added to the climb's wall probe so it finds the wall behind a jutting ledge / trim
 	-- Directional climb (controls doc: tap Space on a wall, WASD moves on it, stamina drain, no
 	-- combat, touch the ground to reset). PROPOSAL speeds / drain.
 	ClimbStart = 10,
@@ -205,6 +213,7 @@ TuningConfig.Parkour = {
 TuningConfig.Traversal = {
 	ValidateReach = 9, -- server: a wall must be this close to start / keep a climb or wall run (client reach 5 + lag slack)
 	CheckEvery = 0.5, -- server re-check interval while a traversal is active (nothing runs while none is)
+	ValidateGrace = 0.5, -- s the server re-checks a start that failed only the wall / ledge check (it sees moving players late)
 	MissesToEnd = 2, -- consecutive re-checks without a wall in reach before the server ends it
 	WallRunGrace = 1.0, -- seconds past Parkour.WallRunDuration (x Acrobat) before the server ends a wall run
 	FXMinInterval = 0.12, -- per effect type: the fastest one player may broadcast a movement effect (JumpRemote PlayFX)
@@ -316,9 +325,18 @@ TuningConfig.LedgeWalk = {
 	StepOffSpeed = 10,
 	HopAway = 18, HopUp = 28, -- Space: hop back off the wall
 	ClimbHop = 26, -- Space while pushing toward the wall: hop up into the climb
+	-- climb -> ledge walk hand-over (2026-10-18, owner: "make it smoother to go from a climb into a ledge walk")
+	FromClimb = true,
+	ClimbDownReach = 1.5, -- climbing down: a ledge this far (studs) below the feet takes over
+	ClimbSideReach = 0.6, -- climbing sideways: only a ledge the feet are already at
+	ClimbSettle = 0.3, -- seconds the body eases onto the strip (soft AlignPosition firming up)
+	ClimbSettleResponsiveness = 20, -- AlignPosition responsiveness at the start of the settle
+	ClimbBlend = 0.25, -- seconds the climb pose blends into the ledge pose
 	RegrabCooldown = 0.8, -- after leaving, how soon you can step onto a ledge again
 	RefusedCooldown = 2, -- after the server ends / refuses it
 	ServerTolerance = 1.5, -- studs past an endpoint the server allows (lag) before it ends the ledge walk
+	ServerAbove = 7, -- studs: highest the root may be over the strip's top for the server (was 6; the server sees a
+	-- climber coming down onto the ledge slightly late, and refused the hand-over at 6.5)
 }
 
 TuningConfig.Feint = {
@@ -1174,8 +1192,8 @@ TuningConfig.Downed.Grips = {
 -- ALL NUMBERS PROPOSAL until playtested.
 TuningConfig.Styles = {
 	Fists = {
-		-- Boxing: tight, even jab chains that keep the target in range (no knockback finisher), walking
-		-- forward while punching; the Peek-a-boo heavy rolls through hits (hyper armour) but hits lighter.
+		-- Boxing: tight, even jab chains, walking forward while punching, ending in a knockback hook (owner
+		-- 2026-10-18); the Peek-a-boo heavy rolls through hits (hyper armour) but hits lighter.
 		Boxing = {
 			AttackWalkSpeed = 16,
 			Light = {Hits = {
@@ -1184,8 +1202,10 @@ TuningConfig.Styles = {
 				{Anim = "Boxing_Light3", AnimPeak = 0.32, Startup = 0.22, Active = 0.08, Recovery = 0.16, Damage = 15, Posture = 6, Stun = 0.65, Velocity = "Pull", Reach = 3.2},
 				-- owner 2026-10-18 "fix boxing infinite combo'ing": the string looped because the finisher stunned (0.75 s)
 				-- past its recovery + the next jab's startup (0.30 + 0.22 s). Now 0.35 s stun / 0.45 s recovery: after a full
-				-- string the target is free ~0.32 s before the next jab can land (block / dodge window). Still no knockback.
-				{Anim = "Boxing_Light4", AnimPeak = 0.32, Startup = 0.24, Active = 0.08, Recovery = 0.45, Damage = 20, Posture = 10, Stun = 0.35, Velocity = "Pull", Reach = 3.4},
+				-- string the target is free ~0.32 s before the next jab can land (block / dodge window).
+				-- owner 2026-10-18: "make it so the 4th in boxing does a knock back, I don't want any infinite combos" --
+				-- the finisher now knocks back like every other class's (stun 0.8, as the Rapier / Daggers finishers).
+				{Anim = "Boxing_Light4", AnimPeak = 0.32, Startup = 0.24, Active = 0.08, Recovery = 0.45, Damage = 20, Posture = 10, Stun = 0.8, Velocity = "Knockback", Reach = 3.4},
 			}},
 			Heavy = {Anim = "Boxing_Heavy", AnimPeak = 0.58, Startup = 0.46, Active = 0.12, Recovery = 0.45, Damage = 28, Posture = 30, Stun = 0.9,
 				Velocity = "Knockback", Reach = 3.8, Step = 18, Cooldown = 1.2, WalkSpeed = 12, HyperArmor = true},
