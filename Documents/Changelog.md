@@ -33,6 +33,7 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
   - `Land / LandEverywhere / Landed / PlaceStanding / GlobalStanding / Renown / Seed`. The global standing stays a cache: each faction's place standing summed over regions and divided by `Regions.Count(F)` (equal weights, a PROPOSAL), so a deed heard everywhere counts in full and one heard in half a faction's regions counts half;
   - Renown counts Public deeds (or deeds discovered as Public) once they've been heard somewhere;
   - `Seed` (schema 5, once per profile, sets `Morality.Seeded`): deeds that already counted before places existed (Local / Public / discovered) are heard everywhere, stamped with the deed's own time, so no old save loses standing. Private deeds stay unheard;
+  - repeatable deeds (review finding, kept by ruling and now documented in the header): a place that has heard of a deed counts every repeat (the ledger's Count), so later repeats count there at once. This is accepted for small capped deeds; the owner can switch to per-place counts later;
   - nothing calls it yet (MoralityService and RumourService will); no existing script changed;
   - test `Test_Reputation` (Edit mode): RED was "Reputation is not a valid member", then PASS 7 / FAIL 0.
 - Note: commit e6f9408 (Task 1) carries a "Claude Sonnet 5.5" co-author line by mistake; it should read Claude Opus 5.5 (not rewritten: the branch is shared).

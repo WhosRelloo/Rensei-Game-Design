@@ -4,6 +4,9 @@
 -- The global Standing that conditions and the UI read stays a cache: each faction's standing summed over
 -- the regions and divided by how many regions it's present in (equal weights, PROPOSAL), so a deed heard
 -- everywhere its factions live counts in full, and one heard in half of them counts half.
+-- Repeatable deeds (Rensei.Deeds Repeat = {Cap}): a place that has heard of the deed counts every repeat
+-- (the ledger's Count), so after word of the first one reaches a place, later repeats count there at once.
+-- Accepted for small capped deeds (owner can switch to per-place counts later).
 -- Pure functions over a profile's Morality table: MoralityService and RumourService call them.
 
 local Regions = require(script.Parent.Regions)
