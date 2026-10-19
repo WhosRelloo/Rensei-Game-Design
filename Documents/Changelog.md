@@ -104,8 +104,8 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
   - review fix: groups no longer hide each other: an NPC out of sight rays for a player holds that player's awareness and catches up next tick. New test `HoldsWhenNotChecked`; `Play_Perception` PASS 4 / FAIL 0.
 - Task 8: WitnessService and the world's watchers (Rensei):
   - **what players notice:**
-    - a grip finisher's witnesses are now real. Only NPCs that actually perceive you count as witnesses (seen in the last second, or at least Suspicious of you);
-    - an NPC behind you, out of its cone, doesn't see the deed. Once its awareness drains below Suspicious, the deed has no witness: strength 0, no rumour;
+    - a grip finisher's witnesses are now real. Only NPCs that actually saw you within the last 3 s (`Perception.Memory`) count as witnesses. This is after the review fix below; the first version also counted any NPC still Suspicious of you;
+    - an NPC behind you, out of its cone, doesn't see the deed. Once 3 s pass without it seeing you, it no longer counts. With no NPC witness, no player witness and no evidence, strength is 0 and there's no rumour;
   - new `ServerScriptService.WitnessService`:
     - `Weights` (PROPOSAL): `Npc` 1, `Agent` 2 (Carrier: State / Circle agents), `Evidence` 3;
     - `Strength(Npcs, Evidence)` is pure;
@@ -127,6 +127,14 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
     - 0.5 s behind: strength 1 (awareness 0.72, still above Suspicious);
     - 6 s behind: strength 0, awareness 0.00;
     - the player's position was restored; no WitnessService errors in the console.
+    - (this check ran before the review fix; with the 3 s rule, "behind" drops to 0 once 3 s pass without sight)
+  - review fix (`PerceptionService`), three rules:
+    - `Perceived` counts only NPCs that saw the player within `Memory` (3 s); awareness alone isn't sight (spec §4);
+    - watchers (`Combat = false`) cap at awareness 0.99. They notice and stare (Suspicious) but never go Alert from sight; a hit still alarms them (`Alarm`). This also stops a watcher from holding witness status through a 25 s search;
+    - `Call` reaches only NPCs of the same kind: enemies call enemies, watchers call watchers (spec §17.1);
+    - backups `ServerScriptService_PerceptionService_preT8fix` and `ServerStorage_RenseiTests_Play_Perception_preT8fix` are in `Pre-Foundation_2026-10-19`;
+    - new Play tests `WatcherNeverAlertsFromSight` and `PerceivedNeedsRecentSight`: `Play_Perception` PASS 6 / FAIL 0, no `PerceptionService:` warnings. `Test_Witness` still PASS 2 / FAIL 0;
+    - PerceptionService is now 13903 bytes (FNV 152410ad).
 - Note: commit e6f9408 (Task 1) carries a "Claude Sonnet 5.5" co-author line by mistake; it should read Claude Opus 5.5 (not rewritten: the branch is shared).
 
 ## 2026-10-19 — Plans: Morality × Reputation roadmap + Plan 1 (Foundation)

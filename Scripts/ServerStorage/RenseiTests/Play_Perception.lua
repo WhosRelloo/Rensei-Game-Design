@@ -10,6 +10,12 @@ local function FindGrunt()
 		if Rig:GetAttribute("EnemyType") == "Grunt" and PS.Tracks(Rig) then return Rig end
 	end
 end
+local function FindWatcher()
+	for _, M in ipairs(game:GetService("CollectionService"):GetTagged("RenseiWatcher")) do
+		local St = PS.Npcs[M]
+		if St and St.Combat == false and M:FindFirstChild("HumanoidRootPart") then return M, St end
+	end
+end
 local function Run(Seconds) for _ = 1, math.floor(Seconds / 0.2 + 0.5) do PS.Step(0.2) end end
 local function Put(Rig, Local) -- Local offset in the rig's space (-Z = in front)
 	local Root = Rig.HumanoidRootPart
@@ -99,6 +105,48 @@ return {
 		PS.Reset(Rig)
 		PS.SetAuto(true)
 		Rig:SetAttribute("AIPassive", nil)
+		C:PivotTo(Home)
+		if not Ok then error(Err, 0) end
+	end,
+	-- watchers (Combat = false) notice and stare, but sight alone never puts them in Alert
+	WatcherNeverAlertsFromSight = function(T)
+		local Rig = FindWatcher()
+		T.True(Rig ~= nil, "a watcher is registered with PerceptionService")
+		PS.SetAuto(false)
+		PS.Reset(Rig)
+		local Home = C:GetPivot()
+		local Ok, Err = pcall(function()
+			Put(Rig, Vector3.new(0, 0, -6))
+			Run(5)
+			T.True(PS.PhaseOf(Rig) ~= "Alert", "not Alert from sight")
+			T.True(PS.Awareness(Rig, Player) <= 0.99 + 1e-9, "awareness capped below 1")
+		end)
+		PS.Reset(Rig)
+		PS.SetAuto(true)
+		C:PivotTo(Home)
+		if not Ok then error(Err, 0) end
+	end,
+	-- a witness must have seen the player within Memory seconds; lingering awareness isn't sight (spec §4)
+	PerceivedNeedsRecentSight = function(T)
+		local Rig, State = FindWatcher()
+		T.True(Rig ~= nil, "a watcher is registered with PerceptionService")
+		PS.SetAuto(false)
+		PS.Reset(Rig)
+		local Home = C:GetPivot()
+		local function Has()
+			for _, S in ipairs(PS.Perceived(Player)) do if S == State then return true end end
+			return false
+		end
+		local Ok, Err = pcall(function()
+			Put(Rig, Vector3.new(0, 0, -6))
+			Run(1)
+			T.True(Has(), "perceived while seen")
+			Put(Rig, Vector3.new(0, 0, 12))
+			Run(P.Memory + 0.4)
+			T.True(not Has(), "not perceived once out of sight past Memory")
+		end)
+		PS.Reset(Rig)
+		PS.SetAuto(true)
 		C:PivotTo(Home)
 		if not Ok then error(Err, 0) end
 	end,

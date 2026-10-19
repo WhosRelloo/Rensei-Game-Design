@@ -98,7 +98,8 @@ local function Call(S, Player, Where)
 	if not Root or not Where then return end
 	for Rig, O in pairs(Npcs) do
 		local R = O ~= S and Rig:FindFirstChild("HumanoidRootPart")
-		if R and (R.Position - Root.Position).Magnitude <= P.CallRadius and O.Phase ~= "Alert" then
+		-- enemies call enemies, watchers call watchers (spec §17.1: guards are called in, not bandits)
+		if R and O.Combat == S.Combat and (R.Position - Root.Position).Magnitude <= P.CallRadius and O.Phase ~= "Alert" then
 			O.Aware[Player] = math.max(O.Aware[Player] or 0, P.Suspicious)
 			O.LastKnown = Where
 			O.InvestigateUntil = Now() + P.InvestigateTime
@@ -195,6 +196,7 @@ local function Update(S, Dt, PlayerList)
 				A = math.max(0, A - P.Drain * Elapsed)
 			end
 		end
+		if not S.Combat then A = math.min(A, 0.99) end -- watchers notice and stare (Suspicious) but sight alone never alarms them; being hit does (Alarm)
 		S.Aware[Player] = A
 		if A > Best then Best, BestPlayer = A, Player end
 	end
@@ -298,15 +300,15 @@ function PerceptionService.Noise(Position, Radius)
 	end
 end
 
--- NPCs that perceive this player right now (they saw them in the last second, or are at least Suspicious
--- of them): the witnesses of whatever the player does (WitnessService)
+-- NPCs that saw this player within the last Memory seconds: the witnesses of whatever the player does
+-- (WitnessService). Only what an NPC actually perceived witnesses (spec §4): awareness alone isn't sight.
 function PerceptionService.Perceived(Player)
 	local Out = {}
 	local T = Now()
 	for Rig, S in pairs(Npcs) do
 		if Alive(Rig) and not Rig:GetAttribute("Knocked") then
 			local Seen = S.Seen[Player]
-			if (Seen and T - Seen <= 1) or (S.Aware[Player] or 0) >= P.Suspicious then table.insert(Out, S) end
+			if Seen and T - Seen <= P.Memory then table.insert(Out, S) end
 		end
 	end
 	return Out
