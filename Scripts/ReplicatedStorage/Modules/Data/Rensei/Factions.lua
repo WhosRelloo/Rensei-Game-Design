@@ -11,8 +11,22 @@ Factions.Factions = {
 	Foundry = {Name = "Foundry Hands"}, -- the yard's workers and smelters
 	Circle = {Name = "Unlicensed Circle"}, -- alchemists working without a licence
 	Townsfolk = {Name = "Townsfolk"}, -- ordinary people of the district
+	-- (new, 2026-10-19) each origin's home community: PLACEHOLDER names from the spec (§11), owner to name them.
+	-- Diaspora: their people live in every region, so they hear word anywhere (Rensei.Regions).
+	AmestrianCitizenry = {Name = "Amestrian Citizenry", Diaspora = true},
+	IshvalanCommunity = {Name = "Ishvalan Community", Diaspora = true},
+	XingneseHouses = {Name = "Xingnese Merchant Houses", Diaspora = true},
+	DrachmanFrontier = {Name = "Drachman Frontier", Diaspora = true},
+	AerugonianGuild = {Name = "Aerugonian Guild", Diaspora = true},
+	XerxianRemnant = {Name = "Xerxian Remnant", Diaspora = true},
 }
-Factions.Order = {"Authority", "Foundry", "Circle", "Townsfolk"}
+Factions.Order = {"Authority", "Foundry", "Circle", "Townsfolk", "AmestrianCitizenry", "IshvalanCommunity",
+	"XingneseHouses", "DrachmanFrontier", "AerugonianGuild", "XerxianRemnant"}
+-- origin (Identity.Origin, Customization.Nations) -> its community
+Factions.Communities = {
+	Amestrian = "AmestrianCitizenry", Ishvalan = "IshvalanCommunity", Xingnese = "XingneseHouses",
+	Drachman = "DrachmanFrontier", Aerugonian = "AerugonianGuild", Xerxian = "XerxianRemnant",
+}
 
 -- Standing tiers, worst to best. A value is in the last tier whose Min it reaches.
 Factions.Tiers = {

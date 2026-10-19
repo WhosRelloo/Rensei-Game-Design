@@ -11,6 +11,7 @@
 --       Private: only Conduct and Trust move; Standing / Renown wait until it is discovered.
 --     Repeat   = {Cap = n}  -- repeatable: counts at most Cap times per day (nil = once ever)
 --     Bonus    = {Money = n} -- paid with each counted repeat (PROPOSAL)
+--     Birth    = true   -- an origin deed (born_<Origin>): heard everywhere at once, never a rumour
 --   }
 -- Deeds come from: dialogue actions {Kind = "Deed", Deed = id}, quest Outcomes[x].Deeds, and
 -- MoralityService's combat hooks (Finishers below: grip vs deliver a knocked enemy).
@@ -82,6 +83,41 @@ local Deeds = {
 		Scope = "Local",
 		Repeat = {Cap = 10},
 		Bonus = {Money = 10},
+	},
+
+	-- ===== Birth (2026-10-19, spec §11): recorded once when the character first plays in Ye. Origin offsets
+	-- cut both ways, each at most +-20, and each origin's add up to >= 0 so no origin is a net handicap.
+	-- PLACEHOLDER values (spec §18.2: the owner sets the real table). Birth deeds are heard everywhere at
+	-- once and never become rumours. =====
+	born_Amestrian = {
+		Text = "Born in Amestris",
+		Standing = {AmestrianCitizenry = 10, Authority = 10, IshvalanCommunity = -10},
+		Scope = "Public", Birth = true,
+	},
+	born_Ishvalan = {
+		Text = "Born of Ishval",
+		Standing = {IshvalanCommunity = 20, Authority = -15, Circle = 10},
+		Scope = "Public", Birth = true,
+	},
+	born_Xingnese = {
+		Text = "Born in Xing",
+		Standing = {XingneseHouses = 15, Authority = -5},
+		Scope = "Public", Birth = true,
+	},
+	born_Drachman = {
+		Text = "Born in Drachma",
+		Standing = {DrachmanFrontier = 15, Authority = -10},
+		Scope = "Public", Birth = true,
+	},
+	born_Aerugonian = {
+		Text = "Born in Aerugo",
+		Standing = {AerugonianGuild = 15, Authority = -10},
+		Scope = "Public", Birth = true,
+	},
+	born_Xerxian = {
+		Text = "Of Xerxian blood",
+		Standing = {XerxianRemnant = 10, Circle = 5, Authority = -10},
+		Scope = "Public", Birth = true,
 	},
 }
 

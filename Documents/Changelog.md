@@ -10,6 +10,24 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
   - `ProfileData`: `SchemaVersion = 5`, the four new `Morality` tracks + `Seeded = false`, and the new `Licence` block;
   - byte-identical in all three places: `ProfileMigrations` 7aac8c12 → 08185f97 (2811 bytes), `ProfileData` 7d86af52 → a494cec4 (7554 bytes); backups in `ServerStorage.RenseiBackups["Pre-Foundation_2026-10-19"]` in each place;
   - test `ServerStorage.RenseiTests.Test_Schema5` (Rensei, Edit mode): PASS 4 / FAIL 0.
+- Task 3: Regions, communities, birth deeds (Rensei):
+  - new `Rensei.Regions`: the graph that word of a deed travels. Five regions (City, Foundry, Lindenmoor, Adit, Wilds), each with the factions present, jurisdiction, safe flag and links. Three carriers: Gossip reaches everyone present; Dispatch reaches only the Authority; Whisper reaches only the Circle. Also an `AreaName` → region map (the default is City) and the helpers `OfArea / Present / FactionsAt / Count / Reach / Links`. Every region, link and minute is a PROPOSAL;
+  - `Rensei.Factions`: six origin communities (`Diaspora = true`, so they are present in every region), `Factions.Order` 4 → 10 entries, and the new `Factions.Communities` (origin → community);
+  - `Rensei.Deeds`: six `born_<Origin>` deeds (`Scope = "Public"`, `Birth = true`), plus a `Birth` field in the header comment. They are only defined here; nothing records them yet;
+  - **for you to review (placeholders, all (new)):**
+    - the six community names (Amestrian Citizenry, Ishvalan Community, Xingnese Merchant Houses, Drachman Frontier, Aerugonian Guild, Xerxian Remnant);
+    - the birth offsets (each within ±20, each origin's sum ≥ 0);
+    - the region **Wilds** (the Forgotten Sites);
+  - `Factions.Order` uses (`script_grep`):
+    - `Regions.FactionsAt` (new): this is how communities show up in every region;
+    - `MoralityService` line 63, `Tiers()`: it now computes 10 tiers instead of 4. This is harmless; the tiers of the communities with no standing read Neutral;
+    - `MoralityService` line 95, the tier-change banner loop: a deed that moves a community's standing across a tier now shows a banner, e.g. "Ishvalan Community - Trusted" (`born_Ishvalan` gives +20) once birth deeds are recorded;
+    - no client UI iterates `Factions.Order` today, so no faction list grows to 10 rows yet (the Journal tab is Plan 10);
+  - backups of Factions and Deeds are in `Pre-Foundation_2026-10-19`;
+  - tests (Edit mode):
+    - `Test_Regions`: RED was "Regions is not a valid member", then PASS 5 / FAIL 0;
+    - `Test_Schema5`: PASS 4 / FAIL 0;
+    - `Test_TestKit`: PASS 4 / FAIL 0.
 - Note: commit e6f9408 (Task 1) carries a "Claude Sonnet 5.5" co-author line by mistake; it should read Claude Opus 5.5 (not rewritten: the branch is shared).
 
 ## 2026-10-19 — Plans: Morality × Reputation roadmap + Plan 1 (Foundation)
