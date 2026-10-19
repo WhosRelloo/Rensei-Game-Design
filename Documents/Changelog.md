@@ -101,6 +101,7 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
     - **surprises to watch for:**
       - nothing alerts an Elite before its first hit, so its parry AI only engages once it's Alert;
       - walking alone doesn't add to noticing (x1 up to speed 20), so walking in the open is noticed at the standing rate.
+  - review fix: groups no longer hide each other: an NPC out of sight rays for a player holds that player's awareness and catches up next tick. New test `HoldsWhenNotChecked`; `Play_Perception` PASS 4 / FAIL 0.
 - Note: commit e6f9408 (Task 1) carries a "Claude Sonnet 5.5" co-author line by mistake; it should read Claude Opus 5.5 (not rewritten: the branch is shared).
 
 ## 2026-10-19 — Plans: Morality × Reputation roadmap + Plan 1 (Foundation)
