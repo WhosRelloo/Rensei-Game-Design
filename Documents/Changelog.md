@@ -102,6 +102,31 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
       - nothing alerts an Elite before its first hit, so its parry AI only engages once it's Alert;
       - walking alone doesn't add to noticing (x1 up to speed 20), so walking in the open is noticed at the standing rate.
   - review fix: groups no longer hide each other: an NPC out of sight rays for a player holds that player's awareness and catches up next tick. New test `HoldsWhenNotChecked`; `Play_Perception` PASS 4 / FAIL 0.
+- Task 8: WitnessService and the world's watchers (Rensei):
+  - **what players notice:**
+    - a grip finisher's witnesses are now real. Only NPCs that actually perceive you count as witnesses (seen in the last second, or at least Suspicious of you);
+    - an NPC behind you, out of its cone, doesn't see the deed. Once its awareness drains below Suspicious, the deed has no witness: strength 0, no rumour;
+  - new `ServerScriptService.WitnessService`:
+    - `Weights` (PROPOSAL): `Npc` 1, `Agent` 2 (Carrier: State / Circle agents), `Evidence` 3;
+    - `Strength(Npcs, Evidence)` is pure;
+    - `Capture(Player, DeedId, Evidence)` returns `{Npcs, Players, Strength}`. NPC witnesses come from `PerceptionService.Perceived`. Player witnesses are other players within `Identities.WitnessRange` (60) with a clear line of sight. A missing character means no player witnesses, not an error;
+    - `Note / CanReport / Forget` keep player witnesses in server memory, so they can report at a desk later (RumourService). `ReportWindow` is 1800 s (30 min, PROPOSAL). The memory is cleared when the witness leaves;
+    - MoralityService already calls `Capture` for deeds recorded with `Ctx.Witness`, so its strength-2 fallback is no longer used. No existing script changed;
+  - **Watchers (PROPOSAL, owner to review).** Every NPC model in `Workspace.World.NPCs` with a Humanoid and no `EnemyType` is now tagged `RenseiWatcher`, with attributes `Faction` / `Carrier` / `WatcherType`. Factions were assigned by these rules: `TakesPrisoners` → Authority agent, inside the FoundryYard volume → Foundry, otherwise Townsfolk.
+    - Mirra -> Foundry
+    - Tobin -> Foundry
+    - Drillmaster Vask -> Townsfolk
+    - Placeholder NPC -> Townsfolk
+    - Foreman Brask -> Authority (agent)
+    - Lise -> Foundry
+    - not tagged: the five trainers in the `Alchemy Trainers` folder (Veyra, Holt, Ansel, Calda, Brannoc). The tagging pass only looks at direct children of `World.NPCs`. Tag them too if they should witness;
+  - test `Test_Witness` (Edit mode): RED was "WitnessService is not a valid member", then PASS 2 / FAIL 0;
+  - Play check (Lise, Foundry, 25 studs in front, then 5 studs behind):
+    - before: strength 0;
+    - 2 s in front: strength 1 (Lise only), awareness 0.83, Suspicious;
+    - 0.5 s behind: strength 1 (awareness 0.72, still above Suspicious);
+    - 6 s behind: strength 0, awareness 0.00;
+    - the player's position was restored; no WitnessService errors in the console.
 - Note: commit e6f9408 (Task 1) carries a "Claude Sonnet 5.5" co-author line by mistake; it should read Claude Opus 5.5 (not rewritten: the branch is shared).
 
 ## 2026-10-19 — Plans: Morality × Reputation roadmap + Plan 1 (Foundation)
