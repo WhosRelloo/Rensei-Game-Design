@@ -2,6 +2,10 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-19 — Plan 1: Foundation (in progress)
+
+- Task 1: TestKit (ServerStorage.RenseiTests) — Studio test runner; self-test PASS 4 / FAIL 0
+
 ## 2026-10-19 — Plans: Morality × Reputation roadmap + Plan 1 (Foundation)
 
 **Owner:** "Continue" (the spec is approved; next step, the implementation plans).
