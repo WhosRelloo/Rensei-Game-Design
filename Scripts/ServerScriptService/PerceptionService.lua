@@ -52,7 +52,7 @@ function PerceptionService.Register(Rig, Info)
 	local S = {
 		Rig = Rig, Type = Info.Type or "Grunt", Faction = Info.Faction, Carrier = Info.Carrier == true,
 		Combat = Info.Combat ~= false,
-		Aware = {}, Seen = {}, Spot = {}, -- [Player] = awareness / os.clock() last seen / position last seen
+		Aware = {}, Seen = {}, Spot = {}, Pending = {}, -- [Player] = awareness / os.clock() last seen / position last seen -- Pending: seconds since that player was last checked
 		Phase = "Unaware", Since = Now(), Focus = nil, LastKnown = nil,
 		InvestigateUntil = 0, SearchUntil = nil, CautiousUntil = 0, Turn = 0, Seed = math.random() * math.pi * 2,
 	}
@@ -80,6 +80,7 @@ end
 local function Visible(S, Eye, Character, Allowance)
 	local Pts = Points(Character)
 	if not Pts then return 0, Allowance end
+	if Budget <= 0 or Allowance <= 0 then return nil, Allowance end -- no rays left: not checked this tick
 	Rays.FilterDescendantsInstances = {S.Rig, Character}
 	local Clear = 0
 	for _, Pt in ipairs(Pts) do
@@ -165,6 +166,8 @@ local function Update(S, Dt, PlayerList)
 		local CR = C and C:FindFirstChild("HumanoidRootPart")
 		local A = S.Aware[Player] or 0
 		local Gain = 0
+		local Checked = true
+		S.Pending[Player] = (S.Pending[Player] or 0) + Dt
 		if CR and Alive(C) and not C:GetAttribute("Knocked") then
 			local To = CR.Position - Head.Position
 			local Dist = To.Magnitude
@@ -172,7 +175,9 @@ local function Update(S, Dt, PlayerList)
 			if Cone > 0 then
 				local Vis
 				Vis, Allowance = Visible(S, Head.Position, C, Allowance)
-				if Vis > 0 then
+				if Vis == nil then
+					Checked = false -- no rays left for this player this tick: hold, catch up next time
+				elseif Vis > 0 then
 					S.Seen[Player] = T
 					S.Spot[Player] = CR.Position
 					local V = CR.AssemblyLinearVelocity
@@ -181,10 +186,14 @@ local function Update(S, Dt, PlayerList)
 				end
 			end
 		end
-		if Gain > 0 then
-			A = math.min(1, A + Gain * Dt)
-		elseif S.Phase ~= "Alert" then
-			A = math.max(0, A - P.Drain * Dt)
+		if Checked then
+			local Elapsed = S.Pending[Player]
+			S.Pending[Player] = 0
+			if Gain > 0 then
+				A = math.min(1, A + Gain * Elapsed)
+			elseif S.Phase ~= "Alert" then
+				A = math.max(0, A - P.Drain * Elapsed)
+			end
 		end
 		S.Aware[Player] = A
 		if A > Best then Best, BestPlayer = A, Player end
@@ -257,6 +266,7 @@ function PerceptionService.Reset(Rig)
 	local S = Npcs[Rig]
 	if not S then return end
 	S.Aware, S.Seen, S.Spot = {}, {}, {}
+	S.Pending = {}
 	S.Focus, S.SearchUntil, S.LastKnown = nil, nil, nil
 	S.InvestigateUntil, S.CautiousUntil = 0, 0
 	SetPhase(S, "Unaware")
@@ -320,6 +330,7 @@ function PerceptionService.Start()
 	Players.PlayerRemoving:Connect(function(Player)
 		for _, S in pairs(Npcs) do
 			S.Aware[Player], S.Seen[Player], S.Spot[Player] = nil, nil, nil
+			S.Pending[Player] = nil
 			if S.Focus == Player then S.Focus = nil end
 		end
 	end)

@@ -75,4 +75,31 @@ return {
 		PS.Lose(Rig)
 		PS.SetAuto(true)
 	end,
+	-- a player the NPC has no sight rays left for this tick is not checked: awareness holds (no drain), and the
+	-- skipped time is applied at the next check (groups don't hide each other)
+	HoldsWhenNotChecked = function(T)
+		local Rig = FindGrunt()
+		Rig:SetAttribute("AIPassive", true)
+		PS.SetAuto(false)
+		PS.Reset(Rig)
+		local Home = C:GetPivot()
+		local Ok, Err = pcall(function()
+			Put(Rig, Vector3.new(0, 0, -12))
+			Run(0.4)
+			local A1 = PS.Awareness(Rig, Player)
+			T.True(A1 > 0.1, "noticing in front")
+			P.RaysPerTick = 0
+			Run(1)
+			T.Near(PS.Awareness(Rig, Player), A1, 1e-6, "held while unchecked")
+			P.RaysPerTick = 120
+			Run(0.2)
+			T.Near(PS.Awareness(Rig, Player), A1 + 0.56 * 1.2, 0.15, "catches up the skipped time")
+		end)
+		P.RaysPerTick = 120
+		PS.Reset(Rig)
+		PS.SetAuto(true)
+		Rig:SetAttribute("AIPassive", nil)
+		C:PivotTo(Home)
+		if not Ok then error(Err, 0) end
+	end,
 }
