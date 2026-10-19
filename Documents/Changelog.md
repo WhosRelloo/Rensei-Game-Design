@@ -34,7 +34,7 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 - the inventory caps, including all-or-nothing.
 
 **Still open:**
-- **Reroll receipt test:** not yet run. Studio's Play start hung in the Main Menu place; a Studio-only hook, `MenuServer.StudioReceiptTest`, is ready for it.
+- **Reroll receipt (tested 2026-10-19):** MenuServer's reroll code was run unchanged on your profile in Ye (the Main Menu's Play start hung). It granted after a confirmed save (11.4 s), and the same receipt again gave no second grant. Restored afterwards, and the stored copy checked: clean. The Main Menu path itself (`MenuServer.StudioReceiptTest`) is still to run.
 - **`AddUserId`:** missing from this ProfileService version, which matters for data-deletion requests.
 
 ## 2026-10-18 — Fluidity pass: combat, M1s, movement, climb → ledge walk; Boxing knockback; no infinite combos

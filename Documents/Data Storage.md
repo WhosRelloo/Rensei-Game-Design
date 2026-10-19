@@ -51,7 +51,11 @@ There are no OrderedDataStores, MemoryStores or MessagingService.
   - a give of 1,000 was clamped to 25 (11 → 36 entries);
   - the next give of 25 was refused (it would pass 60), and nothing was added;
   - a give of 5,000 to a stack was clamped to 25.
-- **Reroll receipt:** **not yet run.** Studio's Play start hung in the Main Menu place. The code calls the receipt through a Studio-only hook (`MenuServer.StudioReceiptTest`) so it can be tested next session: it should wait for an auto-save, grant once, and grant nothing on a repeat.
+- **Reroll receipt (2026-10-19):** MenuServer's reroll code was run unchanged on your profile in Ye, because the Main Menu's Play start kept hanging. Ye uses the same ProfileService library and store.
+  - **First receipt:** granted after 11.4 s, once a save including it was confirmed; rolls 0 → 1.
+  - **Same receipt again:** granted at once with no second grant (rolls stayed 1).
+  - **Restored:** rolls back to 0, the test id removed. The stored copy was read afterwards: rolls 0, no tag, session released.
+- **Not yet run:** the full Main Menu path, including the `MenuServer.StudioReceiptTest` hook.
 
 ## Limits / owner decisions
 - **No user-id registration.** This ProfileService version has no `AddUserId`, the helper that lets a data-deletion request (GDPR) find a profile. Upgrading the library is a separate change; until then, an erasure request has to be handled by deleting the `Data<UserId>…` keys and `A<UserId>` / `L<UserId>` by hand.
