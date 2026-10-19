@@ -69,6 +69,8 @@ Starting graph (PROPOSAL):
 
 ## 4. Witnesses (new: `WitnessService`)
 
+Who counts as a witness is decided by the **perception model in §17**: an NPC only witnesses what it actually perceived. Being seen and being **identified** are different (§17.6).
+
 When a deed is recorded, the server captures:
 - **Witnesses:**
   - NPCs and faction agents in line of sight and range (reusing `IdentityService`'s witness test);
@@ -377,7 +379,169 @@ Every slice:
 | **R9** Taboo + Shadow Office | Marks, evidence, discovery, recruitment offer | Needs the owner's Taboo canon first. |
 | **R10** Journal tab + polish + docs | Standing tab, rumour list, the `Price` lint | No raw numbers shown; every reward has a Price. |
 
-## 17. Open decisions for the owner
+## 17. Detection and stealth (added 2026-10-19)
+
+**Owner decisions:**
+- **Model:** inspired by *Thief* (light, shadow, sound), *Metal Gear Solid* (vision cones, alert phases, investigating noises) and *The Last of Us* (gradual awareness, searching, takedowns, listen mode). The ideas are borrowed; **none of those games' interfaces or assets are copied**.
+- **Scope:** **everyone**. All NPC enemies, guards, witnesses and hunters use it.
+- **Kit:** **all four tools**: takedowns, distractions, light control, Alchemic Sense.
+
+### 17.1 Awareness and alert phases (`PerceptionService`, new, server)
+
+Each NPC keeps an **awareness value from 0 to 1 per player**, which fills and drains over time.
+
+| Phase | Behaviour |
+|---|---|
+| **Unaware** | Patrols / idles. |
+| **Suspicious** (awareness >= 0.35) | Walks to the last thing it noticed (a sighting or a noise) and investigates; gives up after ~8 s. |
+| **Alert** (awareness = 1) | If it sees you: combat, handed to `CombatDirector` (the existing squad AI). If not: **search**. The squad sweeps outward from your last known position, and guards within 40 studs are called in. |
+| **Cautious** | After a failed search (~25 s): back to patrol for 3 min with sight and hearing x1.3. |
+
+Today's distance-only aggro is replaced. Enemies enter combat only through these phases. Once in combat, the existing squad AI runs unchanged.
+
+### 17.2 Sight
+
+- **The view cone:**
+  - **Primary:** 110 degrees, full rate.
+  - **Peripheral:** 160 degrees, half rate.
+  - **Behind:** nothing.
+- **Range:** depends on the NPC type (below), with the fill rate falling off over distance.
+- **Line of sight:** checked to your **head, torso and feet** separately. Each visible point adds a third, so partial cover helps.
+- **Multipliers:**
+  - crouching x0.5;
+  - walking x1, running x1.5, sprinting x2;
+  - **Exposure** (§17.4) x0.2 in deep shadow up to x1.2 in bright light.
+- **NPC types** (PROPOSAL):
+
+  | Type | Range | Notes |
+  |---|---|---|
+  | Grunt / Scavenger | 30 | slow fill |
+  | Elite | 45 | |
+  | State Alchemist / enforcer | 40 | hears alchemy from 2x further |
+  | Hunters | 50 | |
+  | Trial foes | | always aware (arena) |
+
+### 17.3 Sound
+
+Sounds are **events with a radius**. Each wall between the sound and the NPC removes 40% of the radius. Hearing a sound sends the NPC to **investigate the spot**: it learns where, not who.
+
+| Sound | Radius (PROPOSAL) |
+|---|---|
+| Footsteps: crouched | 0 |
+| Footsteps: walking on grass / dirt | 4 |
+| Footsteps: walking on wood | 7 |
+| Footsteps: walking on metal / gravel | 9 |
+| Footsteps: running | x2 |
+| Landing from height | 12 |
+| Vault / roll | 10 |
+| Water splash | 12 |
+| Melee hit | 20 |
+| Alchemy cast | 30 (the clap alone: 8) |
+| Gunshot | 60 |
+| Breaking something | 25 |
+| Lock-picking | 6 |
+
+Surfaces are read from the floor's material.
+
+### 17.4 Light: Exposure (0-1)
+
+- **What it's computed from:**
+  - lamps, torches and windows, which are **tagged light sources** (`RenseiLight`, with radius and strength);
+  - outdoor daylight, from the time of day;
+  - whether you're in shadow, using a raycast to the strongest nearby light.
+- **Computed** on the server for perception, and on the client for the HUD.
+- **The HUD:** a small **eye sigil** in the transmutation-circle style shows your Exposure plus your movement noise. It's original art, not a copy of a "light gem".
+
+### 17.5 Bodies, alarms, evidence
+
+- **Bodies:** a knocked-out or dead person found by a guard -> that area goes **Alert**, and an **evidence** item appears (the existing Evidence system).
+- **Revival:** a knocked-out NPC who is revived becomes a **witness**, if they saw you before going down.
+- **Alarm bells** in State places: a guard at Alert runs to the bell, and ringing it puts the whole place on **Alert** for 60 s. You can **sabotage** a bell (a mechanism: Metal jams it, Earth buries it, or a lock-pick-style minigame).
+
+### 17.6 Identification, masks and anonymous rumours
+
+- **What identifies you:** a witness identifies you only if **distance <= 25**, **Exposure >= 0.4**, and you're **unmasked**.
+- **Masks:** equipping one (Mask Equip animation) hides your identity. The witness still saw the deed, but not who did it.
+- **Identified** -> a normal rumour (§5).
+- **Not identified** -> an **anonymous rumour** ("a masked alchemist", "a stranger"):
+  - no Heat or Standing for you;
+  - the place goes Cautious for 10 min and tightens patrols.
+- **Linking an anonymous rumour back to you:**
+  - your **technique** or **weapon** matched by evidence;
+  - a witness who later sees your face;
+  - Player Identities records.
+
+  Once linked, it becomes yours and lands in full, once. This is the investigation theme working both ways.
+- **No witness and no evidence** -> no rumour at all (a ghost).
+
+### 17.7 The player's kit
+
+| Tool | Rules (PROPOSAL) |
+|---|---|
+| **Choke** (non-lethal) | From behind or above, on an Unaware or Suspicious NPC. 2 s, interruptible, quiet (radius 6). KO lasts until found / revived, or 5 min. A Mercy-friendly deed for persons; nothing for hostile mobs. |
+| **Lethal finish** | Same conditions. 0.8 s, silent. Uses the Assassination animation or the weapon's Grip. Killing a person is a deed, and the body is evidence. |
+| **Drop takedown** | From a ledge, wall run or climb onto an NPC below. |
+| **Bodies** | **Drag** (the Drag animation, slow) or **Carry** (existing) into shadow or a **hiding spot** (tagged `RenseiHide`: containers, haystacks, alcoves). A hidden body is never found. |
+| **Throwables** | Pick up (Ground Interaction) a pebble or bottle (stack of 3); throw lands a sound event of radius 12 at the impact point. |
+| **Alchemic lures** | A no-damage cast per path, meter 5, sound 15 at the target point: Earth stone clatter, Wind door / shutter rattle, Flame spark, Ice frost crack, Metal pipe clang. |
+| **Light control** | On a `RenseiLight`: Ice / Wind snuff it, Flame relights or flares it (blinding 1.5 s at close range), Earth / Metal shutter a window. A guard who sees a light go out turns Suspicious and goes to relight it. |
+| **Alchemic Sense** | Hold the key: clap and palm to the ground. Outlines people **through walls** within 40 studs for 3 s. Meter 15, 20 s cooldown, you move at 50% while holding it, and the clap makes a sound of radius 8. |
+| **Lock picking** | Locked doors and chests (`RenseiLock`). 3-6 s, sound radius 6. The Lock Pick animation. |
+
+Players keep all their existing movement: climbing, ledge walking and swimming are stealth routes.
+
+### 17.8 Stealth rewards
+
+- **Ghost / no-kill completion** of a site, Order or contract: bonus Renown, and stealth flavour titles (PROPOSAL: e.g. "the Shade of <place>").
+- **Contract conditions:** some Circle contracts and State Orders require **no alarms**.
+- **Later skill-tree nodes:** quieter steps, faster chokes, a longer Sense pulse, a lure that costs less meter.
+
+### 17.9 Animations
+
+The Animation ID's sheet was re-read on 2026-10-19.
+
+| Need | From the sheet | Status |
+|---|---|---|
+| Lethal takedown | Assassination `83505608395055` | available. **Its victim column is empty** |
+| Drag a body | Drag `85054207968303` | available |
+| Lock pick | Lock Pick `136478153650620` | available |
+| Pick up a throwable | Ground Interaction `138121475774733` | available |
+| Mask on / off | Mask Equip/Unequip `121711546680316` | available |
+| Sense pulse | Clap `115558611088872` + Ground Slam `85976777038591` | in the game |
+| Lethal finish by weapon | each weapon's GRIP | in the game |
+| Wall cover | Wall Cover Left `134041804221664` / Right `111740908967094` | **broken uploads** (on the re-upload list) |
+| Crouch walk | in the game | - |
+
+**Needed from the animator** (placeholders until then):
+- an assassination victim reaction;
+- a choke and its victim;
+- a drop takedown, with its victim;
+- a throw;
+- a cover peek;
+- guard search / look-around;
+- stuffing a body into a hiding spot.
+
+### 17.10 Performance
+
+- **Who runs perception:** only NPCs within **80 studs** of a player, at **0.2 s** per NPC.
+- **Raycast budget:** at most 3 sight rays per NPC per tick, and a global cap of 120 per tick.
+- **Sound:** handled as events, never scanned.
+- **Light:** tagged sources, cached per place, never engine lighting queries.
+- **Measuring it:** the R2 / S1 tests profile the cost with 20 NPCs near 2 players.
+
+### 17.11 Build slices (they interleave with R1-R10)
+
+| Slice | Builds | Acceptance (Studio Play) |
+|---|---|---|
+| **S1** Perception + phases | `PerceptionService`; enemies enter combat through phases; Suspicious investigation; search sweeps | Approaching an Unaware Grunt from behind in shadow doesn't alert it; walking into its cone fills awareness at the expected rates; losing it leads to a search, then Cautious. (Built with R2: witnesses use it.) |
+| **S2** Sound + light | Footstep surfaces, sound events, wall muffling, `RenseiLight`, Exposure, the eye sigil HUD | Running on metal is heard further than walking on grass; a lamp put out lowers Exposure; a gunshot pulls guards. |
+| **S3** Takedowns + bodies | Choke, lethal, drop takedown, drag / carry, hiding spots, bodies -> Alert + evidence, alarm bells | A choke on an Unaware NPC works and is refused on an Alert one; a hidden body is never found, a visible one raises Alert. |
+| **S4** Distractions + light control | Throwables, alchemic lures, snuffing / relighting / shuttering lights, guards relighting | A lure pulls a guard off its patrol; a guard relights a snuffed lamp. |
+| **S5** Alchemic Sense | Pulse, outlines, costs, clap sound | Outlines last 3 s through walls within 40 studs; the cooldown and meter are enforced on the server. |
+| **S6** Identification + masks | Identification rule, masks, anonymous rumours, linking | A masked deed creates an anonymous rumour with no Heat; matching evidence links it once. |
+| **S7** Stealth rewards | Ghost / no-kill tracking, contract conditions | A no-alarm Order pays its bonus once. |
+
+## 18. Open decisions for the owner
 
 1. **Names:**
    - the six nation communities;
@@ -395,3 +559,12 @@ Every slice:
    - hunter caps.
 5. **PvP permadeath interplay:** arrest never kills (proposed). Confirm that a **grip** on a Wanted player is still a normal knockout, not permadeath.
 6. **Rank 4:** both routes, or only one?
+7. **Stealth numbers:**
+   - sight ranges;
+   - cone angles;
+   - sound radii;
+   - the identification rule (25 studs, Exposure 0.4);
+   - takedown times;
+   - Sense cost and range.
+8. **Animations:** commission the missing stealth animations (§17.9) and re-upload Wall Cover L/R.
+9. **Lethal stealth kills of guards:** how heavy a deed. They're always deeds; the proposal is Mercy -5 and the evidence goes into rumours.

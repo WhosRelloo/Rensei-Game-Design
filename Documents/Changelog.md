@@ -23,6 +23,13 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 - every reward shows its **Price**;
 - 10 build slices (R1–R10), each with an acceptance test.
 
+**Added the same day: §17 Detection and stealth** (owner: "like Thief, Metal Gear Solid or The Last of Us"):
+- **Perception:** awareness for every NPC, alert phases (Unaware / Suspicious / Alert / Cautious), view cones, light Exposure, sound by surface and wall muffling, bodies and alarms.
+- **The player's kit:** takedowns (choke, lethal, drop), distractions (throwables, alchemic lures), light control, Alchemic Sense.
+- **Identity:** masks, and **anonymous rumours** that only become yours when evidence links them.
+- **Animations:** listed against the re-read Animation ID's sheet.
+- **Build:** slices S1-S7.
+
 ## 2026-10-18 — Data storage audit (all phases)
 
 **Owner:** "Completely audit and fix all datastorage after all phases".
