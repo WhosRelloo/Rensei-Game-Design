@@ -2,6 +2,38 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-19 — Plans: Morality × Reputation roadmap + Plan 1 (Foundation)
+
+**Owner:** "Continue" (the spec is approved; next step, the implementation plans).
+
+> **Status: plans written, nothing built yet.** Nothing in Studio changed for this entry.
+
+- **`plans/2026-10-19-morality-roadmap.md`:**
+  - the spec split into 10 plans that each ship working, tested code: Foundation → Heat / Wanted + sound / light → Consequences + Exchange → Licence → stealth kit → identification + hunters → PvP bounties → allies + stealth rewards → Taboo (blocked on canon) → Journal / HUD;
+  - the Mecha Arm track: M1 variant model, M2 grapple (needs `graple` uploaded), M3 arm cannon (PROPOSAL, from your Aim / Charge / Shoot animations).
+- **`plans/2026-10-19-plan1-foundation.md`:** 10 test-first tasks with full code:
+  - test kit;
+  - schema 5 (all three places);
+  - regions graph;
+  - communities and birth deeds;
+  - place-by-place standing;
+  - MoralityService on places;
+  - perception maths;
+  - PerceptionService + enemies (S1);
+  - WitnessService + tagging the world's watchers;
+  - rumour spread (pure, with a test clock);
+  - RumourService tick, offline catch-up and witness reports (R2).
+- **What players will notice when it's built:**
+  - a deed changes standing only where it's heard, and word travels (dispatch to the City in 2 min, gossip in 10);
+  - enemies notice you by sight (cones, line of sight, movement), investigate, search, then stay wary;
+  - every character gets a birth deed from their origin.
+- **For you to review when it's built (all PROPOSAL):**
+  - the six community names;
+  - the birth offsets;
+  - which NPCs count as State agents;
+  - the new region "Wilds" (the Forgotten Sites);
+  - all timings and ranges.
+
 ## 2026-10-19 — Legs on the dagger idle, blocks and parries; no more stock Roblox idle
 
 **Owner:**
