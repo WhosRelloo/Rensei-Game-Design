@@ -28,6 +28,13 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
     - `Test_Regions`: RED was "Regions is not a valid member", then PASS 5 / FAIL 0;
     - `Test_Schema5`: PASS 4 / FAIL 0;
     - `Test_TestKit`: PASS 4 / FAIL 0.
+- Task 4: Reputation, place by place (Rensei):
+  - new `Rensei.Reputation` (pure functions over a profile's `Morality`): a deed's Standing counts in a region only for the factions there that have heard of it, recorded once per faction per place in `Morality.Places[Region].Known[DeedId][Faction]` (the time it was heard);
+  - `Land / LandEverywhere / Landed / PlaceStanding / GlobalStanding / Renown / Seed`. The global standing stays a cache: each faction's place standing summed over regions and divided by `Regions.Count(F)` (equal weights, a PROPOSAL), so a deed heard everywhere counts in full and one heard in half a faction's regions counts half;
+  - Renown counts Public deeds (or deeds discovered as Public) once they've been heard somewhere;
+  - `Seed` (schema 5, once per profile, sets `Morality.Seeded`): deeds that already counted before places existed (Local / Public / discovered) are heard everywhere, stamped with the deed's own time, so no old save loses standing. Private deeds stay unheard;
+  - nothing calls it yet (MoralityService and RumourService will); no existing script changed;
+  - test `Test_Reputation` (Edit mode): RED was "Reputation is not a valid member", then PASS 7 / FAIL 0.
 - Note: commit e6f9408 (Task 1) carries a "Claude Sonnet 5.5" co-author line by mistake; it should read Claude Opus 5.5 (not rewritten: the branch is shared).
 
 ## 2026-10-19 — Plans: Morality × Reputation roadmap + Plan 1 (Foundation)
