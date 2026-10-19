@@ -2,7 +2,38 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
-## 2026-10-19 — Plan 1: Foundation (in progress)
+## 2026-10-19 — Plan 1: Foundation
+
+**Summary (Plan 1 complete: slices R1, S1, R2 of the Morality × Reputation spec).**
+- **What players notice:**
+  - faction standing now depends on *where* a deed has been heard. A deed counts at once in the region where it happened, if anyone saw it. Word then travels: dispatch reaches the City's Authority in 2 min, and gossip reaches everyone there in 10 min. Being offline doesn't stop it: on rejoin, the word that travelled meanwhile arrives at once, with a tier banner for any change;
+  - **Lise's Circle hit** (`reported_lise`, Circle −15) no longer counts everywhere at once. It lands where you stand when you choose, with the default 2 witnesses' worth. In the Foundry Yard the Circle isn't present, so it isn't heard there. Gossip carries it to the City in 10 min, the Circle hears it there, and it counts half, because the City is one of the Circle's two regions (City, Lindenmoor). At strength 2, word goes only one hop, so it never reaches Lindenmoor. The Authority's +15 reaches the City by dispatch in 2 min (full);
+  - **enemies notice you by sight** (view cones, line of sight, movement), investigate, search, then stay wary. A hit still alerts them at once. Arena and trial foes are unchanged;
+  - every character gets a **birth deed** from their origin, heard everywhere;
+  - a player who saw another's deed can report it at a desk (`RumourService.Report`), which lands it there at once. Nothing in the world calls it yet: the desks come with a later plan (the roadmap's Plan 7 has the bounty desks).
+- **Placeholders for you to review (all PROPOSAL / (new)):**
+  - the six community names;
+  - the birth offsets;
+  - the watchers list (which NPCs witness, and for which faction; the five Alchemy Trainers aren't watchers);
+  - the region **Wilds** (the Forgotten Sites);
+  - all timings and ranges: rumour minutes per link, perception cones / rates / timers, the witness weights, the 30-min report window, the 60 s rumour tick.
+- **Tests (final run, after Task 10):**
+  - Edit:
+    - `Test_TestKit` PASS 4 / FAIL 0;
+    - `Test_Schema5` PASS 4 / FAIL 0;
+    - `Test_Regions` PASS 5 / FAIL 0;
+    - `Test_Reputation` PASS 7 / FAIL 0;
+    - `Test_Perception` PASS 4 / FAIL 0;
+    - `Test_Witness` PASS 2 / FAIL 0;
+    - `Test_RumourCore` PASS 8 / FAIL 0;
+  - Play (real profile snapshotted and restored, 0 differences after each):
+    - `Play_Morality` PASS 3 / FAIL 0;
+    - `Play_Perception` PASS 6 / FAIL 0;
+    - `Play_Rumours` PASS 2 / FAIL 0;
+  - the rejoin catch-up check passed (see Task 10).
+- **Backups:** every script that existed before was cloned into `ServerStorage.RenseiBackups["Pre-Foundation_2026-10-19"]` before it was edited, in each place it was edited:
+  - ProfileMigrations, ProfileData, Factions, Deeds, MoralityService, EnemyService, ServerHandler and PerceptionService;
+  - the `_preT8fix` and `_preT10` copies.
 
 - Task 1: TestKit (ServerStorage.RenseiTests) — Studio test runner; self-test PASS 4 / FAIL 0
 - Task 2: Schema 5, in all three places (Rensei, Tutorial, Main Menu):
@@ -142,6 +173,30 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
   - `ServerScriptService.RumourService` itself is a placeholder (`return {}`) until Task 10; nothing calls Core yet and no existing script changed;
   - Core is 4537 bytes (FNV f4d8a9cd);
   - test `Test_RumourCore` (Edit mode): RED was "Core is not a valid member", then PASS 8 / FAIL 0.
+- Task 10: RumourService, slice R2 (Rensei):
+  - `ServerScriptService.RumourService` replaces the placeholder (its `Core` child is unchanged):
+    - a Local / Public deed that someone perceived (`MoralityService.Recorded`, Strength > 0, not a birth deed) starts a rumour at its origin (`Core.Spawn`);
+    - every 60 s (`TickSeconds`, PROPOSAL) each player's rumours advance to the current time (`Tick`). Any arrival rebuilds standing through `MoralityService.Refresh`, with a banner for any tier change;
+    - `Report(Reporter, Subject, DeedId, Region, Faction)`: a player the server recorded as a witness (`WitnessService.CanReport`) reports the deed and it lands there at once. That memory is then forgotten. Otherwise it's refused with "You didn't witness that.";
+    - `SetClock(Fn)` / `Now()` swap the clock for tests;
+  - `MoralityService` `Joined`: after the old-outcome catch-up, `RumourService.Tick` runs once (pcall) as the **offline catch-up**. Word that travelled while you were away arrives on join (MoralityService 11853 → 12002 bytes, FNV 998ee50c);
+  - `ServerHandler`: `RumourService.Start()` after PerceptionService;
+  - backups `ServerScriptService_MoralityService_preT10` and `ServerScriptService_ServerHandler_preT10` are in `Pre-Foundation_2026-10-19` (the first backups of both already existed);
+  - test `Play_Rumours` (Play mode, real profile snapshotted and restored, using a test-only deed injected into `Deeds`): RED was "attempt to call a nil value" (`SetClock`, PASS 0 / FAIL 2), then PASS 2 / FAIL 0:
+    - dispatch reaches the City at +2 min: Authority +12, in full;
+    - gossip reaches it at +10 min;
+    - a second tick is idempotent;
+    - a report with no recorded witness is refused;
+  - rejoin catch-up (manual): the test deed was recorded in the Foundry (strength 2), then Play was stopped for just over 3 real minutes and started again:
+    - on join, `Places.City.Known.__test_rumour.Authority` was set (dispatch, stamped at +120 s);
+    - Townsfolk hadn't heard yet (the gossip front, due at +600 s, was still on the road);
+    - `News[1]` = City / Authority;
+    - the profile was then restored from the snapshot saved before the first stop. A later fresh Play loaded it with 0 differences;
+  - console: no `RumourService` / `PerceptionService` / `MoralityService` / `WitnessService` errors or warnings;
+  - Exports, matching Studio by FNV:
+    - RumourService: 2885 bytes, `5c0c7dc0`;
+    - ServerHandler: 4737 bytes, `ea79e495`;
+    - Play_Rumours: 1910 bytes, `aba570c3`.
 - Note: commit e6f9408 (Task 1) carries a "Claude Sonnet 5.5" co-author line by mistake; it should read Claude Opus 5.5 (not rewritten: the branch is shared).
 
 ## 2026-10-19 — Plans: Morality × Reputation roadmap + Plan 1 (Foundation)

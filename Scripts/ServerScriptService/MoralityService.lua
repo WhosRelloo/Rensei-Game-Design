@@ -256,6 +256,8 @@ function MoralityService.Start()
 				MoralityService.RecordBirth(Player)
 				MoralityService.Rebuild(Data)
 				MoralityService.RecordOutcomes(Player, true)
+				-- word that travelled while they were away (offline catch-up)
+				pcall(function() require(ServerScriptService.RumourService).Tick(Player) end)
 				ProgressionService.Sync(Player)
 				return
 			end

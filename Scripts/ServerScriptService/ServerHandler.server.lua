@@ -92,6 +92,7 @@ require(ServerScriptService.PuzzleService).Start() -- per-player mechanisms (Ren
 require(ServerScriptService.MinigameService).Start() -- Pressure Board, Array Restoration
 require(ServerScriptService.MoralityService).Start() -- deeds ledger: conduct, standing, trust, renown
 require(ServerScriptService.PerceptionService).Start() -- what NPCs notice: sight, alert phases (S1)
+require(ServerScriptService.RumourService).Start() -- word of deeds travelling between regions (R2)
 require(ServerScriptService.TrialService).Start() -- alchemy trials (RenseiTrial arenas)
 require(ServerScriptService.TrainingService).Start() -- trainer lessons / exercises (mastery training)
 require(ServerScriptService.RankService).Start() -- public rank / title / clan for the leaderboard
