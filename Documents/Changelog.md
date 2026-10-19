@@ -428,6 +428,98 @@ Release reasons logged across the sessions: Turn over 27, Knockback 2, Stunned 2
 - Feel: the turn length (9 s), the 0.35 s beat before a new attacker strikes, and the ring sizes, all in `TuningConfig.Squad`.
 - Whether bosses or elites should ignore the token (e.g. a boss plus adds).
 - Optional waiting-stance animations (see above).
+## 2026-10-18 — Player Identities, Forgotten Sites (Halvard's Adit), directional climbing, boss bar, speed audit, tutorial update
+
+**Owner:**
+- the "RENSEI — PLAYER IDENTITIES + FORGOTTEN SITES EXPLORATION SYSTEM" brief;
+- "Also fix the K menu UI positioning";
+- "bring back directional climbing ... fit in with the game's vibe and the movement";
+- "Make sure the UI layout for the identities tab looks visually appealing and is easy to understand";
+- "audit and update the tutorial as well for all of the new features";
+- "when there's a boss I need to fight, put their health bar at the top of the screen";
+- "audit speed balancing and how they affect animations";
+- "Make it so the dungeon NPC's have a longer respawn rate".
+
+> **Status: built and tested in Studio Play** (Rensei and Tutorial). Every test snapshotted the owner's profile and restored it exactly. Nothing published. The full design, rules and test list are in `Identities and Forgotten Sites.md`.
+>
+> **Backups** (`ServerStorage.RenseiBackups`):
+> - Rensei: `Pre-IdentitiesSites_2026-10-18`, `Pre-HalvardsAdit_2026-10-18` (with the terrain), `Pre-DirClimb_2026-10-18`;
+> - Tutorial: `Pre-TutorialUpdate_2026-10-18`.
+
+### K menu
+`MasteryUI` line 124: a mid-line comment had swallowed `Position = Source.Position`, so the panel opened in the wrong place. Fixed.
+
+### Player Identities
+- **New:** `Rensei.Identities` (rules), `IdentityService` (the only writer), and a Journal **Identities** tab. MenuKit now takes more than 4 tabs.
+- **How records are made:**
+  - encounters (hits between two players);
+  - witnessed casts (60 studs, line of sight);
+  - introductions (a prompt, out of Combat Mode only);
+  - naming a Suspected subject (a wrong name locks the record for 10 min);
+  - evidence links, shown as leads, not proof.
+- **Storage:** records are keyed by a random `CharacterId`, with no account data. Limits: 40 records, 4 encounters and 3 links per record.
+- **The combat log** shows the journal label ("Subject 03") instead of the other player's Roblox name.
+- **Tab redesign:**
+  - the list is grouped by stage (Suspected first);
+  - each record has a 4-step stage track and a gold "Next:" line saying what moves it on;
+  - sections: Confirmed, Seen, Leads (not proof), Encounters, and Name them (with the lock warning).
+
+### Forgotten Sites + Halvard's Adit (Tier I)
+- **Framework:**
+  - `RenseiArea` + `ForgottenSite`;
+  - quest `StartOnVisit`;
+  - `QuestService.Grant`;
+  - `PuzzleService` prompt kinds `Toggle` (sluices) and `Reward` (a one-time, server-checked cache);
+  - `PuzzleClient` drawings `Valve` and `Water` (the water freezes when Frozen).
+- **The site:** `Workspace.World.Map.HalvardsAdit`, behind Lindenmoor's east ridge. The route:
+  1. boarded mouth;
+  2. winch (Pressure Board) and lift;
+  3. sump: drain it with the sluices (N shut, M open, S shut, per the shift chart) or freeze it with Ice;
+  4. two Adit Scavengers;
+  5. desk and tool rack;
+  6. assay ring (Array Restoration);
+  7. vault and ledger;
+  8. optional: cracked wall and hidden strongbox.
+- **Tested end to end:** +$180 and +775 EXP; the cache pays once.
+- **Dungeon respawn:** `TuningConfig.DungeonRespawn = {Time = 900, ClearRadius = 80}` (PROPOSAL). Dungeon enemies come back after 15 min, and only once nobody is within 80 studs.
+- **Fixes found in testing:**
+  - the mouth's inspect prompt was out of reach (it now uses an `InspectAnchor`);
+  - the boards blocked the mouth and the terrain floor sat too high (re-carved; the loose planks are non-collidable);
+  - the splash VFX was oversized;
+  - prompts fired from attack clicks (`PromptUI` now ignores clicks in Combat Mode).
+
+### Directional climbing
+- **Animations:** the sheet's Climb Right (130050644596516), Climb Left (106220254643862) and Climb Down (107192077286134) are in `Assets.Animations.Climb` and loop at a stride matched to the climb speed.
+- **Climb speeds** (`TuningConfig.Parkour`): down 7 and sideways 6 (PROPOSAL). Diagonals run sideways at ×0.7.
+- **Wall checks:** wall probes stop you climbing off an edge sideways. Climbing is still server-validated, so it needs a wall the server can see.
+- Same code in the Tutorial place.
+
+### Boss health bar
+- **Who gets it:** enemies with `Boss = true` (every trial foe; `BossName` and `Title` are split from "Name, Title").
+- **What it shows:** a large bar at the top of the screen with the name, the title and the health (the HP label is now on top).
+- **Combat log:** moves below the bar (the `BossBarBottom` attribute).
+
+### Speed vs animation audit (with the parallel speed entry above)
+- **Bug: walk speed flipped between the base and 16.** WCS's built-in default walk speed (16) replaced Rensei's base whenever a status effect ended.
+  - **Fix:** `CharacterHandler` sets the WCS default props to the StarterCharacter's walk speed × `SpeedMultiplier`, so it follows the base the owner set (now **16**, see the entry above).
+  - `EnemyService` does the same with each enemy's own walk speed.
+- **Bug: sprint never played the run.** WalkSpeed is a 32-bit float, so the exact `==` check in `Run` failed for anyone with Speed points.
+  - **Fix:** `Run` compares with a tolerance (`Same`).
+- **New `LocomotionSync`:** scales the walk and run animations to the character's real speed against the speed each was designed for (`TuningConfig.Locomotion`, clamped 0.5–1.6). Enemy walks scale the same way.
+  - Measured at the old base of 12: walk 1.01, run 1.02, speedy run 1.01. At the new base of 16 the walk plays at 1.33× (see the note in the entry above).
+- **Superseded:** my recommendation to slow attack, block and heavy movement (they were faster than a 12 walk) no longer applies at the 16 base.
+
+### Owner assets, guns, tutorial
+- **Gun assets and animations:**
+  - gun muzzle VFX from "ASSETS TO EXPORT";
+  - the guns' walk, whip M1 1–4 and grip / gripped animations from the sheet;
+  - Greatsword Idle got its sheet id.
+- **Field Notes:** 7 one-time hint cards (`Rensei.FieldNotes`, `FieldNotesUI`, `Requests.Hint`, saved in `Flow.Hints`). They cover inspect, the journal, mechanisms, identities, sites, bosses and Mastery.
+- **Tutorial:** the Wall beat teaches climbing up, down and sideways.
+- **Unused assets:** Windup, WindStep, Icechainfx, IceEruption and Pale Assassin Cloak (no system yet).
+
+### Exported
+34 scripts are mirrored to `Scripts/`, checked chunk by chunk against Studio (FNV-1a hashes). The Tutorial's script edits are described above but not mirrored.
 
 ## 2026-10-18 — Weapon hand-placement audit; katana swings fixed
 

@@ -343,6 +343,27 @@ if IsServer then
 		Debris:AddItem(P, 0.06)
 	end
 
+	-- a flash, sparks and a puff of smoke at the barrel's tip, along the shot (Assets.VFX.Guns.Muzzle: the
+	-- owner's "Bullet" emitters from ASSETS TO EXPORT, 2026-10-18; each emitter's Emit attribute = particles)
+	local function MuzzleFlash(Barrel, Dir)
+		local FX = ReplicatedStorage.Assets.VFX:FindFirstChild("Guns")
+		FX = FX and FX:FindFirstChild("Muzzle")
+		if not FX or not Barrel then return end
+		local Tip = Barrel.Position + Dir * (math.max(Barrel.Size.X, Barrel.Size.Y, Barrel.Size.Z) / 2)
+		local A = Instance.new("Attachment")
+		A.Name = "MuzzleFlash"
+		A.WorldCFrame = CFrame.lookAt(Tip, Tip + Dir)
+		A.Parent = workspace.Terrain
+		for _, E in ipairs(FX:GetChildren()) do
+			if E:IsA("ParticleEmitter") then
+				local C = E:Clone()
+				C.Parent = A
+				C:Emit(E:GetAttribute("Emit") or 6)
+			end
+		end
+		Debris:AddItem(A, 2.5)
+	end
+
 	-- One hitscan shot. Uses a round; empty -> automatic reload. Returns {Victim, Result} pairs.
 	function WeaponManager.Fire(Character, SkillName, Def)
 		local Results = {}
@@ -365,6 +386,7 @@ if IsServer then
 		local Tool = HeldTool(Character) -- the gun (a held hotbar item may sit beside it)
 		local Barrel = Tool and Tool:FindFirstChild("Barrel", true)
 		Tracer(Barrel and Barrel:IsA("BasePart") and Barrel.Position or Origin, Ray and Ray.Position or Origin + Dir * Range)
+		MuzzleFlash(Barrel and Barrel:IsA("BasePart") and Barrel or nil, Dir)
 
 		if Ray then
 			local Model = Ray.Instance:FindFirstAncestorOfClass("Model")

@@ -203,4 +203,19 @@ return {
 		},
 	},
 
+	-- ===== Forgotten Sites: Halvard's Adit (Tier I, 2026-10-18; numbers and lines are PROPOSALS) =====
+	adit_winch = {
+		Kind = "PressureBoard", Title = "LIFT WINCH",
+		Valves = 3, Steps = 10, Band = 0.1,
+		Hint = "The winch runs on steam from the old boiler. Bring the needle into the green, then engage. One valve vents pressure instead of feeding it.",
+		Pass = "The winch shudders, catches, and the cage starts to climb. The lift gate rattles open.",
+		Fail = "The needle isn't in the green. The winch won't take the load.",
+	},
+	adit_assay_ring = {
+		Kind = "ArrayRestoration", Title = "ASSAY RING",
+		Rings = 3, Positions = 8,
+		Hint = "Halvard locked his vault with his own array. Turn the rings until every mark points at the notch. The rings are geared together.",
+		Pass = "The rings settle and the array flares. The vault's bolts slide back.",
+		Fail = "The marks don't line up. The vault stays shut.",
+	},
 }

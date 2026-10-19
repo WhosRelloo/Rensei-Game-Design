@@ -99,9 +99,80 @@ return {
 			Kind = "Bench", Title = "Shipping Ledger", Default = "Coded",
 			Prompt = {Action = "Decode", Minigame = "ledger_cipher", Target = "yard_ledger", PassState = "Decoded"},
 		},
+		-- ===== Forgotten Sites: Halvard's Adit (Tier I, 2026-10-18; lines are PROPOSALS) =====
+		adit_winch = {
+			Kind = "Bench", Title = "Lift Winch", Default = "Jammed",
+			Prompt = {Action = "Work the Winch", Minigame = "adit_winch", Target = "adit_winch", PassState = "Running"},
+			Hint = "A steam winch, cold for years. The lift cage hangs at the bottom of the shaft.",
+		},
+		adit_prybar = {
+			Kind = "Source", Title = "Tool Rack",
+			Prompt = {Action = "Take the Pry Bar", Gives = "CarryingPryBar", Text = "You take a rusted pry bar from the rack."},
+		},
+		-- the sump: three sluices (the shift chart says which way each goes), or freeze the water and cross
+		adit_sluice_n = {Kind = "Valve", Title = "North Sluice", Default = "Open",
+			Prompt = {Action = "Turn the Sluice", Toggle = {"Open", "Shut"}, Text = "The north sluice grinds %s."}},
+		adit_sluice_m = {Kind = "Valve", Title = "Middle Sluice", Default = "Shut",
+			Prompt = {Action = "Turn the Sluice", Toggle = {"Open", "Shut"}, Text = "The middle sluice grinds %s."}},
+		adit_sluice_s = {Kind = "Valve", Title = "South Sluice", Default = "Open",
+			Prompt = {Action = "Turn the Sluice", Toggle = {"Open", "Shut"}, Text = "The south sluice grinds %s."}},
+		adit_sump = {
+			Kind = "Source", Title = "Flooded Sump", Default = "Flooded",
+			Reactions = {Ice = {State = "Frozen", For = 20, Text = "The sump water locks into ice thick enough to cross."}},
+			Refuse = {Flame = "Steam rolls off the water and it settles again.", Wind = "Ripples, nothing more.",
+				Earth = "The silt shifts and the water finds its way back.", Metal = "Iron sinks."},
+			Hint = "Black water to the knees, then deeper. Something upstream keeps it filling.",
+		},
+		adit_array = {
+			Kind = "Array", Title = "Assay Ring", Default = "Locked",
+			Prompt = {Action = "Restore the Array", Minigame = "adit_assay_ring", Target = "adit_array", PassState = "Restored"},
+		},
+		-- the hidden room: every path's alchemy breaks the wall, or the pry bar from the gallery does
+		adit_cracked_wall = {
+			Kind = "Plate", Title = "Cracked Wall", Default = "Whole",
+			Reactions = {
+				Earth = {State = "Broken", Permanent = true, Text = "The seam parts along the cracks and the wall slumps inward."},
+				Metal = {State = "Broken", Permanent = true, Text = "Iron wedges drive into the cracks and the wall falls in."},
+				Flame = {State = "Broken", Permanent = true, Text = "The heat splits the brittle seam and the wall crumbles."},
+				Ice = {State = "Broken", Permanent = true, Text = "Ice swells in the cracks and bursts the wall open."},
+				Wind = {State = "Broken", Permanent = true, Text = "A blast drives into the cracks and the loose wall collapses."},
+			},
+			Prompt = {Action = "Pry It Open", Need = "CarryingPryBar", State = "Broken",
+				Missing = "Air whistles through the cracks. You'd need something to lever it with."},
+			Hint = "Air moves through these cracks. There's space behind.",
+		},
+		adit_cache = {
+			Kind = "Bench", Title = "Halvard's Strongbox",
+			Prompt = {Action = "Open the Strongbox", AfterPuzzle = "adit_hidden",
+				Reward = {Money = 60, Exp = 100, Items = {{"Apple", 2}}, Codex = {"The Unlicensed Assayer"}}, Evidence = "adit_visitor_note",
+				Text = "Inside: a purse of old coin, two wrapped apples and a folded note.", Empty = "The strongbox is empty."},
+		},
 	},
 
 	Puzzles = {
+		adit_lift = {
+			Title = "The Ore Lift", Mechanisms = {"adit_winch"},
+			Solved = function(S) return S.adit_winch == "Running" end,
+			OpenText = "The lift cage clanks up to the gallery. The way down is open.",
+		},
+		adit_drain = {
+			Title = "The Flooded Sump", Mechanisms = {"adit_sluice_n", "adit_sluice_m", "adit_sluice_s", "adit_sump"},
+			-- the shift chart: "to drain: north SHUT, middle OPEN, south SHUT" -- or freeze the water and cross
+			Solved = function(S)
+				return (S.adit_sluice_n == "Shut" and S.adit_sluice_m == "Open" and S.adit_sluice_s == "Shut") or S.adit_sump == "Frozen"
+			end,
+			OpenText = "The sump drains with a long gurgle. The way to the laboratory is clear.",
+		},
+		adit_vault = {
+			Title = "Halvard's Vault", Mechanisms = {"adit_array"},
+			Solved = function(S) return S.adit_array == "Restored" end,
+			OpenText = "The vault door swings open on oiled hinges.",
+		},
+		adit_hidden = {
+			Title = "Behind the Cracked Wall", Mechanisms = {"adit_cracked_wall"},
+			Solved = function(S) return S.adit_cracked_wall == "Broken" end,
+			OpenText = "The wall gives way. There's a room behind it nobody was meant to find.",
+		},
 		furnace_store = {
 			Title = "The Furnace Store",
 			Mechanisms = {"store_furnace", "store_plate", "store_array"},

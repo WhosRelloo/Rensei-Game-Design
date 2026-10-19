@@ -43,6 +43,19 @@ Players.PlayerAdded:Connect(function(Player)
 		repeat Character.Parent = workspace.World.Live task.wait(0.1) until Character.Parent == workspace.World.Live
 		
 		local CharacterState = WCSCharacter.new(Character)
+		-- WCS puts the humanoid back to its "default props" whenever a status effect with humanoid data
+		-- starts or ends, and its built-in default walk speed is Roblox's 16. Rensei's is the StarterCharacter's
+		-- (12) x SpeedMultiplier (Speed stat x weapon weight), kept current. Without this the walk speed
+		-- flipped between 16 and 12 depending on what last touched it (speed audit 2026-10-18).
+		local Base = game:GetService("StarterPlayer").StarterCharacter.Humanoid
+		local function Defaults()
+			CharacterState:SetDefaultProps({
+				WalkSpeed = Base.WalkSpeed * (Character:GetAttribute("SpeedMultiplier") or 1),
+				JumpPower = Base.JumpPower, JumpHeight = Base.JumpHeight, AutoRotate = true,
+			})
+		end
+		Defaults()
+		Character:GetAttributeChangedSignal("SpeedMultiplier"):Connect(Defaults)
 		BlockManager.Initiate(Character)
 		-- the server-owned traversal state ends on stun / knock / grip / carry / death (MovementState)
 		MovementState.Track(Character, CharacterState)

@@ -70,7 +70,7 @@ local WALL_GAP = 1.15
 
 -- Every climb pose. Stop all of them on every exit: the hang idle is LOOPED, so missing the one
 -- side that happens to be playing leaves the character stuck in the climb pose on the ground.
-local ClimbAnims = {"RightClimbIdle", "LeftClimbIdle", "RightClimb", "LeftClimb"}
+local ClimbAnims = {"RightClimbIdle", "LeftClimbIdle", "RightClimb", "LeftClimb", "ClimbSideRight", "ClimbSideLeft", "ClimbDown"}
 local function StopClimbAnims(Character)
 	for _, Name in ipairs(ClimbAnims) do AnimationManager.Stop(Character, Name) end
 end
@@ -300,40 +300,56 @@ local WallProbe = RaycastParams.new()
 WallProbe.FilterType = Enum.RaycastFilterType.Include
 WallProbe.FilterDescendantsInstances = {workspace.World.Map}
 
--- Climb step timing. Each step plays one Right/LeftClimb animation sped up to last exactly
--- STEP_TIME (it is 0.8s long; it used to be cut off at 0.35s by the next step, mid-reach), in
--- reverse when climbing down. The body moves with the pull: still while the hands swap, fastest
--- mid-step, averaging Parkour.ClimbSpeed.
+-- Climb step timing (up). Each step plays one Right/LeftClimb animation sped up to last exactly
+-- STEP_TIME (it is 0.8s long; it used to be cut off at 0.35s by the next step, mid-reach). The body
+-- moves with the pull: still while the hands swap, fastest mid-step, averaging Parkour.ClimbSpeed.
+-- Down and sideways (2026-10-18, the sheet's Climb Down / Climb Right / Climb Left) are looped
+-- shuffles at a steady speed, the loop played at the rate that keeps the hands from sliding
+-- (CLIMB_LOOP_STRIDE: studs one loop covers, measured from the animations).
 local STEP_TIME = 0.35
 local STEP_ANIM_LENGTH = 0.8 -- fallback if the track's Length has not loaded
+local CLIMB_LOOPS = {Down = "ClimbDown", SideRight = "ClimbSideRight", SideLeft = "ClimbSideLeft"}
+local CLIMB_LOOP_STRIDE = {Down = 7, SideRight = 6, SideLeft = 6}
 
 function Air:ClimbLoop(Character, Normal)
 	local Root = Character.HumanoidRootPart
 	local Humanoid = Character.Humanoid
 	local P = Tuning.Parkour
 	local NextTick = os.clock() + P.ClimbTickEvery
-	local StepStart, StepDir, StepSide = nil, 0, "Right"
+	local StepStart, StepSide = nil, "Right"
+	local Mode = nil -- "Up" (alternating pulls), "Down", "SideRight", "SideLeft"; nil = hanging still
 	if self.ClimbConn then self.ClimbConn:Disconnect() end
 
 	-- stopped (or blocked): straight back to the hang pose
 	local function StopStepping()
-		if not StepStart then return end
-		StepStart = nil
-		AnimationManager.Stop(Character, "RightClimb")
-		AnimationManager.Stop(Character, "LeftClimb")
+		if not Mode then return end
+		StepStart, Mode = nil, nil
+		StopClimbAnims(Character)
 		AnimationManager.Play(Character, self.CurrentSide .. "ClimbIdle", {Looped = true, Priority = Enum.AnimationPriority.Action})
 	end
 
-	local function StartStep(Dir)
-		StepStart, StepDir = os.clock(), Dir
+	local function StartStep()
+		StepStart, Mode = os.clock(), "Up"
 		StepSide = StepSide == "Right" and "Left" or "Right"
 		self.CurrentSide = StepSide
 		StopClimbAnims(Character)
 		local Track = AnimationManager.Play(Character, StepSide .. "Climb", {Priority = Enum.AnimationPriority.Action2})
 		if Track then
 			local Length = Track.Length > 0 and Track.Length or STEP_ANIM_LENGTH
-			Track:AdjustSpeed(Dir * Length / STEP_TIME)
-			if Dir < 0 then Track.TimePosition = Length - 0.02 end -- climbing down: the reach, backwards
+			Track:AdjustSpeed(Length / STEP_TIME)
+		end
+	end
+
+	-- down / sideways: one looped shuffle, kept going while the direction holds
+	local function StartLoop(Which, Speed)
+		if Mode == Which then return end
+		StepStart, Mode = nil, Which
+		if Which == "SideRight" or Which == "SideLeft" then self.CurrentSide = Which == "SideRight" and "Right" or "Left" end
+		StopClimbAnims(Character)
+		local Track = AnimationManager.Play(Character, CLIMB_LOOPS[Which], {Looped = true, Priority = Enum.AnimationPriority.Action2})
+		if Track then
+			local Length = Track.Length > 0 and Track.Length or 1
+			Track:AdjustSpeed(math.clamp(Speed * Length / CLIMB_LOOP_STRIDE[Which], 0.5, 2))
 		end
 	end
 
@@ -353,10 +369,10 @@ function Air:ClimbLoop(Character, Normal)
 			if self.ClimbConn then self.ClimbConn:Disconnect() self.ClimbConn = nil end
 			return
 		end
-		-- vertical only: W up, S down (no sideways / diagonal climbing)
-		local X = 0
+		-- W up, S down, A / D along the wall (diagonals too)
+		local X = (Held(Enum.KeyCode.D) and 1 or 0) - (Held(Enum.KeyCode.A) and 1 or 0)
 		local Y = (Held(Enum.KeyCode.W) and 1 or 0) - (Held(Enum.KeyCode.S) and 1 or 0)
-		local Moving = Y ~= 0
+		local Moving = X ~= 0 or Y ~= 0
 
 		-- stamina
 		if os.clock() >= NextTick then
@@ -371,8 +387,9 @@ function Air:ClimbLoop(Character, Normal)
 		end
 
 		-- the wall must continue that way (probe at head height, like the grab, a little ahead)
-		local Ahead = Align.Position + Vector3.yAxis * Y * 0.5
-		if not workspace:Raycast(Ahead + Vector3.new(0, 3, 0) + Normal * 1.5, -Normal * 4, WallProbe) then
+		local Right = (-Normal):Cross(Vector3.yAxis).Unit
+		local function WallAt(Pos) return workspace:Raycast(Pos + Vector3.new(0, 3, 0) + Normal * 1.5, -Normal * 4, WallProbe) end
+		if Y ~= 0 and not WallAt(Align.Position + Vector3.yAxis * Y * 0.5) then
 			if Y > 0 then
 				-- top of the wall: vault onto the ledge
 				LetGo()
@@ -380,20 +397,29 @@ function Air:ClimbLoop(Character, Normal)
 				AnimationManager.Play(Character, "Vault" .. math.random(1, 2), {Priority = Enum.AnimationPriority.Action4})
 				return
 			end
+			Y = 0 -- no wall below: only the sideways part, if any
+		end
+		if X ~= 0 and not WallAt(Align.Position + Right * X * 1.2) then X = 0 end -- the wall's edge
+		if X == 0 and Y == 0 then
 			StopStepping()
-			return -- no wall below: stay put
+			return
 		end
 
-		-- a new step when the last one finished or the direction flipped
-		if not StepStart or os.clock() - StepStart >= STEP_TIME or Y ~= StepDir then
-			StartStep(Y)
+		-- up: pull by pull (a new step when the last one finished); down / sideways: a steady shuffle
+		local Surge, Side = 1, (Y ~= 0) and 0.7 or 1
+		if Y > 0 then
+			if Mode ~= "Up" or os.clock() - StepStart >= STEP_TIME then StartStep() end
+			local Phase = math.clamp((os.clock() - StepStart) / STEP_TIME, 0, 1)
+			Surge = 1 - math.cos(Phase * 2 * math.pi) -- 0 at the hand swap, 2 mid-pull, averages 1
+		elseif Y < 0 then
+			StartLoop("Down", P.ClimbDownSpeed)
+		else
+			StartLoop(X > 0 and "SideRight" or "SideLeft", P.ClimbSideSpeed)
 		end
-		local Phase = math.clamp((os.clock() - StepStart) / STEP_TIME, 0, 1)
-		local Surge = 1 - math.cos(Phase * 2 * math.pi) -- 0 at the hand swap, 2 mid-pull, averages 1
 
 		-- move along the wall plane
-		local Right = (-Normal):Cross(Vector3.yAxis).Unit
-		local Delta = Right * X * P.ClimbSideSpeed * Dt + Vector3.yAxis * Y * P.ClimbSpeed * Surge * Dt
+		local Vertical = Y > 0 and P.ClimbSpeed * Surge or P.ClimbDownSpeed
+		local Delta = Right * X * P.ClimbSideSpeed * Side * Dt + Vector3.yAxis * Y * Vertical * Dt
 		local Target = Align.Position + Delta
 		local Hit = workspace:Raycast(Target + Vector3.new(0, 3, 0) + Normal * 1.5, -Normal * 4, WallProbe)
 		if not Hit then return end

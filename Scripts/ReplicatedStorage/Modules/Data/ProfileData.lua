@@ -49,6 +49,9 @@ return {
 		Affinity = "",
 		Weapon = "", -- the starting-weapon choice ("" = fists)
 		Appearance = {}, -- Customization.Clean shape: Skin, Hair, HairColor, Eyes, Brows, Mouth, Outfit
+		-- a random id for this character (IdentityService fills it on first load; no account data). Other
+		-- players' Identities records are keyed by it, so a deleted-and-recreated slot is a new subject.
+		CharacterId = "",
 	},
 
 	-- Start flow (owner 2026-10-14): Main Menu -> Customize (Character Customization place) ->
@@ -89,6 +92,12 @@ return {
 		Trust = {}, -- [NpcName] = sum
 		Renown = 0,
 		Taboo = {}, -- reserved (owner canon pending)
+	},
+	-- Player Identities (2026-10-18; IdentityService is the only writer): this investigator's records of
+	-- other players' characters. Bounded (Rensei.Identities.MaxRecords). Additive: Reconcile fills old saves.
+	Identities = {
+		Next = 1, -- the next record number (Subject 01, 02, ...)
+		Records = {}, -- [CharacterId] = {N, First, Last, Seen, Obs = {[Kind] = value}, Name, Src, Links, Log, Lock}
 	},
 	Codex = {}, -- [EntryId] = os.time()
 	Areas = {}, -- [AreaName] = os.time()

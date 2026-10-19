@@ -109,12 +109,6 @@ end
 local CombatUntil = setmetatable({}, {__mode = "k"}) -- [Character] = os.clock() deadline
 
 -- the name the combat log shows for whoever is on the other side of the fight
-local function NameOf(Model)
-	local Player = Model and Players:GetPlayerFromCharacter(Model)
-	if Player then return Player.DisplayName end
-	return Model and (Model:GetAttribute("DisplayName") or Model.Name) or "Unknown"
-end
-
 -- Combat log (CombatLogUI): CombatUntil = server time the lock ends, CombatBy = who last hit you,
 -- CombatVs = who you last hit (shown when nobody has hit you yet).
 local function MarkCombat(Model, Other, WasHit)
@@ -122,6 +116,16 @@ local function MarkCombat(Model, Other, WasHit)
 		CombatUntil[Model] = os.clock() + COMBAT_SECONDS
 		Model:SetAttribute("CombatUntil", workspace:GetServerTimeNow() + COMBAT_SECONDS)
 		if Other and Other ~= Model then
+			-- another player shows as this player knows them (Player Identities: "Subject 03" until identified),
+			-- never their Roblox name
+			local Viewer, OtherPlayer = Players:GetPlayerFromCharacter(Model), Players:GetPlayerFromCharacter(Other)
+			local function NameOf(M)
+				if OtherPlayer and M == Other then
+					local Ok, Label = pcall(function() return require(ServerScriptService.IdentityService).LabelFor(Viewer, OtherPlayer) end)
+					return Ok and Label or "Unknown subject"
+				end
+				return (M:GetAttribute("DisplayName") or M.Name)
+			end
 			if WasHit then
 				Model:SetAttribute("CombatBy", NameOf(Other))
 				Model:SetAttribute("CombatHitAt", workspace:GetServerTimeNow())

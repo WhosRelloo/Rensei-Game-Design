@@ -2,6 +2,8 @@
 -- shipped. Given by StoryService.GiveEvidence (inspect points, dialogue actions, minigames).
 -- PLACEHOLDER content (owner approved 2026-10-15 as placeholders): the Foundry Yard investigation.
 --   [Id] = {Title, Text (journal), Quest (the quest it belongs to, for the journal's grouping)}
+--   Technique = "<Path>" (optional, 2026-10-18): the evidence describes that alchemy. IdentityService links it,
+--     as a hypothesis only, to Player Identities records where that technique was observed.
 
 return {
 	chalk_sample = {
@@ -86,4 +88,14 @@ return {
 		Text = "The gear was soldered back on with soft solder. By the soot, it held about an hour."},
 	experiment_record = {Quest = "acq_metal", Title = "Workshop Record", Research = true,
 		Text = "Research note. \"Plated the subject with cast iron. It moves. It shouldn't.\" Under it, the forge's fire log, cut short."},
+
+	-- ===== Forgotten Sites: Halvard's Adit (2026-10-18; placeholder lore) =====
+	adit_survey_mark = {Quest = "forgotten_halvard", Title = "Survey Mark",
+		Text = "Chiselled over the boarded adit: H. HALVARD - LICENSED ASSAYER - No. 4 WORKING. An Authority seal under it, and fresh scratches where someone pried at the boards."},
+	halvard_notes = {Quest = "forgotten_halvard", Title = "Halvard's Field Notes", Research = true, Technique = "Earth",
+		Text = "Research note. \"The seam holds its load because I tell it to. No clap, no circle: the array is in the rock itself, I only wake it.\" Load paths drawn straight onto bedrock."},
+	halvard_ledger = {Quest = "forgotten_halvard", Title = "Halvard's Ledger",
+		Text = "Eleven years of assay returns, then a last page: \"No. 4 is not ore. The array goes deeper than the mine. They will want it, so I am sealing it.\" The Authority sealed the adit a month later."},
+	adit_visitor_note = {Quest = "forgotten_halvard", Title = "A Visitor's Note", Technique = "Flame",
+		Text = "Recent, in charcoal on the back of an assay slip: \"Ring three answers to fire. Someone has been here before me.\" Scorch marks on the strongbox lock."},
 }

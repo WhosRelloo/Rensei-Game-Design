@@ -11,6 +11,18 @@ local Q = {Quest = {Id = "chalk_foundry", Is = "Active"}}
 
 return {
 	Inspects = {
+		-- ===== Forgotten Sites: Halvard's Adit (2026-10-18) =====
+		adit_mouth = {Title = "Boarded Adit", Evidence = "adit_survey_mark",
+			Text = "Planks nailed over a mine mouth cut into the ridge. Two have been pried loose, wide enough to slip through.",
+			AfterText = "H. Halvard, Licensed Assayer. Sealed by the Authority. Pried open since."},
+		adit_shift_chart = {Title = "Shift Chart",
+			Text = "A chart nailed by the sluices, the ink run but readable: \"No. 2 sump. To drain: north SHUT, middle OPEN, south SHUT. Never all three open or the gallery floods.\""},
+		adit_halvard_desk = {Title = "Halvard's Desk", Evidence = "halvard_notes",
+			Text = "A desk buried under assay slips. One notebook is newer than the rest, full of diagrams drawn straight onto rock.",
+			AfterText = "Halvard's notes: arrays in the rock itself."},
+		adit_ledger = {Title = "Assay Ledger", Evidence = "halvard_ledger", Requires = {Puzzle = "adit_vault"},
+			Text = "A ledger on a lectern, its last page dated the month the adit was sealed.",
+			AfterText = "\"No. 4 is not ore.\"", Locked = "A ledger behind the vault bars."},
 		-- ===== alchemy acquisition: Ice, Earth, Wind, Metal =====
 		ice_floor = {
 			Title = "Floor Ice", Evidence = "uneven_ice", Requires = {Quest = {Id = "acq_ice", StageAtLeast = 2}},
@@ -174,6 +186,17 @@ return {
 	},
 
 	Deductions = {
+		adit_truth = {
+			Title = "What Halvard Found",
+			Question = "Halvard sealed his own mine. What was he hiding?",
+			Requires = {Evidence = {"halvard_notes", "halvard_ledger"}},
+			Slots = {
+				{Label = "How he worked", Answer = "halvard_notes"},
+				{Label = "What he found", Answer = "halvard_ledger"},
+			},
+			Conclusion = "Halvard wasn't assaying ore. He found an array older than the mine, set in the bedrock, and learned to wake it without a circle. He sealed No. 4 so the Authority couldn't have it.",
+			Wrong = "That doesn't explain why he sealed it.",
+		},
 		station_freeze = {
 			Title = "The Frozen Station",
 			Question = "What happened to the research station?",

@@ -30,7 +30,7 @@ In Studio every animation is an `Animation` object under `ReplicatedStorage.Asse
 | (old Greatsword heavy, 87785261665755) | `Alchemy_GreatswordOverhead` | ✅ | Coldsteel Smash, Alloy Divider (placeholder) |
 | Greatsword WEAPON SKILL | `Greatsword_Skill` | ✅ | Whirlwind (T) |
 | Greatsword Run | `Greatsword_Run` | ✅ | Greatsword `RunAnim` |
-| Greatsword Idle, Sheathe, Unsheathe, Walk, GRIP | `Greatsword_Idle`, `_Unequip`, `_Equip`, `_Walk`, `_Grip` | ⏳ | Studio saves kept / empty |
+| Greatsword Idle, Sheathe, Unsheathe, Walk, GRIP | `Greatsword_Idle`, `_Unequip`, `_Equip`, `_Walk`, `_Grip` | ⏳ | Studio saves kept / empty. Idle got a new sheet id 2026-10-18 (the sheet recheck) |
 | Greatsword GRIP VICTIM ("Greatsword KO", 136479651286488) | stored as `SheetId` on `Knocked` | ⏳ | **Questionable mapping:** this is the greatsword grip-victim column, not a generic knocked pose |
 | Greatsword grip victim, row 17 | `Greatsword_Gripped` | 📦 | |
 | Dagger M1 1–4 ("Hell Dagger") | `Daggers_Light1`–`4` | ✅ (pass 3; were Studio-only) | Daggers lights, dash attack (light 2) |
@@ -41,7 +41,9 @@ In Studio every animation is an `Animation` object under `ReplicatedStorage.Asse
 | Rapier CRIT | `Rapier_Heavy` | ✅ | Rapier heavy |
 | Caestus Idle / CRIT | `Gauntlets_Idle` / `Gauntlets_Heavy` | ✅ | Gauntlets |
 | Caestus GRIP / GRIP VICTIM ("Head Smasher") | `Gauntlets_Grip` / `Gauntlets_Gripped` | 📦 | |
-| Gun (any) | — | ➖ | |
+| Guns Walk | `Guns_Walk` | ✅ 2026-10-18 | Guns `WalkAnim` |
+| Guns M1 1–4 (whip) | `Guns_Whip1`–`4` (104678448678860, 111673179001500, 132014168951584, 84893375216590) | ✅ 2026-10-18 | gun light string, `AnimPeak` per hit with the old fist animations as fallback |
+| Guns GRIP / GRIP VICTIM | `Guns_Grip` / `Grips.Guns_Gripped` | ✅ 2026-10-18 | `Downed.Grips.Guns` (3.0 s) |
 
 ## Weapon styles (style sheet): Fist styles only
 
@@ -77,6 +79,7 @@ The current weapon skills (Dragonflash, Flurry, Barrage, Scissor Rush, Fan the H
 | NEW UPPERCUT | `Uppercut` | ✅ | Ctrl+LMB |
 | Build, Meditate, Pushups, Bow, Drag, Mask, Bandage, Arm Blast, Evil Cinematic, Cloak/Armor | `Misc_*`, `Drag` | ✅ | as before |
 | Jump, Take The L, Trainings | — | ➖ | no id |
+| Climb Right / Left / Down | `Climb.ClimbSideRight` (130050644596516), `ClimbSideLeft` (106220254643862), `ClimbDown` (107192077286134) | ✅ 2026-10-18 | directional climbing (`JumpManager`), looped at a stride matched to the climb speed. Rensei and Tutorial |
 
 ## Emotes and NPC idles
 

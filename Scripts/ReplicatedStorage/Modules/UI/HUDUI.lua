@@ -341,7 +341,9 @@ local function UpdateTargets()
 			if MRoot and Humanoid.Health > 0 and Humanoid.MaxHealth < 1e9 and not Players:GetPlayerFromCharacter(Model) then
 				local Dist = (MRoot.Position - Root.Position).Magnitude
 				if Model:GetAttribute("Boss") then
-					if Dist < BossDist then Boss, BossDist = Model, Dist end
+					-- someone else's trial foe isn't your boss fight
+					local Owner = Model:GetAttribute("TrialOwner")
+					if Dist < BossDist and (Owner == nil or Owner == Player.UserId) then Boss, BossDist = Model, Dist end
 				elseif Dist <= NPC_RANGE then
 					table.insert(Near, {Model = Model, Humanoid = Humanoid, Dist = Dist})
 				end
@@ -365,9 +367,17 @@ local function UpdateTargets()
 
 	local BossBar = HUD.BossHealth
 	BossBar.Visible = Boss ~= nil
+	-- the boss bar's bottom edge (screen pixels), so the In Combat panel (CombatLogUI) can sit under it
+	local Bottom = nil
+	if Boss then
+		local Gui = BossBar:FindFirstAncestorOfClass("ScreenGui")
+		local Inset = (Gui and not Gui.IgnoreGuiInset) and game:GetService("GuiService"):GetGuiInset().Y or 0
+		Bottom = math.floor(BossBar.AbsolutePosition.Y + BossBar.AbsoluteSize.Y + Inset)
+	end
+	if Player:GetAttribute("BossBarBottom") ~= Bottom then Player:SetAttribute("BossBarBottom", Bottom) end
 	if Boss then
 		local Humanoid = Boss:FindFirstChildOfClass("Humanoid")
-		BossBar.Head.Text = Boss:GetAttribute("DisplayName") or Boss.Name
+		BossBar.Head.Text = Boss:GetAttribute("BossName") or Boss:GetAttribute("DisplayName") or Boss.Name
 		BossBar.Text.Text = Boss:GetAttribute("Title") or ""
 		BossBar.HP.Text = UIState.Format(Humanoid.Health) .. " / " .. UIState.Format(Humanoid.MaxHealth)
 		Fill.Set(BossBar.Bar, Humanoid.Health / Humanoid.MaxHealth)

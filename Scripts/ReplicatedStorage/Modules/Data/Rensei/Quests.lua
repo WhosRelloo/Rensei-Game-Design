@@ -22,6 +22,37 @@
 -- Ids must be unique across all stages of a quest.
 
 return {
+	-- ===== Forgotten Sites (2026-10-18) =====
+	-- Exploration quests: Category = "Exploration", Tier = 1-4 (I Forgotten, II Sealed, III Forbidden, IV Classified),
+	-- StartOnVisit = the site's area (walking in starts it; a rumor can start it too). PROPOSAL numbers.
+	forgotten_halvard = {
+		Title = "Halvard's Adit", Category = "Exploration", Tier = 1,
+		StartOnVisit = "Halvard's Adit",
+		Description = "An old assay mine cut into Lindenmoor's eastern ridge, sealed by Authority order years ago. Someone has pried the boards loose.",
+		Stages = {
+			{Id = "s1", Text = "Find a way into the old adit on Lindenmoor's eastern ridge.", Objectives = {
+				{Id = "visit", Text = "Enter Halvard's Adit", Kind = "Visit", Target = "Halvard's Adit"},
+			}},
+			{Id = "s2", Text = "The working is past a dead lift. Get the winch running.", Objectives = {
+				{Id = "winch", Text = "Get the lift winch running", Kind = "Mechanism", Target = "adit_winch:Running"},
+			}},
+			{Id = "s3", Text = "Water has flooded the lower working. Find a way across the sump.", Objectives = {
+				{Id = "sump", Text = "Drain or cross the flooded sump", Kind = "Puzzle", Target = "adit_drain"},
+			}},
+			{Id = "s4", Text = "Scavengers are picking over Halvard's laboratory.", Objectives = {
+				{Id = "scav", Text = "Drive off the scavengers", Kind = "Defeat", Target = "Adit Scavenger", Count = 2},
+				{Id = "notes", Text = "Find Halvard's notes", Kind = "Evidence", Target = "halvard_notes"},
+				{Id = "hidden", Text = "Find what's behind the cracked wall", Kind = "Puzzle", Target = "adit_hidden", Optional = true},
+			}},
+			{Id = "s5", Text = "Halvard locked his vault with an array of his own.", Objectives = {
+				{Id = "vault", Text = "Open the vault", Kind = "Puzzle", Target = "adit_vault"},
+			}},
+			{Id = "s6", Text = "Find out what Halvard sealed the mine over.", Objectives = {
+				{Id = "ledger", Text = "Read Halvard's ledger", Kind = "Evidence", Target = "halvard_ledger"},
+			}},
+		},
+		Rewards = {Exp = 450, Money = 120, Training = {Quest = 1}, Codex = {"Halvard's Adit", "Assay Rings"}},
+	},
 	chalk_foundry = {
 		Title = "Chalk on the Foundry Wall",
 		Category = "Investigation",

@@ -41,6 +41,11 @@ Updated **2026-10-18**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
   - **World:** the starter map **Lindenmoor** (Countryside farm village, the owner's Blender workshop model), with two swimmable pools (Mill Pond, Gorge Pool). See `Starter Map - Countryside Village Layout.md`.
   - **UI:** smaller Stats / Inventory; the leaderboard on its original art with character names; minimal level-up and codex / area popups; no menus over a conversation; a dialogue X button.
   - **Character creator:** sharper UI, FACE / BODY camera, undo / redo, random look, reset; **Creator Plus** (custom skin colour, saved looks) built but not on sale; six starting weapons.
+- **Added 2026-10-18 (late)** (details in `Identities and Forgotten Sites.md` and `Changelog.md`):
+  - **Player Identities:** the Journal's Identities tab. Other players are "Subject 03" until you identify them through what you've seen, a correct naming, or an introduction. The server records everything; no account data is stored.
+  - **Forgotten Sites:** the framework, plus the first Tier I site, **Halvard's Adit** (sluices or Ice, a winch, an assay ring, guards, a vault and a hidden cache). Dungeon enemies respawn slowly (15 min, and only when the site is empty).
+  - **Directional climbing** (up / down / sideways, with the sheet's animations), the **boss bar** at the top of the screen, **Field Notes** (one-time hints) and the updated Tutorial Wall beat.
+  - **Speed audit:** base walk speed 16 (owner); the WCS default-walk-speed and sprint float bugs are fixed; walk and run animations follow the real speed (`LocomotionSync`).
 - **Combat log badge:** in combat, shows who hit you and the time until you're out of combat.
 - **Admin panel (F2):** admins only (`AdminConfig`); players, world, self and log tabs, including switching a player's alchemy path.
 - **Items:** consumables on the hotbar; clicking while holding uses one. The Apple heals a little at a time.
@@ -63,7 +68,7 @@ Updated **2026-10-18**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
 - **Affinity:** the Alchemy step was removed from the creator at the owner's request, so players can't choose a path yet; admins can set anyone's path from the admin panel (F2). Studio uses the test setting `ServerScriptService.AlchemyService` attribute `StudioTestAffinity` (never saved, ignored live).
 - **Purchases:** all five Developer Products are wired (save slot, Creator Plus, three reroll packs; 2026-10-18) and show Roblox's live prices. Not yet done: the product icons in the dashboard, and a completed purchase test.
 - **Sheet animations (2026-10-18):** 12 sheet assets don't load and need re-uploading (list in `Decisions.md`); the old animations play meanwhile.
-- **Not tested yet:** two or more players (leaderboard, others seeing swim / style animations), a real phone or tablet (touch was tested through `ForceMobileControls`), a live server.
+- **Not tested yet:** Player Identities with two real players (naming, the wrong-name lock); Forgotten Site state after a real rejoin; two or more players (leaderboard, others seeing swim / style animations), a real phone or tablet (touch was tested through `ForceMobileControls`), a live server.
 - **Owner hand-off:** `Owner Hand-off 2026-10-18.md` lists what only the owner can do.
 - **Alchemy:** Ice, Wind, Metal and Earth run on placeholder animations (Earth's VFX use the owner's prototype meshes).
 - **Climb animations:** the cleaned versions play only in Studio until published (live keeps the originals).

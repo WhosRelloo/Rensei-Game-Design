@@ -24,7 +24,9 @@ This is what's waiting on you, followed by where each piece of today's work is w
   - where the deep water is. Pools are limited to about 5.2 deep by the baseplate.
 - **Weapon skills and the skill sheet:** how the sheet maps onto Dragonflash, Flurry, Barrage, Scissor Rush and Fan the Hammer (`Animations.md`).
 - **Esc can't close dialogue** (Roblox reserves Esc). It's covered by the new X button; say if you'd like a key as well.
-- **The base walk speed is inconsistent** in the code (12 by the game's convention, but WCS characters can start at 16). Not changed.
+- ~~**The base walk speed is inconsistent**~~ **Fixed 2026-10-18:** the base is 16 (your call), and WCS now defaults to the base × the speed multiplier (enemies: their own speed).
+- **Player Identities and Halvard's Adit numbers:** all PROPOSALS (`Identities and Forgotten Sites.md`).
+- **Five unused assets** from "ASSETS TO EXPORT": Windup, WindStep, Icechainfx, IceEruption, Pale Assassin Cloak.
 
 ## Decided today
 
@@ -47,6 +49,6 @@ This is what's waiting on you, followed by where each piece of today's work is w
 
 ## Not tested anywhere (needs real conditions)
 
-- **Two or more players:** the leaderboard, other players seeing swim and style animations, PvP in water.
+- **Two or more players:** Player Identities (naming, introductions, the wrong-name lock), the leaderboard, other players seeing swim and style animations, PvP in water.
 - **A real phone or tablet:** touch was tested on a PC through the game's `ForceMobileControls` test switch.
 - **A live server and real purchases** (no Game Pass or Product exists yet).

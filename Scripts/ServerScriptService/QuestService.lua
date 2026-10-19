@@ -172,9 +172,23 @@ end
 
 -- Kind/Target match objective definitions. Only the CURRENT stage's objectives advance.
 -- Returns true if anything advanced.
+-- Rewards from outside a quest (Forgotten Sites caches, PuzzleService): the same reward code, same rules.
+function QuestService.Grant(Player, Rewards, Source)
+	local Data = ProgressionService.GetData(Player)
+	if Data and type(Rewards) == "table" then GiveRewards(Player, Data, Rewards, Source) end
+end
+
 function QuestService.Signal(Player, Kind, Target, Amount)
 	local Data = ProgressionService.GetData(Player)
 	if not Data then return false end
+	-- quests with StartOnVisit = "<area>" (Forgotten Sites) start the first time the player walks in
+	if Kind == "Visit" then
+		for QuestId, Def in pairs(Definitions) do
+			if Def.StartOnVisit == Target and not Data.Quests.Active[QuestId] and QuestService.CanStart(Player, QuestId) then
+				QuestService.Start(Player, QuestId)
+			end
+		end
+	end
 	local Changed = false
 	local Ids = {}
 	for QuestId in pairs(Data.Quests.Active) do table.insert(Ids, QuestId) end

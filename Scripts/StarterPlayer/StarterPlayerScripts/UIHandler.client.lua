@@ -7,7 +7,7 @@ local ContextActionService = game:GetService("ContextActionService")
 local UI = ReplicatedStorage.Modules.UI
 local UIState = require(UI.UIState)
 
-for _, Name in ipairs({"HUDUI", "PopupUI", "PartyUI", "DialogueUI", "InventoryUI", "SettingsUI", "CombatModeUI", "CooldownUI", "AlchemyUI", "MobileControls", "PromptUI", "ChatUI", "IntroCutscene", "MasteryUI", "CombatLogUI", "CompassUI", "AdminUI", "JournalUI", "PuzzleClient", "MinigameUI", "EmoteWheelUI"}) do -- EmoteWheelUI: hold H
+for _, Name in ipairs({"HUDUI", "PopupUI", "PartyUI", "DialogueUI", "InventoryUI", "SettingsUI", "CombatModeUI", "CooldownUI", "AlchemyUI", "MobileControls", "PromptUI", "ChatUI", "IntroCutscene", "MasteryUI", "CombatLogUI", "CompassUI", "AdminUI", "JournalUI", "PuzzleClient", "MinigameUI", "EmoteWheelUI", "FieldNotesUI"}) do -- EmoteWheelUI: hold H; FieldNotesUI: one-time hints
 	require(UI[Name]).Start()
 end
 require(UI.StatsUI).Initiate()
