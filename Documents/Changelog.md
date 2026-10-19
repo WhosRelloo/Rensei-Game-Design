@@ -43,6 +43,20 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
   - backup `ServerScriptService_MoralityService` in `Pre-Foundation_2026-10-19`; MoralityService 8072 → 11853 bytes (FNV b0a56c81);
   - test `Play_Morality` (Play mode, real profile snapshotted and restored): RED was "FAIL JoinSeededAndBorn: seeded on join" (PASS 1 / FAIL 2), then PASS 3 / FAIL 0; no MoralityService errors in the console;
   - existing content (Step 5): `Record(Player, "told_on_tobin", true, {Region = "Foundry"})` moved `Standing.Foundry` 0 → -3 (full, since the Foundry faction is only in the Foundry); the profile was restored afterwards (deep compare: 0 differences).
+- Task 6: Perception maths (Rensei):
+  - new `Rensei.Perception`, the pure numbers and maths of what NPCs notice. PerceptionService (Task 7) will run it, and the eye-sigil HUD (Plan 2) will read it:
+    - timing and budget: `Tick` 0.2 s, `ActiveRange` 80, `RaysPerNpc` 3, `RaysPerTick` 120;
+    - cones: `Primary` 110° (full rate) and `Peripheral` 160° (half rate); behind that, nothing;
+    - thresholds and timers: `Suspicious` 0.35, `Drain` 0.25/s, `Memory` 3 s, `InvestigateTime` 8 s, `SearchTime` 25 s, `CautiousTime` 180 s;
+    - multipliers: `CautiousMult` 1.3, `CallRadius` 40, `Falloff` 0.75 (a range's edge fills at 25%);
+    - movement multiplier: x1 / x1.5 / x2 at speed ≤17 / ≤24 / above;
+    - five perception types (Grunt, Elite, Agent, Hunter, Witness), each with a Range and a Fill rate;
+    - `EnemyTypes` maps TuningConfig enemies to perception types (unlisted enemies are Grunt);
+    - `AlwaysAware`: Sparring and the five Trial foes keep the old distance aggro;
+  - functions: `ConeMult(Look, To)` (horizontal angle only, so someone straight above counts as seen), `MoveMult(Speed)` and `Rate(Type, Dist, Cone, Visible, Move, Exposure, Cautious)`, which gives awareness per second. Light (Exposure) and crouching arrive in Plan 2;
+  - **every perception number is a PROPOSAL (spec §18.7)**, for the owner to tune;
+  - nothing calls it yet; no existing script changed;
+  - test `Test_Perception` (Edit mode): RED was "Perception is not a valid member", then PASS 4 / FAIL 0.
 - Note: commit e6f9408 (Task 1) carries a "Claude Sonnet 5.5" co-author line by mistake; it should read Claude Opus 5.5 (not rewritten: the branch is shared).
 
 ## 2026-10-19 — Plans: Morality × Reputation roadmap + Plan 1 (Foundation)
