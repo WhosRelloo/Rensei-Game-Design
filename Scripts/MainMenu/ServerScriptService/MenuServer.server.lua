@@ -291,7 +291,7 @@ local function PackFor(ProductId)
 	end
 end
 
-MarketplaceService.ProcessReceipt = function(Info)
+local function ProcessReceipt(Info)
 	-- Creator Plus (the Developer Product): saved on the account before the purchase is granted
 	if CreatorPlus.ProductId ~= 0 and Info.ProductId == CreatorPlus.ProductId then
 		local Result = SlotAccount.GrantPlus(Info.PlayerId, Info.PurchaseId)
@@ -305,15 +305,37 @@ MarketplaceService.ProcessReceipt = function(Info)
 	if Pack then
 		local Player = Players:GetPlayerByUserId(Info.PlayerId)
 		local Profile = Player and MenuData.Get(Player)
-		if not Profile then return Enum.ProductPurchaseDecision.NotProcessedYet end
+		if not Profile or not Profile:IsActive() then return Enum.ProductPurchaseDecision.NotProcessedYet end
+		-- (data-storage audit 2026-10-18) The purchase id goes in the profile's MetaTags, which also survive a
+		-- character wipe (Gate permadeath), and the purchase is only reported granted once a save that includes it
+		-- is confirmed (ProfileService's documented pattern). It used to be reported granted at once: a server that
+		-- went down before the next auto-save lost the rolls, and Roblox would never retry the receipt.
 		local I = Profile.Data.Identity
-		I.RerollReceipts = I.RerollReceipts or {}
-		if not table.find(I.RerollReceipts, Info.PurchaseId) then
+		local Legacy = type(I.RerollReceipts) == "table" and I.RerollReceipts or {}
+		if table.find(Legacy, Info.PurchaseId) then return Enum.ProductPurchaseDecision.PurchaseGranted end -- granted before
+		local Ids = Profile.MetaData.MetaTags.RerollPurchases
+		if type(Ids) ~= "table" then Ids = {} end
+		if not table.find(Ids, Info.PurchaseId) then
 			I.PaidClanRolls = (I.PaidClanRolls or 0) + Pack.Rolls
-			table.insert(I.RerollReceipts, Info.PurchaseId)
-			while #I.RerollReceipts > 20 do table.remove(I.RerollReceipts, 1) end
+			table.insert(Ids, Info.PurchaseId)
+			while #Ids > 30 do table.remove(Ids, 1) end
+			Profile:SetMetaTag("RerollPurchases", Ids)
 		end
-		return Enum.ProductPurchaseDecision.PurchaseGranted
+		local Decision
+		local function Check()
+			local Saved = Profile.MetaData.MetaTagsLatest.RerollPurchases
+			if type(Saved) == "table" and table.find(Saved, Info.PurchaseId) then Decision = Enum.ProductPurchaseDecision.PurchaseGranted end
+		end
+		Check()
+		local Conn = Profile.MetaTagsUpdated:Connect(function()
+			Check()
+			if not Decision and not Profile:IsActive() then Decision = Enum.ProductPurchaseDecision.NotProcessedYet end
+		end)
+		local Deadline = os.clock() + 90 -- an auto-save comes every ~30 s
+		while not Decision and os.clock() < Deadline do task.wait(0.1) end
+		Conn:Disconnect()
+		-- not confirmed yet: Roblox asks again later; the MetaTag stops a second grant
+		return Decision or Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	if Slots.ProductId == 0 or Info.ProductId ~= Slots.ProductId then return Enum.ProductPurchaseDecision.NotProcessedYet end
 	local Result = SlotAccount.Grant(Info.PlayerId, Info.PurchaseId)
@@ -322,6 +344,14 @@ MarketplaceService.ProcessReceipt = function(Info)
 	local Player = Players:GetPlayerByUserId(Info.PlayerId)
 	if Player then MenuData.Account(Player, true) end
 	return Enum.ProductPurchaseDecision.PurchaseGranted
+end
+MarketplaceService.ProcessReceipt = ProcessReceipt
+-- Studio only: the callback can't be read back, so audits call it through this (never created on a live server)
+if game:GetService("RunService"):IsStudio() then
+	local Hook = Instance.new("BindableFunction")
+	Hook.Name = "StudioReceiptTest"
+	Hook.OnInvoke = ProcessReceipt
+	Hook.Parent = script
 end
 
 Players.PlayerRemoving:Connect(function(Player) Busy[Player] = nil PlusOwned[Player] = nil end)

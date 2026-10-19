@@ -2,6 +2,41 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-18 — Data storage audit (all phases)
+
+**Owner:** "Completely audit and fix all datastorage after all phases".
+
+> **Status: fixed in all three places, tested in Studio** (Rensei; your profile was snapshotted and restored, then verified equal to the saved copy). The full write-up is `Data Storage.md`.
+>
+> **Backups:** `ServerStorage.RenseiBackups["Pre-DataAudit_2026-10-18"]` in each place.
+
+**Fixes:**
+- **`ProfileGuard`** (new, identical in every place):
+  - repairs NaN or infinite numbers and removes unstorable values, any one of which makes every later save fail silently;
+  - checks on load, every 30 s and before every release;
+  - wired into Ye's `DataManager`, the menu's `MenuData` and the tutorial's `FlowData`.
+- **`ProgressionService`:** `GrantExp`, `GrantMoney`, `SpendMoney` and `AddTraining` refuse NaN or infinite amounts (`GrantExp` let NaN through).
+- **Reroll pack purchases** (`MenuServer`): the purchase id is kept in the profile's MetaTags (survives Gate permadeath), and the purchase is reported granted only after a confirmed save. It used to be reported at once, so a crash before the auto-save lost paid rolls.
+- **Inventory caps** (`ItemService`, PROPOSALS): 60 entries, 999 per stack, 25 per give. Gives are all or nothing, with a "bag is full" toast.
+- **`ProfileData`:** the same template in all three places (the menu and tutorial had an older copy), marked "keep the same".
+
+**Checked and sound:**
+- the shared files (migrations, slot account, teleport) are identical across places;
+- session locking and teleport hand-off;
+- account writes (`UpdateAsync`, idempotent receipts);
+- the Gate permadeath reset.
+- **Read-only scan of your two saves:** clean; 5.8 KB and 4.2 KB.
+
+**Tests:**
+- the guard repairs;
+- your profile is clean;
+- NaN and infinite amounts refused;
+- the inventory caps, including all-or-nothing.
+
+**Still open:**
+- **Reroll receipt test:** not yet run. Studio's Play start hung in the Main Menu place; a Studio-only hook, `MenuServer.StudioReceiptTest`, is ready for it.
+- **`AddUserId`:** missing from this ProfileService version, which matters for data-deletion requests.
+
 ## 2026-10-18 — Fluidity pass: combat, M1s, movement, climb → ledge walk; Boxing knockback; no infinite combos
 
 **Owner:**

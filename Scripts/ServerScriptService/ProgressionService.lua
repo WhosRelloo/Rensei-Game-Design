@@ -83,9 +83,12 @@ end
 
 -- ===== EXP =====
 
+-- (data-storage audit 2026-10-18: a NaN or infinite amount is refused -- one in the save stops it from saving)
+local function Finite(N) return type(N) == "number" and N == N and N ~= math.huge and N ~= -math.huge end
+
 function ProgressionService.GrantExp(Player, Amount, Source)
 	local Data = GetData(Player)
-	if not Data or type(Amount) ~= "number" or Amount <= 0 then return 0 end
+	if not Data or not Finite(Amount) or Amount <= 0 then return 0 end
 	Amount = math.floor(Amount)
 	Data.LifetimeExp += Amount
 
@@ -117,7 +120,7 @@ end
 
 function ProgressionService.GrantMoney(Player, Amount)
 	local Data = GetData(Player)
-	if not Data or type(Amount) ~= "number" or Amount ~= Amount or Amount <= 0 then return false end
+	if not Data or not Finite(Amount) or Amount <= 0 then return false end
 	Data.Money += math.floor(Amount)
 	Sync(Player)
 	return true
@@ -125,7 +128,7 @@ end
 
 function ProgressionService.SpendMoney(Player, Amount)
 	local Data = GetData(Player)
-	if not Data or type(Amount) ~= "number" or Amount ~= Amount or Amount <= 0 then return false end
+	if not Data or not Finite(Amount) or Amount <= 0 then return false end
 	Amount = math.floor(Amount)
 	if Data.Money < Amount then return false end
 	Data.Money -= Amount
@@ -159,6 +162,7 @@ function ProgressionService.AddTraining(Player, Source, Multiplier, Active)
 	local Data = GetData(Player)
 	local Rule = Training.Sources[Source]
 	if not Data or not Rule then return 0 end
+	if Multiplier ~= nil and (not Finite(Multiplier) or Multiplier < 0) then return 0 end
 	if not Active and IsIdle(Player) then return 0 end
 
 	local Mastery = Data.Mastery
@@ -273,7 +277,7 @@ function ProgressionService.GateStatus(Player)
 	return Progression.GateCheck(Data)
 end
 
--- The player asks to undergo the trial. Validated here; the trial itself is not built yet.
+-- The trial is opened (TruthService summons the player into the Gate). Validated here.
 function ProgressionService.BeginTrial(Player)
 	local Data = GetData(Player)
 	local Eligible, Reasons = ProgressionService.GateStatus(Player)
@@ -283,16 +287,25 @@ function ProgressionService.BeginTrial(Player)
 	return true
 end
 
--- SERVER ONLY. Called by the trial encounter when it resolves. Passing opens the next stage
--- with a fresh 20 MP allowance. Failure consequences are UNRESOLVED, so failing only clears
--- the pending flag.
-function ProgressionService.CompleteTrial(Player, Passed)
+-- SERVER ONLY. Called by the trial encounter (TruthService) when it resolves. Passing opens the next
+-- stage with a fresh 20 MP allowance. The Gate's own rule (design doc §6): failing a test does not
+-- cancel progression, it makes the Acquisition Flawed, so TruthService always passes Passed = true and
+-- describes the result in Acquisition = {Test, Quality, Corrupted}. Applied exactly once: the pending
+-- stage must match, and it is cleared here.
+function ProgressionService.CompleteTrial(Player, Passed, Acquisition)
 	local Data = GetData(Player)
 	if not Data or Data.Gate.PendingTrial ~= Data.Mastery.Stage or Data.Gate.PendingTrial == 0 then
 		return false
 	end
 	table.insert(Data.Gate.History, {Stage = Data.Mastery.Stage, Passed = Passed == true, At = os.time()})
 	Data.Gate.PendingTrial = 0
+	Data.Gate.ActiveTest = {}
+	if Passed == true and type(Acquisition) == "table" then
+		Data.Gate.Acquisitions = Data.Gate.Acquisitions or {}
+		table.insert(Data.Gate.Acquisitions, {Stage = Data.Mastery.Stage, Test = tostring(Acquisition.Test or ""),
+			Quality = Acquisition.Quality == "Clean" and "Clean" or "Flawed", Corrupted = Acquisition.Corrupted == true, At = os.time()})
+		if Acquisition.Corrupted == true then Data.Gate.Corruption = (Data.Gate.Corruption or 0) + 1 end
+	end
 	if Passed == true then
 		Data.Gate.TrialsPassed += 1
 		Data.Mastery.Stage += 1
@@ -300,8 +313,74 @@ function ProgressionService.CompleteTrial(Player, Passed)
 		Data.Mastery.Progress = 0
 		Data.Mastery.StageSpend = {} -- the stage's skill-tree choices are sealed for good
 	end
+	ProgressionService.ApplyCharacter(Player) -- the Truth clap (below)
 	Sync(Player)
 	return true
+end
+
+-- SERVER ONLY (TruthService): the test in progress, saved as it happens so a rejoin can't undo a choice.
+function ProgressionService.SetGateTest(Player, Fields)
+	local Data = GetData(Player)
+	if not Data or Data.Gate.PendingTrial == 0 then return false end
+	Data.Gate.ActiveTest = Data.Gate.ActiveTest or {}
+	for K, V in pairs(Fields) do Data.Gate.ActiveTest[K] = V end
+	return true
+end
+
+-- SERVER ONLY (TruthService): a death inside the Gate (counted; Permadeath below then erases the character).
+function ProgressionService.NoteGateDeath(Player)
+	local Data = GetData(Player)
+	if not Data then return end
+	Data.Gate.GateDeaths = (Data.Gate.GateDeaths or 0) + 1
+end
+
+-- SERVER ONLY (TruthService): death inside the Gate is permanent (owner 2026-10-19). Erases the character in this
+-- save slot by resetting the profile to the template, in place (the same ProfileService profile, saved as usual):
+-- the slot goes back to character creation. Kept: SchemaVersion, Settings, the tutorial / intro flags (the player
+-- has seen them), the clan-roll counters that track purchases and pity, and Fallen (+ this character's memorial).
+-- Returns the memorial record, or nil if there was no profile or no created character.
+local KEEP = {SchemaVersion = true, Settings = true, Flow = true, Fallen = true}
+local KEEP_IDENTITY = {"FreeClanRollUsed", "PaidClanRolls", "ClanPity", "MythicBonus"}
+local function Copy(T)
+	if type(T) ~= "table" then return T end
+	local N = {}
+	for K, V in pairs(T) do N[K] = Copy(V) end
+	return N
+end
+function ProgressionService.Permadeath(Player, Cause)
+	local Data = GetData(Player)
+	if not Data or not Data.Identity or not Data.Identity.CharacterCreated then return nil end
+	local Template = require(ReplicatedStorage.Modules.Data.ProfileData)
+	local Id = Data.Identity
+	local Memorial = {Name = Id.Name, Clan = Id.Clan, Affinity = Id.Affinity, Stage = Data.Mastery.Stage,
+		TrialsPassed = Data.Gate.TrialsPassed, LifetimeExp = Data.LifetimeExp, At = os.time(), Cause = tostring(Cause or "Gate")}
+	local Kept = {}
+	for _, K in ipairs(KEEP_IDENTITY) do Kept[K] = Id[K] end
+	for K in pairs(Data) do
+		if not KEEP[K] then Data[K] = nil end
+	end
+	for K, V in pairs(Template) do
+		if not KEEP[K] then Data[K] = Copy(V) end
+	end
+	for K, V in pairs(Kept) do Data.Identity[K] = V end
+	Data.Fallen = type(Data.Fallen) == "table" and Data.Fallen or {}
+	table.insert(Data.Fallen, Memorial)
+	while #Data.Fallen > 20 do table.remove(Data.Fallen, 1) end
+	Data.Flow = type(Data.Flow) == "table" and Data.Flow or {}
+	Data.Flow.TutorialDone, Data.Flow.IntroSeen = true, true -- a new character skips straight past them
+	pcall(function() require(ServerScriptService.AlchemyService).PublishAffinity(Player) end)
+	Sync(Player)
+	return Memorial
+end
+
+-- The clap of someone who has seen the Gate: the best Acquisition's windup multiplier (Rensei.Truth.ClapWindup).
+function ProgressionService.TruthClap(Data)
+	local Best = nil
+	for _, A in ipairs((Data and Data.Gate and Data.Gate.Acquisitions) or {}) do
+		if A.Quality == "Clean" then return "Clean" end
+		Best = "Flawed"
+	end
+	return Best
 end
 
 -- ===== Character =====
@@ -331,6 +410,10 @@ function ProgressionService.ApplyCharacter(Player)
 	Humanoid.Health = MaxHealth * math.clamp(Ratio, 0, 1)
 	-- every other skill-tree effect: Mod_<Key> attributes + resource maxima
 	require(ServerScriptService.SkillTreeService).Publish(Player)
+	-- the Truth clap: a faster clap once the player has passed a Gate trial (AlchemyService reads it)
+	local Clap = ProgressionService.TruthClap(Data)
+	Character:SetAttribute("TruthClap", Clap and require(Rensei.Truth).Config.ClapWindup[Clap] or nil)
+	Character:SetAttribute("TruthTouched", Clap ~= nil or nil)
 	-- Rescale whatever speed is current (walking, sprinting, slowed) rather than forcing walk.
 	Humanoid.WalkSpeed = Humanoid.WalkSpeed / OldSpeed * NewSpeed
 end

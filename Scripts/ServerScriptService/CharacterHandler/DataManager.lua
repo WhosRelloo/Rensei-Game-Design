@@ -13,6 +13,8 @@ local ProfileService = require(script.ProfileService)
 local ProfileData = require(ReplicatedStorage.Modules.Data.ProfileData)
 local ProfileMigrations = require(ServerScriptService:WaitForChild("ProfileMigrations"))
 local SlotAccount = require(ServerScriptService:WaitForChild("SlotAccount"))
+-- keeps an open profile saveable (no NaN / infinite numbers or Roblox values; data-storage audit 2026-10-18)
+local ProfileGuard = require(ServerScriptService:WaitForChild("ProfileGuard"))
 
 local SessionData = ProfileService.GetProfileStore("PlayerData",ProfileData)
 
@@ -42,6 +44,7 @@ local function PlayerAdded(Player)
 		return
 	end
 	Sessions[Player] = PlayerData
+	ProfileGuard.Track(PlayerData, Player.Name .. " (" .. Key .. ")")
 	PlayerData:ListenToRelease(function()
 		-- (our own releases clear Sessions first; only a release from elsewhere finds it still open)
 		if Sessions[Player] ~= PlayerData then return end
@@ -55,6 +58,7 @@ function DataManager:Initiate()
 		local PlayerData = Sessions[Player]
 		Sessions[Player], Leaving[Player] = nil, nil
 		if PlayerData then
+			ProfileGuard.Final(PlayerData)
 			PlayerData:Release()
 		end
 	end
@@ -87,6 +91,7 @@ function DataManager:Release(Player)
 	if not PlayerData then return end
 	local Ready = false
 	PlayerData:ListenToHopReady(function() Ready = true end)
+	ProfileGuard.Final(PlayerData)
 	PlayerData:Release()
 	local Deadline = os.clock() + 6
 	while not Ready and os.clock() < Deadline do task.wait(0.1) end

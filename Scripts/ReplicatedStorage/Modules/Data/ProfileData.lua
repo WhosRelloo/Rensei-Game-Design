@@ -1,6 +1,8 @@
 -- Rensei profile template. ProfileService:Reconcile() fills any key missing from a saved
 -- profile; anything that needs converting goes through DataManager's Migrate step and
 -- SchemaVersion. Bump SchemaVersion and add a migration step for every breaking change.
+-- KEEP THIS FILE THE SAME IN EVERY PLACE (data-storage audit 2026-10-18: the menu and tutorial had an older copy;
+-- harmless while Reconcile only adds keys, but a fresh slot made there started without the newer sections).
 return {
 	SchemaVersion = 4, -- 2: SkillTree (was AlchemyTree) + Mastery.StageSpend; 3: Story + quest stages; 4: Morality
 
@@ -32,6 +34,11 @@ return {
 		TrialsPassed = 0,
 		PendingTrial = 0, -- stage number of a trial that has been started, 0 = none
 		History = {},
+		-- Gate of Truth encounter (2026-10-18, TruthService; additive, Reconcile fills old saves)
+		Acquisitions = {}, -- {Stage, Test, Quality = "Clean" | "Flawed", Corrupted, At}, one per passed trial
+		ActiveTest = {}, -- the test in progress {Stage, Test, Taken, Died, Started}; {} = none (survives a rejoin)
+		GateDeaths = 0, -- deaths inside the Gate (before 2026-10-19; since then a death there is permanent)
+		Corruption = 0, -- Restraint tests failed
 	},
 
 	Identity = { -- set once by character creation (Requests.CreateCharacter, Rensei.Customization)
@@ -99,6 +106,25 @@ return {
 		Next = 1, -- the next record number (Subject 01, 02, ...)
 		Records = {}, -- [CharacterId] = {N, First, Last, Seen, Obs = {[Kind] = value}, Name, Src, Links, Log, Lock}
 	},
+	-- Automail (2026-10-18, AutomailService is the only writer; additive). A fitted prosthetic right arm.
+	Automail = {
+		Installed = false,
+		Spec = "Balanced", -- Rensei.Automail.Specs
+		Condition = 100, -- 0..100; wear from being knocked down and from water, repaired at the mechanic
+		InstalledAt = 0,
+	},
+	-- The Alchemic Binding ritual (2026-10-18, RitualService is the only writer; additive).
+	Binding = {
+		Armor = false, -- true = this character's soul is bound to the Alchemic Armor (a failed ritual)
+		At = 0,
+		By = "", -- the caster's CharacterId
+		CasterCooldownUntil = 0, -- os.time(): this character can't cast another binding before then
+		TargetCooldownUntil = 0, -- os.time(): this character can't be a binding target before then
+		Granted = "", -- the path a successful ritual gave this character ("" = none)
+	},
+	-- Characters of this slot that died at the Gate (2026-10-19, ProgressionService.Permadeath; additive). Survives
+	-- the wipe: {Name, Clan, Affinity, Stage, TrialsPassed, LifetimeExp, At, Cause}, newest last, at most 20.
+	Fallen = {},
 	Codex = {}, -- [EntryId] = os.time()
 	Areas = {}, -- [AreaName] = os.time()
 

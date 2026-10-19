@@ -12,6 +12,7 @@ local ProfileService = require(script.ProfileService)
 local ProfileData = require(ReplicatedStorage.Modules.Data.ProfileData)
 local ProfileMigrations = require(script.Parent.ProfileMigrations)
 local SlotAccount = require(script.Parent.SlotAccount)
+local ProfileGuard = require(script.Parent.ProfileGuard) -- keeps an open profile saveable (data-storage audit 2026-10-18)
 
 local Store = ProfileService.GetProfileStore("PlayerData", ProfileData)
 
@@ -37,6 +38,7 @@ local function PlayerAdded(Player)
 	Profile:Reconcile()
 	if not Player.Parent then Profile:Release() return end
 	Sessions[Player] = Profile
+	ProfileGuard.Track(Profile, Player.Name .. " (" .. Key .. ")")
 	Profile:ListenToRelease(function()
 		-- (our own releases clear Sessions first; only a release from elsewhere finds it still open)
 		if Sessions[Player] ~= Profile then return end
@@ -51,7 +53,7 @@ function MenuData.Start()
 	Players.PlayerRemoving:Connect(function(Player)
 		local Profile = Sessions[Player]
 		Sessions[Player], Leaving[Player] = nil, nil
-		if Profile then Profile:Release() end
+		if Profile then ProfileGuard.Final(Profile) Profile:Release() end
 	end)
 end
 
@@ -75,6 +77,7 @@ function MenuData.Release(Player)
 	if not Profile then return end
 	local Ready = false
 	Profile:ListenToHopReady(function() Ready = true end)
+	ProfileGuard.Final(Profile)
 	Profile:Release()
 	local Deadline = os.clock() + 6
 	while not Ready and os.clock() < Deadline do task.wait(0.1) end

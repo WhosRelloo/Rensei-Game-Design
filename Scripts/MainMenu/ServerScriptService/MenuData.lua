@@ -20,6 +20,7 @@ local Slots = require(ReplicatedStorage.Modules.Data.Rensei.Slots)
 local SlotAccount = require(ServerScriptService.SlotAccount)
 
 local ProfileMigrations = require(ServerScriptService.ProfileMigrations)
+local ProfileGuard = require(ServerScriptService.ProfileGuard) -- keeps an open profile saveable (data-storage audit 2026-10-18)
 
 local Store = ProfileService.GetProfileStore("PlayerData", ProfileData)
 
@@ -46,7 +47,7 @@ function MenuData.Start()
 	Players.PlayerRemoving:Connect(function(Player)
 		local Profile = Sessions[Player]
 		Sessions[Player], OpenSlot[Player], Accounts[Player], Leaving[Player], Fetching[Player] = nil, nil, nil, nil, nil
-		if Profile then Profile:Release() end
+		if Profile then ProfileGuard.Final(Profile) Profile:Release() end
 	end)
 end
 
@@ -95,7 +96,7 @@ function MenuData.Open(Player, Slot)
 	if OpenSlot[Player] == Slot and Sessions[Player] then return Sessions[Player] end
 	local Old = Sessions[Player]
 	Sessions[Player], OpenSlot[Player] = nil, nil
-	if Old then Old:Release() end
+	if Old then ProfileGuard.Final(Old) Old:Release() end
 	if not SlotAccount.Select(Player.UserId, Slot) then return nil, "Couldn't pick that slot. Try again." end
 	Account.Selected = Slot
 	local Profile = Store:LoadProfileAsync(Slots.Key(Player.UserId, Slot), "ForceLoad")
@@ -105,6 +106,7 @@ function MenuData.Open(Player, Slot)
 	if not Player.Parent then Profile:Release() return nil end
 	Leaving[Player] = nil
 	Sessions[Player], OpenSlot[Player] = Profile, Slot
+	ProfileGuard.Track(Profile, Player.Name .. " (slot " .. Slot .. ")")
 	Profile:ListenToRelease(function()
 		-- (our own releases clear Sessions first; only a release from elsewhere finds it still open)
 		if Sessions[Player] ~= Profile then return end
@@ -150,6 +152,7 @@ function MenuData.Release(Player)
 	if not Profile then return end
 	local Ready = false
 	Profile:ListenToHopReady(function() Ready = true end)
+	ProfileGuard.Final(Profile)
 	Profile:Release()
 	local Deadline = os.clock() + 6
 	while not Ready and os.clock() < Deadline do task.wait(0.1) end

@@ -11,6 +11,7 @@ Read these first; they are updated after every development phase:
 - **Project Status.md:** what is built and working right now, and the known gaps.
 - **Phase Plan.md:** the roadmap (combat commission + master plan phases) with status, and the next steps.
 - **Identities and Forgotten Sites.md:** Player Identities (rules, storage, the Journal tab) and the Forgotten Sites framework with its first site, Halvard's Adit; tests and limitations.
+- **Data Storage.md:** the stores, how a profile moves between places, and the 2026-10-18 audit (findings, fixes, tests).
 - **Changelog.md:** what each phase changed and how it was tested.
 - **Decisions.md:** confirmed owner decisions and the open questions.
 - **ARCHITECTURE.md:** where every system lives in the Roblox place (Ye), plus coding conventions and testing gotchas.

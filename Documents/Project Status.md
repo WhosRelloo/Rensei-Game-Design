@@ -54,6 +54,12 @@ Updated **2026-10-18**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
   - landing blends into the run;
   - Boxing's 4th hit knocks back;
   - no infinite combos (a feint keeps the combo's place, plus a 3 s hitstun-chain cap).
+- **Data storage audit (2026-10-18):**
+  - ProfileGuard keeps saves storable;
+  - NaN / inf guards;
+  - reroll purchases confirmed saved before granting;
+  - inventory caps;
+  - one template in every place. See `Data Storage.md`.
 - **Combat log badge:** in combat, shows who hit you and the time until you're out of combat.
 - **Admin panel (F2):** admins only (`AdminConfig`); players, world, self and log tabs, including switching a player's alchemy path.
 - **Items:** consumables on the hotbar; clicking while holding uses one. The Apple heals a little at a time.
