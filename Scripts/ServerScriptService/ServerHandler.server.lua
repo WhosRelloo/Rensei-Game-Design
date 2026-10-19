@@ -91,10 +91,14 @@ require(ServerScriptService.IdentityService).Start() -- Player Identities: encou
 require(ServerScriptService.PuzzleService).Start() -- per-player mechanisms (RenseiMechanism) + puzzles
 require(ServerScriptService.MinigameService).Start() -- Pressure Board, Array Restoration
 require(ServerScriptService.MoralityService).Start() -- deeds ledger: conduct, standing, trust, renown
+require(ServerScriptService.PerceptionService).Start() -- what NPCs notice: sight, alert phases (S1)
 require(ServerScriptService.TrialService).Start() -- alchemy trials (RenseiTrial arenas)
 require(ServerScriptService.TrainingService).Start() -- trainer lessons / exercises (mastery training)
 require(ServerScriptService.RankService).Start() -- public rank / title / clan for the leaderboard
 require(ServerScriptService.SwimService).Start() -- deep water: the Swim traversal state (no fighting / alchemy)
 require(ServerScriptService.CombatDirector).Start() -- enemy squads: encounters, the attack token, surround positions
 require(ServerScriptService.CompassService).Start() -- the places the top-of-screen compass can point at
+require(ServerScriptService.TruthService).Start() -- the Gate of Truth encounter (Truth/Gate trials)
+require(ServerScriptService.AutomailService).Start() -- automail arms: the piston strike, heat, condition
+require(ServerScriptService.RitualService).Start() -- the Alchemic Binding (chalk circles) and the Alchemic Armor
 script:SetAttribute("Started", os.time())

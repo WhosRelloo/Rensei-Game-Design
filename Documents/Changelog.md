@@ -58,6 +58,49 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
   - nothing calls it yet; no existing script changed;
   - test `Test_Perception` (Edit mode): RED was "Perception is not a valid member", then PASS 4 / FAIL 0.
   - review fix: the movement breakpoints moved from 17 / 24 to 20 / 27. These are the midpoints between the game's gaits (walk 16, run 24, sprint 30 in Run.lua), so physics jitter and speed bonuses don't flip a runner into a sprinter. The test now covers 24 (run) and 24.4 (run with jitter): RED was "run with jitter: expected 1.5, got 2", then PASS 4 / FAIL 0.
+- Task 7: PerceptionService and enemies, slice S1 (Rensei):
+  - **what players notice:**
+    - open-world enemies no longer aggro by distance alone. They notice you through a view cone with sight lines to your head, torso and feet. Distance, movement and Cautious all speed it up: sprinting is noticed about twice as fast as standing or walking;
+    - an enemy that half-notices you (Suspicious, 0.35) walks to where it saw you and gives up after 8 s;
+    - at full awareness it fights (Alert) through the same squad combat as before, and NPCs within 40 studs come to look;
+    - if it loses sight of you for 3 s, it sweeps a widening circle around where it lost you for 25 s, then walks home and stays Cautious for 3 min (sight x1.3);
+    - **a hit alerts it at once**, even from behind;
+    - **arena / trial foes are unchanged:** Sparring and the Trial foes (`Perception.AlwaysAware`) keep the old nearest-player aggro;
+    - the rig attribute `Awareness` shows the phase;
+  - new `ServerScriptService.PerceptionService`:
+    - `Register / Unregister / Tracks / Awareness / PhaseOf / Target / Goal / Lose / Reset / Alarm / Noise / Perceived`;
+    - `ExposureOf`, which returns 1 until Plan 2;
+    - `SetAuto / Step`, for tests;
+    - world watchers tagged `RenseiWatcher` (none placed yet);
+    - started in ServerHandler after MoralityService. It listens to `ProgressionService.HitListeners` for hits;
+  - EnemyService:
+    - `Spawn` registers every enemy that isn't AlwaysAware;
+    - `Brain`'s old `PickTarget` is now `NearestTarget`, used for arena foes only. The new `PickTarget` asks `PerceptionService.Target` and calls `Lose` past the leash;
+    - with no target, the enemy walks to `PerceptionService.Goal` (investigate / search) while that's inside the leash, else home as before;
+    - backups of EnemyService and ServerHandler are in `Pre-Foundation_2026-10-19`;
+  - test `Play_Perception` (Play mode, the passive test Grunt): RED was "PerceptionService is not a valid member", then PASS 3 / FAIL 0. No `PerceptionService:` warnings in the console;
+  - cost (game VM, 50 × `Step(0.2)`, 12 enemies tracked):
+    - far from all of them: 0.012 ms/step;
+    - beside a camp (3 in range): 0.138 ms/step;
+    - all 12 forced to update: 0.100 ms/step;
+  - scripted feel checks (Play, the Grunt camp at (230, -889), both Grunts passive):
+    - walking up from 30 studs behind to 5 studs: awareness stayed at 0;
+    - time to Alert at 15 studs in front:
+      - standing: 1.77–1.90 s;
+      - walking: 2.13 s;
+      - running: 1.42 s;
+      - sprinting: 1.10–1.18 s;
+    - the second Grunt went Suspicious each time (called in);
+    - wall plus 45 studs away: target dropped at 3.15 s and it searched up to 23 studs out. It turned Cautious at 28.1 s, back at its spawn. Re-sighted while Cautious, it alerted in 1.04 s instead of 1.50 s;
+    - a hit from behind (fed through `ProgressionService.RecordHit` → HitListeners): Unaware → Alert at once, targeting the hitter;
+  - **for you to feel-test (needs real keyboard and mouse):**
+    - sneaking up behind a Grunt camp, and whether the cone feels fair;
+    - whether sprinting past in front feels about twice as noticeable;
+    - breaking line of sight around real cover, and how the 25 s search sweep looks;
+    - a real M1 from behind starting the fight instantly;
+    - **surprises to watch for:**
+      - nothing alerts an Elite before its first hit, so its parry AI only engages once it's Alert;
+      - walking alone doesn't add to noticing (x1 up to speed 20), so walking in the open is noticed at the standing rate.
 - Note: commit e6f9408 (Task 1) carries a "Claude Sonnet 5.5" co-author line by mistake; it should read Claude Opus 5.5 (not rewritten: the branch is shared).
 
 ## 2026-10-19 — Plans: Morality × Reputation roadmap + Plan 1 (Foundation)

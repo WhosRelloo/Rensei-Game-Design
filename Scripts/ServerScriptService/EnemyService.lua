@@ -55,6 +55,8 @@ local Stun = require(States.Stun)
 local Attacking = require(States.Attacking)
 local Blocking = require(States.Blocking)
 local CombatDirector = require(game:GetService("ServerScriptService"):WaitForChild("CombatDirector"))
+local PerceptionService = require(game:GetService("ServerScriptService").PerceptionService)
+local Perception = require(ReplicatedStorage.Modules.Data.Rensei.Perception)
 
 local SPAWN_TAG = "RenseiEnemySpawn"
 local function Alchemy() return require(game:GetService("ServerScriptService").AlchemyService) end -- (lazy: it requires us)
@@ -186,7 +188,7 @@ local function Brain(E)
 
 	-- the nearest player in aggro range (inside the leash); the current target is kept unless another player is
 	-- TargetSwitchMargin studs closer (no flip-flopping between two players standing near each other)
-	local function PickTarget()
+	local function NearestTarget()
 		local Margin = Tuning.Squad and Tuning.Squad.TargetSwitchMargin or 0
 		local Cur, CurDist = nil, math.huge
 		local Best, BestDist = nil, Def.AggroRange
@@ -201,6 +203,19 @@ local function Brain(E)
 		end
 		if Cur and (not Best or Best == Cur or BestDist > CurDist - Margin) then return Cur end
 		return Best
+	end
+	-- who to fight: perceived players only (PerceptionService), still inside the leash; arena / trial foes
+	-- use the nearest player as before
+	local function PickTarget()
+		if not PerceptionService.Tracks(Rig) then return NearestTarget() end
+		local C = PerceptionService.Target(Rig)
+		local R = C and C:FindFirstChild("HumanoidRootPart")
+		if not R then return nil end
+		if (Flat(R.Position - E.Home.Position)).Magnitude > Def.LeashRange then
+			PerceptionService.Lose(Rig) -- beyond the leash: give up, warily
+			return nil
+		end
+		return C
 	end
 
 	-- Alchemists: nothing between the caster and the target (no casting through walls)
@@ -274,6 +289,18 @@ local function Brain(E)
 		E.Target = Target
 		CombatDirector.SetTarget(Rig, Target) -- joins / leaves that player's encounter
 		if not Target then
+			-- investigating a noise / sighting, or sweeping where it lost a player (inside the leash)
+			local Goal = PerceptionService.Goal(Rig)
+			if Goal and (Flat(Goal - E.Home.Position)).Magnitude <= Def.LeashRange then
+				if (Flat(Goal - Root.Position)).Magnitude > 3 then
+					Humanoid:MoveTo(Goal)
+					SetWalking(true)
+				else
+					Humanoid:MoveTo(Root.Position)
+					SetWalking(false)
+				end
+				continue
+			end
 			-- leash: walk home and recover
 			local Home = E.Home.Position
 			if Flat(Home - Root.Position).Magnitude > 4 then
@@ -469,6 +496,10 @@ function Spawn(Part)
 			if Part.Parent then Spawn(Part) end
 		end)
 	end)
+	-- notices players through sight and alert phases (PerceptionService); arena / trial foes keep distance aggro
+	if not Perception.AlwaysAware[Type] then
+		PerceptionService.Register(Rig, {Type = Perception.EnemyTypes[Type] or "Grunt", Faction = Def.Faction, Combat = true})
+	end
 	task.spawn(Brain, E)
 	return Rig
 end
