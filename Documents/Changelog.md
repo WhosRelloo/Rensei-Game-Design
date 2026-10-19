@@ -135,6 +135,13 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
     - backups `ServerScriptService_PerceptionService_preT8fix` and `ServerStorage_RenseiTests_Play_Perception_preT8fix` are in `Pre-Foundation_2026-10-19`;
     - new Play tests `WatcherNeverAlertsFromSight` and `PerceivedNeedsRecentSight`: `Play_Perception` PASS 6 / FAIL 0, no `PerceptionService:` warnings. `Test_Witness` still PASS 2 / FAIL 0;
     - PerceptionService is now 13903 bytes (FNV 152410ad).
+- Task 9: RumourService.Core, the pure rumour spread (Rensei):
+  - new `ServerScriptService.RumourService.Core` (pure functions over a profile's `Morality` and a time you pass in): word of a deed travels the region graph from where it happened. Each link sends a front with its carrier (Gossip / Dispatch / Whisper); on arrival it lands the deed for the factions that carrier reaches there (`Reputation.Land`, once per faction per place), then goes on by the same carrier. Each hop costs 1 Strength (a front lands only while Strength - Hops > 0), and each `To/Carrier` is sent at most once per rumour;
+  - `Spawn / Advance / Silence / LandReport`, `MaxLive = 20`, `MaxNews = 10` (PROPOSAL). Fronts are processed in arrival-time order, so an offline catch-up gives exactly what being online would have. `Spawn` reuses a live rumour of the same deed from the same origin; `Silence` takes a witness's weight off and kills the rumour at 0; `LandReport` lands a desk report at once for that desk's faction. The newest 10 arrivals are kept in `Morality.News` (newest first, `Report = true` for desk reports);
+  - the communities are diaspora (present everywhere), so gossip lands for them in every region it reaches. This is intended;
+  - `ServerScriptService.RumourService` itself is a placeholder (`return {}`) until Task 10; nothing calls Core yet and no existing script changed;
+  - Core is 4537 bytes (FNV f4d8a9cd);
+  - test `Test_RumourCore` (Edit mode): RED was "Core is not a valid member", then PASS 8 / FAIL 0.
 - Note: commit e6f9408 (Task 1) carries a "Claude Sonnet 5.5" co-author line by mistake; it should read Claude Opus 5.5 (not rewritten: the branch is shared).
 
 ## 2026-10-19 — Plans: Morality × Reputation roadmap + Plan 1 (Foundation)
