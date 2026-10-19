@@ -36,6 +36,13 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
   - repeatable deeds (review finding, kept by ruling and now documented in the header): a place that has heard of a deed counts every repeat (the ledger's Count), so later repeats count there at once. This is accepted for small capped deeds; the owner can switch to per-place counts later;
   - nothing calls it yet (MoralityService and RumourService will); no existing script changed;
   - test `Test_Reputation` (Edit mode): RED was "Reputation is not a valid member", then PASS 7 / FAIL 0.
+- Task 5: MoralityService on places (Rensei):
+  - **what players notice:** faction standing now comes from where a deed has been heard. A Local / Public deed is heard at once by the factions in the region where it happened (if anyone perceived it; dialogue and quest deeds count as 2 witnesses for Local, 4 for Public, PROPOSAL), and Rensei.Reputation sums it into the global standing; a Private deed is heard nowhere until discovered. Conduct and Trust stay personal and move at once. Old saves are seeded once on join (`Reputation.Seed`), so nothing they had is lost;
+  - birth deeds: on first join in Ye the origin's `born_<Origin>` deed is recorded once, quietly, and heard everywhere (`RecordBirth`);
+  - new API: `Record(Player, DeedId, Quiet, Ctx)` (`Ctx.Region / Strength / Witness / Evidence`), the `Recorded` listener list (`Info = {Region, Strength, Scope}`), `Refresh(Player)`, `RecordBirth(Player)` and `RegionOf(Character)`. A grip finisher now records with `{Witness = true}`; until WitnessService exists (Task 8) it falls back to strength 2;
+  - backup `ServerScriptService_MoralityService` in `Pre-Foundation_2026-10-19`; MoralityService 8072 → 11853 bytes (FNV b0a56c81);
+  - test `Play_Morality` (Play mode, real profile snapshotted and restored): RED was "FAIL JoinSeededAndBorn: seeded on join" (PASS 1 / FAIL 2), then PASS 3 / FAIL 0; no MoralityService errors in the console;
+  - existing content (Step 5): `Record(Player, "told_on_tobin", true, {Region = "Foundry"})` moved `Standing.Foundry` 0 → -3 (full, since the Foundry faction is only in the Foundry); the profile was restored afterwards (deep compare: 0 differences).
 - Note: commit e6f9408 (Task 1) carries a "Claude Sonnet 5.5" co-author line by mistake; it should read Claude Opus 5.5 (not rewritten: the branch is shared).
 
 ## 2026-10-19 — Plans: Morality × Reputation roadmap + Plan 1 (Foundation)

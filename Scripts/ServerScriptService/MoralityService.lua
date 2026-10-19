@@ -9,6 +9,10 @@
 --     (idempotent), so saves from before schema 4 get their deeds.
 --   * Combat: gripping a knocked enemy records its Finishers.Grip deed; carrying one alive to an NPC
 --     with attribute TakesPrisoners records Finishers.Deliver and counts as the defeat.
+--   * Places (2026-10-19, schema 5): Standing and Renown count only where a deed has been heard
+--     (Rensei.Reputation). A Local / Public deed is heard at once by the factions where it happened, if
+--     anyone perceived it; RumourService carries the word on. Birth deeds (born_<Origin>) are heard
+--     everywhere. Old saves are seeded once so nothing they had is lost.
 -- Players see words only: a quiet toast with the deed's reason, and a banner when a faction's tier
 -- changes.
 
@@ -19,6 +23,8 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Rensei = ReplicatedStorage.Modules.Data.Rensei
 local Deeds = require(Rensei.Deeds)
 local Factions = require(Rensei.Factions)
+local Regions = require(Rensei.Regions)
+local Reputation = require(Rensei.Reputation)
 local ProgressionService = require(ServerScriptService.ProgressionService)
 local UIService = require(ServerScriptService.UIService)
 
@@ -29,7 +35,7 @@ local MoralityService = {}
 local function Ensure(Data)
 	Data.Morality = Data.Morality or {}
 	local M = Data.Morality
-	for _, K in ipairs({"Deeds", "Conduct", "Standing", "Trust", "Taboo"}) do M[K] = M[K] or {} end
+	for _, K in ipairs({"Deeds", "Conduct", "Standing", "Trust", "Taboo", "Places", "Rumours", "Heat", "News"}) do M[K] = M[K] or {} end
 	M.Renown = M.Renown or 0
 	return M
 end
@@ -38,23 +44,23 @@ local function Add(Map, Deltas, Times)
 	for K, V in pairs(Deltas or {}) do Map[K] = (Map[K] or 0) + V * Times end
 end
 
--- Applies a deed's effects Times times (Known = it has been discovered: Standing / Renown count).
-local function Apply(M, Def, Times, Known)
+-- Conduct and Trust are personal: they move at once, wherever you are. Standing and Renown come from where
+-- the deed has been heard (Rensei.Reputation): see Record and RumourService.
+local function ApplyPersonal(M, Def, Times)
 	Add(M.Conduct, Def.Conduct, Times)
 	Add(M.Trust, Def.Trust, Times)
-	local Scope = Known or Def.Scope or "Private"
-	if Scope ~= "Private" then Add(M.Standing, Def.Standing, Times) end
-	if Scope == "Public" then M.Renown += (Def.Renown or 0) * Times end
 end
 
--- Recompute every cache from the ledger.
+-- Recompute every cache from the ledger and the places that heard each deed.
 function MoralityService.Rebuild(Data)
 	local M = Ensure(Data)
-	M.Conduct, M.Standing, M.Trust, M.Renown = {}, {}, {}, 0
+	M.Conduct, M.Trust = {}, {}
 	for Id, E in pairs(M.Deeds) do
 		local Def = Deeds[Id]
-		if type(Def) == "table" and Def.Text then Apply(M, Def, E.Count or 0, E.Known) end
+		if type(Def) == "table" and Def.Text then ApplyPersonal(M, Def, E.Count or 0) end
 	end
+	M.Standing = Reputation.GlobalStanding(M, Deeds)
+	M.Renown = Reputation.Renown(M, Deeds)
 	return M
 end
 
@@ -64,11 +70,28 @@ local function Tiers(M)
 	return Out
 end
 
+MoralityService.Recorded = {} -- function(Player, DeedId, Def, Info = {Region, Strength, Scope}) after a deed counts
+
+-- the region a character stands in (Rensei.Regions; outside every area volume = the City)
+function MoralityService.RegionOf(Character)
+	local Root = Character and Character:FindFirstChild("HumanoidRootPart")
+	if not Root then return Regions.Default end
+	local Ok, Area = pcall(function() return require(ServerScriptService.WorldService).AreaAt(Root.Position) end)
+	return Regions.OfArea(Ok and Area and Area:GetAttribute("AreaName") or nil)
+end
+
+-- how many witnesses' worth a deed has when nobody was captured (dialogue / quest deeds: the people you
+-- spoke to). PROPOSAL: Local 2, Public 4, Private 0.
+local DEFAULT_STRENGTH = {Local = 2, Public = 4, Private = 0}
+
 -- Returns true if the deed counted (false: unknown, already recorded, or today's cap reached).
-function MoralityService.Record(Player, DeedId, Quiet)
+-- Ctx (optional): Region (where it happened; default: where the player stands), Strength (witness weight),
+-- Witness (true: capture who perceived it, WitnessService), Evidence (items left behind).
+function MoralityService.Record(Player, DeedId, Quiet, Ctx)
 	local Def = Deeds[DeedId]
 	local Data = ProgressionService.GetData(Player)
 	if type(Def) ~= "table" or not Def.Text or not Data then return false end
+	Ctx = Ctx or {}
 	local M = Ensure(Data)
 	local E = M.Deeds[DeedId]
 	if E and not Def.Repeat then return false end -- once ever
@@ -87,7 +110,25 @@ function MoralityService.Record(Player, DeedId, Quiet)
 	E.Count += 1
 	M.Deeds[DeedId] = E
 	local Before = Tiers(M)
-	Apply(M, Def, 1, E.Known)
+	ApplyPersonal(M, Def, 1)
+	-- where it's heard: a birth deed everywhere; a Local / Public one by the factions where it happened, if
+	-- anyone perceived it (word then travels: RumourService); a Private one nowhere until discovered
+	local Scope = E.Known or Def.Scope or "Private"
+	local Region = Ctx.Region or MoralityService.RegionOf(Player.Character)
+	local Strength = Ctx.Strength
+	if Strength == nil and Ctx.Witness then
+		local Ok, W = pcall(function() return require(ServerScriptService.WitnessService) end)
+		Strength = (Ok and W.Capture) and W.Capture(Player, DeedId, Ctx.Evidence).Strength or DEFAULT_STRENGTH.Local
+	end
+	Strength = Strength or DEFAULT_STRENGTH[Scope] or 0
+	local Now = os.time()
+	if Def.Birth then
+		Reputation.LandEverywhere(M, DeedId, Now)
+	elseif Scope ~= "Private" and Strength > 0 then
+		Reputation.Land(M, Region, DeedId, Regions.FactionsAt(Region), Now)
+	end
+	M.Standing = Reputation.GlobalStanding(M, Deeds)
+	M.Renown = Reputation.Renown(M, Deeds)
 	if Def.Bonus and (Def.Bonus.Money or 0) > 0 then ProgressionService.GrantMoney(Player, Def.Bonus.Money) end
 	if not Quiet then
 		UIService.Notify(Player, "Toast", {Text = Def.Text})
@@ -99,7 +140,33 @@ function MoralityService.Record(Player, DeedId, Quiet)
 		end
 	end
 	ProgressionService.Sync(Player)
+	local Info = {Region = Region, Strength = Strength, Scope = Scope}
+	for _, Listener in ipairs(MoralityService.Recorded) do task.spawn(Listener, Player, DeedId, Def, Info) end
 	return true
+end
+
+-- Caches rebuilt after word arrived somewhere (RumourService): banners for any tier that changed.
+function MoralityService.Refresh(Player)
+	local Data = ProgressionService.GetData(Player)
+	if not Data then return end
+	local M = Ensure(Data)
+	local Before = Tiers(M)
+	MoralityService.Rebuild(Data)
+	local After = Tiers(M)
+	for _, F in ipairs(Factions.Order) do
+		if After[F] ~= Before[F] then
+			UIService.Notify(Player, "Banner", {Text = Factions.Factions[F].Name .. " - " .. After[F]})
+		end
+	end
+	ProgressionService.Sync(Player)
+end
+
+-- The origin's birth deed (Identity.Origin, set at character creation in the menu): once, quietly.
+function MoralityService.RecordBirth(Player)
+	local Data = ProgressionService.GetData(Player)
+	local Origin = Data and Data.Identity and Data.Identity.Origin
+	if type(Origin) ~= "string" or Origin == "" or not Deeds["born_" .. Origin] then return false end
+	return MoralityService.Record(Player, "born_" .. Origin, true)
 end
 
 function MoralityService.Has(Player, DeedId)
@@ -130,7 +197,7 @@ end
 local function OnGrip(Gripper, Target)
 	local Player = Players:GetPlayerFromCharacter(Gripper)
 	local F = Player and FinisherOf(Target)
-	if F and F.Grip then MoralityService.Record(Player, F.Grip) end
+	if F and F.Grip then MoralityService.Record(Player, F.Grip, false, {Witness = true}) end
 end
 
 local function Captors()
@@ -184,6 +251,9 @@ function MoralityService.Start()
 			if not Player.Parent then return end
 			local Data = ProgressionService.GetData(Player)
 			if Data then
+				local M = Ensure(Data)
+				Reputation.Seed(M, Deeds, os.time()) -- schema 5: old deeds heard everywhere, once
+				MoralityService.RecordBirth(Player)
 				MoralityService.Rebuild(Data)
 				MoralityService.RecordOutcomes(Player, true)
 				ProgressionService.Sync(Player)
