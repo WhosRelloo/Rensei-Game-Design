@@ -2,6 +2,41 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-20 — No Roblox terrain: part-built ground, out-of-place fixes, Halvard's Adit in the mine reference style
+
+**Owner:**
+- "Fix areas in the map that are out of place, also make the dungeon look like the reference picture & layout picture";
+- "I don't want to use roblox's terrain. Make it like the references I sent you" (approved deleting the terrain);
+- "Go back to the style we just had ... I just wanted the walk-ways to connect".
+
+Details: `Documents/Lindenmoor Kit.md` (update section). Every number is a PROPOSAL.
+
+- **Ground (`Art/Studio/Lindenmoor/ground.lua`):** all solid terrain under Lindenmoor and the Adit is now parts, about 16,300 of them:
+  - mossy slabs stacked in 1-stud steps over dark stone;
+  - connected walkways: path gaps closed, and climbing path cells are dirt ramps on the real slope;
+  - a block-built cave.
+  - Terrain water stays, because swimming reads it.
+  - The original terrain is backed up in `RenseiBackups["Pre-PartGround_2026-10-20"]`.
+  - A tilted-slope version was tried and dropped at the owner's request.
+- **Fixes (`settle.lua`):**
+  - the workshop's three lying stone beams became stepped dry-stone yard walls;
+  - every tree, stone, lamp, tent and prop sits on the new ground, with trunks, roots and fence posts reaching down to it;
+  - clipping removed: bank stones in the trestle and gorge, lamp bases in the fence, fence in the barn, terraces through trunks, props in tents, trunks in trunks.
+  - Removed pieces are in `RenseiBackups["Pre-Settle_2026-10-20"]`.
+- **Halvard's Adit (`Art/Studio/HalvardsAdit/`):**
+  - stacked angular slate blocks on every wall and ceiling;
+  - stepped ledges along the entrance tunnel;
+  - crossing chains in the lift hall, sump and lab, and chains above the lanterns;
+  - a teal fill with warm lantern pools. These lights sit inside Attachments, so stealth is unchanged.
+  - No mechanism moved.
+- **Tested (Play in Ye):**
+  - spawn, lanes, bridge and road north, farm, camp;
+  - the workshop path on foot with no jumping;
+  - the Adit tunnel and lab;
+  - swimming, canopy shade (0.35 against 1.00), the gorge ledge.
+  - The owner walked the routes too.
+  - The profile was snapshotted and restored.
+
 ## 2026-10-20 — Lindenmoor finished and split into a Studio kit (live in Ye)
 
 **Owner:** "I want the whole lindenmoor finished, then split into a kit so I can export them into studio seemlessly".

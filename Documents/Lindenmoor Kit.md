@@ -104,3 +104,62 @@ The owner's profile was snapshotted when it loaded and restored before Stop. The
   - or upload the Poly Haven 1k maps yourself (Creator Hub → Development Items → Decals).
   - In both cases each part's colour stays the same. Variants named after the Blender materials (`LM_Plaster`, `LM_RoofTiles`, …) can be added in `MaterialService` and set on the parts.
 - **Collaborator check:** jenkins2bee-prog edits Ye too. The swap happened in Ye's Edit session, so save the place only after both of you have looked at it.
+
+## Update 2026-10-20: no Roblox terrain, fixes, and the Adit restyle
+
+**Owner:**
+- "Fix areas in the map that are out of place, also make the dungeon look like the reference picture & layout picture";
+- "I don't want to use roblox's terrain. Make it like the references I sent you" (approved deleting the terrain);
+- after a tilted-slope try: "Go back to the style we just had ... I just wanted the walk-ways to connect".
+
+![Square](images/Map%20Concept/Part%20ground%20-%20square.jpg)
+![Workshop path](images/Map%20Concept/Part%20ground%20-%20workshop%20path.jpg)
+![Adit tunnel](images/Map%20Concept/Halvards%20Adit%20-%20tunnel.jpg)
+![Adit lab](images/Map%20Concept/Halvards%20Adit%20-%20lab.jpg)
+
+### Part ground (`Art/Studio/Lindenmoor/ground.lua`)
+- All solid terrain under Lindenmoor and Halvard's Adit is now parts, in `Workspace.World.Map.Ground` (about 16,300 parts):
+  - **Tops:** flat mossy slabs, stacked in 1-stud steps, on the terrain's own 4-stud grid and merged into large slabs.
+  - **Sides:** dark stone under every slab, so each step shows a stone face.
+  - **Cave:** stone blocks on every voxel that bounded the Adit cave.
+- **Walkways connect:**
+  - a cell counts as path if any of 5 samples in it hit path paint, and gaps of up to 2 cells along a path are closed;
+  - where a path climbs, each cell is a dirt **ramp** tilted to the real slope;
+  - so every lane, road and hill path is continuous and walkable; the rest stays stepped.
+  - Pathfinding with jumping turned off reaches the workshop door from the lane.
+- **Water stays Roblox terrain water**, because `SwimService` reads it. Its bed is now part slabs. Swimming in the Mill Pond was tested and works.
+- **Backup:** the original terrain is in `ServerStorage.RenseiBackups["Pre-PartGround_2026-10-20"]` as a TerrainRegion (the Note attribute says how to paste it back). The script re-reads that backup each run, so it can be re-run.
+
+### Out-of-place fixes (`Art/Studio/Lindenmoor/settle.lua`)
+- **Workshop walls:** the three workshop `Prop_LowStoneWalls` were single 30-47 stud beams lying on the slope. They are now dry-stone walls (`Workshop.YardWalls`, 34 stones with mossy capstones) along the same lines, stepping with the ground.
+- **Seating:** every tree, stone, terrace, lamp, tent, prop and the barn sits on the part ground. Tree trunks and roots reach down to it, and fence posts too.
+- **Removed:**
+  - creek-bank stones inside the station trestle, the gorge rocks or the bridge;
+  - lamp bases inside the road fence (slimmed first);
+  - fence pieces inside the barn;
+  - big forest trunks inside other trunks.
+- **Moved:** ridge terraces cutting through cypress trunks were nudged clear, and the camp props were moved off the tents.
+- **Backup:** everything removed is in `RenseiBackups["Pre-Settle_2026-10-20"]`.
+
+### Halvard's Adit (`Art/Studio/HalvardsAdit/`)
+- **Look:** the owner's teal mine reference.
+  - Every cave wall and ceiling face is lined with angular slate blocks (about 1,500), with bigger tilted slabs on the ceiling.
+  - Stepped stone ledges run along both sides of the entrance tunnel, keeping the rails clear.
+  - There is loose rubble along the edges, and crossing chains under the ceiling of the lift hall, the sump and the lab.
+  - Every hanging lantern has a chain above it.
+- **Clearances:** puzzle pieces, doors and lights all keep 3.5 studs of clearance. No mechanism moved.
+- **Lighting:**
+  - a teal fill and warm orange pools at the lanterns (`adit_warm.lua`);
+  - both sit inside Attachments, so LightService (stealth) doesn't count them;
+  - the floors are teal-grey, and `Lighting.Ambient` is teal.
+- **Re-running:** `adit_dress.lua` read the cave from terrain voxels before the terrain went, so it must **not** be re-run. `adit_warm.lua` can be.
+
+### Tested (Play in Ye)
+- Spawn on the square.
+- Both lanes, the road over the bridge to the hub road, square to farm, and into the camp.
+- The workshop hill path, on foot with no jumping.
+- The Adit tunnel to the lift hall, and around the lab.
+- Swimming in the Mill Pond.
+- Canopy shade (exposure 0.35 under it against 1.00 in the open), and the gorge ledge unchanged.
+- The owner also walked the routes ("All of the walks are clear").
+- The owner's profile was snapshotted and restored, and the temporary hook was deleted.
