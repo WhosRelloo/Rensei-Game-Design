@@ -2,6 +2,43 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-20 — Lindenmoor finished and split into a Studio kit (live in Ye)
+
+**Owner:** "I want the whole lindenmoor finished, then split into a kit so I can export them into studio seemlessly".
+
+Full write-up: `Documents/Lindenmoor Kit.md`. Every number is a PROPOSAL.
+
+- **Blender:** the whole village is built on the real Studio terrain (`Art/Blender/lindenmoor/world.py`, saved as `Art/Blender/Lindenmoor_Full.blend`):
+  - 9 farmhouse variants on the old house pivots;
+  - 63 oaks and 95 cypresses on the old trunks;
+  - 17 lamp posts, the barn and the camp tents;
+  - new: a forest rim and Bramble Hollow (69 big oaks), Cypress Ridge terraces (28), creek-bank stones (118), verge stones (77), and a square with a kerb ring, 3 market stalls and well stones.
+  - The station, bridge, fences, crops, square furniture and gorge keep their exact geometry.
+- **Kit and export:**
+  - `export.py` writes `Art/Studio/Lindenmoor/layout.json`: 484 models and 7,517 parts with Roblox CFrames. A round-trip against the 486 original Studio parts showed zero error.
+  - `studio_kit.py` writes 7 import chunks and 34 drag-in `.rbxmx` kit models (`Art/Studio/Lindenmoor/kit/`).
+  - The materials are Roblox built-ins: Plaster, ClayRoofTiles, RoofShingles, WoodPlanks, Cobblestone, LeafyGrass and others.
+- **Ye:**
+  - Imported through `import/chunk_01..07.lua` and `import/finish.lua`. Lindenmoor is now 8,299 parts (it was 3,457).
+  - The replaced pieces are in `ServerStorage.RenseiBackups["Pre-LindenmoorKit_2026-10-20"]`.
+  - The kit copies are in `ServerStorage.LindenmoorKit`.
+  - Re-skinned parts keep their old values in the attributes `PreKitMaterial` and `PreKitColor`.
+  - The Atmosphere is now a teal haze; the old values are stored on the backup folder.
+  - Kept exactly: terrain and water, the spawn, the bandit spawns, GorgeLedge, the workshop, the trainers, the run course, the hub road, the areas and the camp fire.
+- **Tested (Play in Ye):**
+  - spawn on the square;
+  - the lane walked both ways, the road walked over the bridge, and walks into the camp and the farm;
+  - no new part blocks a walkway (raycast every 2 studs);
+  - LightService tags all 27 new lights;
+  - canopy shade gives exposure 0.35 against 1.00 in the open;
+  - swimming in the Mill Pond works;
+  - GorgeLedge is unchanged.
+  - The owner's profile was snapshotted and restored, and the temporary hook was deleted.
+- **Tools:** `Art/Tools/rbxc.py` (a file-driven Studio MCP client) and `Art/Tools/blender_mcpc.py` (the Blender MCP client).
+- **Open:**
+  - real texture MaterialVariants need either an upload route (a localhost server, which was declined earlier) or a manual upload;
+  - Ye is not saved or published by this change.
+
 ## 2026-10-20 — Lindenmoor v2 in Blender: blocky like the refs, real textures, far more detail
 
 **Owner:**

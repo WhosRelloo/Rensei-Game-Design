@@ -204,7 +204,7 @@ def materials():
     M["fieldwall"] = pbr("LM_FieldWallStone", "mossy_stone_wall", tile=5, bump=0.8, moss="leafy_grass", moss_amount=0.5)
     M["plaster"] = pbr("LM_Plaster", "plastered_wall_04", tile=9, tint=srgb("#efe4cc"), bump=0.35, variation=0.08)
     M["timber"] = pbr("LM_Timber", "medieval_wood", tile=6, tint=srgb("#8a6a52"), bump=0.5, variation=0.15)
-    M["planks"] = pbr("LM_Planks", "brown_planks_05", tile=5, bump=0.5)
+    M["planks"] = pbr("LM_Planks", "brown_planks_05", tile=5, tint=srgb("#a27a52"), bump=0.5)
     M["roof"] = pbr("LM_RoofTiles", "clay_roof_tiles_02", tile=6, bump=0.9, moss="leafy_grass", moss_amount=0.15, variation=0.12)
     M["bark"] = pbr("LM_Bark", "bark_brown_02", tile=4, bump=1.0, moss="leafy_grass", moss_amount=0.25)
     M["hay"] = pbr("LM_Hay", "thatch_roof_angled", tile=4, tint=srgb("#f2d488"), bump=0.6, variation=0.12)
@@ -332,6 +332,9 @@ def box(name, size, loc, mat, c, rot=(0, 0, 0), bevel=0.15, segs=2, chip=0.0, se
     c.objects.link(o)
     for p in me.polygons:
         p.use_smooth = False
+    o["rs_kind"] = "Block"
+    o["rs_size"] = [float(size[0]), float(size[1]), float(size[2])]
+    o["rs_mat"] = mat.name
     return o
 
 
@@ -353,6 +356,10 @@ def cyl(name, r, h, loc, mat, c, verts=16, rot=(0, 0, 0), r_top=None, bevel=0.05
     for p in me.polygons:
         p.use_smooth = True
     c.objects.link(o)
+    rr = (r + (r if r_top is None else r_top)) / 2
+    o["rs_kind"] = "Cylinder"  # axis = Blender local Z
+    o["rs_size"] = [2 * rr, 2 * rr, float(h)]
+    o["rs_mat"] = mat.name
     return o
 
 

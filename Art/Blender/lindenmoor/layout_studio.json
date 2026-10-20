@@ -1,0 +1,25462 @@
+[
+{
+"name": "Workshop",
+"children": [
+{
+"c": "Model",
+"parts": 253,
+"box": [
+[
+184.5,
+35.5,
+-83,
+0
+],
+[
+119.1,
+32,
+90
+]
+],
+"pivot": [
+195,
+20,
+-108,
+0
+],
+"n": "AutomailWorkshop"
+},
+{
+"c": "Model",
+"parts": 7,
+"box": [
+[
+201,
+22.5,
+-83,
+-180
+],
+[
+4,
+5,
+1
+]
+],
+"pivot": [
+201,
+20,
+-83,
+-180
+],
+"n": "Mechanic"
+}
+]
+},
+{
+"name": "Trees",
+"children": [
+{
+"part": {
+"p": [
+163.7,
+16.3,
+-237,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.2,
+11.2,
+11.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-307,
+28.5,
+246.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.9,
+17.1,
+5.9
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-140.1,
+14.4,
+-70,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.9,
+11.9,
+11.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+145.3,
+9.8,
+145.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.5,
+2.6,
+2.6
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-203.9,
+9.8,
+-40.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.8,
+2.6,
+2.6
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+135.7,
+10,
+321.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.5,
+9.5,
+9.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+87.5,
+13.1,
+72,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.1,
+9.1,
+9.1
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-136.6,
+12.9,
+-68,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.9,
+8.9,
+8.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+167.8,
+33.7,
+-298.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5,
+15.1,
+5
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-307.1,
+30.1,
+-113.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.1,
+23.8,
+5.1
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-120.6,
+12.8,
+83.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.2,
+8.2,
+8.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-227,
+7.7,
+-125,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+8.6,
+2.1,
+2.1
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+265.4,
+16.8,
+-225,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.6,
+10.6,
+10.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-300.3,
+12.6,
+-173.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+141.5,
+16.2,
+143,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.1,
+11.1,
+11.1
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+176.3,
+15.8,
+-234.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+12.6,
+12.6,
+12.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+15.3,
+10,
+255.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.3,
+2.5,
+2.5
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+270.5,
+13.8,
+-246.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+7.9,
+7.9,
+7.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+257.5,
+17.4,
+-230.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.2,
+11.2,
+11.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-300.3,
+22.7,
+-173.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.9,
+19.3,
+4.9
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-95.8,
+20.8,
+-272.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.8,
+20.7,
+5.8
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+40.6,
+39.5,
+-301.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.8,
+21,
+4.8
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-302.7,
+14.3,
+-88.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-81.3,
+25.7,
+-298.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+129.2,
+12.1,
+206.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+7.9,
+7.9,
+7.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-307,
+19.4,
+246.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+137,
+19.7,
+-95,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+176.3,
+9,
+-234.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+9.5,
+2.3,
+2.3
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+137,
+29.6,
+-95,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.9,
+18.7,
+4.9
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-227,
+14,
+-125,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.5,
+11.5,
+11.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+260.6,
+19.2,
+-271.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.7,
+17.3,
+4.7
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+126.1,
+13.4,
+205.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.5,
+10.5,
+10.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+156.2,
+14.7,
+-193.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+12.4,
+12.4,
+12.4
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+132,
+11.6,
+319.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+12.6,
+12.6,
+12.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-140.1,
+7.9,
+-70,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+8.9,
+2.2,
+2.2
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-71.6,
+9.9,
+247.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.3,
+2.5,
+2.5
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+316.9,
+37,
+-298.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.1,
+20.6,
+5.1
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-145.9,
+10.9,
+324.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.8,
+10.8,
+10.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+172.8,
+12.9,
+-233.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+7.9,
+7.9,
+7.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+138,
+14.4,
+88.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.8,
+10.8,
+10.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+167.8,
+25.7,
+-298.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-306.4,
+20.8,
+192.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+296.6,
+26.6,
+-300.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-17,
+15.5,
+212,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.5,
+15.1,
+5.5
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+144.8,
+19.8,
+-124,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-302.7,
+23.6,
+-88.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.7,
+17.6,
+5.7
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+280.3,
+19.7,
+-273.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.4,
+16.7,
+5.4
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-46.8,
+31.5,
+-296.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.7,
+20.4,
+4.7
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+17,
+19.3,
+200,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.6,
+21.6,
+4.6
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+152.9,
+13.7,
+-196.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.8,
+9.8,
+9.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+180,
+14.2,
+-232.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.5,
+9.5,
+9.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+250.2,
+13.4,
+-218.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.2,
+8.2,
+8.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-95.8,
+10,
+-272.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+52.3,
+15.8,
+18.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.2,
+11.2,
+11.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+156.2,
+8,
+-193.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+9.3,
+2.3,
+2.3
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-149,
+14.6,
+72.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.5,
+9.5,
+9.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-17,
+7.4,
+212,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+252.9,
+14.2,
+-216.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.3,
+10.3,
+10.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+253,
+30.5,
+-95,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.1,
+20.1,
+5.1
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-33.1,
+11.2,
+-275.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+152.6,
+11.5,
+-275.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+175.2,
+11.9,
+-273.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+296.6,
+39,
+-300.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.1,
+23.9,
+5.1
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-207.8,
+16.4,
+-43.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.4,
+11.4,
+11.4
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-33.1,
+21.8,
+-275.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.5,
+20.1,
+5.5
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+255.9,
+13,
+-214.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+7.7,
+7.7,
+7.7
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-13.5,
+19.7,
+-273.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.7,
+20.7,
+5.7
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+224,
+19.8,
+-145.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-3.9,
+26.4,
+-299.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+123.3,
+12.5,
+203,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.3,
+8.3,
+8.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-152.6,
+9.3,
+70,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+9.5,
+2.3,
+2.3
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+304.4,
+12.7,
+-272.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+186,
+15.8,
+-218.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.5,
+11.5,
+11.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-301.1,
+29.1,
+222.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.3,
+23.8,
+5.3
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+92.8,
+11.2,
+-268.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+133.8,
+23.3,
+-268.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.5,
+23.7,
+5.5
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-80,
+16,
+62,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.4,
+11.4,
+11.4
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+261.3,
+18.5,
+-227.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+14.2,
+14.2,
+14.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+224,
+19.9,
+-44.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+304.4,
+24,
+-272.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.8,
+21.5,
+4.8
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-13.5,
+8.8,
+-273.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-79.7,
+14.9,
+-72.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.8,
+10.8,
+10.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-227.8,
+5.6,
+322.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+11.1,
+2.7,
+2.7
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+224,
+28.1,
+-44.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.8,
+15.3,
+5.8
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+11.7,
+16.3,
+253.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.9,
+10.9,
+10.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-301.1,
+16.7,
+222.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+287.9,
+7.1,
+302.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+8.8,
+2.2,
+2.2
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+316.9,
+26.2,
+-298.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+261.3,
+10.9,
+-227.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.6,
+2.6,
+2.6
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+168.4,
+18,
+138.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+14.4,
+14.4,
+14.4
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-306.9,
+17.4,
+-59.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-308.4,
+15.3,
+325.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.4,
+17.9,
+5.4
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+224,
+32.1,
+-145.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+6,
+23.6,
+6
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-24.2,
+22.4,
+-295.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-249.1,
+25.8,
+-299.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-308.4,
+5.8,
+325.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+195,
+19.8,
+-153,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-113.1,
+15.3,
+137.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.7,
+11.7,
+11.7
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-306.9,
+27.7,
+-59.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.8,
+19.7,
+4.8
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+116.2,
+14.5,
+140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+12.3,
+12.3,
+12.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-3.9,
+35.6,
+-299.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.2,
+17.2,
+5.2
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+60.2,
+15.2,
+23.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.6,
+10.6,
+10.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+267.4,
+15.1,
+-247.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.5,
+10.5,
+10.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+195,
+32,
+-153,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.4,
+23.6,
+5.4
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+141.5,
+23.5,
+-294.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-78.7,
+10.3,
+248.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+11.2,
+2.7,
+2.7
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-76,
+16,
+-70,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+13.7,
+13.7,
+13.7
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+133.4,
+2.8,
+328.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+8.3,
+2,
+2
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+15.3,
+17.4,
+255.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+13.7,
+13.7,
+13.7
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-72,
+14.3,
+-67.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.3,
+10.3,
+10.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-24.2,
+32,
+-295.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.3,
+18.2,
+5.3
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-308,
+19.9,
+74.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+257.3,
+17.4,
+-126.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+9.3,
+2.3,
+2.3
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-308,
+28.2,
+74.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.8,
+15.4,
+4.8
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+267.4,
+9.4,
+-247.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+7.9,
+1.9,
+1.9
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+112.9,
+13.4,
+137.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.8,
+9.8,
+9.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+126.6,
+27.9,
+-299.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+172.9,
+14.8,
+-236.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10,
+10,
+10
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+53.4,
+21.8,
+-270.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.2,
+22.7,
+5.2
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+133.8,
+11,
+-268.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-261.9,
+22.9,
+-272.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5,
+19.9,
+5
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+28.6,
+11.4,
+220.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+9.6,
+2.4,
+2.4
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+248.3,
+14.5,
+15.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.5,
+9.5,
+9.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+93.7,
+12.6,
+-68.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+7.9,
+7.9,
+7.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-261.9,
+12.4,
+-272.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-307.1,
+17.7,
+-113.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-46.8,
+20.8,
+-296.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-279.9,
+20.6,
+-268.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.8,
+21.1,
+5.8
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-255.4,
+15.4,
+-223,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+12.5,
+12.5,
+12.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-279.9,
+9.5,
+-268.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+144.8,
+30.7,
+-124,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.3,
+20.8,
+5.3
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+53.4,
+10,
+-270.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+141.5,
+31.5,
+-294.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.1,
+15,
+5.1
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+58.1,
+35.8,
+-294.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.3,
+19.9,
+5.3
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+168.4,
+10.2,
+138.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.8,
+2.6,
+2.6
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+90.6,
+8.2,
+-70,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+7.9,
+1.9,
+1.9
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+171,
+8.3,
+-217.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+9.3,
+2.3,
+2.3
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-216.4,
+14.9,
+280.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.3,
+11.3,
+11.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+166,
+19.7,
+-145.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+5.4,
+17.5,
+-269.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.8,
+21.2,
+4.8
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+90.6,
+13.9,
+-70,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.5,
+10.5,
+10.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-49.2,
+17,
+-269.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.3,
+18.5,
+5.3
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+244.6,
+9.2,
+13.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+9.5,
+2.3,
+2.3
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+102.3,
+28.4,
+-299.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-290.7,
+35.7,
+-300.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.7,
+21.3,
+4.7
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-303.1,
+22.4,
+-140.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.8,
+16.8,
+4.8
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+166.9,
+13.3,
+-237.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.4,
+8.4,
+8.4
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-222.3,
+7.8,
+-272.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+58.1,
+25.3,
+-294.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+102.3,
+40.4,
+-299.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.1,
+23,
+5.1
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-290.7,
+24.5,
+-300.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+159.8,
+13.2,
+-191.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.3,
+9.3,
+9.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+5.4,
+6.4,
+-269.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+32.3,
+16.8,
+222.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.6,
+9.6,
+9.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-231.8,
+12.4,
+319.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.8,
+11.8,
+11.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-303.1,
+13.5,
+-140.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+119.8,
+12.9,
+142.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.3,
+9.3,
+9.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-231.5,
+34.3,
+-298.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5,
+17.5,
+5
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+43.8,
+8.9,
+-39.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+8.2,
+2,
+2
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+171,
+15,
+-217.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+12.4,
+12.4,
+12.4
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+77.6,
+11.3,
+-272.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+166,
+28.1,
+-145.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.6,
+15.7,
+4.6
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-73.9,
+9.2,
+-272.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+28.6,
+18.4,
+220.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+12.8,
+12.8,
+12.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+116.2,
+7.8,
+140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+9.3,
+2.3,
+2.3
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-173.3,
+10,
+-133.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+9.4,
+2.3,
+2.3
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-231.5,
+25.1,
+-298.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-300.1,
+22.9,
+299,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.5,
+21.4,
+5.5
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+174.6,
+13.4,
+-215.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.3,
+9.3,
+9.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-161.5,
+17.1,
+-269.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.3,
+15.2,
+5.3
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-223.5,
+11.8,
+324.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.1,
+11.1,
+11.1
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+172.6,
+16.2,
+140.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.8,
+10.8,
+10.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-208,
+12.6,
+261.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.1,
+9.1,
+9.1
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-78.7,
+18.4,
+248.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+14.9,
+14.9,
+14.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+25.2,
+17.3,
+217.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.2,
+10.2,
+10.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-161.5,
+9,
+-269.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-227.8,
+13.6,
+322.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+14.9,
+14.9,
+14.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+287.5,
+14.7,
+271.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.8,
+9.8,
+9.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-81.3,
+34.9,
+-298.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5,
+17.3,
+5
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+17,
+6.3,
+296,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+164.6,
+16.8,
+135.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.4,
+11.4,
+11.4
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+92.8,
+23.4,
+-268.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5,
+23.3,
+5
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-242,
+17.3,
+-269.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.8,
+15.9,
+5.8
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-300.1,
+11.7,
+299,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-306,
+29.4,
+159,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5,
+20.9,
+5
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-242,
+8.8,
+-269.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-306,
+18.5,
+159,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-249.1,
+34.6,
+-299.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.7,
+16.5,
+5.7
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+118,
+12.7,
+-269.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-61.1,
+23.1,
+-298.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-17,
+6.1,
+284,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+78,
+39.5,
+-300.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.6,
+19.2,
+5.6
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-189.4,
+35.5,
+-299.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.6,
+17.1,
+4.6
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-212.6,
+16,
+283.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+14.2,
+14.2,
+14.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-140.4,
+13.6,
+306.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.7,
+9.7,
+9.7
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-201.6,
+12.1,
+265.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.6,
+8.6,
+8.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-304.1,
+28.7,
+271.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.6,
+18.2,
+4.6
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-212.5,
+8.1,
+210.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.2,
+2.5,
+2.5
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-125.1,
+15.2,
+263.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.5,
+11.5,
+11.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-66.4,
+13.4,
+81.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.2,
+9.2,
+9.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-189.4,
+26.5,
+-299.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+167.7,
+13.9,
+-219.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.8,
+9.8,
+9.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-117.3,
+9.1,
+44.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.2,
+2.5,
+2.5
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+17,
+17,
+224,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.5,
+18.3,
+5.5
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-144.1,
+15.2,
+304.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+13,
+13,
+13
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-123.8,
+8.3,
+82,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+8.2,
+2,
+2
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-200,
+17.4,
+-270.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.6,
+18.5,
+5.6
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-212.5,
+15.5,
+210.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+13.6,
+13.6,
+13.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-200,
+7.7,
+-270.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-17,
+15,
+284,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.9,
+16.8,
+5.9
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-211,
+33.5,
+-297.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.5,
+18.2,
+5.5
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-73.9,
+20.9,
+-272.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.8,
+22.5,
+4.8
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-67.6,
+15.6,
+250.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.3,
+10.3,
+10.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-17,
+15.8,
+140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.5,
+19.9,
+5.5
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-75.2,
+16.2,
+245.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.9,
+10.9,
+10.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+243.4,
+8.7,
+-259.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+8.9,
+2.2,
+2.2
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+283.7,
+16.3,
+269.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+13.1,
+13.1,
+13.1
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-109.2,
+16.5,
+140.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+14.7,
+14.7,
+14.7
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-211,
+23.9,
+-297.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+17,
+15,
+152,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.8,
+16.1,
+4.8
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+17,
+7.4,
+224,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-70,
+15,
+79.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+12.3,
+12.3,
+12.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-222.3,
+20,
+-272.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.2,
+23.5,
+5.2
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-17,
+5.3,
+140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-49.2,
+7.3,
+-269.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+128.6,
+10.5,
+317.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10,
+10,
+10
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-70,
+8.3,
+79.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+9.2,
+2.3,
+2.3
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+283.7,
+9.2,
+269.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+9.8,
+2.4,
+2.4
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-112.4,
+8,
+-272.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-208.5,
+13.8,
+212.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.2,
+10.2,
+10.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-17,
+6.5,
+260,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+56.1,
+9.3,
+21.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.6,
+2.6,
+2.6
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+280.2,
+15.2,
+266.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.3,
+10.3,
+10.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+264.6,
+14.2,
+-249.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.3,
+8.3,
+8.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-61.1,
+34,
+-298.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.6,
+20.8,
+4.6
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+17,
+6.7,
+248,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+276.3,
+36.4,
+-297.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.5,
+23.3,
+5.5
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-113.2,
+13.2,
+290.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.4,
+10.4,
+10.4
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-216.1,
+14.3,
+207.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.8,
+10.8,
+10.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-104.9,
+14.7,
+143.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.1,
+11.1,
+11.1
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+241.3,
+15,
+10.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10,
+10,
+10
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+17,
+14.7,
+248,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.8,
+15.1,
+5.8
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+244.6,
+16.1,
+13.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+12.6,
+12.6,
+12.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+246.8,
+13.6,
+-257.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.9,
+8.9,
+8.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-121,
+15.4,
+42.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.8,
+10.8,
+10.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+276.3,
+24.2,
+-297.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-166.3,
+15.2,
+234.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+13.3,
+13.3,
+13.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-113.2,
+7.6,
+290.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+7.8,
+1.9,
+1.9
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+17,
+6.5,
+272,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-134,
+12.2,
+205.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.7,
+8.7,
+8.7
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-76.1,
+9.4,
+64.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.8,
+2.6,
+2.6
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-33.8,
+8.5,
+-219.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+8,
+2,
+2
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-208.4,
+14.3,
+286.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.7,
+10.7,
+10.7
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+227.3,
+32.3,
+-294.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.4,
+21.1,
+5.4
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-108.8,
+32.2,
+-297.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.6,
+15.2,
+4.6
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+87.8,
+13,
+-72.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.3,
+8.3,
+8.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+141.7,
+15.5,
+90.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+13.6,
+13.6,
+13.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+211.1,
+17.3,
+274.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+13.5,
+13.5,
+13.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-17,
+16.7,
+260,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.4,
+19.4,
+5.4
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-127.9,
+11.7,
+209.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.2,
+8.2,
+8.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+126.6,
+36.3,
+-299.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.6,
+15.8,
+4.6
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+254,
+23.1,
+-128.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.8,
+9.8,
+9.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-166.3,
+8,
+234.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10,
+2.4,
+2.4
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-116,
+12.4,
+288.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.2,
+8.2,
+8.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+145.6,
+13.8,
+93.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.2,
+10.2,
+10.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+58.8,
+15.7,
+-221.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.3,
+9.3,
+9.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+260.6,
+10.1,
+-271.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-108.8,
+24.1,
+-297.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+215.1,
+15.6,
+276.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.1,
+10.1,
+10.1
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+17,
+17.6,
+272,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.6,
+21.2,
+5.6
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-110.2,
+11.9,
+292.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+7.8,
+7.8,
+7.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-112.4,
+19.6,
+-272.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.7,
+22.1,
+4.7
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+243.4,
+15.1,
+-259.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.9,
+11.9,
+11.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+66.3,
+15.2,
+76.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.1,
+11.1,
+11.1
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-169.8,
+14.1,
+231.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.5,
+10.5,
+10.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+254.9,
+33.4,
+-294.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.9,
+19.5,
+5.9
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+211.1,
+9.9,
+274.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.1,
+2.5,
+2.5
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+19.3,
+15.7,
+258.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.3,
+10.3,
+10.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+51.9,
+16.2,
+-226.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.8,
+9.8,
+9.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+260.9,
+22.6,
+-124.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.3,
+9.3,
+9.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+118,
+23.2,
+-269.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.2,
+20,
+5.2
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-204.9,
+13.5,
+264,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.5,
+11.5,
+11.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-39.4,
+8.5,
+304.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.1,
+2.5,
+2.5
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+141.7,
+8.1,
+90.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.2,
+2.5,
+2.5
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+280.3,
+10.9,
+-273.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-141.4,
+9,
+-270.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+169.7,
+14.2,
+-235.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.6,
+10.6,
+10.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+74.1,
+14.6,
+82,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.5,
+10.5,
+10.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-113.4,
+14.8,
+47.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.2,
+10.2,
+10.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-131.5,
+37,
+-299.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.8,
+22.6,
+4.8
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-17,
+19.1,
+236,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.1,
+23,
+5.1
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-126.7,
+13.2,
+79.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.6,
+8.6,
+8.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+254.9,
+23.1,
+-294.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-204.9,
+7.3,
+264,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+8.6,
+2.1,
+2.1
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-76.1,
+17.2,
+64.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+14.4,
+14.4,
+14.4
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-148.9,
+39.5,
+-299.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.4,
+21.9,
+5.4
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+17,
+8,
+200,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-148.9,
+28.1,
+-299.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+70,
+8.8,
+79.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.5,
+2.6,
+2.6
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+240.2,
+14.1,
+-261.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.4,
+9.4,
+9.4
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-121.2,
+16.4,
+266.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+14.5,
+14.5,
+14.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-173.3,
+16.8,
+-133.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+12.5,
+12.5,
+12.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-117.3,
+16.5,
+44.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+13.6,
+13.6,
+13.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+236.2,
+15.1,
+-268.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.1,
+16.8,
+5.1
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-71.9,
+15.4,
+67.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.8,
+10.8,
+10.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-131.1,
+13.1,
+207.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11,
+11,
+11
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-35.5,
+14.1,
+306.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.1,
+10.1,
+10.1
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-121.2,
+8.5,
+266.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.9,
+2.7,
+2.7
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+70,
+16.4,
+79.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+14,
+14,
+14
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-73.3,
+13.9,
+77,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.8,
+9.8,
+9.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-138.3,
+10.3,
+329.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.2,
+10.2,
+10.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+236.2,
+6.2,
+-268.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-230.1,
+13,
+-127.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.1,
+9.1,
+9.1
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-117,
+14.6,
+268.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.9,
+10.9,
+10.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-169.7,
+15.3,
+-131.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.4,
+9.4,
+9.4
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-17,
+7.1,
+236,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-131.5,
+25.2,
+-299.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-39.4,
+15.8,
+304.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+13.4,
+13.4,
+13.4
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-17,
+7,
+188,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-109.2,
+8.5,
+140.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+11.1,
+2.7,
+2.7
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+194.1,
+15.2,
+-213.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.9,
+10.9,
+10.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+255.8,
+21.1,
+-132.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.5,
+10.5,
+10.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-131.1,
+7.1,
+207.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+8.2,
+2,
+2
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+155.3,
+15.4,
+67.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.1,
+11.1,
+11.1
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+227.3,
+21.3,
+-294.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-141.4,
+20.6,
+-270.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5,
+22.2,
+5
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+189.9,
+9.1,
+-215.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.9,
+2.7,
+2.7
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+224.8,
+19.5,
+-275.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.4,
+21.8,
+5.4
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-17,
+18.3,
+188,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.1,
+21.7,
+5.1
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-86.1,
+8.8,
+70,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.3,
+2.5,
+2.5
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-162.4,
+13.5,
+236.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10,
+10,
+10
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-223.7,
+12.5,
+-123.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.6,
+8.6,
+8.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-82.1,
+14.5,
+72.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.3,
+10.3,
+10.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-179,
+19.8,
+-268.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.6,
+21.8,
+4.6
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-249.6,
+9.5,
+205.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+8.9,
+2.2,
+2.2
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-301.9,
+12.4,
+-271.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+189.9,
+17,
+-215.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+14.6,
+14.6,
+14.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+258.9,
+19.8,
+-131.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+7.9,
+7.9,
+7.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-17,
+6,
+164,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-249.6,
+15.9,
+205.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.8,
+11.8,
+11.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+40.9,
+13.9,
+-41.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.6,
+8.6,
+8.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+224.8,
+8.1,
+-275.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-301.9,
+23.4,
+-271.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.8,
+21.1,
+4.8
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-142.3,
+4.6,
+327,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.2,
+2.5,
+2.5
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+133.4,
+8.8,
+328.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11,
+11,
+11
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+132,
+4.7,
+319.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+9.5,
+2.3,
+2.3
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-89.8,
+15.1,
+67.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.9,
+10.9,
+10.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-179,
+8.4,
+-268.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+207.5,
+16.1,
+271.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.7,
+10.7,
+10.7
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+47,
+13.4,
+-37.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.2,
+8.2,
+8.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-144.1,
+8.1,
+304.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+9.7,
+2.4,
+2.4
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-246.1,
+14.4,
+207.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.9,
+8.9,
+8.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+163.1,
+14.8,
+72.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.5,
+10.5,
+10.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-123.8,
+14.1,
+82,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.9,
+10.9,
+10.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+199.8,
+18.6,
+-268.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.3,
+23,
+5.3
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+202.9,
+23.3,
+-27.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.2,
+8.2,
+8.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+78,
+29.4,
+-300.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-142.3,
+12,
+327,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+13.6,
+13.6,
+13.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-251.7,
+13.8,
+-220.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.4,
+9.4,
+9.4
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-152.6,
+16.2,
+70,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+12.7,
+12.7,
+12.7
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+17,
+7.4,
+176,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+17.8,
+31.9,
+-294.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.6,
+20.2,
+5.6
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-176.6,
+15.8,
+-136.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.9,
+9.9,
+9.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+196.8,
+23.7,
+-31.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.6,
+8.6,
+8.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+55.2,
+10.6,
+-223.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+9.3,
+2.3,
+2.3
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-165.7,
+38.4,
+-300.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.8,
+18.2,
+5.8
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+252.9,
+8.7,
+-216.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+7.7,
+1.9,
+1.9
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+136.6,
+7.4,
+330.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.3,
+8.3,
+8.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+159,
+16.5,
+70,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+14.1,
+14.1,
+14.1
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-212.6,
+8.3,
+283.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.7,
+2.6,
+2.6
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+255.8,
+15.4,
+-132.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+7.9,
+1.9,
+1.9
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+130.4,
+7.9,
+326.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.7,
+8.7,
+8.7
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-86.1,
+16.2,
+70,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+13.7,
+13.7,
+13.7
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+199.7,
+18.7,
+-29.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+8.2,
+2,
+2
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+77.6,
+22.5,
+-272.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+6,
+21.4,
+6
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+207.5,
+24.6,
+-297,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+159,
+8.9,
+70,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.5,
+2.6,
+2.6
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+17,
+6.4,
+152,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-156,
+15.1,
+67.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10,
+10,
+10
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+56.1,
+16.9,
+21.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+14.1,
+14.1,
+14.1
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-252.7,
+14.9,
+203.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.4,
+9.4,
+9.4
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+199.7,
+24.6,
+-29.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.9,
+10.9,
+10.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-36.6,
+13.4,
+-221.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.5,
+8.5,
+8.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+149.4,
+15.6,
+148.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.5,
+10.5,
+10.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-203.9,
+17.6,
+-40.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+14.4,
+14.4,
+14.4
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+43.8,
+14.8,
+-39.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.9,
+10.9,
+10.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+152.6,
+22.1,
+-275.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.6,
+20.3,
+5.6
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+17,
+16.8,
+176,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.7,
+17.7,
+5.7
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+169,
+8.5,
+-199.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.6,
+2.6,
+2.6
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-43,
+14.7,
+301.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.6,
+10.6,
+10.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-82.7,
+17.1,
+245.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.8,
+11.8,
+11.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-17,
+15.3,
+164,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.9,
+17.5,
+4.9
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+84,
+14.7,
+70,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+12.2,
+12.2,
+12.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+17.8,
+21.3,
+-294.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+193,
+28.3,
+-301.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+287.9,
+13.5,
+302.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.8,
+11.8,
+11.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+80.7,
+13.6,
+67.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.6,
+9.6,
+9.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+199.8,
+6.6,
+-268.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-165.7,
+28.7,
+-300.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+17,
+17.7,
+296,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.6,
+21.7,
+4.6
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+55.2,
+17.2,
+-223.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+12.3,
+12.3,
+12.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+178.5,
+14.9,
+-259.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.6,
+8.6,
+8.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+169,
+16.2,
+-199.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+14.1,
+14.1,
+14.1
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-71.6,
+17.4,
+247.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+13.7,
+13.7,
+13.7
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-258.7,
+14.3,
+-225.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.9,
+9.9,
+9.9
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-76,
+8.6,
+-70,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.3,
+2.5,
+2.5
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+33.1,
+10.5,
+-275,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+284.8,
+12.5,
+300.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.3,
+9.3,
+9.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+257.3,
+24.1,
+-126.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+12.4,
+12.4,
+12.4
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-306.4,
+31.5,
+192.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.7,
+20.5,
+5.7
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-74.4,
+16.5,
+251,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.2,
+11.2,
+11.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-255.4,
+8.6,
+-223,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+9.4,
+2.3,
+2.3
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+193,
+37.4,
+-301.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.6,
+17.3,
+4.6
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-303.2,
+16.4,
+-232.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-199.7,
+15.8,
+-38.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.8,
+10.8,
+10.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+172,
+15.3,
+-263.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.1,
+9.1,
+9.1
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+291.3,
+12,
+304.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.8,
+8.8,
+8.8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+253,
+19.9,
+-95,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+-30.7,
+13,
+-217.9,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8,
+8,
+8
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-143.2,
+13.4,
+-72.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+9.4,
+9.4,
+9.4
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-303.2,
+27.9,
+-232.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.4,
+22,
+5.4
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+169.7,
+8.5,
+-235.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+7.9,
+1.9,
+1.9
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+207.5,
+34.1,
+-297,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.4,
+18.2,
+5.4
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+173.1,
+14.4,
+-197.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.6,
+10.6,
+10.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+171.6,
+15.7,
+-231.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.6,
+10.6,
+10.6
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+40.6,
+28.4,
+-301.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+175.1,
+10,
+-261.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+8.6,
+2.1,
+2.1
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-304.1,
+19.1,
+271.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+167.5,
+9.8,
+-234.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+10.6,
+2.6,
+2.6
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+84,
+8.1,
+70,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+9.1,
+2.2,
+2.2
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+-33.8,
+14.3,
+-219.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.7,
+10.7,
+10.7
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+253,
+20.3,
+-135,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+8.3,
+8.3,
+8.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+145.3,
+17.4,
+145.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+14,
+14,
+14
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+-308.9,
+20.1,
+-206.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+3,
+1,
+1
+],
+"n": "CypressTrunk"
+},
+"c": "Part",
+"n": "CypressTrunk"
+},
+{
+"part": {
+"p": [
+175.1,
+16.3,
+-261.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.5,
+11.5,
+11.5
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+167.5,
+17.5,
+-234.2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+14.1,
+14.1,
+14.1
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+33.1,
+20.4,
+-275,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5.2,
+18.9,
+5.2
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+165.2,
+15,
+-202.6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+11.2,
+11.2,
+11.2
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+},
+{
+"part": {
+"p": [
+126.1,
+7.7,
+205.1,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+7.9,
+1.9,
+1.9
+],
+"n": "OakTrunk"
+},
+"c": "Part",
+"n": "OakTrunk"
+},
+{
+"part": {
+"p": [
+175.2,
+20.1,
+-273.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+4.9,
+15.3,
+4.9
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-308.9,
+31.4,
+-206.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+5,
+21.6,
+5
+],
+"n": "CypressFoliage"
+},
+"c": "Part",
+"n": "CypressFoliage"
+},
+{
+"part": {
+"p": [
+-147.6,
+14.1,
+301.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Ball",
+"s": [
+10.3,
+10.3,
+10.3
+],
+"n": "OakFoliage"
+},
+"c": "Part",
+"n": "OakFoliage"
+}
+]
+},
+{
+"name": "Houses",
+"children": [
+{
+"c": "Model",
+"parts": 241,
+"box": [
+[
+-33.5,
+18.8,
+66,
+90
+],
+[
+47.9,
+30.7,
+45
+]
+],
+"pivot": [
+-36,
+4,
+66,
+90
+],
+"n": "House_08"
+},
+{
+"c": "Model",
+"parts": 241,
+"box": [
+[
+150,
+18.8,
+33.5,
+-180
+],
+[
+47.9,
+30.7,
+45
+]
+],
+"pivot": [
+150,
+4,
+36,
+-180
+],
+"n": "House_04"
+},
+{
+"c": "Model",
+"parts": 241,
+"box": [
+[
+-150,
+18.8,
+-33.5,
+0
+],
+[
+47.9,
+30.7,
+45
+]
+],
+"pivot": [
+-150,
+4,
+-36,
+0
+],
+"n": "House_05"
+},
+{
+"c": "Model",
+"parts": 241,
+"box": [
+[
+-150,
+18.8,
+33.5,
+-180
+],
+[
+47.9,
+30.7,
+45
+]
+],
+"pivot": [
+-150,
+4,
+36,
+-180
+],
+"n": "House_01"
+},
+{
+"c": "Model",
+"parts": 241,
+"box": [
+[
+90,
+18.8,
+33.5,
+-180
+],
+[
+47.9,
+30.7,
+45
+]
+],
+"pivot": [
+90,
+4,
+36,
+-180
+],
+"n": "House_03"
+},
+{
+"c": "Model",
+"parts": 241,
+"box": [
+[
+-90,
+18.8,
+33.5,
+-180
+],
+[
+47.9,
+30.7,
+45
+]
+],
+"pivot": [
+-90,
+4,
+36,
+-180
+],
+"n": "House_02"
+},
+{
+"c": "Model",
+"parts": 241,
+"box": [
+[
+-90,
+18.8,
+-33.5,
+0
+],
+[
+47.9,
+30.7,
+45
+]
+],
+"pivot": [
+-90,
+4,
+-36,
+0
+],
+"n": "House_06"
+},
+{
+"c": "Model",
+"parts": 241,
+"box": [
+[
+90,
+18.8,
+-33.5,
+0
+],
+[
+47.9,
+30.7,
+45
+]
+],
+"pivot": [
+90,
+4,
+-36,
+0
+],
+"n": "House_07"
+},
+{
+"c": "Model",
+"parts": 241,
+"box": [
+[
+33.5,
+18.8,
+66,
+-90
+],
+[
+47.9,
+30.7,
+45
+]
+],
+"pivot": [
+36,
+4,
+66,
+-90
+],
+"n": "House_09"
+}
+]
+},
+{
+"name": "Station",
+"children": [
+{
+"part": {
+"p": [
+-270,
+4.4,
+226,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-256,
+10.5,
+6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+8,
+0.6
+],
+"n": "CanopyPost"
+},
+"c": "Part",
+"n": "CanopyPost"
+},
+{
+"part": {
+"p": [
+-272.6,
+3.5,
+123.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+1,
+1.4,
+32
+],
+"n": "TrestleBeam"
+},
+"c": "Part",
+"n": "TrestleBeam"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+210,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-214,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-102,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+34,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-230,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+218,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-54,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+50,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-238,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-243,
+9,
+24,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Brick",
+"sh": "Block",
+"s": [
+14,
+10,
+20
+],
+"n": "StationHouse"
+},
+"c": "Part",
+"n": "StationHouse"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+138,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+1.8,
+123.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+7,
+4.5,
+1.4
+],
+"n": "TrestlePier"
+},
+"c": "Part",
+"n": "TrestlePier"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-70,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-256,
+10.5,
+-6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+8,
+0.6
+],
+"n": "CanopyPost"
+},
+"c": "Part",
+"n": "CanopyPost"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-62,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+42,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-222,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-258.5,
+14.8,
+0,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+-6
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+9,
+0.6,
+42
+],
+"n": "Canopy"
+},
+"c": "Part",
+"n": "Canopy"
+},
+{
+"part": {
+"p": [
+-270,
+1.8,
+114.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+7,
+4.5,
+1.4
+],
+"n": "TrestlePier"
+},
+"c": "Part",
+"n": "TrestlePier"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+146,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-272.6,
+4.9,
+20,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.5,
+0.6,
+520
+],
+"n": "Rail"
+},
+"c": "Part",
+"n": "Rail"
+},
+{
+"part": {
+"p": [
+-246.8,
+16.6,
+24,
+90
+],
+"c": "WedgePart",
+"r": [
+0,
+90,
+0
+],
+"m": "Slate",
+"s": [
+21,
+4,
+7.6
+],
+"n": "StationRoof"
+},
+"c": "WedgePart",
+"n": "StationRoof"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+242,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+1.8,
+132.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+7,
+4.5,
+1.4
+],
+"n": "TrestlePier"
+},
+"c": "Part",
+"n": "TrestlePier"
+},
+{
+"part": {
+"p": [
+-256,
+10.5,
+-18,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+8,
+0.6
+],
+"n": "CanopyPost"
+},
+"c": "Part",
+"n": "CanopyPost"
+},
+{
+"part": {
+"p": [
+-239.2,
+16.6,
+24,
+-90
+],
+"c": "WedgePart",
+"r": [
+0,
+-90,
+0
+],
+"m": "Slate",
+"s": [
+21,
+4,
+7.6
+],
+"n": "StationRoof"
+},
+"c": "WedgePart",
+"n": "StationRoof"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+250,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+122,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+234,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+5.6,
+281,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+7,
+2.6,
+1.6
+],
+"n": "BufferStop"
+},
+"c": "Part",
+"n": "BufferStop"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+130,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-243,
+14.2,
+24,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+14.6,
+0.8,
+20.6
+],
+"n": "StationTrim"
+},
+"c": "Part",
+"n": "StationTrim"
+},
+{
+"part": {
+"p": [
+-256,
+10.5,
+18,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+8,
+0.6
+],
+"n": "CanopyPost"
+},
+"c": "Part",
+"n": "CanopyPost"
+},
+{
+"part": {
+"p": [
+-253.9,
+13.3,
+0,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+0.3,
+2.2,
+12
+],
+"n": "StationSign"
+},
+"c": "Part",
+"n": "StationSign"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+74,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-118,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+90,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-126,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+82,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-134,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+2,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+5.6,
+-241,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+7,
+2.6,
+1.6
+],
+"n": "BufferStop"
+},
+"c": "Part",
+"n": "BufferStop"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-190,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+58,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-198,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+66,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-250.1,
+9.2,
+27,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Glass",
+"sh": "Block",
+"s": [
+0.3,
+3.2,
+2.6
+],
+"n": "StationWindow"
+},
+"c": "Part",
+"n": "StationWindow"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+10,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+186,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-250.1,
+9.2,
+32,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Glass",
+"sh": "Block",
+"s": [
+0.3,
+3.2,
+2.6
+],
+"n": "StationWindow"
+},
+"c": "Part",
+"n": "StationWindow"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+154,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-110,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-250.1,
+7.5,
+20,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+0.3,
+7,
+4
+],
+"n": "StationDoor"
+},
+"c": "Part",
+"n": "StationDoor"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+170,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+26,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+178,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+162,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+18,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-6,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-174,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+106,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-263.7,
+6.6,
+0,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "SmoothPlastic",
+"sh": "Block",
+"s": [
+0.8,
+0.2,
+90
+],
+"n": "PlatformEdge"
+},
+"c": "Part",
+"n": "PlatformEdge"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-14,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+266,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-182,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-22,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+258,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+114,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-38,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-30,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-86,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+274,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-46,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+194,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-78,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-150,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-267.4,
+3.5,
+123.7,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+1,
+1.4,
+32
+],
+"n": "TrestleBeam"
+},
+"c": "Part",
+"n": "TrestleBeam"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-142,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-158,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-250,
+5.3,
+0,
+-90
+],
+"c": "WedgePart",
+"r": [
+0,
+-90,
+0
+],
+"m": "Concrete",
+"s": [
+10,
+2.5,
+8
+],
+"n": "PlatformRamp"
+},
+"c": "WedgePart",
+"n": "PlatformRamp"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-166,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+202,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-94,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-267.4,
+4.9,
+20,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.5,
+0.6,
+520
+],
+"n": "Rail"
+},
+"c": "Part",
+"n": "Rail"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+98,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-270,
+4.4,
+-206,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+8,
+0.5,
+1.2
+],
+"n": "Sleeper"
+},
+"c": "Part",
+"n": "Sleeper"
+},
+{
+"part": {
+"p": [
+-259,
+5.3,
+0,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Concrete",
+"sh": "Block",
+"s": [
+10,
+2.5,
+90
+],
+"n": "Platform"
+},
+"c": "Part",
+"n": "Platform"
+}
+]
+},
+{
+"name": "Square",
+"children": [
+{
+"part": {
+"p": [
+0,
+10.5,
+0,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+9,
+0.5,
+0.5
+],
+"n": "WellBeam"
+},
+"c": "Part",
+"n": "WellBeam"
+},
+{
+"part": {
+"p": [
+23.3,
+9.5,
+-23,
+-135
+],
+"c": "Part",
+"r": [
+0,
+-135,
+0
+],
+"m": "SmoothPlastic",
+"sh": "Block",
+"s": [
+1.1,
+1.4,
+0.1
+],
+"n": "Notice"
+},
+"c": "Part",
+"n": "Notice"
+},
+{
+"part": {
+"p": [
+20.9,
+9.2,
+-20.7,
+-135
+],
+"c": "Part",
+"r": [
+0,
+-135,
+-4
+],
+"m": "SmoothPlastic",
+"sh": "Block",
+"s": [
+1.1,
+1.4,
+0.1
+],
+"n": "Notice"
+},
+"c": "Part",
+"n": "Notice"
+},
+{
+"part": {
+"p": [
+22,
+9.7,
+-21.7,
+-135
+],
+"c": "Part",
+"r": [
+0,
+-135,
+4
+],
+"m": "SmoothPlastic",
+"sh": "Block",
+"s": [
+1.1,
+1.4,
+0.1
+],
+"n": "Notice"
+},
+"c": "Part",
+"n": "Notice"
+},
+{
+"part": {
+"p": [
+0,
+4.5,
+-18,
+-180
+],
+"c": "SpawnLocation",
+"r": [
+0,
+-180,
+0
+],
+"m": "Plastic",
+"sh": "Block",
+"s": [
+10,
+1,
+10
+],
+"n": "LindenmoorSpawn"
+},
+"c": "SpawnLocation",
+"n": "LindenmoorSpawn"
+},
+{
+"part": {
+"p": [
+22.6,
+8.2,
+-22.3,
+-135
+],
+"c": "Part",
+"r": [
+0,
+-135,
+0
+],
+"m": "SmoothPlastic",
+"sh": "Block",
+"s": [
+1.1,
+1.4,
+0.1
+],
+"n": "Notice"
+},
+"c": "Part",
+"n": "Notice"
+},
+{
+"part": {
+"p": [
+21.3,
+8.1,
+-21,
+-135
+],
+"c": "Part",
+"r": [
+0,
+-135,
+4
+],
+"m": "SmoothPlastic",
+"sh": "Block",
+"s": [
+1.1,
+1.4,
+0.1
+],
+"n": "Notice"
+},
+"c": "Part",
+"n": "Notice"
+},
+{
+"part": {
+"p": [
+-14,
+4.8,
+11,
+90
+],
+"c": "Part",
+"r": [
+0,
+90,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.4,
+1.6,
+1.6
+],
+"n": "BenchLeg"
+},
+"c": "Part",
+"n": "BenchLeg"
+},
+{
+"part": {
+"p": [
+14,
+4.8,
+11,
+-90
+],
+"c": "Part",
+"r": [
+0,
+-90,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.4,
+1.6,
+1.6
+],
+"n": "BenchLeg"
+},
+"c": "Part",
+"n": "BenchLeg"
+},
+{
+"part": {
+"p": [
+-13.1,
+7,
+8,
+90
+],
+"c": "Part",
+"r": [
+0,
+90,
+0
+],
+"m": "WoodPlanks",
+"sh": "Block",
+"s": [
+7,
+1.6,
+0.3
+],
+"n": "BenchBack"
+},
+"c": "Part",
+"n": "BenchBack"
+},
+{
+"part": {
+"p": [
+-14,
+5.8,
+8,
+90
+],
+"c": "Part",
+"r": [
+0,
+90,
+0
+],
+"m": "WoodPlanks",
+"sh": "Block",
+"s": [
+7,
+0.4,
+1.8
+],
+"n": "BenchSeat"
+},
+"c": "Part",
+"n": "BenchSeat"
+},
+{
+"part": {
+"p": [
+-14,
+4.8,
+-11,
+90
+],
+"c": "Part",
+"r": [
+0,
+90,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.4,
+1.6,
+1.6
+],
+"n": "BenchLeg"
+},
+"c": "Part",
+"n": "BenchLeg"
+},
+{
+"part": {
+"p": [
+-13.1,
+7,
+-8,
+90
+],
+"c": "Part",
+"r": [
+0,
+90,
+0
+],
+"m": "WoodPlanks",
+"sh": "Block",
+"s": [
+7,
+1.6,
+0.3
+],
+"n": "BenchBack"
+},
+"c": "Part",
+"n": "BenchBack"
+},
+{
+"part": {
+"p": [
+13.1,
+7,
+8,
+-90
+],
+"c": "Part",
+"r": [
+0,
+-90,
+0
+],
+"m": "WoodPlanks",
+"sh": "Block",
+"s": [
+7,
+1.6,
+0.3
+],
+"n": "BenchBack"
+},
+"c": "Part",
+"n": "BenchBack"
+},
+{
+"part": {
+"p": [
+14,
+5.8,
+8,
+-90
+],
+"c": "Part",
+"r": [
+0,
+-90,
+0
+],
+"m": "WoodPlanks",
+"sh": "Block",
+"s": [
+7,
+0.4,
+1.8
+],
+"n": "BenchSeat"
+},
+"c": "Part",
+"n": "BenchSeat"
+},
+{
+"part": {
+"p": [
+-14,
+4.8,
+-5,
+90
+],
+"c": "Part",
+"r": [
+0,
+90,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.4,
+1.6,
+1.6
+],
+"n": "BenchLeg"
+},
+"c": "Part",
+"n": "BenchLeg"
+},
+{
+"part": {
+"p": [
+-14,
+4.8,
+5,
+90
+],
+"c": "Part",
+"r": [
+0,
+90,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.4,
+1.6,
+1.6
+],
+"n": "BenchLeg"
+},
+"c": "Part",
+"n": "BenchLeg"
+},
+{
+"part": {
+"p": [
+-4.2,
+8,
+0,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+0.7,
+8,
+0.7
+],
+"n": "WellPost"
+},
+"c": "Part",
+"n": "WellPost"
+},
+{
+"part": {
+"p": [
+0,
+7.1,
+0,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Glass",
+"sh": "Cylinder",
+"s": [
+0.2,
+7,
+7
+],
+"n": "WellWater"
+},
+"c": "Part",
+"n": "WellWater"
+},
+{
+"part": {
+"p": [
+14,
+4.8,
+5,
+-90
+],
+"c": "Part",
+"r": [
+0,
+-90,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.4,
+1.6,
+1.6
+],
+"n": "BenchLeg"
+},
+"c": "Part",
+"n": "BenchLeg"
+},
+{
+"part": {
+"p": [
+-14,
+5.8,
+-8,
+90
+],
+"c": "Part",
+"r": [
+0,
+90,
+0
+],
+"m": "WoodPlanks",
+"sh": "Block",
+"s": [
+7,
+0.4,
+1.8
+],
+"n": "BenchSeat"
+},
+"c": "Part",
+"n": "BenchSeat"
+},
+{
+"part": {
+"p": [
+0,
+5.6,
+0,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Cobblestone",
+"sh": "Cylinder",
+"s": [
+3.2,
+9,
+9
+],
+"n": "WellRing"
+},
+"c": "Part",
+"n": "WellRing"
+},
+{
+"part": {
+"p": [
+14,
+4.8,
+-11,
+-90
+],
+"c": "Part",
+"r": [
+0,
+-90,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.4,
+1.6,
+1.6
+],
+"n": "BenchLeg"
+},
+"c": "Part",
+"n": "BenchLeg"
+},
+{
+"part": {
+"p": [
+4.2,
+8,
+0,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+0.7,
+8,
+0.7
+],
+"n": "WellPost"
+},
+"c": "Part",
+"n": "WellPost"
+},
+{
+"part": {
+"p": [
+0,
+8.6,
+0,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+1.2,
+1.2,
+1.2
+],
+"n": "WellBucket"
+},
+"c": "Part",
+"n": "WellBucket"
+},
+{
+"part": {
+"p": [
+14,
+4.8,
+-5,
+-90
+],
+"c": "Part",
+"r": [
+0,
+-90,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.4,
+1.6,
+1.6
+],
+"n": "BenchLeg"
+},
+"c": "Part",
+"n": "BenchLeg"
+},
+{
+"part": {
+"p": [
+0,
+13.1,
+-1.7,
+0
+],
+"c": "WedgePart",
+"r": [
+0,
+0,
+0
+],
+"m": "WoodPlanks",
+"s": [
+10,
+2.2,
+3.4
+],
+"n": "WellRoof"
+},
+"c": "WedgePart",
+"n": "WellRoof"
+},
+{
+"part": {
+"p": [
+0,
+13.1,
+1.7,
+0
+],
+"c": "WedgePart",
+"r": [
+0,
+0,
+0
+],
+"m": "WoodPlanks",
+"s": [
+10,
+2.2,
+3.4
+],
+"n": "WellRoof"
+},
+"c": "WedgePart",
+"n": "WellRoof"
+},
+{
+"part": {
+"p": [
+22,
+9,
+-22,
+-135
+],
+"c": "Part",
+"r": [
+0,
+-135,
+0
+],
+"m": "WoodPlanks",
+"sh": "Block",
+"s": [
+6,
+3.6,
+0.3
+],
+"n": "NoticeBoard"
+},
+"c": "Part",
+"n": "NoticeBoard"
+},
+{
+"part": {
+"p": [
+20.2,
+7.5,
+-20.2,
+-135
+],
+"c": "Part",
+"r": [
+0,
+-135,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+0.5,
+7,
+0.5
+],
+"n": "NoticePost"
+},
+"c": "Part",
+"n": "NoticePost"
+},
+{
+"part": {
+"p": [
+13.1,
+7,
+-8,
+-90
+],
+"c": "Part",
+"r": [
+0,
+-90,
+0
+],
+"m": "WoodPlanks",
+"sh": "Block",
+"s": [
+7,
+1.6,
+0.3
+],
+"n": "BenchBack"
+},
+"c": "Part",
+"n": "BenchBack"
+},
+{
+"part": {
+"p": [
+14,
+5.8,
+-8,
+-90
+],
+"c": "Part",
+"r": [
+0,
+-90,
+0
+],
+"m": "WoodPlanks",
+"sh": "Block",
+"s": [
+7,
+0.4,
+1.8
+],
+"n": "BenchSeat"
+},
+"c": "Part",
+"n": "BenchSeat"
+},
+{
+"part": {
+"p": [
+23.8,
+7.5,
+-23.8,
+-135
+],
+"c": "Part",
+"r": [
+0,
+-135,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+0.5,
+7,
+0.5
+],
+"n": "NoticePost"
+},
+"c": "Part",
+"n": "NoticePost"
+}
+]
+},
+{
+"name": "Fences",
+"children": [
+{
+"part": {
+"r": [
+0.2,
+-90,
+0
+],
+"p": [
+64.9,
+5.9,
+-218,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-57,
+5.9,
+-124.2,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+90,
+0
+],
+"p": [
+49.7,
+7.2,
+-137,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.2,
+-180,
+0
+],
+"p": [
+-57,
+7,
+-163.6,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+72.4,
+6.2,
+-218,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0.2,
+-180,
+0
+],
+"p": [
+-10,
+6.9,
+156.6,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+-180,
+0
+],
+"p": [
+-57,
+5.6,
+-116.4,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+90,
+0
+],
+"p": [
+49.7,
+5.8,
+-137,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+7,
+-171.7,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+6.9,
+-125.2,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-57,
+5.9,
+-108.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-10,
+5.9,
+179.3,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-10,
+5.9,
+254.7,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+-180,
+0
+],
+"p": [
+-57,
+7,
+-116.4,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.2,
+-180,
+0
+],
+"p": [
+10,
+7,
+171.7,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+90,
+0
+],
+"p": [
+64.9,
+7.2,
+-137,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.3,
+-180,
+0
+],
+"p": [
+-57,
+5.6,
+-100.6,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+27,
+6.1,
+-137,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+5.9,
+-179.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-163,
+6,
+-124.2,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+10,
+6,
+179.3,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+5.9,
+-164,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0.2,
+-180,
+0
+],
+"p": [
+-10,
+5.6,
+171.7,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+-180,
+0
+],
+"p": [
+-10,
+7,
+262.3,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.3,
+0,
+0
+],
+"p": [
+-163,
+5.7,
+-116.4,
+0
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+5.5,
+-109.7,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.5,
+0,
+0
+],
+"p": [
+-163,
+6.9,
+-84.9,
+0
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-10,
+5.9,
+269.8,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+-180,
+0
+],
+"p": [
+133,
+6.9,
+-170.7,
+-180
+],
+"s": [
+0.3,
+0.4,
+13.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+-180,
+0
+],
+"p": [
+-10,
+5.6,
+262.3,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-163,
+5.9,
+-108.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-10,
+5.9,
+284.9,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+5.9,
+-71,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+-180,
+0
+],
+"p": [
+10,
+5.6,
+232.1,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.2,
+0,
+0
+],
+"p": [
+-163,
+5.7,
+-132.1,
+0
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-163,
+6.1,
+-140,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+5.6,
+-63.2,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+133,
+5.8,
+-164,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+-180,
+0
+],
+"p": [
+133,
+5.5,
+-170.7,
+-180
+],
+"s": [
+0.3,
+0.4,
+13.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.3,
+0,
+0
+],
+"p": [
+-163,
+7,
+-100.6,
+0
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-1.3,
+-180,
+0
+],
+"p": [
+133,
+7.2,
+-211.2,
+-180
+],
+"s": [
+0.3,
+0.4,
+13.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.5,
+0,
+0
+],
+"p": [
+-163,
+5.5,
+-84.9,
+0
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+133,
+6,
+-204.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+5.9,
+-164,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+7,
+-63.2,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-1.3,
+-180,
+0
+],
+"p": [
+133,
+5.8,
+-211.2,
+-180
+],
+"s": [
+0.3,
+0.4,
+13.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-163,
+5.8,
+-92.7,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+90,
+0
+],
+"p": [
+110.3,
+5.8,
+-137,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.2,
+-180,
+0
+],
+"p": [
+-10,
+5.5,
+156.6,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+5.6,
+-63.2,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+133,
+6.3,
+-218,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+7,
+-63.2,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.5,
+-180,
+0
+],
+"p": [
+133,
+5.6,
+-197.7,
+-180
+],
+"s": [
+0.3,
+0.4,
+13.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+0,
+0
+],
+"p": [
+7.5,
+6.9,
+-94.2,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-163,
+5.7,
+-77,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+117.9,
+6.1,
+-137,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0.3,
+0,
+0
+],
+"p": [
+-163,
+5.6,
+-100.6,
+0
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.5,
+-180,
+0
+],
+"p": [
+133,
+7,
+-197.7,
+-180
+],
+"s": [
+0.3,
+0.4,
+13.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+-180,
+0
+],
+"p": [
+-10,
+7,
+277.4,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+0,
+0
+],
+"p": [
+7.5,
+5.5,
+-94.2,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+102.7,
+6.1,
+-137,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-163,
+5.7,
+-77,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.3,
+-90,
+0
+],
+"p": [
+110.3,
+5.9,
+-218,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+133,
+5.9,
+-191,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+90,
+0
+],
+"p": [
+-155.4,
+6.8,
+-77,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.2,
+-180,
+0
+],
+"p": [
+10,
+7.1,
+217,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+90,
+0
+],
+"p": [
+110.3,
+7.2,
+-137,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.3,
+-90,
+0
+],
+"p": [
+110.3,
+7.3,
+-218,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+90,
+0
+],
+"p": [
+-125.1,
+6.7,
+-77,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+5.9,
+-86.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+5.8,
+-102,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+5.9,
+-86.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-10,
+5.3,
+300,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+3.4,
+-180,
+0
+],
+"p": [
+133,
+7.3,
+-157.2,
+-180
+],
+"s": [
+0.3,
+0.4,
+13.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.5,
+-90,
+0
+],
+"p": [
+125.4,
+7.3,
+-218,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+0,
+0
+],
+"p": [
+7.5,
+5.6,
+-78.7,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.2,
+90,
+0
+],
+"p": [
+-140.3,
+5.4,
+-77,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-10,
+5.8,
+134,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+117.9,
+6.2,
+-218,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0.5,
+-90,
+0
+],
+"p": [
+125.4,
+5.9,
+-218,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-10,
+6,
+224.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+90,
+0
+],
+"p": [
+-110,
+6.7,
+-77,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+3.4,
+-180,
+0
+],
+"p": [
+133,
+5.9,
+-157.2,
+-180
+],
+"s": [
+0.3,
+0.4,
+13.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+5.6,
+-78.7,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+0,
+0
+],
+"p": [
+7.5,
+7,
+-78.7,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.1,
+-90,
+0
+],
+"p": [
+80,
+7.3,
+-218,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.2,
+90,
+0
+],
+"p": [
+-140.3,
+6.8,
+-77,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-10,
+5.8,
+149.1,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+5.9,
+-55.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+133,
+6.3,
+-218,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+5.5,
+-125.2,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+133,
+6.6,
+-150.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+10,
+6,
+224.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+90,
+0
+],
+"p": [
+-155.4,
+5.4,
+-77,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+7,
+-78.7,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.1,
+-90,
+0
+],
+"p": [
+80,
+5.9,
+-218,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+-180,
+0
+],
+"p": [
+-10,
+5.7,
+217,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+5.8,
+-133,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+16.1,
+-180,
+0
+],
+"p": [
+133,
+9.6,
+-143.7,
+-180
+],
+"s": [
+0.3,
+0.4,
+14.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+133,
+10.5,
+-137,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-147.9,
+5.7,
+-77,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+-180,
+0
+],
+"p": [
+-10,
+5.6,
+232.1,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.3,
+0,
+0
+],
+"p": [
+7.5,
+5.5,
+-47.7,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+87.6,
+6.2,
+-218,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-117.6,
+5.6,
+-77,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-57,
+6,
+-171.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+6.9,
+-109.7,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+133,
+10.5,
+-137,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+-180,
+0
+],
+"p": [
+10,
+7,
+232.1,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+5.8,
+-102,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0.2,
+-180,
+0
+],
+"p": [
+-10,
+7,
+171.7,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.2,
+-180,
+0
+],
+"p": [
+133,
+5.5,
+-184.2,
+-180
+],
+"s": [
+0.3,
+0.4,
+13.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+90,
+0
+],
+"p": [
+-79.7,
+6.7,
+-77,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+-180,
+0
+],
+"p": [
+-57,
+5.7,
+-179.4,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.3,
+0,
+0
+],
+"p": [
+7.5,
+6.9,
+-47.7,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+5.5,
+-109.7,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+16.1,
+-180,
+0
+],
+"p": [
+133,
+8.2,
+-143.7,
+-180
+],
+"s": [
+0.3,
+0.4,
+14.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+-180,
+0
+],
+"p": [
+10,
+7,
+262.3,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.5,
+-180,
+0
+],
+"p": [
+-57,
+7.1,
+-195.1,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+10,
+5.9,
+254.7,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+90,
+0
+],
+"p": [
+-79.7,
+5.3,
+-77,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+133,
+5.8,
+-177.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-10,
+6,
+194.4,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+10,
+5.9,
+269.8,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+90,
+0
+],
+"p": [
+-125.1,
+5.3,
+-77,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.3,
+-90,
+0
+],
+"p": [
+49.7,
+7.2,
+-218,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+5.8,
+-117.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-132.7,
+5.6,
+-77,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+5.9,
+-71,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-57,
+5.9,
+-155.7,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+-180,
+0
+],
+"p": [
+-10,
+7,
+232.1,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.2,
+-180,
+0
+],
+"p": [
+133,
+6.9,
+-184.2,
+-180
+],
+"s": [
+0.3,
+0.4,
+13.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+-180,
+0
+],
+"p": [
+10,
+7,
+247.2,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.2,
+-180,
+0
+],
+"p": [
+-57,
+5.6,
+-163.6,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+10,
+5.9,
+284.9,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+42.1,
+6,
+-137,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+-180,
+0
+],
+"p": [
+-57,
+7.1,
+-179.4,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.1,
+90,
+0
+],
+"p": [
+-64.6,
+6.7,
+-77,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.2,
+-180,
+0
+],
+"p": [
+-10,
+5.6,
+186.8,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+5.9,
+-195,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+90,
+0
+],
+"p": [
+-94.9,
+6.7,
+-77,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+90,
+0
+],
+"p": [
+64.9,
+5.8,
+-137,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+57.3,
+6.1,
+-137,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-102.4,
+5.6,
+-77,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+90,
+0
+],
+"p": [
+-110,
+5.3,
+-77,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+-180,
+0
+],
+"p": [
+10,
+5.6,
+262.3,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+27,
+6,
+-150.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-57,
+6.1,
+-203,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+-90,
+0
+],
+"p": [
+-79.7,
+5.7,
+-203,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+90,
+0
+],
+"p": [
+-94.9,
+5.3,
+-77,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.2,
+-180,
+0
+],
+"p": [
+-10,
+7,
+186.8,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-147.9,
+6.2,
+-203,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.5,
+0,
+0
+],
+"p": [
+27,
+7.2,
+-143.7,
+0
+],
+"s": [
+0.3,
+0.4,
+13.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.3,
+-90,
+0
+],
+"p": [
+-64.6,
+7.2,
+-203,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-57,
+5.6,
+-77,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+-180,
+0
+],
+"p": [
+10,
+5.6,
+247.2,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-10,
+5.9,
+239.6,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-87.3,
+5.6,
+-77,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0.3,
+90,
+0
+],
+"p": [
+34.6,
+5.8,
+-137,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-57,
+6.1,
+-203,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+5.6,
+-187.2,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+-180,
+0
+],
+"p": [
+10,
+5.7,
+201.9,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-2,
+-180,
+0
+],
+"p": [
+10,
+5.3,
+292.5,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.3,
+-90,
+0
+],
+"p": [
+-64.6,
+5.8,
+-203,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.1,
+90,
+0
+],
+"p": [
+-64.6,
+5.3,
+-77,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+5.8,
+-195,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.5,
+0,
+0
+],
+"p": [
+27,
+5.8,
+-143.7,
+0
+],
+"s": [
+0.3,
+0.4,
+13.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+27,
+6.1,
+-137,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-57,
+6,
+-187.2,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+-180,
+0
+],
+"p": [
+-10,
+5.6,
+247.2,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+90,
+0
+],
+"p": [
+95.1,
+7.2,
+-137,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-163,
+6.5,
+-203,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-132.7,
+6.1,
+-203,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-72.1,
+5.6,
+-77,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0.3,
+90,
+0
+],
+"p": [
+34.6,
+7.2,
+-137,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.5,
+-180,
+0
+],
+"p": [
+-57,
+5.7,
+-195.1,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+-180,
+0
+],
+"p": [
+-10,
+7,
+247.2,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.7,
+-180,
+0
+],
+"p": [
+-57,
+6.8,
+-84.9,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+-90,
+0
+],
+"p": [
+-110,
+7.1,
+-203,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+87.6,
+6.1,
+-137,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.2,
+0,
+0
+],
+"p": [
+27,
+7.1,
+-197.7,
+0
+],
+"s": [
+0.3,
+0.4,
+13.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+5.6,
+-171.7,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.1,
+-180,
+0
+],
+"p": [
+10,
+7.1,
+186.8,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-1.4,
+-90,
+0
+],
+"p": [
+-155.4,
+6,
+-203,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.2,
+0,
+0
+],
+"p": [
+27,
+5.7,
+-197.7,
+0
+],
+"s": [
+0.3,
+0.4,
+13.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+-90,
+0
+],
+"p": [
+34.6,
+5.8,
+-218,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+10,
+6,
+194.4,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+-180,
+0
+],
+"p": [
+10,
+5.6,
+277.4,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.1,
+-90,
+0
+],
+"p": [
+-94.9,
+5.7,
+-203,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+7,
+-187.2,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+27,
+6,
+-204.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-1.4,
+-90,
+0
+],
+"p": [
+-155.4,
+7.4,
+-203,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+5.8,
+-40,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-87.3,
+6,
+-203,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+27,
+6,
+-191,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-2,
+-180,
+0
+],
+"p": [
+10,
+6.7,
+292.5,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+90,
+0
+],
+"p": [
+80,
+7.2,
+-137,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.1,
+0,
+0
+],
+"p": [
+27,
+7.1,
+-157.2,
+0
+],
+"s": [
+0.3,
+0.4,
+13.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.1,
+-90,
+0
+],
+"p": [
+-94.9,
+7.1,
+-203,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+42.1,
+6.1,
+-218,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-72.1,
+6,
+-203,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+90,
+0
+],
+"p": [
+95.1,
+5.8,
+-137,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.2,
+-180,
+0
+],
+"p": [
+10,
+5.6,
+171.7,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+27,
+6,
+-164,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+10,
+5.9,
+164.2,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0.1,
+0,
+0
+],
+"p": [
+27,
+5.7,
+-157.2,
+0
+],
+"s": [
+0.3,
+0.4,
+13.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+10,
+5.4,
+300,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+72.4,
+6.1,
+-137,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+-90,
+0
+],
+"p": [
+-79.7,
+7.1,
+-203,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.1,
+-180,
+0
+],
+"p": [
+10,
+5.7,
+186.8,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-163,
+6.5,
+-203,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+5.6,
+-156.2,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.3,
+-90,
+0
+],
+"p": [
+-140.3,
+7.2,
+-203,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+10,
+5.9,
+149.1,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.3,
+-90,
+0
+],
+"p": [
+-140.3,
+5.8,
+-203,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.2,
+-180,
+0
+],
+"p": [
+10,
+7,
+156.6,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.2,
+-90,
+0
+],
+"p": [
+-125.1,
+5.8,
+-203,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+7,
+-156.2,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-117.6,
+6,
+-203,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.2,
+-180,
+0
+],
+"p": [
+10,
+5.7,
+217,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.4,
+0,
+0
+],
+"p": [
+27,
+7.1,
+-211.2,
+0
+],
+"s": [
+0.3,
+0.4,
+13.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-16.3,
+90,
+0
+],
+"p": [
+125.4,
+8,
+-137,
+90
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+27,
+6.1,
+-218,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+5.8,
+-40,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.2,
+-90,
+0
+],
+"p": [
+-125.1,
+7.2,
+-203,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.2,
+-180,
+0
+],
+"p": [
+10,
+5.6,
+156.6,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.4,
+0,
+0
+],
+"p": [
+27,
+5.7,
+-211.2,
+0
+],
+"s": [
+0.3,
+0.4,
+13.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+-180,
+0
+],
+"p": [
+10,
+7,
+277.4,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+27,
+6.1,
+-218,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+90,
+0
+],
+"p": [
+80,
+5.8,
+-137,
+90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+-90,
+0
+],
+"p": [
+-110,
+5.7,
+-203,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+-180,
+0
+],
+"p": [
+-10,
+5.7,
+201.9,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-102.4,
+6,
+-203,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+-180,
+0
+],
+"p": [
+10,
+7.1,
+201.9,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.1,
+0,
+0
+],
+"p": [
+-163,
+7.3,
+-179.4,
+0
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.3,
+-180,
+0
+],
+"p": [
+10,
+5.5,
+141.5,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.2,
+-180,
+0
+],
+"p": [
+-10,
+5.5,
+141.5,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+-180,
+0
+],
+"p": [
+-10,
+5.6,
+277.4,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+10,
+5.9,
+239.6,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-16.3,
+90,
+0
+],
+"p": [
+125.4,
+9.4,
+-137,
+90
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.2,
+-180,
+0
+],
+"p": [
+-10,
+6.9,
+141.5,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-163,
+6.1,
+-171.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+-180,
+0
+],
+"p": [
+-10,
+7.1,
+201.9,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.2,
+0,
+0
+],
+"p": [
+-163,
+7.2,
+-147.9,
+0
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+10,
+6,
+209.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+1.3,
+0,
+0
+],
+"p": [
+-163,
+7.5,
+-195.1,
+0
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.3,
+-180,
+0
+],
+"p": [
+10,
+6.9,
+141.5,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+10,
+5.8,
+134,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+1.3,
+0,
+0
+],
+"p": [
+-163,
+6.1,
+-195.1,
+0
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+-90,
+0
+],
+"p": [
+95.1,
+7.3,
+-218,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+-90,
+0
+],
+"p": [
+95.1,
+5.9,
+-218,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.1,
+0,
+0
+],
+"p": [
+-163,
+5.9,
+-179.4,
+0
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-2,
+-180,
+0
+],
+"p": [
+-10,
+6.7,
+292.5,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+5.5,
+-94.2,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+102.7,
+6.2,
+-218,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-163,
+6.2,
+-187.2,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0.3,
+0,
+0
+],
+"p": [
+-7.5,
+6.9,
+-47.7,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.2,
+0,
+0
+],
+"p": [
+-163,
+5.8,
+-147.9,
+0
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-10,
+5.9,
+164.2,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-10,
+6,
+209.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+6.9,
+-109.7,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+6.9,
+-140.7,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-163,
+6.1,
+-155.7,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0.3,
+0,
+0
+],
+"p": [
+-163,
+7.1,
+-116.4,
+0
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.3,
+-90,
+0
+],
+"p": [
+49.7,
+5.8,
+-218,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-57,
+5.8,
+-92.7,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.7,
+-180,
+0
+],
+"p": [
+-57,
+5.4,
+-84.9,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-2,
+-180,
+0
+],
+"p": [
+-10,
+5.3,
+292.5,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+5.9,
+-55.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+57.3,
+6.2,
+-218,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.3,
+-180,
+0
+],
+"p": [
+-57,
+7,
+-100.6,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+6.9,
+-94.2,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+-90,
+0
+],
+"p": [
+34.6,
+7.2,
+-218,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-57,
+5.6,
+-77,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+-0.1,
+-180,
+0
+],
+"p": [
+-10,
+7.1,
+217,
+-180
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+5.5,
+-140.7,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.1,
+0,
+0
+],
+"p": [
+-163,
+5.8,
+-163.6,
+0
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+7.5,
+5.8,
+-148.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0.2,
+-90,
+0
+],
+"p": [
+64.9,
+7.3,
+-218,
+-90
+],
+"s": [
+0.3,
+0.4,
+15.1
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.2,
+0,
+0
+],
+"p": [
+-163,
+7.1,
+-132.1,
+0
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0,
+0,
+0
+],
+"p": [
+-7.5,
+5.8,
+-117.5,
+0
+],
+"s": [
+0.5,
+3.6,
+0.5
+],
+"n": "FencePost"
+}
+},
+{
+"part": {
+"r": [
+0.1,
+0,
+0
+],
+"p": [
+-163,
+7.2,
+-163.6,
+0
+],
+"s": [
+0.3,
+0.4,
+15.8
+],
+"n": "FenceRail"
+}
+},
+{
+"part": {
+"r": [
+0.3,
+0,
+0
+],
+"p": [
+-7.5,
+5.5,
+-47.7,
+0
+],
+"s": [
+0.3,
+0.4,
+15.5
+],
+"n": "FenceRail"
+}
+}
+]
+},
+{
+"name": "Farm",
+"children": [
+{
+"part": {
+"p": [
+-101,
+5.3,
+-140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+2.4,
+2.6,
+112
+],
+"n": "Wheat"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+80,
+4.7,
+-186,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "LeafyGrass",
+"sh": "Block",
+"s": [
+92,
+1.4,
+2.2
+],
+"n": "Cabbages"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-146,
+5.3,
+-140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+2.4,
+2.6,
+112
+],
+"n": "Wheat"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+80,
+4.7,
+-206,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "LeafyGrass",
+"sh": "Block",
+"s": [
+92,
+1.4,
+2.2
+],
+"n": "Cabbages"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+80,
+4.7,
+-181,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "LeafyGrass",
+"sh": "Block",
+"s": [
+92,
+1.4,
+2.2
+],
+"n": "Cabbages"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+80,
+4.7,
+-201,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "LeafyGrass",
+"sh": "Block",
+"s": [
+92,
+1.4,
+2.2
+],
+"n": "Cabbages"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-141,
+5.3,
+-140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+2.4,
+2.6,
+112
+],
+"n": "Wheat"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-20.5,
+5.6,
+-202,
+-175
+],
+"c": "Part",
+"r": [
+0,
+-175,
+0
+],
+"m": "Grass",
+"sh": "Cylinder",
+"s": [
+4,
+3.2,
+3.2
+],
+"n": "HayBale"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-151,
+5.3,
+-140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+2.4,
+2.6,
+112
+],
+"n": "Wheat"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+0,
+9.5,
+-191.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "WoodPlanks",
+"sh": "Block",
+"s": [
+12,
+11,
+0.4
+],
+"n": "BarnDoor"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+80,
+4.7,
+-196,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "LeafyGrass",
+"sh": "Block",
+"s": [
+92,
+1.4,
+2.2
+],
+"n": "Cabbages"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+80,
+4.7,
+-156,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "LeafyGrass",
+"sh": "Block",
+"s": [
+92,
+1.4,
+2.2
+],
+"n": "Cabbages"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+7.5,
+23.5,
+-212,
+-90
+],
+"c": "WedgePart",
+"r": [
+0,
+-90,
+0
+],
+"m": "WoodPlanks",
+"s": [
+40,
+9,
+15
+],
+"n": "BarnGable"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+8.2,
+23.5,
+-212,
+90
+],
+"c": "Part",
+"r": [
+31.9,
+90,
+0
+],
+"m": "Slate",
+"sh": "Block",
+"s": [
+42,
+0.8,
+19.3
+],
+"n": "BarnRoof"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+0,
+21,
+-191.8,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "WoodPlanks",
+"sh": "Block",
+"s": [
+5,
+5,
+0.4
+],
+"n": "BarnLoft"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+0,
+9.5,
+-191.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+47.5
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+0.5,
+16,
+0.2
+],
+"n": "BarnDoorX1"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+0,
+9.5,
+-191.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+-47.5
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+0.5,
+16,
+0.2
+],
+"n": "BarnDoorX2"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-81,
+5.3,
+-140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+2.4,
+2.6,
+112
+],
+"n": "Wheat"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-76,
+5.3,
+-140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+2.4,
+2.6,
+112
+],
+"n": "Wheat"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+0,
+11.5,
+-212,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "WoodPlanks",
+"sh": "Block",
+"s": [
+30,
+15,
+40
+],
+"n": "BarnBody"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-126,
+5.3,
+-140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+2.4,
+2.6,
+112
+],
+"n": "Wheat"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-136,
+5.3,
+-140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+2.4,
+2.6,
+112
+],
+"n": "Wheat"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-7.5,
+23.5,
+-212,
+90
+],
+"c": "WedgePart",
+"r": [
+0,
+90,
+0
+],
+"m": "WoodPlanks",
+"s": [
+40,
+9,
+15
+],
+"n": "BarnGable"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-131,
+5.3,
+-140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+2.4,
+2.6,
+112
+],
+"n": "Wheat"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-8.2,
+23.5,
+-212,
+-90
+],
+"c": "Part",
+"r": [
+31.9,
+-90,
+0
+],
+"m": "Slate",
+"sh": "Block",
+"s": [
+42,
+0.8,
+19.3
+],
+"n": "BarnRoof"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+80,
+4.7,
+-151,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "LeafyGrass",
+"sh": "Block",
+"s": [
+92,
+1.4,
+2.2
+],
+"n": "Cabbages"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+18,
+5.6,
+-203,
+111
+],
+"c": "Part",
+"r": [
+0,
+111,
+0
+],
+"m": "Grass",
+"sh": "Cylinder",
+"s": [
+4,
+3.2,
+3.2
+],
+"n": "HayBale"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+80,
+4.7,
+-171,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "LeafyGrass",
+"sh": "Block",
+"s": [
+92,
+1.4,
+2.2
+],
+"n": "Cabbages"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-18,
+5.6,
+-198,
+148
+],
+"c": "Part",
+"r": [
+0,
+148,
+0
+],
+"m": "Grass",
+"sh": "Cylinder",
+"s": [
+4,
+3.2,
+3.2
+],
+"n": "HayBale"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+80,
+4.7,
+-146,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "LeafyGrass",
+"sh": "Block",
+"s": [
+92,
+1.4,
+2.2
+],
+"n": "Cabbages"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+18,
+5.6,
+-198,
+37
+],
+"c": "Part",
+"r": [
+0,
+37,
+0
+],
+"m": "Grass",
+"sh": "Cylinder",
+"s": [
+4,
+3.2,
+3.2
+],
+"n": "HayBale"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-66,
+5.3,
+-140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+2.4,
+2.6,
+112
+],
+"n": "Wheat"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+80,
+4.7,
+-176,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "LeafyGrass",
+"sh": "Block",
+"s": [
+92,
+1.4,
+2.2
+],
+"n": "Cabbages"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-86,
+5.3,
+-140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+2.4,
+2.6,
+112
+],
+"n": "Wheat"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+21,
+5.6,
+-200,
+74
+],
+"c": "Part",
+"r": [
+0,
+74,
+0
+],
+"m": "Grass",
+"sh": "Cylinder",
+"s": [
+4,
+3.2,
+3.2
+],
+"n": "HayBale"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-71,
+5.3,
+-140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+2.4,
+2.6,
+112
+],
+"n": "Wheat"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+80,
+4.7,
+-211,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "LeafyGrass",
+"sh": "Block",
+"s": [
+92,
+1.4,
+2.2
+],
+"n": "Cabbages"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+80,
+4.7,
+-166,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "LeafyGrass",
+"sh": "Block",
+"s": [
+92,
+1.4,
+2.2
+],
+"n": "Cabbages"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+19.5,
+7.2,
+-199,
+-138
+],
+"c": "Part",
+"r": [
+0,
+-138,
+0
+],
+"m": "Grass",
+"sh": "Cylinder",
+"s": [
+4,
+3.2,
+3.2
+],
+"n": "HayBale"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-111,
+5.3,
+-140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+2.4,
+2.6,
+112
+],
+"n": "Wheat"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-156,
+5.3,
+-140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+2.4,
+2.6,
+112
+],
+"n": "Wheat"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+80,
+4.7,
+-161,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "LeafyGrass",
+"sh": "Block",
+"s": [
+92,
+1.4,
+2.2
+],
+"n": "Cabbages"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-96,
+5.3,
+-140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+2.4,
+2.6,
+112
+],
+"n": "Wheat"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-91,
+5.3,
+-140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+2.4,
+2.6,
+112
+],
+"n": "Wheat"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-121,
+5.3,
+-140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+2.4,
+2.6,
+112
+],
+"n": "Wheat"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+80,
+4.7,
+-191,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "LeafyGrass",
+"sh": "Block",
+"s": [
+92,
+1.4,
+2.2
+],
+"n": "Cabbages"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-106,
+5.3,
+-140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+2.4,
+2.6,
+112
+],
+"n": "Wheat"
+},
+"parent": "Farm"
+},
+{
+"part": {
+"p": [
+-116,
+5.3,
+-140,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Grass",
+"sh": "Block",
+"s": [
+2.4,
+2.6,
+112
+],
+"n": "Wheat"
+},
+"parent": "Farm"
+}
+]
+},
+{
+"name": "Lamps",
+"children": [
+{
+"part": {
+"p": [
+135,
+13.8,
+-6.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Glass",
+"sh": "Block",
+"s": [
+1.1,
+1.5,
+1.1
+],
+"n": "Lantern"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-90,
+13.8,
+6.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Glass",
+"sh": "Block",
+"s": [
+1.1,
+1.5,
+1.1
+],
+"n": "Lantern"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-225,
+13.8,
+-6.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Glass",
+"sh": "Block",
+"s": [
+1.1,
+1.5,
+1.1
+],
+"n": "Lantern"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-225,
+14.6,
+-7.4,
+180
+],
+"c": "Part",
+"r": [
+0,
+180,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.3,
+0.3,
+2.2
+],
+"n": "LampArm"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-225,
+9.5,
+-8.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+11,
+0.6
+],
+"n": "LampPost"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-135,
+9.5,
+-8.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+11,
+0.6
+],
+"n": "LampPost"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-8.4,
+14.6,
+145,
+-90
+],
+"c": "Part",
+"r": [
+0,
+-90,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.3,
+0.3,
+2.2
+],
+"n": "LampArm"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-180,
+13.8,
+6.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Glass",
+"sh": "Block",
+"s": [
+1.1,
+1.5,
+1.1
+],
+"n": "Lantern"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-180,
+14.6,
+7.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.3,
+0.3,
+2.2
+],
+"n": "LampArm"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-7.4,
+13.8,
+85,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Glass",
+"sh": "Block",
+"s": [
+1.1,
+1.5,
+1.1
+],
+"n": "Lantern"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-180,
+9.5,
+8.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+11,
+0.6
+],
+"n": "LampPost"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-9.5,
+9.5,
+145,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+11,
+0.6
+],
+"n": "LampPost"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+225,
+14.7,
+-7.4,
+180
+],
+"c": "Part",
+"r": [
+0,
+180,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.3,
+0.3,
+2.2
+],
+"n": "LampArm"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-90,
+9.5,
+8.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+11,
+0.6
+],
+"n": "LampPost"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-135,
+13.8,
+-6.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Glass",
+"sh": "Block",
+"s": [
+1.1,
+1.5,
+1.1
+],
+"n": "Lantern"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-135,
+14.6,
+-7.4,
+180
+],
+"c": "Part",
+"r": [
+0,
+180,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.3,
+0.3,
+2.2
+],
+"n": "LampArm"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+225,
+9.6,
+-8.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+11,
+0.6
+],
+"n": "LampPost"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-45,
+9.5,
+-8.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+11,
+0.6
+],
+"n": "LampPost"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+180,
+13.8,
+6.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Glass",
+"sh": "Block",
+"s": [
+1.1,
+1.5,
+1.1
+],
+"n": "Lantern"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+45,
+9.5,
+-8.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+11,
+0.6
+],
+"n": "LampPost"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-8.4,
+14.6,
+50,
+-90
+],
+"c": "Part",
+"r": [
+0,
+-90,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.3,
+0.3,
+2.2
+],
+"n": "LampArm"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-9.5,
+9.5,
+50,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+11,
+0.6
+],
+"n": "LampPost"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-7.4,
+9.4,
+325,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Glass",
+"sh": "Block",
+"s": [
+1.1,
+1.5,
+1.1
+],
+"n": "Lantern"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-45,
+13.8,
+-6.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Glass",
+"sh": "Block",
+"s": [
+1.1,
+1.5,
+1.1
+],
+"n": "Lantern"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+225,
+13.9,
+-6.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Glass",
+"sh": "Block",
+"s": [
+1.1,
+1.5,
+1.1
+],
+"n": "Lantern"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-8.4,
+10.2,
+325,
+-90
+],
+"c": "Part",
+"r": [
+0,
+-90,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.3,
+0.3,
+2.2
+],
+"n": "LampArm"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-9.5,
+5.1,
+325,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+11,
+0.6
+],
+"n": "LampPost"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-45,
+14.6,
+-7.4,
+180
+],
+"c": "Part",
+"r": [
+0,
+180,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.3,
+0.3,
+2.2
+],
+"n": "LampArm"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+7.4,
+13.9,
+280,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Glass",
+"sh": "Block",
+"s": [
+1.1,
+1.5,
+1.1
+],
+"n": "Lantern"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+8.4,
+14.7,
+190,
+90
+],
+"c": "Part",
+"r": [
+0,
+90,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.3,
+0.3,
+2.2
+],
+"n": "LampArm"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+45,
+13.8,
+-6.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Glass",
+"sh": "Block",
+"s": [
+1.1,
+1.5,
+1.1
+],
+"n": "Lantern"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+7.4,
+13.9,
+190,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Glass",
+"sh": "Block",
+"s": [
+1.1,
+1.5,
+1.1
+],
+"n": "Lantern"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+90,
+9.5,
+8.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+11,
+0.6
+],
+"n": "LampPost"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+9.5,
+9.6,
+280,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+11,
+0.6
+],
+"n": "LampPost"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+8.4,
+14.7,
+280,
+90
+],
+"c": "Part",
+"r": [
+0,
+90,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.3,
+0.3,
+2.2
+],
+"n": "LampArm"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+9.5,
+9.6,
+190,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+11,
+0.6
+],
+"n": "LampPost"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-9.5,
+9.5,
+85,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+11,
+0.6
+],
+"n": "LampPost"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+45,
+14.6,
+-7.4,
+180
+],
+"c": "Part",
+"r": [
+0,
+180,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.3,
+0.3,
+2.2
+],
+"n": "LampArm"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+135,
+14.6,
+-7.4,
+180
+],
+"c": "Part",
+"r": [
+0,
+180,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.3,
+0.3,
+2.2
+],
+"n": "LampArm"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-8.4,
+14.6,
+85,
+-90
+],
+"c": "Part",
+"r": [
+0,
+-90,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.3,
+0.3,
+2.2
+],
+"n": "LampArm"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-7.4,
+13.8,
+50,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Glass",
+"sh": "Block",
+"s": [
+1.1,
+1.5,
+1.1
+],
+"n": "Lantern"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-7.4,
+13.9,
+235,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Glass",
+"sh": "Block",
+"s": [
+1.1,
+1.5,
+1.1
+],
+"n": "Lantern"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+135,
+9.5,
+-8.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+11,
+0.6
+],
+"n": "LampPost"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-7.4,
+13.8,
+145,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Glass",
+"sh": "Block",
+"s": [
+1.1,
+1.5,
+1.1
+],
+"n": "Lantern"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-8.4,
+14.7,
+235,
+-90
+],
+"c": "Part",
+"r": [
+0,
+-90,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.3,
+0.3,
+2.2
+],
+"n": "LampArm"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+90,
+13.8,
+6.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Glass",
+"sh": "Block",
+"s": [
+1.1,
+1.5,
+1.1
+],
+"n": "Lantern"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+90,
+14.6,
+7.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.3,
+0.3,
+2.2
+],
+"n": "LampArm"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+180,
+14.6,
+7.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.3,
+0.3,
+2.2
+],
+"n": "LampArm"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-9.5,
+9.6,
+235,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+11,
+0.6
+],
+"n": "LampPost"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+180,
+9.5,
+8.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.6,
+11,
+0.6
+],
+"n": "LampPost"
+},
+"parent": "Lamps"
+},
+{
+"part": {
+"p": [
+-90,
+14.6,
+7.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Metal",
+"sh": "Block",
+"s": [
+0.3,
+0.3,
+2.2
+],
+"n": "LampArm"
+},
+"parent": "Lamps"
+}
+]
+},
+{
+"name": "Bridge",
+"children": [
+{
+"part": {
+"p": [
+-6.5,
+4.8,
+106.1,
+0
+],
+"c": "Part",
+"r": [
+-9.3,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.4,
+1.6,
+3.8
+],
+"n": "ArchStone"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+-7.6,
+6.1,
+95,
+-180
+],
+"c": "Part",
+"r": [
+26.6,
+-180,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.2,
+2.4,
+6.7
+],
+"n": "Parapet"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+0,
+6.5,
+110,
+180
+],
+"c": "Part",
+"r": [
+0,
+180,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+14,
+1.2,
+24
+],
+"n": "Deck"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+0,
+5.1,
+94,
+-180
+],
+"c": "Part",
+"r": [
+18.6,
+-180,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+14,
+1.2,
+8.4
+],
+"n": "Ramp"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+-6.5,
+0.9,
+121.2,
+0
+],
+"c": "Part",
+"r": [
+68.7,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.4,
+1.6,
+1.9
+],
+"n": "ArchStone"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+6.5,
+2.6,
+100.2,
+0
+],
+"c": "Part",
+"r": [
+-38.1,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.4,
+1.6,
+2.5
+],
+"n": "ArchStone"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+-7.6,
+6.1,
+125,
+-180
+],
+"c": "Part",
+"r": [
+-26.6,
+-180,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.2,
+2.4,
+6.7
+],
+"n": "Parapet"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+-6.5,
+3.9,
+117.3,
+0
+],
+"c": "Part",
+"r": [
+20.8,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.4,
+1.6,
+3.3
+],
+"n": "ArchStone"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+-7.6,
+7.6,
+110,
+180
+],
+"c": "Part",
+"r": [
+0,
+180,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.2,
+2.4,
+24
+],
+"n": "Parapet"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+6.5,
+4.8,
+113.9,
+0
+],
+"c": "Part",
+"r": [
+9.3,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.4,
+1.6,
+3.8
+],
+"n": "ArchStone"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+6.5,
+4.8,
+106.1,
+0
+],
+"c": "Part",
+"r": [
+-9.3,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.4,
+1.6,
+3.8
+],
+"n": "ArchStone"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+6.5,
+5.1,
+110,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.4,
+1.6,
+4
+],
+"n": "ArchStone"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+-6.5,
+2.6,
+100.2,
+0
+],
+"c": "Part",
+"r": [
+-38.1,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.4,
+1.6,
+2.5
+],
+"n": "ArchStone"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+6.5,
+3.9,
+102.7,
+0
+],
+"c": "Part",
+"r": [
+-20.8,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.4,
+1.6,
+3.3
+],
+"n": "ArchStone"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+7.6,
+6.1,
+95,
+-180
+],
+"c": "Part",
+"r": [
+26.6,
+-180,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.2,
+2.4,
+6.7
+],
+"n": "Parapet"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+6.5,
+3.9,
+117.3,
+0
+],
+"c": "Part",
+"r": [
+20.8,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.4,
+1.6,
+3.3
+],
+"n": "ArchStone"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+-6.5,
+0.9,
+98.8,
+0
+],
+"c": "Part",
+"r": [
+-68.7,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.4,
+1.6,
+1.9
+],
+"n": "ArchStone"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+-6.5,
+4.8,
+113.9,
+0
+],
+"c": "Part",
+"r": [
+9.3,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.4,
+1.6,
+3.8
+],
+"n": "ArchStone"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+-6.5,
+2.6,
+119.8,
+0
+],
+"c": "Part",
+"r": [
+38.1,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.4,
+1.6,
+2.5
+],
+"n": "ArchStone"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+6.5,
+0.9,
+121.2,
+0
+],
+"c": "Part",
+"r": [
+68.7,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.4,
+1.6,
+1.9
+],
+"n": "ArchStone"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+6.5,
+2.6,
+119.8,
+0
+],
+"c": "Part",
+"r": [
+38.1,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.4,
+1.6,
+2.5
+],
+"n": "ArchStone"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+0,
+2.8,
+97.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+14,
+6.5,
+3
+],
+"n": "Pier"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+7.6,
+6.1,
+125,
+-180
+],
+"c": "Part",
+"r": [
+-26.6,
+-180,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.2,
+2.4,
+6.7
+],
+"n": "Parapet"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+7.6,
+7.6,
+110,
+180
+],
+"c": "Part",
+"r": [
+0,
+180,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.2,
+2.4,
+24
+],
+"n": "Parapet"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+0,
+2.8,
+122.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+14,
+6.5,
+3
+],
+"n": "Pier"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+-6.5,
+5.1,
+110,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.4,
+1.6,
+4
+],
+"n": "ArchStone"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+-6.5,
+3.9,
+102.7,
+0
+],
+"c": "Part",
+"r": [
+-20.8,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.4,
+1.6,
+3.3
+],
+"n": "ArchStone"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+6.5,
+0.9,
+98.8,
+0
+],
+"c": "Part",
+"r": [
+-68.7,
+0,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+1.4,
+1.6,
+1.9
+],
+"n": "ArchStone"
+},
+"parent": "Bridge"
+},
+{
+"part": {
+"p": [
+0,
+5.1,
+126,
+-180
+],
+"c": "Part",
+"r": [
+-18.6,
+-180,
+0
+],
+"m": "Cobblestone",
+"sh": "Block",
+"s": [
+14,
+1.2,
+8.4
+],
+"n": "Ramp"
+},
+"parent": "Bridge"
+}
+]
+},
+{
+"name": "StyleTrainers",
+"children": [
+{
+"part": {
+"p": [
+-27,
+7,
+-12,
+-114
+],
+"c": "Part",
+"r": [
+0,
+-114,
+0
+],
+"m": "Plastic",
+"sh": "Block",
+"s": [
+2,
+2,
+1
+],
+"n": "Torso"
+},
+"parent": "Coach Harlan"
+},
+{
+"part": {
+"p": [
+-27.2,
+5,
+-11.5,
+-114
+],
+"c": "Part",
+"r": [
+0,
+-114,
+0
+],
+"m": "Plastic",
+"sh": "Block",
+"s": [
+1,
+2,
+1
+],
+"n": "Right Leg"
+},
+"parent": "Coach Harlan"
+},
+{
+"part": {
+"p": [
+-27.6,
+7,
+-10.6,
+-114
+],
+"c": "Part",
+"r": [
+0,
+-114,
+0
+],
+"m": "Plastic",
+"sh": "Block",
+"s": [
+1,
+2,
+1
+],
+"n": "Right Arm"
+},
+"parent": "Coach Harlan"
+},
+{
+"part": {
+"p": [
+-26.4,
+7,
+-13.4,
+-114
+],
+"c": "Part",
+"r": [
+0,
+-114,
+0
+],
+"m": "Plastic",
+"sh": "Block",
+"s": [
+1,
+2,
+1
+],
+"n": "Left Arm"
+},
+"parent": "Coach Harlan"
+},
+{
+"part": {
+"p": [
+-27,
+8.5,
+-12,
+-114
+],
+"c": "Part",
+"r": [
+0,
+-114,
+0
+],
+"m": "Plastic",
+"sh": "Block",
+"s": [
+2,
+1,
+1
+],
+"n": "Head"
+},
+"parent": "Coach Harlan"
+},
+{
+"part": {
+"p": [
+-27,
+7,
+-12,
+-114
+],
+"c": "Part",
+"r": [
+0,
+-114,
+0
+],
+"m": "Plastic",
+"sh": "Block",
+"s": [
+2,
+2,
+1
+],
+"n": "HumanoidRootPart"
+},
+"parent": "Coach Harlan"
+},
+{
+"part": {
+"p": [
+-26.8,
+5,
+-12.5,
+-114
+],
+"c": "Part",
+"r": [
+0,
+-114,
+0
+],
+"m": "Plastic",
+"sh": "Block",
+"s": [
+1,
+2,
+1
+],
+"n": "Left Leg"
+},
+"parent": "Coach Harlan"
+},
+{
+"part": {
+"p": [
+-16,
+8.2,
+-186,
+180
+],
+"c": "Part",
+"r": [
+0,
+180,
+0
+],
+"m": "Plastic",
+"sh": "Block",
+"s": [
+2,
+2,
+1
+],
+"n": "HumanoidRootPart"
+},
+"parent": "Master Thura"
+},
+{
+"part": {
+"p": [
+-16,
+8.2,
+-186,
+180
+],
+"c": "Part",
+"r": [
+0,
+180,
+0
+],
+"m": "Plastic",
+"sh": "Block",
+"s": [
+2,
+2,
+1
+],
+"n": "Torso"
+},
+"parent": "Master Thura"
+},
+{
+"part": {
+"p": [
+-16,
+9.7,
+-186,
+180
+],
+"c": "Part",
+"r": [
+0,
+180,
+0
+],
+"m": "Plastic",
+"sh": "Block",
+"s": [
+2,
+1,
+1
+],
+"n": "Head"
+},
+"parent": "Master Thura"
+},
+{
+"part": {
+"p": [
+-14.5,
+8.2,
+-186,
+180
+],
+"c": "Part",
+"r": [
+0,
+180,
+0
+],
+"m": "Plastic",
+"sh": "Block",
+"s": [
+1,
+2,
+1
+],
+"n": "Left Arm"
+},
+"parent": "Master Thura"
+},
+{
+"part": {
+"p": [
+-15.5,
+6.2,
+-186,
+180
+],
+"c": "Part",
+"r": [
+0,
+180,
+0
+],
+"m": "Plastic",
+"sh": "Block",
+"s": [
+1,
+2,
+1
+],
+"n": "Left Leg"
+},
+"parent": "Master Thura"
+},
+{
+"part": {
+"p": [
+-17.5,
+8.2,
+-186,
+180
+],
+"c": "Part",
+"r": [
+0,
+180,
+0
+],
+"m": "Plastic",
+"sh": "Block",
+"s": [
+1,
+2,
+1
+],
+"n": "Right Arm"
+},
+"parent": "Master Thura"
+},
+{
+"part": {
+"p": [
+-16.5,
+6.2,
+-186,
+180
+],
+"c": "Part",
+"r": [
+0,
+180,
+0
+],
+"m": "Plastic",
+"sh": "Block",
+"s": [
+1,
+2,
+1
+],
+"n": "Right Leg"
+},
+"parent": "Master Thura"
+}
+]
+},
+{
+"name": "Camp",
+"children": [
+{
+"part": {
+"p": [
+213.8,
+7,
+-221.8,
+-67.1
+],
+"c": "WedgePart",
+"r": [
+0,
+-67.1,
+0
+],
+"m": "Fabric",
+"s": [
+10,
+6,
+4
+],
+"n": "Tent"
+},
+"parent": "Camp"
+},
+{
+"part": {
+"p": [
+210.2,
+7,
+-220.2,
+112.9
+],
+"c": "WedgePart",
+"r": [
+0,
+112.9,
+0
+],
+"m": "Fabric",
+"s": [
+10,
+6,
+4
+],
+"n": "Tent"
+},
+"parent": "Camp"
+},
+{
+"part": {
+"p": [
+222,
+4.8,
+-224,
+80.2
+],
+"c": "Part",
+"r": [
+0,
+80.2,
+0
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+6,
+1.6,
+1.6
+],
+"n": "LogSeat"
+},
+"parent": "Camp"
+},
+{
+"part": {
+"p": [
+207,
+5.5,
+-232,
+171.9
+],
+"c": "Part",
+"r": [
+0,
+171.9,
+0
+],
+"m": "WoodPlanks",
+"sh": "Block",
+"s": [
+3,
+3,
+3
+],
+"n": "Crate"
+},
+"parent": "Camp"
+},
+{
+"part": {
+"p": [
+237.5,
+8.5,
+-228.5,
+114.6
+],
+"c": "Part",
+"r": [
+0,
+114.6,
+0
+],
+"m": "WoodPlanks",
+"sh": "Block",
+"s": [
+3,
+3,
+3
+],
+"n": "Crate"
+},
+"parent": "Camp"
+},
+{
+"part": {
+"p": [
+236,
+5.5,
+-231,
+57.3
+],
+"c": "Part",
+"r": [
+0,
+57.3,
+0
+],
+"m": "WoodPlanks",
+"sh": "Block",
+"s": [
+3,
+3,
+3
+],
+"n": "Crate"
+},
+"parent": "Camp"
+},
+{
+"part": {
+"p": [
+230,
+4.5,
+-239,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Plastic",
+"sh": "Block",
+"s": [
+4,
+1,
+4
+],
+"n": "BanditSpawn_2"
+},
+"parent": "Camp"
+},
+{
+"part": {
+"p": [
+215,
+4.5,
+-237,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Plastic",
+"sh": "Block",
+"s": [
+4,
+1,
+4
+],
+"n": "BanditSpawn_1"
+},
+"parent": "Camp"
+},
+{
+"part": {
+"p": [
+229.8,
+7,
+-218.6,
+38.4
+],
+"c": "WedgePart",
+"r": [
+0,
+38.4,
+0
+],
+"m": "Fabric",
+"s": [
+10,
+6,
+4
+],
+"n": "Tent"
+},
+"parent": "Camp"
+},
+{
+"part": {
+"p": [
+222,
+4.5,
+-229,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+90
+],
+"m": "Cobblestone",
+"sh": "Cylinder",
+"s": [
+1,
+5,
+5
+],
+"n": "FirePit"
+},
+"parent": "Camp"
+},
+{
+"part": {
+"p": [
+232.2,
+7,
+-215.4,
+-141.6
+],
+"c": "WedgePart",
+"r": [
+0,
+-141.6,
+0
+],
+"m": "Fabric",
+"s": [
+10,
+6,
+4
+],
+"n": "Tent"
+},
+"parent": "Camp"
+},
+{
+"part": {
+"p": [
+218,
+4.8,
+-234,
+17.2
+],
+"c": "Part",
+"r": [
+0,
+17.2,
+0
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+6,
+1.6,
+1.6
+],
+"n": "LogSeat"
+},
+"parent": "Camp"
+},
+{
+"part": {
+"p": [
+222,
+5.1,
+-229,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Neon",
+"sh": "Block",
+"s": [
+1.6,
+0.4,
+1.6
+],
+"n": "Embers"
+},
+"parent": "Camp"
+},
+{
+"part": {
+"p": [
+227,
+4.8,
+-233,
+-34.4
+],
+"c": "Part",
+"r": [
+0,
+-34.4,
+0
+],
+"m": "Wood",
+"sh": "Cylinder",
+"s": [
+6,
+1.6,
+1.6
+],
+"n": "LogSeat"
+},
+"parent": "Camp"
+}
+]
+},
+{
+"name": "Gorge",
+"children": [
+{
+"part": {
+"p": [
+194.5,
+6.8,
+136,
+180
+],
+"c": "WedgePart",
+"r": [
+0,
+180,
+0
+],
+"m": "Rock",
+"s": [
+17,
+5.5,
+20
+],
+"n": "WestRamp"
+},
+"parent": "Gorge"
+},
+{
+"part": {
+"p": [
+272,
+10.6,
+132,
+-180
+],
+"c": "Part",
+"r": [
+0,
+-180,
+0
+],
+"m": "WoodPlanks",
+"sh": "Block",
+"s": [
+7,
+0.4,
+1.8
+],
+"n": "BenchSeat"
+},
+"parent": "Gorge"
+},
+{
+"part": {
+"p": [
+255.8,
+4.8,
+107.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Rock",
+"sh": "Block",
+"s": [
+12.5,
+9.5,
+19
+],
+"n": "EastShelf"
+},
+"parent": "Gorge"
+},
+{
+"part": {
+"p": [
+226.5,
+9,
+106.3,
+180
+],
+"c": "Part",
+"r": [
+0,
+180,
+0
+],
+"m": "Slate",
+"sh": "Block",
+"s": [
+46,
+1,
+1.4
+],
+"n": "GorgeLedge"
+},
+"parent": "Gorge"
+},
+{
+"part": {
+"p": [
+226.5,
+11,
+112,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Rock",
+"sh": "Block",
+"s": [
+47,
+22,
+10
+],
+"n": "Cliff"
+},
+"parent": "Gorge"
+},
+{
+"part": {
+"p": [
+194.5,
+4.8,
+113.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Rock",
+"sh": "Block",
+"s": [
+17,
+9.5,
+25
+],
+"n": "WestShelf"
+},
+"parent": "Gorge"
+},
+{
+"part": {
+"p": [
+272,
+11.8,
+131.2,
+-180
+],
+"c": "Part",
+"r": [
+0,
+-180,
+0
+],
+"m": "WoodPlanks",
+"sh": "Block",
+"s": [
+7,
+1.6,
+0.3
+],
+"n": "BenchBack"
+},
+"parent": "Gorge"
+}
+]
+},
+{
+"name": "LindenmoorRun",
+"children": [
+{
+"part": {
+"p": [
+60,
+2,
+122.4,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Neon",
+"sh": "Block",
+"s": [
+10,
+4,
+10
+],
+"n": "CP4"
+},
+"parent": "LindenmoorRun"
+},
+{
+"part": {
+"p": [
+16,
+4.3,
+136,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "SmoothPlastic",
+"sh": "Block",
+"s": [
+6,
+0.4,
+6
+],
+"n": "Start"
+},
+"parent": "LindenmoorRun"
+},
+{
+"part": {
+"p": [
+0,
+8.5,
+110,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Neon",
+"sh": "Block",
+"s": [
+12,
+4,
+8
+],
+"n": "CP5"
+},
+"parent": "LindenmoorRun"
+},
+{
+"part": {
+"p": [
+194.5,
+11.5,
+120,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Neon",
+"sh": "Block",
+"s": [
+8,
+4,
+8
+],
+"n": "CP1"
+},
+"parent": "LindenmoorRun"
+},
+{
+"part": {
+"p": [
+272,
+10.9,
+128,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Neon",
+"sh": "Block",
+"s": [
+8,
+4,
+8
+],
+"n": "CP3"
+},
+"parent": "LindenmoorRun"
+},
+{
+"part": {
+"p": [
+226.5,
+11.5,
+106.3,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Neon",
+"sh": "Block",
+"s": [
+3,
+4,
+1.6
+],
+"n": "CP2"
+},
+"parent": "LindenmoorRun"
+}
+]
+},
+{
+"name": "HubRoad",
+"children": [
+{
+"part": {
+"p": [
+0,
+-4,
+447,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Ground",
+"sh": "Block",
+"s": [
+12,
+0.1,
+186
+],
+"n": "HubRoad"
+},
+"parent": "HubRoad"
+},
+{
+"part": {
+"p": [
+13,
+8.4,
+300,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "Wood",
+"sh": "Block",
+"s": [
+0.7,
+9,
+0.7
+],
+"n": "SignPost"
+},
+"parent": "HubRoad"
+},
+{
+"part": {
+"p": [
+13,
+11.1,
+300,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "WoodPlanks",
+"sh": "Block",
+"s": [
+8,
+2.4,
+0.4
+],
+"n": "SignBoard"
+},
+"parent": "HubRoad"
+}
+]
+},
+{
+"name": "Areas",
+"children": [
+{
+"part": {
+"p": [
+243,
+36,
+133,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "SmoothPlastic",
+"sh": "Block",
+"s": [
+114,
+90,
+74
+],
+"n": "Gorge LookoutArea"
+},
+"parent": "Areas"
+},
+{
+"part": {
+"p": [
+2.5,
+36,
+41.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "SmoothPlastic",
+"sh": "Block",
+"s": [
+475,
+90,
+107
+],
+"n": "LindenmoorArea"
+},
+"parent": "Areas"
+},
+{
+"part": {
+"p": [
+-47.5,
+36,
+-43.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "SmoothPlastic",
+"sh": "Block",
+"s": [
+375,
+90,
+63
+],
+"n": "LindenmoorArea"
+},
+"parent": "Areas"
+},
+{
+"part": {
+"p": [
+200,
+36,
+-81,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "SmoothPlastic",
+"sh": "Block",
+"s": [
+120,
+90,
+138
+],
+"n": "Workshop HillArea"
+},
+"parent": "Areas"
+},
+{
+"part": {
+"p": [
+0,
+36,
+115,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "SmoothPlastic",
+"sh": "Block",
+"s": [
+60,
+90,
+40
+],
+"n": "Mill Creek BridgeArea"
+},
+"parent": "Areas"
+},
+{
+"part": {
+"p": [
+0,
+36,
+-294,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "SmoothPlastic",
+"sh": "Block",
+"s": [
+664,
+90,
+72
+],
+"n": "Cypress RidgeArea"
+},
+"parent": "Areas"
+},
+{
+"part": {
+"p": [
+-267.5,
+36,
+0,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "SmoothPlastic",
+"sh": "Block",
+"s": [
+65,
+90,
+120
+],
+"n": "Lindenmoor StationArea"
+},
+"parent": "Areas"
+},
+{
+"part": {
+"p": [
+226,
+36,
+-226.5,
+0
+],
+"c": "Part",
+"r": [
+0,
+0,
+0
+],
+"m": "SmoothPlastic",
+"sh": "Block",
+"s": [
+72,
+90,
+63
+],
+"n": "Bramble HollowArea"
+},
+"parent": "Areas"
+}
+]
+}
+]

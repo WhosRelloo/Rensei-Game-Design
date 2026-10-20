@@ -1,0 +1,16 @@
+{
+ "models": 484,
+ "parts": 7517,
+ "groups": {
+  "Houses": 9,
+  "Trees": 158,
+  "Forest": 69,
+  "Ridge": 28,
+  "CreekBanks": 118,
+  "Edging": 77,
+  "Square": 1,
+  "Lamps": 17,
+  "Farm": 1,
+  "Camp": 6
+ }
+}
