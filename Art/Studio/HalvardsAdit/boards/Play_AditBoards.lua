@@ -128,6 +128,69 @@ return {
 		PartyService.Get, PZ.SetState = RealGet, RealSet
 		if not Ok then error(Err, 0) end
 	end,
+	-- review fix 1 (2026-10-20): the diagonal loose planks left an R6-sized gap low on the left (z -664..-660).
+	-- A Blocker covers the frame's inner opening: off on the server, and PuzzleClient's Draw.Breakable turns it on
+	-- while Whole. The client's collision can't be read from here, so Draw.Breakable (PuzzleClient.Draw) runs on an
+	-- untagged copy of the model, and an R6 box (4 x 5 x 4) is probed against the copy's COLLIDING parts.
+	H_TheBlockerIsOffOnTheServer = function(T)
+		local Blocker = Boards:FindFirstChild("Blocker")
+		T.True(Blocker ~= nil and Blocker:IsA("BasePart"), "BoardedMouth.Blocker exists")
+		T.Eq(Blocker.CanCollide, false, "server: no collision (the client decides)")
+		T.Eq(Blocker.Transparency, 1, "invisible")
+		T.Eq(Blocker.CanQuery, false, "rays and projectiles pass it")
+		T.True(Blocker.Anchored, "anchored")
+	end,
+	I_WholeClosesTheOpeningAndBrokenClearsIt = function(T)
+		local Draw = require(game.ReplicatedStorage.Modules.UI.PuzzleClient:Clone()).Draw
+		T.True(type(Draw) == "table" and type(Draw.Breakable) == "function", "PuzzleClient.Draw.Breakable")
+		local CS = game:GetService("CollectionService")
+		local Copy = Boards:Clone()
+		for _, Tag in ipairs(CS:GetTags(Copy)) do CS:RemoveTag(Copy, Tag) end
+		for _, D in ipairs(Copy:GetDescendants()) do
+			for _, Tag in ipairs(CS:GetTags(D)) do CS:RemoveTag(D, Tag) end
+			if D:IsA("ProximityPrompt") then D:Destroy() end
+		end
+		Copy.Name = "BoardedMouth_TestCopy"
+		-- the Blocker is CanQuery off (server rays and projectiles must never stop on it): queryable on the copy only,
+		-- so the probe sees it; collision is left to Draw.Breakable
+		for _, D in ipairs(Copy:GetDescendants()) do if D:IsA("BasePart") then D.CanQuery = true end end
+		Copy.Parent = workspace
+		local Op = OverlapParams.new()
+		Op.FilterType = Enum.RaycastFilterType.Include
+		Op.FilterDescendantsInstances = {Copy}
+		local Probe = Instance.new("Part")
+		Probe.Anchored = true
+		Probe.Size = Vector3.new(4, 5, 4)
+		local function Colliding(Z, Y)
+			Probe.CFrame = CFrame.new(299.5, Y, Z)
+			local N = 0
+			for _, Hit in ipairs(workspace:GetPartsInPart(Probe, Op)) do
+				if Hit.CanCollide then N += 1 end
+			end
+			return N
+		end
+		local Spots = {{-661.5, 11.6}, {-662.5, 11.6}, {-660, 11.6}, {-657, 11.6}, {-663, 12}}
+		local Ok, Err = pcall(function()
+			Draw.Breakable(Copy, "Whole", false)
+			for _, S in ipairs(Spots) do
+				T.True(Colliding(S[1], S[2]) > 0, ("Whole: an R6 box at z=%.1f y=%.1f is blocked"):format(S[1], S[2]))
+			end
+			Draw.Breakable(Copy, "Broken", false)
+			for _, S in ipairs(Spots) do
+				T.Eq(Colliding(S[1], S[2]), 0, ("Broken: z=%.1f y=%.1f is clear"):format(S[1], S[2]))
+			end
+			T.Eq(Copy.Blocker.CanCollide, false, "Broken: the Blocker is off")
+		end)
+		Probe:Destroy()
+		Copy:Destroy()
+		if not Ok then error(Err, 0) end
+	end,
+	J_TheInspectTextMatches = function(T)
+		local Inv = require(game.ReplicatedStorage.Modules.Data.Rensei.Investigation)
+		local Text = Inv.Inspects.adit_mouth.Text
+		T.True(not Text:find("slip through", 1, true), "no longer says you can slip through")
+		T.True(Text:find("a few good hits", 1, true) ~= nil, "says hitting it works")
+	end,
 	G_TheBoardsAreAMechanismOnTheModel = function(T)
 		local CS = game:GetService("CollectionService")
 		T.True(CS:HasTag(Boards, "RenseiMechanism"), "tagged RenseiMechanism")

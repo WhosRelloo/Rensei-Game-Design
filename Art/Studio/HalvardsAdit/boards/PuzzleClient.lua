@@ -11,7 +11,9 @@
 --   Water:     (instance attribute Draw = "Water") a water part that turns to ice while Frozen; Murk
 --              particles stop. Draw on an instance overrides its mechanism's Kind.
 --   Breakable: (Halvard's Adit boards, 2026-10-20) its parts named *Plank all collide while Whole, so the gap
---              is closed (locally, per player, like the cracked wall). Broken hides them; a LIVE break (a State
+--              is closed (locally, per player, like the cracked wall), and so does a part named "Blocker" (the
+--              frame's inner opening, invisible and non-colliding on the server; the loose planks hang at an angle
+--              and left a gap). Broken hides the planks and drops the Blocker; a LIVE break (a State
 --              message) also throws loose plank pieces with physics, a dust burst and the model's BreakSound
 --              attribute if it has one. A player who joins already Broken just sees the opening. Each hit before
 --              the break ("Cracked") puffs splinters at the nearest plank (+ the CrackSound attribute, if set).
@@ -242,6 +244,8 @@ function Draw.Breakable(Inst, State, Live)
 		P.CanCollide = not Broken -- Whole: every plank blocks, the loose ones too
 		P.CanQuery = (not Broken) and Q
 	end
+	local Blocker = Inst:FindFirstChild("Blocker")
+	if Blocker and Blocker:IsA("BasePart") then Blocker.CanCollide = not Broken end -- like the SteamVent Blocker
 	Inst:SetAttribute("DrawnBroken", Broken)
 end
 
@@ -272,6 +276,8 @@ local function ApplyAll()
 	for Id in pairs(Content.Mechanisms) do Apply(Id) end
 	for _, Door in ipairs(CollectionService:GetTagged("RenseiPuzzleDoor")) do ApplyDoor(Door) end
 end
+
+PuzzleClient.Draw = Draw -- read by ServerStorage.RenseiTests.Play_AditBoards (Draw.Breakable on a copy)
 
 function PuzzleClient.Start()
 	task.spawn(PuzzleClient.Run) -- never hold up the other UI modules while the remote appears
