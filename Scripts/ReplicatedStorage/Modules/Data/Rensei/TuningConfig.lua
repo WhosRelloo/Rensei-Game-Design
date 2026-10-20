@@ -137,18 +137,27 @@ TuningConfig.Block = {
 --     (Holding F still blocks during the cooldown; only the parry window is withheld.)
 --   * a parried attacker loses 10 posture, is parry-stunned 0.7s and pushed back (30 speed, 0.12s);
 --     the parrier pays 5 posture. No facing check: a parry catches hits from any side.
+-- VV: Ultimatum rework (owner-approved 2026-10-19, "make the parrying more like VV ultimatum's"; numbers PROPOSAL):
+--   * window 0.25s (ping allowance kept);
+--   * a parry costs the parrier nothing; the attacker loses 30 posture and staggers 1.0s (ParryFlinch), so
+--     3-4 parries break them -- a parry that empties their posture is a full guard break (Posture.BreakStun);
+--   * a missed TAP is punished: WhiffTime s with no guard and no parry after the window closes (holding F
+--     through the window just keeps blocking), and the parry is locked for Cooldown s after the window
+--     (was 1.3s from the press). Landed parries still chain with no cooldown.
 TuningConfig.Parry = {
-	Window = 0.22,
+	Window = 0.25, -- PROPOSAL (VV parry 2026-10-20): 0.22 -> 0.25
 	ChainBonus = 0.04,
 	PingThreshold = 0.1, -- seconds
 	PingBase = 0.2, PingPerMs = 0.0005, PingClampMs = 300,
-	Cooldown = 1.3,
-	AttackerPostureDamage = 10,
-	AttackerStun = 0.7,
+	Cooldown = 0.9, -- PROPOSAL (VV parry 2026-10-20): counted from the window's end (was 1.3 from the press)
+	WhiffTime = 0.35, -- PROPOSAL (VV parry 2026-10-20): a missed tap leaves you with no guard this long
+	AttackerPostureDamage = 30, -- PROPOSAL (VV parry 2026-10-20): 10 -> 30
+	AttackerStun = 1.0, -- PROPOSAL (VV parry 2026-10-20): 0.7 -> 1.0
 	AttackerPush = 30, AttackerPushTime = 0.12,
-	DefenderPostureCost = 5,
+	DefenderPostureCost = 0, -- PROPOSAL (VV parry 2026-10-20): 5 -> 0, a parry never costs you posture
 }
-TuningConfig.Parry.FailLockout = TuningConfig.Parry.Cooldown -- older name, read by the cooldown HUD / AI
+-- the whole lockout from the press (window + cooldown), read by the cooldown HUD
+TuningConfig.Parry.FailLockout = TuningConfig.Parry.Window + TuningConfig.Parry.Cooldown
 -- Parrying while getting hit (user request 2026-10-14, "like VV and Devil Hunter"): Devil Hunter's
 -- block gate doesn't include hitstun, so a fresh F press during hitstun still opens the parry window
 -- (never while guard-broken, parry-stunned, frozen or knocked). It costs posture up front and always

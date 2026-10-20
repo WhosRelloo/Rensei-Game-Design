@@ -2,6 +2,45 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-20 — Parry like VV: Ultimatum
+
+Owner request: "make the parrying more like VV ultimatum's" (design approved 2026-10-19). Rensei only; all new numbers are PROPOSALS, marked `-- PROPOSAL (VV parry 2026-10-20)` in TuningConfig. Picked up after the 2026-10-19 cloud session hit its limit (task C of A–E).
+
+**What changed**
+
+| Rule | Before | Now |
+|---|---|---|
+| Parry window (tap F) | 0.22 s, wider at high ping | 0.25 s, ping allowance kept |
+| Cost of a landed parry | 5 posture | nothing |
+| What it does to the attacker | 10 posture, 0.7 s stun | 30 posture, 1.0 s stagger (ParryFlinch); 4 parries from full break them |
+| A parry that empties the attacker's posture | — | full guard break: Posture.BreakStun (1.4 s), dazed, `GuardBrokenUntil` set so they can't parry out |
+| Missed tap | parry locked 1.3 s from the press | a 0.35 s whiff with no guard and no parry, and the parry stays locked 0.9 s after the window (1.15 s from the press). Holding F through the window isn't a whiff: the guard is already up |
+| Landed parries | chain, no cooldown | unchanged |
+| Holding F (block) | chip damage, posture drain, guard break at 0 | unchanged |
+| Red (UNBLOCKABLE) attacks | no block, no parry | unchanged: dodge only |
+| Enemies | Elite duelists parry with the Block skill | same skill, so the same rules: their parries cost them nothing and punish you the same way, and their missed taps whiff |
+
+Left out, as agreed: VV's yellow / orange attack colours (the guides disagree on what they mean).
+
+**Code**
+- `Data.Rensei.TuningConfig` — `Parry`: Window 0.25, Cooldown 0.9 (from the window's end), new `WhiffTime` 0.35, AttackerPostureDamage 30, AttackerStun 1.0, DefenderPostureCost 0. `FailLockout` (read by CooldownUI) is now Window + Cooldown.
+- `Skills.Combat.Block` — `ParryReadyAt` = press + window + cooldown. When a window closes without landing and F is already released, `ParryWhiffUntil` is set. A press during a whiff waits it out (server and client), then guards with no parry window.
+- `Managers.DamageManager` — the PerfectParried branch skips the defender's posture cost when it's 0, and a parry that empties the attacker's posture runs the guard-break path (BlockBreak FX, Dazed, no movement) instead of the flinch. The result stays `PerfectParried`, so ProgressionService's Parry training and the parry drill still count it.
+- HitParry (pressing F during hitstun) is unchanged: it still costs 10 posture up front and always starts the cooldown, so it can't escape every combo.
+
+**Tests** (Rensei Play, real F presses through the client's input path; a server test script hit the player the moment the parry window opened):
+- T1 parry: `PerfectParried`, player posture 100 → 100 and HP unchanged, Dummy posture 100 → 70, stagger 0.98 s, cooldown cleared, chain bonus set.
+- T2 chain: three taps 0.5 s apart all landed: Dummy 100 → 70 → 40 → 10, player posture 100 throughout.
+- T3 break: a fourth chained parry took the Dummy 10 → 0, which became a guard break with a 1.38 s stagger.
+- T4 whiff: a tap with nothing incoming closed at 0.27 s and whiffed until 0.62 s. Pressing and holding F again at 0.35 s opened no parry window (cooldown), and the guard came up at 0.72 s. A later held press opened a window, then guarded, with no whiff.
+- T5 enemy: the Elite's Block skill pressed like its AI (`Start(true)`) parried the player's light: player posture 100 → 70, stagger ~1.0 s, Elite posture unchanged. Its missed tap whiffed with the parry locked about 0.8 s more.
+- Not tested: the Elite's own AI choosing to parry during a real fight (it didn't target me in the test), and how the whiff feels with real network latency.
+- No game errors. The test scripts existed only in Play and are gone. The profile wasn't touched: the tests called DamageManager directly, not `RecordHit`, so no Parry training was paid.
+
+**Not done:** the Tutorial was not mirrored (task E).
+
+Backups: `ServerStorage.RenseiBackups["Pre-VVParry_2026-10-20"]` (Block 7215 bytes, DamageManager 20810, TuningConfig 87969, CooldownUI 5920).
+
 ## 2026-10-19 — M1 speed pass
 
 Owner request: "fix some m1 strings being too slow (I want them to be within reasonable timing for their respective class type)". Design and target ranges approved. Rensei only; all new numbers are PROPOSALS, marked `-- PROPOSAL (2026-10-19 M1 pass)` in TuningConfig.

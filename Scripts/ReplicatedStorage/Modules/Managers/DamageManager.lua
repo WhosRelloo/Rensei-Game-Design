@@ -212,14 +212,25 @@ return function(Character,Victim,SkillInfo)
 		-- Riposte (skill tree): the parrier's next hit within 2s is a crit
 		if SkillMods.Get(Victim, "Riposte") > 0 then Victim:SetAttribute("RiposteUntil", workspace:GetServerTimeNow() + 2) end
 		BlockManager.Negate(Character, Tuning.Parry.AttackerPostureDamage)
-		BlockManager.Negate(Victim, Tuning.Parry.DefenderPostureCost)
+		if Tuning.Parry.DefenderPostureCost > 0 then BlockManager.Negate(Victim, Tuning.Parry.DefenderPostureCost) end
 		ResourceManager.Add(Victim, "Meter", Tuning.Meter.OnParry)
 
 		AnimManager.StopAllAnims(Character)
-		AnimManager.Play(Character,"ParryFlinch")
+		-- VV: Ultimatum (2026-10-20): the parry that empties the attacker's posture is a full guard break
+		-- (Posture.BreakStun, dazed, no parrying out of it) instead of the 1s flinch
+		local Broken = not BlockManager.Check(Character)
+		local Stagger = Broken and Tuning.Posture.BreakStun or Tuning.Parry.AttackerStun
+		if Broken then
+			BlockBreakFX.new(Character):Start(Players:GetPlayers())
+			Character:SetAttribute("GuardBrokenUntil", workspace:GetServerTimeNow() + Stagger)
+			AnimManager.Play(Character, "DazedStart", {After = "DazedLoop"})
+			MoverManager.Movement(Character, {JH = 0, WS = 0, D = Stagger})
+		else
+			AnimManager.Play(Character,"ParryFlinch")
+		end
 
-		StateModules["Stun"].new(CharacterState):Start(Tuning.Parry.AttackerStun)
-		Character:SetAttribute("ParryStunnedUntil", workspace:GetServerTimeNow() + Tuning.Parry.AttackerStun)
+		StateModules["Stun"].new(CharacterState):Start(Stagger)
+		Character:SetAttribute("ParryStunnedUntil", workspace:GetServerTimeNow() + Stagger)
 	elseif Counterable and VictimState:HasStatusEffects({StateModules["Parry"]}) then
 		Result = "Parried"
 		local AnimData = nil--not VictimPlayer and Victim.Name == "Parry" and {Stop = "BlockIdle",After = "BlockIdle"}

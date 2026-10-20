@@ -8,6 +8,9 @@
 -- Getting hit doesn't stop a parry (Devil Hunter; Parry.HitParry): a fresh press during hitstun opens
 -- the window at a posture cost and always starts the cooldown. Keep holding and the guard comes up
 -- once the stun ends.
+-- VV: Ultimatum rework (2026-10-20): the cooldown runs from the window's end, and a TAP whose window
+-- caught nothing whiffs: Parry.WhiffTime s with no guard and no parry (ParryWhiffUntil). Holding F through
+-- the window isn't a whiff -- the guard is already up. A press during a whiff waits it out, then guards.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -75,15 +78,21 @@ local function OpenParry(self, Character, HitParry)
 	local Chained = Character:GetAttribute("ParryChained") == true
 	Character:SetAttribute("ParryChained", nil)
 	local Window = ParryWindow(Character, Chained)
-	Character:SetAttribute("ParryReadyAt", Now + Tuning.Parry.Cooldown)
+	Character:SetAttribute("ParryReadyAt", Now + Window + Tuning.Parry.Cooldown)
 	PerfectParry.new(self.Character):Start(Window)
 	task.delay(Window, function()
-		if HitParry and Tuning.Parry.HitParry.AlwaysCooldown then return end
-		if (Character:GetAttribute("ParrySuccessAt") or 0) >= Now then
-			-- landed: no cooldown, and the next window gets the chain bonus
-			Character:SetAttribute("ParryReadyAt", nil)
-			Character:SetAttribute("ParryChained", true)
+		local Landed = (Character:GetAttribute("ParrySuccessAt") or 0) >= Now
+		if not Landed then
+			-- a missed tap whiffs (F already released: no guard to fall back on)
+			if not self:GetState().IsActive and Tuning.Parry.WhiffTime then
+				Character:SetAttribute("ParryWhiffUntil", workspace:GetServerTimeNow() + Tuning.Parry.WhiffTime)
+			end
+			return
 		end
+		if HitParry and Tuning.Parry.HitParry.AlwaysCooldown then return end
+		-- landed: no cooldown, and the next window gets the chain bonus
+		Character:SetAttribute("ParryReadyAt", nil)
+		Character:SetAttribute("ParryChained", true)
 	end)
 end
 
@@ -91,6 +100,13 @@ function Block:OnStartServer(Fresh)
 	local Character = self.Character.Instance
 	local Humanoid = Character.Humanoid
 	Fresh = Fresh == true
+
+	-- a whiffed parry: no guard and no parry until it ends; still holding, the guard comes up then
+	if (Character:GetAttribute("ParryWhiffUntil") or 0) > workspace:GetServerTimeNow() then
+		while self:GetState().IsActive and (Character:GetAttribute("ParryWhiffUntil") or 0) > workspace:GetServerTimeNow() do task.wait() end
+		if not self:GetState().IsActive then return end
+		Fresh = false
+	end
 
 	if self.Character:HasStatusEffects({Stun}) then
 		-- getting hit: a fresh press can still parry; holding on, the guard comes up after the stun
@@ -125,8 +141,10 @@ end
 function Block:OnStartClient()
 	local Character = self.Character
 	local Humanoid = Character.Humanoid
-	-- a hit-parry keeps the hit reaction; the guard pose comes once the stun is over (if still held)
-	while self:GetState().IsActive and self.Character:HasStatusEffects({Stun}) do task.wait() end
+	-- a hit-parry keeps the hit reaction; the guard pose comes once the stun is over (if still held).
+	-- A whiffed parry (ParryWhiffUntil) holds the guard pose back the same way.
+	while self:GetState().IsActive and (self.Character:HasStatusEffects({Stun})
+		or (Character.Instance:GetAttribute("ParryWhiffUntil") or 0) > workspace:GetServerTimeNow()) do task.wait() end
 	if not self:GetState().IsActive then return end
 	-- every track but the base layer (Core: the Animate idle / walk, which carries the legs -- the guard
 	-- poses don't key them -- and the weapon hold). Stopping those too froze the legs straight. (2026-10-19)
