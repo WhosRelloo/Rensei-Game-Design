@@ -1,8 +1,11 @@
 -- AdminService: the server half of the admin panel (AdminUI). Every call is re-checked against
 -- AdminConfig here; the client panel is only a front end. One RemoteFunction (Remotes.AdminRemote):
 --   "State"                       -> players, enemy types, items, recent log (for the panel)
+--   "Inspect", UserId              -> a summary of that player's save (Players tab)
 --   "Run", Command, UserId, Arg   -> ok, message
--- Every command that runs is written to the in-server log (Logs tab) and the server output.
+-- Every command that runs is written to the staff log: the server output, a DataStore list of the last
+-- LOG_KEEP actions across all servers (Logs tab), and the Discord staff channel when the experience has the
+-- STAFF_WEBHOOK secret (admin pass 2026-10-20). A non-admin calling the remote is reported there once.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,6 +14,9 @@ local RunService = game:GetService("RunService")
 local TextService = game:GetService("TextService")
 local Lighting = game:GetService("Lighting")
 local HttpService = game:GetService("HttpService")
+local DataStoreService = game:GetService("DataStoreService")
+local CollectionService = game:GetService("CollectionService")
+local Stats = game:GetService("Stats")
 
 local Config = require(ServerScriptService.AdminConfig)
 local ProgressionService = require(ServerScriptService.ProgressionService)
@@ -21,19 +27,14 @@ local ItemData = require(ReplicatedStorage.Modules.Data.ItemData)
 
 local AdminService = {}
 
-local MAX_LOG = 60
-local Log = {}
+local LOG_KEEP = 200 -- staff actions kept in the DataStore (all servers, newest first)
+local Log = {} -- what the Logs tab shows: the stored list plus anything not saved yet, newest first
 local Admins = {} -- [Player] = true once checked
 
 -- ===== permissions =====
+-- Only the accounts in AdminConfig.Users, everywhere (owner 2026-10-19). Re-checked on every call.
 local function Check(Player)
-	if Config.Studio and RunService:IsStudio() then return true end
-	if Config.Users[Player.UserId] then return true end
-	if Config.GroupId and Config.GroupId > 0 then
-		local Ok, Rank = pcall(Player.GetRankInGroup, Player, Config.GroupId)
-		if Ok and Rank >= (Config.MinRank or 255) then return true end
-	end
-	return false
+	return Config.Users[Player.UserId] == true
 end
 
 function AdminService.IsAdmin(Player)
@@ -117,7 +118,7 @@ end}
 
 Commands.Kick = {Target = true, Run = function(A, T, Arg)
 	if T == A then return false, "You can't kick yourself" end
-	if Admins[T] and not (Config.Users[A.UserId]) then return false, "Can't kick another admin" end
+	if Check(T) then return false, "Can't kick another admin" end
 	local Reason = Text(Arg, 120)
 	Reason = Reason and Filter(Reason, A, T) or "Removed by an admin."
 	T:Kick(Reason)
@@ -138,23 +139,14 @@ Commands.GiveExp = {Target = true, Run = function(_, T, Arg)
 	return true, ("Gave %d EXP to %s (+%d levels)"):format(N, T.DisplayName, Levels or 0)
 end}
 
+-- through ItemService.Give, so the bag limits hold (60 entries, 999 per stack); it used to add past both
 Commands.GiveItem = {Target = true, Run = function(_, T, Arg)
 	local Name = Text(Arg, 60)
 	if not Name or not ItemData[Name] then return false, "Unknown item" end
-	local Profile = DataManager:GetProfile(T)
-	if not Profile then return false, "Profile not loaded" end
-	local Inventory = Profile.Data.Inventory
-	if ItemData[Name].Type == "Consumable" then
-		for _, Item in ipairs(Inventory) do
-			if Item.ItemName == Name then
-				Item.Amount = (Item.Amount or 1) + 1
-				DataManager:SendData(T)
-				return true, "Gave " .. Name .. " to " .. T.DisplayName
-			end
-		end
+	if not DataManager:GetProfile(T) then return false, "Profile not loaded" end
+	if not require(ServerScriptService.ItemService).Give(T, Name, 1) then
+		return false, T.DisplayName .. "'s bag is full (60 entries / 999 a stack)"
 	end
-	table.insert(Inventory, {ItemName = Name, ItemID = HttpService:GenerateGUID(false):sub(1, 8), Amount = 1})
-	DataManager:SendData(T)
 	return true, "Gave " .. Name .. " to " .. T.DisplayName
 end}
 
@@ -285,14 +277,334 @@ Commands.Speed = {Run = function(A, _, Arg)
 	return true, ("Speed x%.2f"):format(N)
 end}
 
+-- Fly / noclip: the server only flips the attribute; the admin's own client (AdminUI) does the moving
+local function SelfToggle(Attribute, Label)
+	return {Run = function(A)
+		local _, _, C = Root(A)
+		if not C then return false, "No character" end
+		local On = not C:GetAttribute(Attribute)
+		C:SetAttribute(Attribute, On or nil)
+		return true, Label .. (On and " on" or " off")
+	end}
+end
+Commands.Fly = SelfToggle("AdminFly", "Fly")
+Commands.Noclip = SelfToggle("AdminNoclip", "Noclip")
+
+-- areas: the parts tagged RenseiArea (WorldService), by AreaName
+local function Areas()
+	local List = {}
+	for _, P in ipairs(CollectionService:GetTagged("RenseiArea")) do
+		if P:IsA("BasePart") and P:IsDescendantOf(workspace) then
+			local Name = P:GetAttribute("AreaName") or P.Name
+			if not List[Name] then List[Name] = P end
+		end
+	end
+	return List
+end
+
+Commands.TeleportArea = {Run = function(A, _, Arg)
+	local Name = Text(Arg, 60)
+	local Part = Name and Areas()[Name]
+	if not Part then return false, "Unknown area" end
+	local R = Root(A)
+	if not R then return false, "No character" end
+	-- the area's centre, dropped onto whatever solid ground is below the top of its volume
+	local Params = RaycastParams.new()
+	Params.FilterType = Enum.RaycastFilterType.Exclude
+	Params.FilterDescendantsInstances = {A.Character}
+	Params.RespectCanCollide = true
+	local Top = Part.Position + Vector3.new(0, Part.Size.Y / 2, 0)
+	local Hit = workspace:Raycast(Top, Vector3.new(0, -(Part.Size.Y + 300), 0), Params)
+	A.Character:PivotTo(CFrame.new((Hit and Hit.Position or Part.Position) + Vector3.new(0, 4, 0)))
+	return true, "Teleported to " .. Name
+end}
+
+-- ===== testing helpers =====
+local function Resources() return require(ReplicatedStorage.Modules.Managers.ResourceManager) end
+
+Commands.Refill = {Target = true, Run = function(_, T)
+	local _, _, C = Root(T)
+	if not C then return false, "No character" end
+	local RM = Resources()
+	for _, Name in ipairs({"Posture", "Stamina", "Meter"}) do
+		local Max = RM.Max(C, Name)
+		if Max then RM.Set(C, Name, Max) end
+	end
+	return true, "Refilled posture, stamina and meter for " .. T.DisplayName
+end}
+
+-- every server-side move cooldown is a "...ReadyAt" attribute on the character (CooldownUI, AlchemyService);
+-- the dash's own timer lives on the client and isn't touched
+Commands.ClearCooldowns = {Target = true, Run = function(_, T)
+	local _, _, C = Root(T)
+	if not C then return false, "No character" end
+	local N = 0
+	for Name in pairs(C:GetAttributes()) do
+		if Name:match("ReadyAt$") or Name == "ParryWhiffUntil" then
+			C:SetAttribute(Name, nil)
+			N += 1
+		end
+	end
+	return true, ("Cleared %d cooldowns on %s"):format(N, T.DisplayName)
+end}
+
+Commands.GiveMastery = {Target = true, Run = function(_, T, Arg)
+	local N = Number(Arg, 1, 100)
+	if not N or N % 1 ~= 0 then return false, "Enter 1-100 points" end
+	local Profile = DataManager:GetProfile(T)
+	local Mastery = Profile and Profile.Data.Mastery
+	if type(Mastery) ~= "table" then return false, "Profile not loaded" end
+	Mastery.Unspent = (Mastery.Unspent or 0) + N
+	pcall(function() require(ServerScriptService.SkillTreeService).Publish(T) end)
+	ProgressionService.Sync(T)
+	return true, ("Gave %d Mastery points to %s (%d unspent)"):format(N, T.DisplayName, Mastery.Unspent)
+end}
+
+-- Snapshot / Restore: one saved copy of a player's current save slot (DataStore RenseiAdminSnapshots), so a
+-- test or a mistake can be rolled back. Restore swaps the save in place and sends the player back to rejoin:
+-- the profile is written when it's released, and a rejoin reloads every system from it.
+local SnapStore = DataStoreService:GetDataStore("RenseiAdminSnapshots")
+local function Copy(T)
+	if type(T) ~= "table" then return T end
+	local C = {}
+	for K, V in pairs(T) do C[K] = Copy(V) end
+	return C
+end
+local function SlotOf(P)
+	local Ok, Key, Slot = pcall(require(ServerScriptService.SlotAccount).ProfileKey, P.UserId)
+	if not Ok then return nil end
+	return Key, Slot
+end
+
+Commands.Snapshot = {Target = true, Run = function(A, T)
+	local Profile = DataManager:GetProfile(T)
+	if not Profile then return false, "Profile not loaded" end
+	local Key, Slot = SlotOf(T)
+	local Ok, Err = pcall(SnapStore.SetAsync, SnapStore, tostring(T.UserId), {At = os.time(), By = A.Name, Key = Key, Slot = Slot, Data = Copy(Profile.Data)})
+	if not Ok then return false, "Snapshot failed: " .. tostring(Err):sub(1, 80) end
+	return true, ("Saved a snapshot of %s (slot %s)"):format(T.DisplayName, tostring(Slot or "?"))
+end}
+
+Commands.Restore = {Target = true, Run = function(A, T)
+	local Profile = DataManager:GetProfile(T)
+	if not Profile then return false, "Profile not loaded" end
+	local Ok, Snap = pcall(SnapStore.GetAsync, SnapStore, tostring(T.UserId))
+	if not Ok then return false, "Couldn't read the snapshot" end
+	if type(Snap) ~= "table" or type(Snap.Data) ~= "table" then return false, "No snapshot of " .. T.DisplayName end
+	if Snap.Key ~= SlotOf(T) then return false, "That snapshot is from another save slot" end
+	local Data = Profile.Data
+	for K in pairs(Data) do Data[K] = nil end
+	for K, V in pairs(Copy(Snap.Data)) do Data[K] = V end
+	local When = os.date("!%Y-%m-%d %H:%M UTC", Snap.At)
+	task.delay(0.5, function()
+		if T.Parent then T:Kick("An admin restored your save to " .. When .. ". Rejoin to continue.") end
+	end)
+	return true, ("Restored %s to the snapshot from %s; they were sent back to rejoin"):format(T.DisplayName, When)
+end}
+
+-- ===== moderation =====
+Commands.Warn = {Target = true, Run = function(A, T, Arg)
+	local Msg = Text(Arg, 150)
+	if not Msg then return false, "Enter a warning" end
+	Msg = Filter(Msg, A, T)
+	if not Msg then return false, "Message couldn't be filtered" end
+	UIService.Notify(T, "Banner", {Text = "Staff warning: " .. Msg})
+	return true, ("Warned %s: %s"):format(T.DisplayName, Msg)
+end}
+
+-- Bans use Roblox's ban API (every server of the experience, alt accounts included). Our own list of them
+-- (DataStore RenseiAdminBans, "List") is what the Mod tab shows; Roblox has no call that lists bans.
+local BanStore = DataStoreService:GetDataStore("RenseiAdminBans")
+local Bans = {} -- [tostring(UserId)] = {Name, Reason, Hours, At, By}
+local function LoadBans()
+	local Ok, List = pcall(BanStore.GetAsync, BanStore, "List")
+	if Ok and type(List) == "table" then Bans = List end
+end
+local function SaveBans(Change)
+	return pcall(BanStore.UpdateAsync, BanStore, "List", function(Old)
+		Old = type(Old) == "table" and Old or {}
+		Change(Old)
+		Bans = Old
+		return Old
+	end)
+end
+local function NameOf(UserId)
+	local P = Players:GetPlayerByUserId(UserId)
+	if P then return P.Name end
+	local Ok, Name = pcall(Players.GetNameFromUserIdAsync, Players, UserId)
+	return Ok and Name or ("User " .. UserId)
+end
+local function ValidUserId(UserId)
+	return type(UserId) == "number" and UserId > 0 and UserId % 1 == 0 and UserId < 2 ^ 53
+end
+
+-- Arg = "hours|reason" (0 or blank hours = permanent); UserId = the selected player or one typed in
+Commands.Ban = {AnyUser = true, Run = function(A, _, Arg, UserId)
+	if not ValidUserId(UserId) then return false, "Pick a player or type a UserId" end
+	if Config.Users[UserId] then return false, "Admins can't be banned" end
+	local HoursText, Reason = tostring(Arg or ""):match("^%s*([%d%.]*)%s*|(.*)$")
+	local Hours = math.clamp(tonumber(HoursText) or 0, 0, 24 * 365)
+	Reason = Text(Reason, 120)
+	if not Reason then return false, "Enter a reason" end
+	local Shown = Filter(Reason, A) or "Banned by staff."
+	local Ok, Err = pcall(Players.BanAsync, Players, {
+		UserIds = {UserId}, ApplyToUniverse = true,
+		Duration = Hours > 0 and math.floor(Hours * 3600) or -1,
+		DisplayReason = Shown, PrivateReason = ("%s (by %s)"):format(Reason, A.Name),
+		ExcludeAltAccounts = false,
+	})
+	if not Ok then return false, "Ban failed: " .. tostring(Err):sub(1, 90) end
+	local Name = NameOf(UserId)
+	SaveBans(function(L) L[tostring(UserId)] = {Name = Name, Reason = Reason, Hours = Hours, At = os.time(), By = A.Name} end)
+	return true, ("Banned %s (%d) %s: %s"):format(Name, UserId, Hours > 0 and ("for " .. Hours .. " h") or "permanently", Reason)
+end}
+
+Commands.Unban = {AnyUser = true, Run = function(_, _, _, UserId)
+	if not ValidUserId(UserId) then return false, "Type a UserId" end
+	local Ok, Err = pcall(Players.UnbanAsync, Players, {UserIds = {UserId}, ApplyToUniverse = true})
+	if not Ok then return false, "Unban failed: " .. tostring(Err):sub(1, 90) end
+	local Name = (Bans[tostring(UserId)] and Bans[tostring(UserId)].Name) or NameOf(UserId)
+	SaveBans(function(L) L[tostring(UserId)] = nil end)
+	return true, ("Unbanned %s (%d)"):format(Name, UserId)
+end}
+
+-- ===== inspect =====
+local function Count(T)
+	local N = 0
+	if type(T) == "table" then for _ in pairs(T) do N += 1 end end
+	return N
+end
+local function Inspect(UserId)
+	local T = type(UserId) == "number" and Players:GetPlayerByUserId(UserId)
+	if not T then return nil end
+	local Profile = DataManager:GetProfile(T)
+	if not Profile then return {UserId = UserId, Loaded = false} end
+	local D = Profile.Data
+	local Id = type(D.Identity) == "table" and D.Identity or {}
+	local _, Slot = SlotOf(T)
+	local SnapAt
+	local Ok, Snap = pcall(SnapStore.GetAsync, SnapStore, tostring(T.UserId))
+	if Ok and type(Snap) == "table" then SnapAt = Snap.At end
+	return {
+		UserId = UserId, Loaded = true, Slot = Slot, Schema = D.SchemaVersion,
+		Character = Id.Name ~= "" and Id.Name or nil, Origin = Id.Origin, Affinity = Id.Affinity ~= "" and Id.Affinity or "None",
+		Level = D.Level, Exp = D.Exp, Money = D.Money, StatPoints = D.StatPoints,
+		Inventory = type(D.Inventory) == "table" and #D.Inventory or 0,
+		Mastery = type(D.Mastery) == "table" and D.Mastery.Unspent or 0, MasteryStage = type(D.Mastery) == "table" and D.Mastery.Stage or 0,
+		QuestsActive = Count(type(D.Quests) == "table" and D.Quests.Active), QuestsDone = Count(type(D.Quests) == "table" and D.Quests.Completed),
+		Areas = Count(D.Areas), Codex = Count(D.Codex), Renown = type(D.Morality) == "table" and D.Morality.Renown or 0,
+		Automail = type(D.Automail) == "table" and D.Automail.Installed == true, Rank = T:GetAttribute("Rank"),
+		SnapshotAt = SnapAt,
+	}
+end
+
+-- ===== staff log: DataStore + Discord =====
+local LogStore = DataStoreService:GetDataStore("RenseiStaffLog")
+local Pending = {} -- recorded here, not yet in the DataStore (oldest first)
+local LogStatus = "not loaded yet"
+local ServerTag = RunService:IsStudio() and "Studio" or (game.JobId ~= "" and game.JobId:sub(1, 8) or "?")
+
+local function MergeLog(Stored)
+	local New = {}
+	for I = #Pending, 1, -1 do table.insert(New, Pending[I]) end
+	for _, E in ipairs(type(Stored) == "table" and Stored or {}) do
+		if #New >= LOG_KEEP then break end
+		table.insert(New, E)
+	end
+	Log = New
+end
+
+local function LoadLog()
+	local Ok, Stored = pcall(LogStore.GetAsync, LogStore, "Recent")
+	if Ok then
+		MergeLog(Stored)
+		LogStatus = "saved"
+	else
+		LogStatus = "couldn't load: " .. tostring(Stored):sub(1, 60)
+	end
+end
+
+local function FlushLog()
+	if #Pending == 0 then return end
+	local Batch = Pending
+	Pending = {}
+	local Ok, Stored = pcall(LogStore.UpdateAsync, LogStore, "Recent", function(Old)
+		local New = {}
+		for I = #Batch, 1, -1 do table.insert(New, Batch[I]) end
+		for _, E in ipairs(type(Old) == "table" and Old or {}) do
+			if #New >= LOG_KEEP then break end
+			table.insert(New, E)
+		end
+		return New
+	end)
+	if Ok then
+		MergeLog(Stored)
+		LogStatus = "saved " .. os.date("!%H:%M:%S UTC")
+	else
+		-- keep them for the next try, ahead of anything recorded since
+		for I = #Batch, 1, -1 do table.insert(Pending, 1, Batch[I]) end
+		LogStatus = "save failed, retrying: " .. tostring(Stored):sub(1, 60)
+	end
+end
+
+-- Discord: STAFF_WEBHOOK is an experience secret (Creator Dashboard > Secrets, allowed domain discord.com).
+-- Lines are batched (one post every DISCORD_EVERY s, Discord allows 30 a minute) and never ping anyone.
+local DISCORD_EVERY = 2.5
+local OUTBOX_MAX = 100
+local Webhook = nil
+local DiscordStatus = "OFF"
+local Outbox = {}
+
+local function LoadWebhook()
+	local Ok, Secret = pcall(HttpService.GetSecret, HttpService, "STAFF_WEBHOOK")
+	if Ok and Secret then
+		Webhook = Secret
+		DiscordStatus = "ON"
+	else
+		DiscordStatus = "OFF: no STAFF_WEBHOOK secret" .. (RunService:IsStudio() and " (Studio can't read the live secrets)" or "")
+	end
+end
+
+local function Discord(Line)
+	if not Webhook then return end
+	if #Outbox >= OUTBOX_MAX then table.remove(Outbox, 1) end
+	table.insert(Outbox, Line:sub(1, 400))
+end
+
+local function FlushDiscord()
+	if not Webhook or #Outbox == 0 then return end
+	local Lines, Length = {}, 0
+	while #Outbox > 0 and #Lines < 15 and Length + #Outbox[1] + 1 <= 1900 do
+		local L = table.remove(Outbox, 1)
+		table.insert(Lines, L)
+		Length += #L + 1
+	end
+	local Body = HttpService:JSONEncode({username = "Rensei Staff Log", content = table.concat(Lines, "\n"), allowed_mentions = {parse = {}}})
+	local Ok, Res = pcall(HttpService.RequestAsync, HttpService, {
+		Url = Webhook, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = Body,
+	})
+	if Ok and Res.Success then
+		DiscordStatus = "ON"
+	elseif Ok and Res.StatusCode == 429 then
+		for I = #Lines, 1, -1 do table.insert(Outbox, 1, Lines[I]) end -- rate limited: try again
+	else
+		DiscordStatus = "ON, last post failed: " .. (Ok and tostring(Res.StatusCode) or tostring(Res):sub(1, 60))
+	end
+end
+
 -- ===== state for the panel =====
+local HeartbeatAvg = 1 / 60
+RunService.Heartbeat:Connect(function(Dt) HeartbeatAvg += (Dt - HeartbeatAvg) * 0.05 end)
+
 local function State()
 	local List = {}
 	for _, P in ipairs(Players:GetPlayers()) do
 		local _, H, C = Root(P)
+		local PingOk, Ping = pcall(P.GetNetworkPing, P)
 		table.insert(List, {
 			UserId = P.UserId, Name = P.Name, DisplayName = P.DisplayName,
-			Level = P:GetAttribute("Level") or 0, Admin = Admins[P] == true,
+			Level = P:GetAttribute("Level") or 0, Admin = Check(P), Ping = PingOk and math.floor(Ping * 1000) or nil,
+			Fly = C and C:GetAttribute("AdminFly") == true, Noclip = C and C:GetAttribute("AdminNoclip") == true,
 			Health = H and math.floor(H.Health) or 0, MaxHealth = H and math.floor(H.MaxHealth) or 0,
 			Frozen = C and C:GetAttribute("AdminFrozen") == true, God = C and C:GetAttribute("AdminGod") == true,
 			InCombat = C and C:GetAttribute("InCombat") == true,
@@ -313,22 +625,54 @@ local function State()
 	for _ in pairs(require(ServerScriptService.EnemyService).Active) do ActiveCount += 1 end
 	local Paths = {"None"}
 	for _, A in ipairs(require(ReplicatedStorage.Modules.Data.Rensei.Alchemy).Affinities) do table.insert(Paths, A) end
+	local AreaNames = {}
+	for Name in pairs(Areas()) do table.insert(AreaNames, Name) end
+	table.sort(AreaNames)
+	local BanList = {}
+	for Id, B in pairs(Bans) do
+		if type(B) == "table" then
+			local Ends = (B.Hours or 0) > 0 and (B.At or 0) + B.Hours * 3600 or nil
+			table.insert(BanList, {UserId = tonumber(Id), Name = B.Name, Reason = B.Reason, Hours = B.Hours, At = B.At, By = B.By,
+				Expired = Ends ~= nil and os.time() >= Ends})
+		end
+	end
+	table.sort(BanList, function(X, Y) return (X.At or 0) > (Y.At or 0) end)
 	return {Players = List, Enemies = Enemies, Items = Items, Log = Log, ClockTime = Lighting.ClockTime, Affinities = Paths,
-		ActiveEnemies = ActiveCount, AdminSpawns = #AdminSpawns}
+		ActiveEnemies = ActiveCount, AdminSpawns = #AdminSpawns, Areas = AreaNames, Bans = BanList,
+		Server = {
+			FPS = math.floor(workspace:GetRealPhysicsFPS() + 0.5), HeartbeatMs = math.floor(HeartbeatAvg * 10000 + 0.5) / 10,
+			MemoryMb = math.floor(Stats:GetTotalMemoryUsageMb()), Uptime = math.floor(time()),
+			Players = #Players:GetPlayers(), MaxPlayers = Players.MaxPlayers, PlaceVersion = game.PlaceVersion,
+			Tag = ServerTag, Discord = DiscordStatus, LogStatus = LogStatus, Unsaved = #Pending,
+		}}
 end
 
 local function Record(A, Name, T, Arg, Message)
-	table.insert(Log, 1, {At = os.time(), Admin = A.DisplayName, Command = Name,
-		Target = T and T.DisplayName or nil, Arg = Arg ~= nil and tostring(Arg):sub(1, 40) or nil, Message = Message})
-	if #Log > MAX_LOG then table.remove(Log) end
+	local Entry = {At = os.time(), Admin = A.DisplayName, AdminId = A.UserId, Command = Name,
+		Target = T and T.DisplayName or nil, Arg = Arg ~= nil and tostring(Arg):sub(1, 40) or nil,
+		Message = tostring(Message or ""):sub(1, 160), Server = ServerTag}
+	table.insert(Pending, Entry)
+	table.insert(Log, 1, Entry)
+	if #Log > LOG_KEEP then table.remove(Log) end
 	print(("[Admin] %s: %s%s%s -> %s"):format(A.Name, Name, T and (" " .. T.Name) or "",
-		Arg ~= nil and (" " .. tostring(Arg):sub(1, 40)) or "", Message))
+		Arg ~= nil and (" " .. tostring(Arg):sub(1, 40)) or "", tostring(Message)))
+	Discord(("`[%s]` **%s** %s: %s"):format(ServerTag, A.Name, Name, tostring(Message or "")))
 end
 
 local Last = {}
+local Denied = {} -- [Player] = true once a non-admin call was reported
 local function Handle(Player, Kind, Name, UserId, Arg)
-	if not Admins[Player] then return false, "Not an admin" end
+	if not Check(Player) then
+		Admins[Player] = nil
+		if not Denied[Player] then
+			Denied[Player] = true
+			warn(("[Admin] non-admin %s (%d) called the admin remote"):format(Player.Name, Player.UserId))
+			Discord(("`[%s]` :warning: non-admin **%s** (%d) called the admin remote"):format(ServerTag, Player.Name, Player.UserId))
+		end
+		return false, "Not an admin"
+	end
 	if Kind == "State" then return State() end
+	if Kind == "Inspect" then return Inspect(UserId) end
 	if Kind ~= "Run" or type(Name) ~= "string" then return false, "Bad request" end
 	local Cmd = Commands[Name]
 	if not Cmd then return false, "Unknown command" end
@@ -341,7 +685,7 @@ local function Handle(Player, Kind, Name, UserId, Arg)
 		if not Target then return false, "Pick a player first" end
 	end
 	if Arg ~= nil and type(Arg) ~= "string" and type(Arg) ~= "number" then return false, "Bad argument" end
-	local Ok, Done, Message = pcall(Cmd.Run, Player, Target, Arg)
+	local Ok, Done, Message = pcall(Cmd.Run, Player, Target, Arg, Cmd.AnyUser and UserId or nil)
 	if not Ok then
 		warn("[Admin]", Name, "failed:", Done)
 		return false, "Command failed"
@@ -364,7 +708,29 @@ function AdminService.Start()
 	end
 	Players.PlayerAdded:Connect(Added)
 	for _, P in ipairs(Players:GetPlayers()) do task.spawn(Added, P) end
-	Players.PlayerRemoving:Connect(function(P) Admins[P] = nil Last[P] = nil end)
+	Players.PlayerRemoving:Connect(function(P) Admins[P] = nil Last[P] = nil Denied[P] = nil end)
+
+	-- staff log + bans + Discord
+	LoadWebhook()
+	task.spawn(LoadLog)
+	task.spawn(LoadBans)
+	task.spawn(function()
+		local Since = 0
+		while true do
+			task.wait(DISCORD_EVERY)
+			FlushDiscord()
+			Since += DISCORD_EVERY
+			if Since >= 15 then
+				Since = 0
+				FlushLog()
+				LoadBans() -- other servers' bans
+			end
+		end
+	end)
+	game:BindToClose(function()
+		FlushLog()
+		FlushDiscord()
+	end)
 end
 
 return AdminService

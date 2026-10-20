@@ -2,6 +2,68 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-20 — Admin panel: lock, audit, new tools, staff log
+
+Owner request: "add more features to the admin panel and lock it behind me and ImWaymonTTK as the admins for the panel. Completely audit the admin panel for any extra features it could use for better debugging, gameplay, trading, etc." Decisions: only those two accounts, everywhere, Studio included; trading is a separate project, scheduled last (no Trades tab). Task D of the 2026-10-19 queue. The tool list below was approved in the session on 2026-10-20.
+
+**Lock** (`ServerScriptService.AdminConfig`, now in the repo): `Users` = WhosRello (37484441) and ImWaymonTTK (4161273705), and nothing else. Removed: Rensei group rank 254+, and "anyone playtesting in Studio". AdminService re-checks the list on every call; before, it checked once at join and trusted that.
+
+**Audit fixes** (`ServerScriptService.AdminService`)
+- Every call re-checks the admin list (see above). A non-admin calling the remote gets a warning in the output, and a Discord line once per player per server.
+- Give Item goes through `ItemService.Give`, so the bag limits hold (60 entries, 999 a stack). It used to add past both.
+- The staff log was 60 entries in memory, lost when the server closed. It's now saved: see the staff log below.
+- Kick refuses any admin on the list (it was "unless you're in Users").
+
+**New tools** (`ReplicatedStorage.Modules.UI.AdminUI`; tabs are now Players, World, Self, Mod, Server, Logs)
+- Players tab, for the selected player:
+  - Give Mastery (1–100 points).
+  - Refill posture, stamina and meter.
+  - Clear Cooldowns: every `...ReadyAt` attribute plus the parry whiff. The dash's client timer isn't touched.
+  - Snapshot / Restore: one saved copy of the player's current slot, in DataStore `RenseiAdminSnapshots`. Restore takes two clicks, refuses a snapshot from another slot, swaps the save in place, and sends the player back to rejoin so every system reloads from it.
+  - Warn: a filtered on-screen banner to that player.
+  - Save Details (Inspect): character, origin, slot, schema, level / EXP / money / stat points, alchemy, rank, Mastery, bag, quests, areas, codex, renown, Automail, last snapshot.
+- Self tab:
+  - Fly: WASD, Space up, Ctrl down, Shift for 150 instead of 60. A LinearVelocity + AlignOrientation on your own client.
+  - Noclip: puts collision back exactly as it was.
+  - Teleport To any `RenseiArea` area (14 now), dropped onto the ground.
+  - Refill and Clear Cooldowns for yourself.
+- Mod tab: Ban by the selected player or a typed UserId (offline too). Hours, blank for permanent, and a reason they see (filtered). Ban takes two clicks and refuses admins. Unban by UserId. Bans use Roblox's ban API (every server of the experience, alt accounts too); our own list of them is in DataStore `RenseiAdminBans`, because Roblox has no call that lists bans.
+- Server tab: server tag, place version, uptime, physics FPS, heartbeat, memory, players, live enemies, Discord status, staff log save status, and every player's ping.
+- Logs tab: the last 200 staff actions across all servers, each with its server tag (Studio sessions show `[Studio]`).
+- Dangerous buttons (Ban, Restore) take two clicks: the first turns the button into "Confirm?" for 4 s.
+
+**Staff log**
+- Every action that ran is saved to DataStore `RenseiStaffLog` ("Recent", newest first, 200 kept). It's written every 15 s and when the server closes.
+- **Discord:** every action, and any non-admin remote call, posts to Discord when the experience has a secret named `STAFF_WEBHOOK` (Creator Dashboard → the Rensei experience → Secrets, allowed domain `discord.com`). Posts are batched (one every 2.5 s, up to 15 lines), use `allowed_mentions` none, and back off when Discord rate-limits. The Server tab shows ON / OFF. Studio always shows OFF, because it can't read the live secrets.
+
+**Tests** (Rensei Play as ImWaymonTTK, the remote called from the client, and the panel driven with real F2 / mouse clicks):
+- The panel was built for ImWaymonTTK. State returned the server stats, the 14 areas, bans and the log.
+- Inspect matched the save (Level 3, Money 120, Mastery 4, Ice, Rank 1, slot 1, schema 5).
+- Snapshot saved. Give Mastery took it 4 → 5 → 105 (500 was clamped to the 100 cap, as Give Money clamps). Refill and Warn ran. Give Item Apple stacked.
+- Clear Cooldowns cleared a live parry cooldown and whiff (2 attributes).
+- Refused, as intended:
+  - banning WhosRello or ImWaymonTTK;
+  - a ban with no UserId;
+  - an unban with no UserId;
+  - kicking yourself;
+  - an unknown area.
+- Fly: Space for 1 s climbed 60 studs, it hovered with no drift, the server saw the same height, and Fly off dropped back to the ground. Noclip: 0 colliding parts while on, 2 restored when off. Teleport to Foundry Yard and Lindenmoor landed on the ground.
+- UI: the six tabs fit, and Server, Mod, Logs and Players (Select, Inspect) rendered. Ban's first click showed "Confirm?" and disarmed after 4 s.
+- Restore, by the real two clicks, ran and sent the player to rejoin. After rejoining, the save was back to Mastery 4, so the test changes were undone. The Logs tab showed every test action, including the Restore saved on close, across server sessions.
+- A bug caught in testing and fixed: the new server numbers changed on every 2 s poll, so every tab rebuilt and swallowed clicks. Now they only count while the Server tab is open, and ping is only shown there.
+- **Not tested:**
+  - a real ban or unban (it would ban a real account; `BanAsync` may also refuse in Studio);
+  - Discord posting (needs the live secret);
+  - a non-admin account (needs a second account);
+  - two admins in one server.
+- No game errors in the output.
+
+**Side effects of testing:** about 15 `[Studio]` entries in the live staff log, and one snapshot of ImWaymonTTK's slot 1 in `RenseiAdminSnapshots`.
+
+**For the owner:** add the `STAFF_WEBHOOK` secret (a new Discord webhook for the staff channel) to turn on the Discord log. Rensei had no Discord hook before this.
+
+Backups: `ServerStorage.RenseiBackups["Pre-AdminD_2026-10-20"]` (AdminConfig 520 bytes, AdminService 14269, AdminUI 15004).
+
 ## 2026-10-20 — Parry like VV: Ultimatum
 
 Owner request: "make the parrying more like VV ultimatum's" (design approved 2026-10-19). Rensei only; all new numbers are PROPOSALS, marked `-- PROPOSAL (VV parry 2026-10-20)` in TuningConfig. Picked up after the 2026-10-19 cloud session hit its limit (task C of A–E).
