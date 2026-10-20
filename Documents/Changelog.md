@@ -2,6 +2,20 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-20 — Concept: world map layout and visual style (not built)
+
+**Owner:** "give me a concept idea on how the map layout would work based on all the documents and slideshows... starter area grassy farmland... deepwoken/semi-stylized, NO LOW POLY... respective to R6 height and... all the movement, combat, and parkour mechanics".
+
+- **Concept page:** https://claude.ai/artifact/Qbm5hCE23tSRyu9mjPxRWK
+- **World layout:** drawn from the slideshow's regions and Acts 1–3:
+  - Lindenmoor (start), the Foundry Yard and Central City (the hub) on the rail line;
+  - Aerugo Borderlands to the south-west, Ishval to the east, the Northern Wall, and the Corrupted Lands with the Eclipse Citadel;
+  - the existing Forgotten Sites are placed as the dungeons.
+- **Lindenmoor:** re-shaped into a fogged valley bowl that teaches one movement verb per path. The current layout, area names and tags are kept.
+- **Visual rules** from the 3 references: chunky textured masses, PBR material variants, layered fog, warm practical lights; no low-poly.
+- **Build metrics** from the measured R6 / TuningConfig numbers: gaps, climb heights, wall-run faces, arena sizes, cover spacing against sight ranges, water depths.
+- **Everything is PROPOSAL.** Open questions: seamless vs separate places, names, level bands, day/night.
+
 ## 2026-10-20 — Plan 2: Heat and Wanted + sound and light
 
 Plan 2 of the Morality × Reputation roadmap: slices R3 (Heat) and S2 (sound and light). Approved in the session on 2026-10-20 (ImWaymonTTK: "Approved. Build Plan 2 as drafted, using the default answer for all 6 questions"). The plan is `plans/2026-10-20-plan2-heat-wanted.md`; what's left is in `plans/2026-10-20-plan2-followups.md`. Every number is a **PROPOSAL**. Built in **Rensei** (Ye) only.
