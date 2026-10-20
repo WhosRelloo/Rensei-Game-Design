@@ -2,6 +2,28 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-20 — Halvard's Adit: the boards smash open
+
+**Owner:** "I want the boards to physically smash when hit or hit with alchemy". Who sees them broken: "Each player, unless they are in a party".
+
+- **New puzzle piece:** the boarded mouth is now a per-player breakable mechanism, `adit_boards`, built like the cracked wall. Players break it by:
+  - three melee hits from fists or any weapon (a heavy counts as two; PROPOSAL);
+  - any of the five alchemy elements, each with its own line.
+- **The melee hook:** one guarded call in `HitboxManager.Sweep` (`PuzzleService.Strike`). Combat results are unchanged.
+- **Saving and parties:** a break is saved for the player and for every party member in the server.
+- **What players see:**
+  - each hit cracks the boards with a splinter puff;
+  - the break throws the planks off as physics debris, with a dust burst, cleared after 6 s;
+  - a player who rejoins sees the opening, with no debris.
+- **The blocker:** while the boards are whole, an invisible client-side blocker fills the frame, so smashing is the only way in. The review measured that no R6-sized box fits through.
+- **Inspect text:** now "Two hang loose; a few good hits, or a little alchemy, would bring the lot down." (PROPOSAL wording).
+- **Tests:** `Play_AditBoards` passes 10/10 and `Play_Assault` still passes. A MoveTo was blocked while the boards were whole and passed once they broke. The owner's profile was snapshotted and restored.
+- **Backups:** `RenseiBackups["Pre-AditBoards_2026-10-20"]`.
+- **Open:**
+  - the game has no wood-break or crack sound yet (set the `BreakSound` / `CrackSound` attributes on the boards model to add one);
+  - a multi-hit skill counts each of its hits;
+  - party sharing still needs a live two-player check.
+
 ## 2026-10-20 — Fix: Halvard's Adit entrance blocked
 
 **Owner:** "fix the dungeon entrance not being able to be destroyed open".
