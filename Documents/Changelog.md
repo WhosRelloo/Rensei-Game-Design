@@ -2,6 +2,17 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-20 — Backlog: the owner's to-do list for after the world plans
+
+- **New file `Documents/Backlog.md`:** the owner's 16 items, in the owner's words, for after the world, travel and seasons plans:
+  - combat and movement fixes (climbing, health balance, running attack, down slam, parry spam, greatsword sheathe, alchemy lock-on);
+  - lag, memory and multiplayer response;
+  - smarter NPCs and their swarm system;
+  - "???" name tags until a player is identified;
+  - PvE-only assassinations with the detection system;
+  - broken trainer exams, the leaderboard scroll, and live party health bars.
+- **Trading** is also listed there, as already queued.
+
 ## 2026-10-20 — Spec: world scale, travel and seasons
 
 **Owner:** "I want the full map to be so big you have to use the train, etc. to TP to the place..."; "I want regions to be as big as VV Ultimatum's maps"; "also add seasons into the game that effect terrain".
