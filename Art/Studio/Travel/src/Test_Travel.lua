@@ -1,0 +1,78 @@
+local Rensei = game.ReplicatedStorage.Modules.Data.Rensei
+local Travel = require(Rensei.Travel)
+local Places = require(Rensei.Places)
+return {
+	PlacesKnowEveryRegion = function(T)
+		T.Eq(Places.Regions.Lindenmoor.PlaceId, 106992859583940)
+		T.Eq(Places.Regions.Foundry.PlaceId, 109591196441030)
+		T.Eq(Places.Regions.City.PlaceId, 74075793529314)
+		T.Eq(Places.Regions.Aerugo.PlaceId, 72020960130134)
+		T.Eq(Places.Regions.Ishval.PlaceId, 133625615147752)
+		T.Eq(Places.Regions.North.PlaceId, 132378034692557)
+		T.Eq(Places.Regions.Corrupted.PlaceId, 138436167547886)
+		T.Eq(Places.RegionOf(109591196441030), "Foundry")
+		T.Eq(Places.RegionOf(123), nil)
+		T.Eq(Places.Main, 106992859583940, "Main is still Ye")
+	end,
+	ResumeGoesToLastRegion = function(T)
+		T.Eq(Places.ResumePlace({Travel = {Region = "Foundry"}}), 109591196441030)
+		T.Eq(Places.ResumePlace({Travel = {Region = ""}}), Places.Main)
+		T.Eq(Places.ResumePlace({}), Places.Main)
+		T.Eq(Places.ResumePlace({Travel = {Region = "Nowhere"}}), Places.Main)
+	end,
+	RoutesJoinRealRegions = function(T)
+		for Id, R in pairs(Travel.Routes) do
+			T.True(Places.Regions[R.A] ~= nil and Places.Regions[R.B] ~= nil, Id)
+			T.True(R.Kind == "Rail" or R.Kind == "Road", Id .. " kind")
+		end
+		T.Eq(Travel.Other("LindenmoorFoundry", "Lindenmoor"), "Foundry")
+		T.Eq(Travel.Other("LindenmoorFoundry", "Foundry"), "Lindenmoor")
+		T.Same(Travel.RoutesFrom("Lindenmoor", "Rail"), {"LindenmoorFoundry"})
+	end,
+	PricesByClassAndSeason = function(T)
+		T.Eq(Travel.Price("LindenmoorFoundry", "Third", "Summer"), 15)
+		T.Eq(Travel.Price("LindenmoorFoundry", "Second", "Summer"), 30)
+		T.Eq(Travel.Price("LindenmoorFoundry", "Cabin", "Summer"), 75)
+		T.Eq(Travel.Price("LindenmoorFoundry", "Third", "Winter"), 18)
+		T.Eq(Travel.Price("RoadLindenmoorFoundry", "Third", "Summer"), 0, "roads are free")
+		T.Eq(Travel.Fine("LindenmoorFoundry"), 45)
+		T.Eq(Travel.Bribe("LindenmoorFoundry", "Third", "Summer"), 30)
+	end,
+	DepartureClock = function(T)
+		T.Eq(Travel.NextDeparture("LindenmoorFoundry", 1000), 1050) -- every 150 s
+		T.Eq(Travel.NextDeparture("LindenmoorFoundry", 1050), 1200, "a train leaving now has gone")
+		T.True(Travel.BoardingOpen("LindenmoorFoundry", 1021), "30 s before")
+		T.True(not Travel.BoardingOpen("LindenmoorFoundry", 1019))
+	end,
+	GateAndAmbush = function(T)
+		T.Eq(Travel.Gate(0), "Pass")
+		T.Eq(Travel.Gate(1), "Bribe")
+		T.Eq(Travel.Gate(2), "Bribe")
+		T.Eq(Travel.Gate(3), "Refuse")
+		T.Near(Travel.AmbushChance(false, false, 0), 0.15)
+		T.Near(Travel.AmbushChance(true, true, 1), 0.35)
+		T.Near(Travel.AmbushChance(true, true, 5), 0.6, nil, "capped")
+	end,
+	RideEventsByWeight = function(T)
+		T.Eq(Travel.PickRideEvent(0), "Inspection")
+		T.Eq(Travel.PickRideEvent(0.399), "Inspection")
+		T.Eq(Travel.PickRideEvent(0.4), "Rumour")
+		T.Eq(Travel.PickRideEvent(0.7), "Pickpocket")
+		T.Eq(Travel.PickRideEvent(0.85), "Quiet")
+		T.Eq(Travel.PickRideEvent(0.95), "Holdup")
+		T.Eq(Travel.PickRideEvent(0.9999), "Holdup")
+	end,
+	LevelGatesAndClasses = function(T)
+		T.True(Travel.CanTake(1, "LindenmoorFoundry"))
+		local Ok, Why = Travel.CanTake(7, "FoundryCity")
+		T.True(not Ok and Why ~= nil, "needs level 8")
+		T.True(Travel.CanTake(8, "FoundryCity"))
+		T.True(Travel.ClassReaches("Third", "ThirdClass"))
+		T.True(Travel.ClassReaches("Third", "DiningCar"))
+		T.True(not Travel.ClassReaches("Third", "SecondClass"))
+		T.True(Travel.ClassReaches("Second", "SecondClass"))
+		T.True(not Travel.ClassReaches("Second", "CabinCar"))
+		T.True(Travel.ClassReaches("Cabin", "CabinCar"))
+		T.Eq(Travel.TicketKey("LindenmoorFoundry", "Second"), "LindenmoorFoundry|Second")
+	end,
+}
