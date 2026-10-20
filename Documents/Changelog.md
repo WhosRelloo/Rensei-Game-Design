@@ -2,6 +2,21 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-20 — Concept: region layouts and how they connect
+
+**Owner:** "Draw me up some layouts of the other map areas and how they connect".
+
+- **Artifact:** [Rensei Region Layouts](https://claude.ai/artifact/J7yecfYa1uRf5cdarNt8HM), a companion to the Rensei World Map. It is private, so share it from its Share menu.
+- **Connection plan:**
+  - the Act 1 spine (Lindenmoor, the Foundry Yard, Central) by road and rail;
+  - Central's four gates, to Aerugo, Ishval (the East line), the Northern Wall, and the Corrupted Lands by the undercity;
+  - two late links into the Corrupted Lands: the ice-cave pass from the Wall and the ash wastes from Aerugo.
+  - Each route has its length, its level or Act gate, and its rumour link. The existing ones come from `Rensei.Regions`; the new ones are proposed.
+- **"Built today" plate:** the training field, the Foundry Yard core and the Forgotten Site rooms north of Lindenmoor, at their measured positions in Ye.
+- **A layout per region:** Foundry Yard, Central City, Aerugo Borderlands, Ishval, the Northern Wall, and the Corrupted Lands with the Eclipse Citadel. Each shows its districts, gates, arenas, Forgotten Sites and signature movement.
+- **Joining rules:** choke points, visible landmarks, level gates in the world, one fast-travel post per region, and area names for rumours and Heat.
+- Every number is a PROPOSAL. Concept only: nothing in Studio changed.
+
 ## 2026-10-20 — No Roblox terrain: part-built ground, out-of-place fixes, Halvard's Adit in the mine reference style
 
 **Owner:**
