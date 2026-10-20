@@ -403,15 +403,19 @@ TuningConfig.Weapons = {
 		IdleAnim = "Rapier_Idle", -- Animation ID's sheet (2026-10-16)
 		WalkAnim = "Rapier_Walk", -- Animation ID's sheet (2026-10-16)
 		HoldAnim = "Sword_Hold",
-		-- Rapier M1 1-4 from the Animation ID's sheet (2026-10-18), timed on their "Hit" markers (0.37 s).
+		-- Rapier M1 1-4 from the Animation ID's sheet (re-wired 2026-10-19). AnimPeak measured 2026-10-19 (was 0.37, the
+		-- old ids' "Hit" markers): the keyframe where the blade tip moves fastest in the forward thrust, from the
+		-- KeyframeSequence (R6 Torso > Right Arm > Hilt chain from the poses, Hilt at (0, -0.65, 0), tip 4.25 studs down
+		-- the blade; a keyframe's speed = the mean of its two neighbouring keyframe intervals).
 		Light = {Hits = {
-			Hit{Anim = "Rapier_Light1", AnimPeak = 0.37, Startup = 0.18, Active = 0.07, Recovery = 0.14, Damage = 14, Posture = 6, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(4, 5, 10), Reach = 5},
-			Hit{Anim = "Rapier_Light2", AnimPeak = 0.37, Startup = 0.18, Active = 0.07, Recovery = 0.14, Damage = 14, Posture = 6, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(4, 5, 10), Reach = 5},
-			Hit{Anim = "Rapier_Light3", AnimPeak = 0.37, Startup = 0.18, Active = 0.07, Recovery = 0.14, Damage = 14, Posture = 6, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(4, 5, 10), Reach = 5},
-			Hit{Anim = "Rapier_Light4", AnimPeak = 0.37, Startup = 0.24, Active = 0.08, Recovery = 0.45, Damage = 20, Posture = 12, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(4, 5, 11), Reach = 5.5},
+			Hit{Anim = "Rapier_Light1", AnimPeak = 0.38, Startup = 0.18, Active = 0.07, Recovery = 0.14, Damage = 14, Posture = 6, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(4, 5, 10), Reach = 5},
+			Hit{Anim = "Rapier_Light2", AnimPeak = 0.33, Startup = 0.18, Active = 0.07, Recovery = 0.14, Damage = 14, Posture = 6, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(4, 5, 10), Reach = 5},
+			Hit{Anim = "Rapier_Light3", AnimPeak = 0.38, Startup = 0.18, Active = 0.07, Recovery = 0.14, Damage = 14, Posture = 6, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(4, 5, 10), Reach = 5},
+			Hit{Anim = "Rapier_Light4", AnimPeak = 0.40, Startup = 0.24, Active = 0.08, Recovery = 0.45, Damage = 20, Posture = 12, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(4, 5, 11), Reach = 5.5},
 		}},
-		-- Rapier CRIT from the Animation ID's sheet (2026-10-18 id; no marker: timed on its fastest motion, 0.43 s)
-		Heavy = {Anim = "Rapier_Heavy", AnimPeak = 0.43, Startup = 0.34, Active = 0.1, Recovery = 0.4, Damage = 30, Posture = 30, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(4, 5, 12), Reach = 6, Step = 22, Cooldown = 1.1},
+		-- Rapier CRIT from the Animation ID's sheet (2026-10-19 id, 1.35 s, no marker). AnimPeak measured 2026-10-19 the
+		-- same way as the M1s (blade-tip speed peak at the 0.717 s keyframe; was 0.43 on the old id).
+		Heavy = {Anim = "Rapier_Heavy", AnimPeak = 0.72, Startup = 0.34, Active = 0.1, Recovery = 0.4, Damage = 30, Posture = 30, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(4, 5, 12), Reach = 6, Step = 22, Cooldown = 1.1},
 		-- Flurry: five fast thrusts.
 		Skill = {Name = "Flurry", Anim = "Rapier_Skill", AnimSpeed = 0.9, Startup = 0.18, Active = 0.45, MultiHit = 5, Recovery = 0.35, Damage = 6, Posture = 4, Stun = 0.35, Velocity = "Pull", Hitbox = Vector3.new(5, 5, 10), Reach = 5, Stamina = 18, Cooldown = 6},
 		-- Precision: +25% damage against a target that is winding up or recovering (counter-hit).
@@ -1183,6 +1187,7 @@ TuningConfig.Downed.Grips = {
 	Fists = {Grip = "Gauntlets_Grip", Victim = "Gauntlets_Gripped", Length = 2.23},
 	Gauntlets = {Grip = "Gauntlets_Grip", Victim = "Gauntlets_Gripped", Length = 2.23},
 	Daggers = {Grip = "Daggers_Grip", Victim = "Daggers_Gripped", Length = 1.2},
+	Rapier = {Grip = "Rapier_Grip", Victim = "Rapier_Gripped", Length = 1.23}, -- sheet 2026-10-19 (the grip keys Hilt under a pose our rig lacks: the blade stays in the hand pose)
 	Sword = {Grip = "Sword_Grip", Victim = "Sword_Gripped", Length = 2.0},
 	Greatsword = {Grip = "Greatsword_Grip", Victim = "Greatsword_Gripped", Length = 1.33},
 	Guns = {Grip = "Guns_Grip", Victim = "Guns_Gripped", Length = 3.0}, -- Gun Grip Victim: sheet 2026-10-18

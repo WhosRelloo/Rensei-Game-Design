@@ -2,6 +2,40 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-19 — Animation sheet: Rapier set, Dagger idle, grips wired
+
+Owner request: "fix all animations with the ones from the spreadsheet" (design approved). Rensei, mirrored to the Tutorial where the same objects exist.
+
+- **What players notice:**
+  - the Rapier has its own sheet set: new M1 1–4, CRIT, idle and Flurry (T), and a Rapier grip finisher (GRIP + GRIP VICTIM) instead of the execution;
+  - the Dagger idle is the published one, with the legs animated (the hips sway);
+  - Dagger M1 3 is the new upload;
+  - the Katana / Rapier draw uses the new Katana Unsheathe (and plays it backwards to sheathe).
+- **Wired** (`AnimationId` = the sheet id, attribute `SheetId`; the old id kept as `PreviousId`, any Studio `Save` kept as the fallback; the published id wins in Studio and live, `AnimationManager.Playable`):
+  - `Rapier_Light1`–`4`: 88629079862060, 106111566774072, 94932519812153, 140341502749537 (0.75 / 0.72 / 0.75 / 0.72 s);
+  - `Rapier_Idle` 122141349611647 (2.23 s loop), `Rapier_Heavy` 136861400985819 (1.35 s), `Rapier_Skill` 79473015992584 (2.0 s; markers Barrage 0.43, BarrageEnd 1.05, FinalStab 1.35);
+  - new `Grips.Rapier_Grip` 85813024737924 (1.23 s) and `Grips.Rapier_Gripped` 75188810841150 (1.80 s);
+  - `Daggers_Idle` 96820335600899 (4.93 s loop), `Daggers_Light3` 130478011394399 (0.42 s; was 80421062677398);
+  - `Sword_Equip` 114589995116351 (0.43 s; was a Studio save).
+- **TuningConfig:**
+  - `Downed.Grips.Rapier = {Grip = "Rapier_Grip", Victim = "Rapier_Gripped", Length = 1.23}`. The brief said 1.13; the animation loads at 1.23 s on the Animator, and `Length` is the gripper animation's length, so the pair now fills the 2 s grip exactly (played at 0.62×);
+  - Rapier `AnimPeak`, **measured**: Light1 0.37 → **0.38**, Light2 0.37 → **0.33**, Light3 0.37 → **0.38**, Light4 0.37 → **0.40**, Heavy 0.43 → **0.72**. Startup / Active / Recovery unchanged;
+  - **method:** from each KeyframeSequence, the blade tip's position through the R6 chain Torso → Right Arm → Hilt (the animator's Hilt joint at (0, −0.65, 0); the tip 4.25 studs down the blade, from our Rapier's blade mesh). A keyframe's speed is the mean of its two neighbouring keyframe intervals; the peak is taken in the forward thrust. A 240 Hz resample agrees (peak forward speed at 0.377 / 0.385 s for M1 1 / 3, 0.735 s for the CRIT);
+  - effect: with `AnimSpeed = AnimPeak / (Startup + Active / 2)` the M1s play at 1.77 / 1.53 / 1.77 / 1.43× and the CRIT at **1.85×** (was 1.10×). Part B re-times the windows.
+- **The Rapier's blade bone:** the new animations move a joint called `Hilt`; the Rapier's grip part and motor are `Ninjato` (WeaponManager names the motor after the part). Not changed: it isn't a one-line rename in the attach code. Until the tool is re-rigged like the katana, the blade keeps its hand pose and follows the arm.
+- **Tutorial:** mirrored `Rapier_Light2`, `Rapier_Idle`, `Rapier_Heavy`, `Rapier_Skill`, `Daggers_Idle`, `Daggers_Light3`, `Sword_Equip` (all seven ids load there). The Tutorial has no `Rapier_Light1`/`3`/`4` or grip animations, and its TuningConfig has an older Rapier block (lights 1/3/4 borrow the sword set, Light2 `AnimPeak` 0.29, Heavy 0.34) and no `Downed.Grips`, so its TuningConfig wasn't changed.
+- **Tests (Rensei Play, real profile snapshotted and restored, 0 differences):**
+  - all 12 animations load on the player's Animator (lengths above);
+  - Rapier given + drawn: the draw played `Sword_Equip` 114589995116351, then `Rapier_Idle` 122141349611647 plays at Idle priority while standing;
+  - M1 string on the Dummy: the four sheet ids played in order and all four hits landed; the CRIT played and hit. Hits register at the start of the active window, 0.17 s after the press for M1 1–3 (animation time 0.30 / 0.26 / 0.30), 0.24 s for M1 4 (0.34) and 0.33 s for the CRIT (0.61); the measured peaks sit mid-window;
+  - knocked Dummy + grip with the Rapier drawn: style `Weapon`, `Rapier_Grip` on the player and `Rapier_Gripped` on the Dummy, both at 0.62×; the grip finished at 2.0 s (track at 1.23 s);
+  - Daggers: `Daggers_Idle` 96820335600899 plays; the left hip swings 0.7°–9.0° and the right −16.7°–−5.9° over 3 s;
+  - no errors in the console;
+  - the player was restored: the Rapier / Daggers removed, the original Renetti back, Combat Mode and position restored.
+- **Still broken uploads (re-upload, then put the new id in `AnimationId`):** Daggers_Equip 82218741773055, Daggers_Unequip 120069108676683, Greatsword_Equip 122309498454912, Greatsword_Unequip 78181583295596, Greatsword_Walk 76985284126069, Greatsword_Gripped 136479651286488, Sword_Unequip 135958788270981, Sword_Walk 110642878390298 ("KeyframeSequence loaded is not valid"). They stay on their Studio saves.
+- **Not changed, for the owner:** the class skill Lunging Thrust uses `Rapier_Light2` with `AnimPeak` 0.29 (the old animation; the new one peaks at 0.33). Flurry's timing hasn't been fitted to the new markers yet.
+- **Backups:** `ServerStorage.RenseiBackups["Pre-SheetWire_2026-10-19"]`: in Rensei, the 10 changed Animation objects + TuningConfig; in the Tutorial, the 7 changed Animation objects.
+
 ## 2026-10-19 — Plan 1: Foundation
 
 **Summary (Plan 1 complete: slices R1, S1, R2 of the Morality × Reputation spec).**
