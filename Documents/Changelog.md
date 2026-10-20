@@ -2,6 +2,29 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-20 — Plan: World Plan 1, travel backbone and station tie-ins (with the FMA train)
+
+**Owner:**
+- approved the world spec;
+- created the six region places (Foundry Yard 109591196441030, Central City 74075793529314, Aerugo Borderlands 72020960130134, Ishval 133625615147752, Northern Wall 132378034692557, Corrupted Lands 138436167547886);
+- asked for the train to be "made in blender and have it have a FMA style... a nice interior too, with areas for players to board", and chose 5 cars plus the engine.
+
+- **Spec:** updated with the place ids and a "train model" section: locomotive and tender, then baggage, 3rd class, dining, 2nd class and private cabin cars, with R6 sizes and FMA colours.
+- **Plan:** `Documents/plans/2026-10-20-world-plan1-travel.md`, 11 tasks:
+  1. the travel rules and region places (pure, tested);
+  2. the Blender train kit;
+  3. a server boot loader, so every place runs the same code;
+  4. Packages, and the Foundry place running the full game;
+  5. the group teleport and TravelService;
+  6. stations (tickets, boarding by class, the playable ride);
+  7. ride events;
+  8. road journeys with ambushes;
+  9. the papers check and the stowaway route;
+  10. rumours, regions, quests and parties across places;
+  11. the Foundry end-to-end check and docs.
+- **Ruling:** Wanted 3+ at the gate is a refusal plus State Heat until an arrest system exists.
+- **Not started yet.**
+
 ## 2026-10-20 — Backlog: the owner's to-do list for after the world plans
 
 - **New file `Documents/Backlog.md`:** the owner's 16 items, in the owner's words, for after the world, travel and seasons plans:
