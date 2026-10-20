@@ -2,6 +2,20 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-20 — Spec: world scale, travel and seasons
+
+**Owner:** "I want the full map to be so big you have to use the train, etc. to TP to the place..."; "I want regions to be as big as VV Ultimatum's maps"; "also add seasons into the game that effect terrain".
+
+Spec: `Documents/specs/2026-10-20-world-travel-seasons-design.md`. Approved in conversation; waiting on the owner's review of the written spec. Every number is a PROPOSAL.
+
+- **World:** one place per region (Ye becomes Lindenmoor), each about 3,000 × 3,000 studs (about 2 minutes of running across). The trial rooms and the Foundry core move to their regions.
+- **Train:** a playable 45–60 s ride with events; everyone aboard lands on the same server.
+- **Roads:** road journeys can be ambushed, and they're the way out for Wanted players.
+- **Stations tie in:** tickets by class, the papers check, refusal or arrest when Wanted, a stowaway route, and rumours carried by the timetable.
+- **Seasons:** 2 hours each, worked out from the clock. They change the part ground (snow, autumn leaves, crops), freeze ponds into walkable ice, and affect tracking, stealth and prices.
+- **Code:** shared through Roblox Packages.
+- **Build order:** backbone, then station tie-ins, then seasons, then Lindenmoor grown to about 3,000 studs, then the Foundry Yard, then Central, then the borders.
+
 ## 2026-10-20 — Concept: region layouts and how they connect
 
 **Owner:** "Draw me up some layouts of the other map areas and how they connect".
