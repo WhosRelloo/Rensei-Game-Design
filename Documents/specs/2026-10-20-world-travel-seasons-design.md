@@ -1,7 +1,7 @@
 # World Scale, Travel and Seasons: design
 
 **Date:** 2026-10-20
-**Status:** approved in conversation; awaiting owner review of this written spec.
+**Status:** approved by the owner (2026-10-20). The place ids were created by the owner and are in the table below.
 
 **Owner's words:**
 - "I want the full map to be so big you have to use the train, etc. to TP to the place. I want it to really feel like a real RPG experience where all the systems connect together with the map to make something super immersive and breathtaking."
@@ -47,12 +47,12 @@ This spec covers the **world backbone**:
 | Region | Place | Level band | Station | Road exits |
 |---|---|---|---|---|
 | Lindenmoor | **Ye** (keeps id 106992859583940) | 1–6 | Lindenmoor Station | north road (to the Foundry), east ridge (Halvard's Adit stays inside the region) |
-| Foundry Yard | new | 5–12 | Foundry Junction | south road (to Lindenmoor), viaduct road (to Central) |
-| Central City | new | hub | Central Terminal | west, east and north gates, and the undercity (story) |
-| Aerugo Borderlands | new | 12–22 | none (road only), or a branch halt later | Vintner's Pass (to Central), ash wastes (to the Corrupted Lands) |
-| Ishval | new | 18–30 | Ishval Rail Halt (East line) | desert road (to Central) |
-| Northern Wall | new | 25–35 | none (the road is the climb) | the switchbacks (to Central), the ice caves (to the Corrupted Lands) |
-| Corrupted Lands | new | 30–45 | none | ice caves, undercity, ash wastes |
+| Foundry Yard | 109591196441030 | 5–12 | Foundry Junction | south road (to Lindenmoor), viaduct road (to Central) |
+| Central City | 74075793529314 | hub | Central Terminal | west, east and north gates, and the undercity (story) |
+| Aerugo Borderlands | 72020960130134 | 12–22 | none (road only), or a branch halt later | Vintner's Pass (to Central), ash wastes (to the Corrupted Lands) |
+| Ishval | 133625615147752 | 18–30 | Ishval Rail Halt (East line) | desert road (to Central) |
+| Northern Wall | 132378034692557 | 25–35 | none (the road is the climb) | the switchbacks (to Central), the ice caves (to the Corrupted Lands) |
+| Corrupted Lands | 138436167547886 | 30–45 | none | ice caves, undercity, ash wastes |
 
 - **Size:** each region is about **3,000 × 3,000 studs**. The Region Layouts plates become each region's heart (700–1,500 studs), and wilds, roads, side villages, camps and Forgotten Sites fill the rest.
 - **Lindenmoor grows about 4×:** today's valley is the village core. Around it:
@@ -222,7 +222,7 @@ This spec covers the **world backbone**:
    - `TravelService`, `StationService`, `TrainRideClient`;
    - Lindenmoor Station and a Foundry placeholder place (just its station and a test area);
    - one road exit each way.
-   - New places are added to the experience by the owner (Asset Manager, Places, Add) or with the owner's go-ahead. Nothing is published.
+   - The owner created all six region places (ids in section 1). Nothing is published.
 2. **Station tie-ins:** tickets, money, the papers check, Wanted, the stowaway route, rumours on the timetable.
 3. **Seasons in Lindenmoor:** `SeasonService` and `SeasonClient`, pipeline tags, freezing water, crops.
 4. **Lindenmoor grows to about 3,000 studs**, using the existing kit pipeline.
