@@ -30,6 +30,13 @@ The spec covers several independent subsystems. Each plan below produces working
 
 The first model's `trow` / `air trow` saves are the stealth throw animations for Plan 5 (throwables). They are unpublished, so the owner needs to upload them.
 
+## Build queue (owner, 2026-10-19)
+1. **Animation sheet wiring**, then the **M1 speed pass**, then the **VV-style parry**.
+2. **Admin panel**: locked to WhosRello and ImWaymonTTK; audit + debugging / gameplay / moderation tools; Discord staff log.
+3. **Tutorial sync** with Ye's systems.
+4. **Morality × Reputation Plans 2–10** (above).
+5. **Player trading** (`specs/2026-10-19-trading-design.md`), last.
+
 ## Rules for every plan
 
 These come from the spec and the owner's standing rules:
