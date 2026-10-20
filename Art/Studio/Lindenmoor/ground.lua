@@ -138,6 +138,62 @@ for i = 1, NX do
 	end
 end
 
+-- 2b. keep the Adit's route open (fix 2026-10-20: the boarded mouth sits under the hillside's overhang, which the
+-- cave test above doesn't count as a cave, so two 17-stud columns filled the entrance). No column may fill the
+-- walkable space over the Adit's floors and ramp, or the boarded mouth's opening; a column that rises above that
+-- space keeps only its part over it, and one whose top is inside it becomes a 1-stud surface slab.
+local function aabb(cf, size)
+	local function ext(a) return math.abs(cf.RightVector[a]) * size.X + math.abs(cf.UpVector[a]) * size.Y + math.abs(cf.LookVector[a]) * size.Z end
+	local half = Vector3.new(ext("X"), ext("Y"), ext("Z")) / 2
+	return cf.Position - half, cf.Position + half
+end
+local Clear = {} -- {min, max} world boxes
+local AditMap = Map:FindFirstChild("HalvardsAdit")
+if AditMap then
+	for _, f in ipairs(AditMap.Structure:GetChildren()) do
+		if f:IsA("BasePart") and (f.Name:sub(1, 5) == "Floor" or f.Name == "Ramp") then
+			local lo, hi = aabb(f.CFrame, f.Size)
+			local floorTop = f.Name == "Ramp" and lo.Y or hi.Y
+			table.insert(Clear, {Vector3.new(lo.X, floorTop, lo.Z), Vector3.new(hi.X, hi.Y + 9, hi.Z)})
+		end
+	end
+	-- the mouth's opening: between the two FramePosts' inner faces, from the tunnel floor to the lintel's underside
+	local mouth = AditMap:FindFirstChild("Interactables") and AditMap.Interactables:FindFirstChild("BoardedMouth")
+	if mouth then
+		local posts, lintel = {}, mouth:FindFirstChild("FrameLintel")
+		for _, c in ipairs(mouth:GetChildren()) do if c.Name == "FramePost" then table.insert(posts, c) end end
+		if #posts == 2 and lintel then
+			local a1, b1 = aabb(posts[1].CFrame, posts[1].Size)
+			local a2, b2 = aabb(posts[2].CFrame, posts[2].Size)
+			local zlo, zhi = math.min(b1.Z, b2.Z), math.max(a1.Z, a2.Z)
+			local llo = aabb(lintel.CFrame, lintel.Size)
+			local x = posts[1].Position.X
+			table.insert(Clear, {Vector3.new(x - 4, math.min(a1.Y, a2.Y), zlo), Vector3.new(x + 4, llo.Y, zhi)})
+		end
+	end
+end
+local cleared = 0
+for i = 1, NX do
+	for k = 1, NZ do
+		local t = top[i][k]
+		if t then
+			local x, z = X0 + (i - 0.5) * 4, Z0 + (k - 0.5) * 4
+			for _, B in ipairs(Clear) do
+				local ox = math.min(x + 2, B[2].X) - math.max(x - 2, B[1].X)
+				local oz = math.min(z + 2, B[2].Z) - math.max(z - 2, B[1].Z)
+				if ox > 1 and oz > 1 and t > B[1].Y and bottom[i][k] < B[2].Y then -- the cell overlaps the route by more than 1 stud
+					if t >= B[2].Y + 1 then
+						bottom[i][k] = math.max(bottom[i][k], math.ceil(B[2].Y))
+					else
+						bottom[i][k] = t - 1
+					end
+					cleared += 1
+				end
+			end
+		end
+	end
+end
+
 -- 3. path cells on a slope become ramps; the rest merge into slabs of equal (top, bottom, kind)
 local used = {}
 for i = 1, NX do used[i] = {} end
@@ -290,4 +346,4 @@ end
 T:WriteVoxels(reg, 4, mats, occs)
 local paths = 0
 for _, r in ipairs(rects) do if r[7] == "path" then paths += 1 end end
-return string.format("ground v4: %d parts (%d slabs, %d of them path, %d path ramps, %d cave runs); solid terrain cleared, water kept", made, #rects, paths, #ramps, #shell)
+return string.format("ground v4: %d parts (%d slabs, %d of them path, %d path ramps, %d cave runs, %d columns kept off the Adit route); solid terrain cleared, water kept", made, #rects, paths, #ramps, #shell, cleared)

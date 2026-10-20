@@ -2,6 +2,15 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-20 — Fix: Halvard's Adit entrance blocked
+
+**Owner:** "fix the dungeon entrance not being able to be destroyed open".
+
+- **Cause:** when `ground.lua` turned the terrain into parts, it stopped each ground column above any cave it could detect. The Adit's boarded mouth sits under the hillside's overhang, which that test doesn't count as a cave. So two stone columns, 16–17 studs tall, filled the entrance right behind the boards. That is also why the earlier walk test stopped at the mouth. The boards were fine: the loose planks are passable, as designed.
+- **Fix in `Art/Studio/Lindenmoor/ground.lua`:** before building any ground column, the script reads the Adit's real route (every floor, the ramp, and the mouth between its frame posts up to the lintel) and keeps it clear. A column taller than the route keeps only the part above it. One whose top is inside the route becomes a 1-stud surface slab. The ground was rebuilt and `settle.lua` re-run.
+- **Test:** the new `ServerStorage.RenseiTests.Test_AditRoute` (a copy is in `Art/Studio/HalvardsAdit/`) failed before the fix and passes now.
+- **Tried in Play:** a character walked from outside, through the boards, and down the tunnel to x 327. The owner's profile was snapshotted and restored.
+
 ## 2026-10-20 — Plan: World Plan 1, travel backbone and station tie-ins (with the FMA train)
 
 **Owner:**
