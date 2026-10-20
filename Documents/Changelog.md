@@ -2,6 +2,45 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-20 — Lindenmoor v2 in Blender: blocky like the refs, real textures, far more detail
+
+**Owner:**
+- "I want the build to be wayy more detailed with better textures";
+- "1000x cooler";
+- "Remember I want it like these pictures" (the 3 refs: a blocky fogged forest, a teal mine, a candlelit temple).
+
+- **Look:** the refs' block language.
+  - Trees: square trunks with root slabs, angled box branches, stacked flat canopy slabs with edge blocks, and hanging box vines. The canopy forms a ceiling over the camera.
+  - Ground: stacked mossy terrace slabs.
+  - Rock: angular wedges and slab outcrops.
+  - Every surface is real PBR texture, box-projected at stud scale. Moss grows on the upward-facing faces of rock, terraces, walls and bark.
+  - Lighting: teal fog in layers, background tree silhouettes, and warm practical lights (the door lantern, interior glow through the windows, three lamp posts).
+- **Textures:** 14 CC0 Poly Haven sets plus a misty-morning sky.
+  - Sets: grass, dirt path, cobble, mossy rock, cliff, stacked stone, field-wall stone, plaster, medieval timber, planks, clay roof tiles, bark, thatch.
+  - `Art/Blender/fetch_textures.py` downloads them. The files are git-ignored, about 143 MB.
+- **Farmhouse detail:**
+  - plinth, stone ground floor with quoins;
+  - timber frame with posts and braces;
+  - framed windows with sills, mullions, shutters and flower boxes;
+  - a 6 × 9 plank door with lintel, hinges and step;
+  - a tiled roof with tile rows, rafters, ridge, barge boards and gables;
+  - chimney and cap, gutter and downpipe, rain barrel, firewood stack, bench.
+- **Props:**
+  - a well (stone ring, roof, bucket, rope) and a hay cart;
+  - barrels with iron hoops, and crates;
+  - fences and lamp posts along the path, hay bales;
+  - sticks, pebbles and plank scraps;
+  - about 700 grass clumps, moss patches and bushes.
+- **Gameplay pieces:**
+  - an outcrop with an authored ledge strip (7 up, 1.2 deep; tag it `RenseiLedge` in Studio);
+  - field walls 4 studs high (the vault height);
+  - R6 stand-ins for scale.
+- **Files:**
+  - `Art/Blender/lindenmoor/{core,build}.py`, which rebuilds everything with `build.run("all")`;
+  - `Art/Blender/Lindenmoor_v2.blend`;
+  - the render: `Documents/images/Map Concept/Lindenmoor v2 (textured, blocky).png`.
+- **Not yet:** export to Studio. The pieces have to become a modular kit, with FBX at stud scale and MaterialVariants from the same textures.
+
 ## 2026-10-20 — Blender style test: a Lindenmoor corner at R6 scale
 
 **Owner:** "Continue" (after the world map concept), with Blender connected.
