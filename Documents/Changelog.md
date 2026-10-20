@@ -22,7 +22,33 @@ Owner request: "fix all animations with the ones from the spreadsheet" (design a
   - Rapier `AnimPeak`, **measured**: Light1 0.37 → **0.38**, Light2 0.37 → **0.33**, Light3 0.37 → **0.38**, Light4 0.37 → **0.40**, Heavy 0.43 → **0.72**. Startup / Active / Recovery unchanged;
   - **method:** from each KeyframeSequence, the blade tip's position through the R6 chain Torso → Right Arm → Hilt (the animator's Hilt joint at (0, −0.65, 0); the tip 4.25 studs down the blade, from our Rapier's blade mesh). A keyframe's speed is the mean of its two neighbouring keyframe intervals; the peak is taken in the forward thrust. A 240 Hz resample agrees (peak forward speed at 0.377 / 0.385 s for M1 1 / 3, 0.735 s for the CRIT);
   - effect: with `AnimSpeed = AnimPeak / (Startup + Active / 2)` the M1s play at 1.77 / 1.53 / 1.77 / 1.43× and the CRIT at **1.85×** (was 1.10×). Part B re-times the windows.
-- **The Rapier's blade bone:** the new animations move a joint called `Hilt`; the Rapier's grip part and motor are `Ninjato` (WeaponManager names the motor after the part). Not changed: it isn't a one-line rename in the attach code. Until the tool is re-rigged like the katana, the blade keeps its hand pose and follows the arm.
+- **The Rapier's blade bone (follow-up, controller ruling): the grip is now `Hilt`, so the sheet's animations move the blade.**
+  - **Finding:** the Animator matches a pose to a joint by the **part** names it joins (Part0 / Part1), not by the Motor6D's name. Tested on fresh rigs in Play: motor `Hilt` + part `Ninjato` → the grip joint turned 0° in M1 1 and the crit; part `Hilt` (motor either name) → 90° and 178°. So the preferred "name only the motor" field would not have moved the blade.
+  - **Change (Rapier tool only, no combat code):** `Assets.Items.Weapon.Rapier.Ninjato` renamed `Hilt`, and its `MotorC0` / `MotorC1` moved to the animator's joint, (0, −0.65, 0) / (0, 0.091, 0), the katana's values (was (0, −1.059, 0) / (0, −0.318, 0)). The rest pose is the same (the part sits (0, −0.741, 0) from the arm either way), so the holster, the hold and the swap blend are unchanged. `WeaponManager` already names the motor after the part, so the motor is `Hilt` too. Only its header comment changed. Attribute `GripNote` on the part.
+  - **Checked first:** no script looks up `Ninjato` or the weapon motor by name (holster weld, swap blend, DownedManager, ragdoll, StatsUI, IceAxe all go by object / Part0 / attributes).
+  - **Also checked:** the holster weld places the part itself by `HolsterC0` (no change); the client swap blend uses each joint's own `C1`; enemies arm through the same tool (`WeaponManager.Give`; the Elite "Bandit Duelist" carries a Rapier). The repo doesn't mirror item models (`Scripts/` only), so this entry is the record of the tool change.
+  - **The Rapier's animations and their weapon tracks** (each KeyframeSequence loaded, weapon poses listed):
+    - `Right Arm > Hilt`: M1 1–4, crit, idle, Flurry, the grip, and `Rapier_Ren` (class skill; also keys `Left Arm > Hilt2`).
+    - M1 3, M1 4 and the grip also carry a second, unused `Hilt` (or mesh) pose under a "SheatheNightshade Rapier" pose our rig lacks. Their `Right Arm > Hilt` track still drives the blade (measured below).
+    - `Rapier_Walk` (gun rig): `Right Arm > Hilt` at identity, plus pistol parts and `Left Arm > Hilt2`. While walking, the blade sits in its rest grip (before: `Sword_Hold`'s 29° pose). Not re-checked for leg clipping.
+    - `Sword_Hold`'s Save (the Rapier's hold) keys both `Ninjato` and `Hilt` (the katana fix), both at the same 29.4°, so the hold is unchanged.
+    - No weapon track: `Sword_Equip` (the new unsheathe), `Sword_Run`, `Rapier_SpeedLunge` (class skill), `Rapier_Gripped`.
+    - **Nothing the Rapier uses keys only `Ninjato` or `Handle`, so nothing needs re-exporting for the rename.**
+  - **Tests (Rensei Play):**
+    - **First run** (previous pass): M1 1–4 and the crit all hit the Dummy. The blade turned 107.6° / 117.8° / 109.8° / 118.9° / 178.5° relative to the Right Arm.
+    - **Verification run** (client, every frame):
+      - Rapier given → holstered (weld on, 0.000 studs from `HolsterC0`) → drawn (motor `Hilt`, Right Arm → `Hilt`, on).
+      - Idle (`Rapier_Idle`, 3 s): the blade is held at the idle's own 24.8° pose, out to the right and forward. The tip is 4.1 studs right and 2.7 forward of the torso, and no blade point is inside the torso or legs.
+      - Within each attack, relative to the Right Arm, the blade turned 101.9° / 117.8° / 109.8° / 121.0° in M1 1–4 and 176.6° in the crit, with the tip moving 6.5–7.3 studs. Nothing passed through the body.
+      - Rapier grip finisher on the knocked Dummy: `Rapier_Grip` played, and the blade turned 105.8°.
+      - Bandit Duelist (enemy): motor `Hilt`; with `Rapier_Light1` + `Rapier_Heavy` played on it, its blade turned 178.9° as seen by the client.
+      - **Before the fix** (the backup tool with part `Ninjato`, swapped in at runtime): M1 1 and the crit played, and the blade turned 0.0–0.1° (it stayed in `Sword_Hold`'s pose).
+      - Sheathe → holster (0.000 studs) → re-draw → sheathe, all OK. Katana: holstered → drawn → sheathed, motor `Hilt`, 0.000 studs, unchanged.
+      - No errors outside CorePackages.
+    - **Player restored:** the Renetti is back, Combat Mode is off, and the position is restored.
+    - **Profile:** snapshotted and compared. The first run was unchanged. In the second run the profile differed, and it was restored in place to an exact match (cause not isolated; the Dummy has no `EnemyType`, so a finisher on it records no deed).
+  - **Tutorial not changed:** its Rapier and Katana tools are both still `Ninjato` with the old joint (the katana fix was never mirrored there), and its WeaponManager is a different file (25385 bytes).
+  - **Backups:** `Assets.Items.Weapon.Rapier` and `WeaponManager` added to `RenseiBackups["Pre-SheetWire_2026-10-19"]` (Rensei).
 - **Tutorial:** mirrored `Rapier_Light2`, `Rapier_Idle`, `Rapier_Heavy`, `Rapier_Skill`, `Daggers_Idle`, `Daggers_Light3`, `Sword_Equip` (all seven ids load there). The Tutorial has no `Rapier_Light1`/`3`/`4` or grip animations, and its TuningConfig has an older Rapier block (lights 1/3/4 borrow the sword set, Light2 `AnimPeak` 0.29, Heavy 0.34) and no `Downed.Grips`, so its TuningConfig wasn't changed.
 - **Tests (Rensei Play, real profile snapshotted and restored, 0 differences):**
   - all 12 animations load on the player's Animator (lengths above);
@@ -33,7 +59,7 @@ Owner request: "fix all animations with the ones from the spreadsheet" (design a
   - no errors in the console;
   - the player was restored: the Rapier / Daggers removed, the original Renetti back, Combat Mode and position restored.
 - **Still broken uploads (re-upload, then put the new id in `AnimationId`):** Daggers_Equip 82218741773055, Daggers_Unequip 120069108676683, Greatsword_Equip 122309498454912, Greatsword_Unequip 78181583295596, Greatsword_Walk 76985284126069, Greatsword_Gripped 136479651286488, Sword_Unequip 135958788270981, Sword_Walk 110642878390298 ("KeyframeSequence loaded is not valid"). They stay on their Studio saves.
-- **Not changed, for the owner:** the class skill Lunging Thrust uses `Rapier_Light2` with `AnimPeak` 0.29 (the old animation; the new one peaks at 0.33). Flurry's timing hasn't been fitted to the new markers yet.
+- **Not changed, for the owner:** the Rapier dash attack Lunging Thrust (`WeaponDashAttacks.Rapier`) uses `Rapier_Light2` with `AnimPeak` 0.29 (the old animation; the new one peaks at 0.33). Flurry's timing hasn't been fitted to the new markers yet.
 - **Backups:** `ServerStorage.RenseiBackups["Pre-SheetWire_2026-10-19"]`: in Rensei, the 10 changed Animation objects + TuningConfig; in the Tutorial, the 7 changed Animation objects.
 
 ## 2026-10-19 — Plan 1: Foundation
