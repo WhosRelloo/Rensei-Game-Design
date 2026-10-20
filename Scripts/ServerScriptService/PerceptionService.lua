@@ -10,6 +10,11 @@
 -- asks Perceived(Player). Watchers placed in the world (townsfolk, guards) are tagged RenseiWatcher with
 -- attributes WatcherType / Faction / Carrier. Cost: only NPCs within 80 studs of a player update, every
 -- 0.2 s, at most 3 sight rays each and 120 per tick (spec §17.10).
+-- Plan 2 (S2, 2026-10-20): sight is scaled by the target's light (ExposureOf, set by LightService: x0.2 in deep
+-- shadow to x1.2 in bright light) and by crouching (x0.5, the Crouching attribute CharacterHandler sets); a
+-- speed buff no longer reads as sprinting. Sounds come through Hear (NoiseService): walls muffle them, and
+-- Agents hear alchemy from twice as far. An enemy that gave up at its leash (Lose with its home and range)
+-- stops re-noticing players who stay beyond it, so it no longer flips Alert <-> Cautious at the edge.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -23,8 +28,8 @@ local PerceptionService = {}
 local Npcs = {} -- [Rig] = state
 PerceptionService.Npcs = Npcs
 
--- the light on a character, 0..1 (Plan 2 replaces this with lamps, daylight and shadow)
-PerceptionService.ExposureOf = function() return 1 end
+-- the light on a character, 0..1, or nil = unknown (sight x1). LightService replaces this on Start.
+PerceptionService.ExposureOf = function() return nil end
 
 local Rays = RaycastParams.new()
 Rays.FilterType = Enum.RaycastFilterType.Exclude
@@ -95,7 +100,7 @@ end
 -- an Alert NPC brings in the others close by: they come to look at Where
 local function Call(S, Player, Where)
 	local Root = S.Rig:FindFirstChild("HumanoidRootPart")
-	if not Root or not Where then return end
+	if not Root or not Where or not Player then return end -- the focus may have left mid-fight
 	for Rig, O in pairs(Npcs) do
 		local R = O ~= S and Rig:FindFirstChild("HumanoidRootPart")
 		-- enemies call enemies, watchers call watchers (spec §17.1: guards are called in, not bandits)
@@ -169,7 +174,9 @@ local function Update(S, Dt, PlayerList)
 		local Gain = 0
 		local Checked = true
 		S.Pending[Player] = (S.Pending[Player] or 0) + Dt
-		if CR and Alive(C) and not C:GetAttribute("Knocked") then
+		-- an enemy that gave up at its leash doesn't keep noticing someone who stays out there
+		local Beyond = S.Leash and CR and Vector3.new(CR.Position.X - S.Leash.Home.X, 0, CR.Position.Z - S.Leash.Home.Z).Magnitude > S.Leash.Range
+		if CR and not Beyond and Alive(C) and not C:GetAttribute("Knocked") then
 			local To = CR.Position - Head.Position
 			local Dist = To.Magnitude
 			local Cone = Dist <= Type.Range and P.ConeMult(Root.CFrame.LookVector, To) or 0
@@ -182,8 +189,10 @@ local function Update(S, Dt, PlayerList)
 					S.Seen[Player] = T
 					S.Spot[Player] = CR.Position
 					local V = CR.AssemblyLinearVelocity
-					Gain = P.Rate(S.Type, Dist, Cone, Vis, P.MoveMult(Vector3.new(V.X, 0, V.Z).Magnitude),
-						PerceptionService.ExposureOf(C), Cautious)
+					local Move = C:GetAttribute("Crouching") and P.CrouchMult
+						or P.MoveMult(Vector3.new(V.X, 0, V.Z).Magnitude, C:GetAttribute("SpeedMultiplier"))
+					local Exposure = PerceptionService.ExposureOf(C)
+					Gain = P.Rate(S.Type, Dist, Cone, Vis, Move, Exposure and P.ExposureMult(Exposure) or 1, Cautious)
 				end
 			end
 		end
@@ -253,10 +262,12 @@ function PerceptionService.Goal(Rig)
 	return nil
 end
 
--- gave up on its target for good (the leash): Cautious
-function PerceptionService.Lose(Rig)
+-- gave up on its target for good (the leash): Cautious. Home / Range (optional): its leash; from now on it
+-- ignores the sight of players beyond it (a hit still alarms it).
+function PerceptionService.Lose(Rig, Home, Range)
 	local S = Npcs[Rig]
 	if not S then return end
+	if typeof(Home) == "Vector3" and type(Range) == "number" then S.Leash = {Home = Home, Range = Range} end
 	for K in pairs(S.Aware) do S.Aware[K] = 0 end
 	S.Focus, S.SearchUntil, S.LastKnown = nil, nil, nil
 	S.CautiousUntil = Now() + P.CautiousTime
@@ -269,7 +280,7 @@ function PerceptionService.Reset(Rig)
 	if not S then return end
 	S.Aware, S.Seen, S.Spot = {}, {}, {}
 	S.Pending = {}
-	S.Focus, S.SearchUntil, S.LastKnown = nil, nil, nil
+	S.Focus, S.SearchUntil, S.LastKnown, S.Leash = nil, nil, nil, nil
 	S.InvestigateUntil, S.CautiousUntil = 0, 0
 	SetPhase(S, "Unaware")
 end
@@ -287,17 +298,62 @@ end
 
 -- a sound at Position: NPCs within Radius (x1.3 when Cautious) that aren't fighting go to look. They learn
 -- where, not who (spec §17.3; Plan 2 adds the sound sources and wall muffling).
+local function Investigate(S, Position, T)
+	S.LastKnown = Position
+	S.InvestigateUntil = T + P.InvestigateTime
+	SetPhase(S, "Suspicious")
+end
+
 function PerceptionService.Noise(Position, Radius)
 	local T = Now()
 	for Rig, S in pairs(Npcs) do
 		local R = Rig:FindFirstChild("HumanoidRootPart")
 		local Reach = Radius * ((T < S.CautiousUntil) and P.CautiousMult or 1)
-		if R and S.Phase ~= "Alert" and (R.Position - Position).Magnitude <= Reach then
-			S.LastKnown = Position
-			S.InvestigateUntil = T + P.InvestigateTime
-			SetPhase(S, "Suspicious")
+		if R and S.Phase ~= "Alert" and (R.Position - Position).Magnitude <= Reach then Investigate(S, Position, T) end
+	end
+end
+
+local WallRays = RaycastParams.new()
+WallRays.FilterType = Enum.RaycastFilterType.Exclude
+WallRays.RespectCanCollide = true
+
+-- walls (solid parts) between a sound and an ear, up to P.MaxWalls, one ray per wall
+local function Walls(From, To, Ignore)
+	local Skip = table.clone(Ignore)
+	local N = 0
+	while N < P.MaxWalls do
+		WallRays.FilterDescendantsInstances = Skip
+		local Hit = workspace:Raycast(From, To - From, WallRays)
+		if not Hit then break end
+		N += 1
+		table.insert(Skip, Hit.Instance)
+	end
+	return N
+end
+PerceptionService.Walls = Walls
+
+-- a sound (NoiseService) of Radius at Position: NPCs that hear it through the walls between (each takes
+-- P.WallCut off the radius), x1.3 while Cautious and x2 for Agents hearing alchemy, go to look at the spot.
+-- Source (optional): the character that made it (never blocks its own sound). Returns how many heard it.
+function PerceptionService.Hear(Position, Radius, Kind, Source)
+	local T = Now()
+	local Heard = 0
+	for Rig, S in pairs(Npcs) do
+		local Head = Rig:FindFirstChild("Head")
+		if Head and S.Phase ~= "Alert" and Rig ~= Source and Alive(Rig) and not Rig:GetAttribute("Knocked") then
+			local Reach = Radius * ((T < S.CautiousUntil) and P.CautiousMult or 1)
+				* ((S.Type == "Agent" and P.LoudAlchemy[Kind or ""]) and P.AgentHearing or 1)
+			local Dist = (Head.Position - Position).Magnitude
+			if Dist <= Reach then
+				local N = Walls(Position, Head.Position, {Rig, Source})
+				if Dist <= P.Muffled(Reach, N) then
+					Investigate(S, Position, T)
+					Heard += 1
+				end
+			end
 		end
 	end
+	return Heard
 end
 
 -- NPCs that saw this player within the last Memory seconds: the witnesses of whatever the player does

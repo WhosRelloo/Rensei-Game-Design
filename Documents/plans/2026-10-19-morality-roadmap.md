@@ -10,7 +10,7 @@ The spec covers several independent subsystems. Each plan below produces working
 | # | Plan | Spec slices | Depends on | Status |
 |---|---|---|---|---|
 | 1 | **Foundation:** schema 5, regions, communities, birth deeds, place standing, NPC perception, witnesses, rumours | R1, S1, R2 | — | **written:** `2026-10-19-plan1-foundation.md` |
-| 2 | **Heat and Wanted** + sound and light | R3, S2 | 1 | to write |
+| 2 | **Heat and Wanted** + sound and light | R3, S2 | 1 | **built 2026-10-20:** `2026-10-20-plan2-heat-wanted.md` (follow-ups: `2026-10-20-plan2-followups.md`) |
 | 3 | **Consequences and the Exchange rule:** rules table, new conditions, price multipliers, trainer gates, checkpoints, the `Price` lint | R4 (+ the R10 lint) | 1, 2 | to write |
 | 4 | **The Licence:** State Exam, Circle initiation, Silver Watch, Orders, revocation | R5 | 1, 3 | to write |
 | 5 | **Stealth kit:** takedowns, bodies, hiding spots, alarm bells, throwables, alchemic lures, light control, Alchemic Sense | S3, S4, S5 | 1, 2 | to write |

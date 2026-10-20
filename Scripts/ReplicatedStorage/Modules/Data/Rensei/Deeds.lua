@@ -12,6 +12,10 @@
 --     Repeat   = {Cap = n}  -- repeatable: counts at most Cap times per day (nil = once ever)
 --     Bonus    = {Money = n} -- paid with each counted repeat (PROPOSAL)
 --     Birth    = true   -- an origin deed (born_<Origin>): heard everywhere at once, never a rumour
+--     Crime    = n      -- a crime (Plan 2, spec §6): Heat in the jurisdiction of each place whose law hears it
+--                       -- (Rensei.Heat), or at once if one of that law's agents saw it
+--     CircleHeat = n    -- a deed against the Circle: Circle Heat wherever the Circle hears it
+--     HeatCap  = n      -- the most Heat this crime may add per place per hour
 --   }
 -- Deeds come from: dialogue actions {Kind = "Deed", Deed = id}, quest Outcomes[x].Deeds, and
 -- MoralityService's combat hooks (Finishers below: grip vs deliver a knocked enemy).
@@ -83,6 +87,26 @@ local Deeds = {
 		Scope = "Local",
 		Repeat = {Cap = 10},
 		Bonus = {Money = 10},
+	},
+
+	-- ===== Crimes (2026-10-20, Plan 2: Heat and Wanted, spec §6 / §7). PROPOSAL numbers. =====
+	-- from level 6, casting without a State licence in a State place while an Authority agent watches
+	-- (HeatService.OnCast decides; it's only recorded when an agent saw it)
+	unlicensed_cast = {
+		Text = "Cast alchemy without a licence, in front of the Authority",
+		Conduct = {Order = -1},
+		Scope = "Local",
+		Repeat = {Cap = 20},
+		Crime = 10, HeatCap = 30,
+	},
+	-- striking a townsperson or other watcher (tag RenseiWatcher); at most once per victim per 30 s
+	assault_townsfolk = {
+		Text = "Struck a townsperson",
+		Conduct = {Mercy = -2, Order = -2},
+		Standing = {Townsfolk = -2},
+		Scope = "Local",
+		Repeat = {Cap = 10},
+		Crime = 15,
 	},
 
 	-- ===== Birth (2026-10-19, spec §11): recorded once when the character first plays in Ye. Origin offsets

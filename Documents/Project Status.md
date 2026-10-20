@@ -75,6 +75,8 @@ Updated **2026-10-18**. See `Phase Plan.md` for the roadmap, `Changelog.md` for 
   - Animated throughout (`UIMotion`): menus pop in and settle out, buttons react to hover and press, rows and popups animate in.
 - **Progression:** levels, stat points (5 stats), Mastery Points (training), Truth/Gate checks (the trial itself isn't built).
 
+- **Morality × Reputation, Plan 2 (2026-10-20):** Heat and Wanted per jurisdiction (State / Militia / Circle). Two crimes so far: unlicensed casting in front of the Authority (from level 6), and assault on a townsperson (wired, but townsfolk can't be hit yet). Fines at Foreman Brask, decay, and a Wanted badge by the compass. Sounds (footsteps by floor, landings, dashes, hits, casts, shots; walls muffle them), light and shadow (Exposure), crouching, and the eye-sigil HUD. See plans/2026-10-20-plan2-heat-wanted.md and its follow-ups.
+
 ## Known gaps
 
 - **Animations:** many weapon animations are unpublished copies that play only in Studio. 16 IDs from the owner's animation sheet are broken group uploads, so the old animations are used for those.

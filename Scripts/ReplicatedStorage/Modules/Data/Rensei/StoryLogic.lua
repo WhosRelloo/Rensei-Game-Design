@@ -28,6 +28,9 @@
 --   Trait = {Mercy = "Merciful"}      the conduct word showing on that axis
 --   Trust = {Lise = 30}               at least; TrustBelow = {Lise = -30}: at most
 --   Renown = n                        at least
+-- Heat and Wanted (Plan 2, 2026-10-20; Rensei.Heat, decayed to now):
+--   Heat = {State = n}                at least that much Heat; HeatBelow = {State = n}: less than
+--   Wanted = {State = n}              at least Wanted n; WantedBelow = {State = n}: at most Wanted n
 
 local Factions = require(script.Parent.Factions)
 
@@ -128,6 +131,9 @@ function StoryLogic.Meets(Requires, Data, Player)
 	if Requires.NoAffinity and ((Data.Identity and Data.Identity.Affinity) or "") ~= "" then return false end
 	if Requires.SavedAffinity and not table.find(List(Requires.SavedAffinity), (Data.Identity and Data.Identity.Affinity) or "") then return false end
 	if Requires.Level and (Data.Level or 1) < Requires.Level then return false end
+	-- Automail fitted (true) / not fitted (false) (2026-10-19, the Lindenmoor mechanic); Money = at least n
+	if Requires.Automail ~= nil and ((Data.Automail and Data.Automail.Installed) == true) ~= (Requires.Automail == true) then return false end
+	if Requires.Money and (Data.Money or 0) < Requires.Money then return false end
 	if Requires.Item then
 		local Has = false
 		for _, I in ipairs(Data.Inventory or {}) do if I.ItemName == Requires.Item then Has = true end end
@@ -148,6 +154,14 @@ function StoryLogic.Meets(Requires, Data, Player)
 	for N, V in pairs(Requires.Trust or {}) do if Factions.Clamp((M.Trust or {})[N]) < V then return false end end
 	for N, V in pairs(Requires.TrustBelow or {}) do if Factions.Clamp((M.Trust or {})[N]) > V then return false end end
 	if Requires.Renown and (M.Renown or 0) < Requires.Renown then return false end
+	if Requires.Heat or Requires.HeatBelow or Requires.Wanted or Requires.WantedBelow then
+		local Heat = require(script.Parent.Heat)
+		local Now = os.time()
+		for J, N in pairs(Requires.Heat or {}) do if Heat.ValueOf(M.Heat, J, Now) < N then return false end end
+		for J, N in pairs(Requires.HeatBelow or {}) do if Heat.ValueOf(M.Heat, J, Now) >= N then return false end end
+		for J, N in pairs(Requires.Wanted or {}) do if Heat.WantedOf(M.Heat, J, Now) < N then return false end end
+		for J, N in pairs(Requires.WantedBelow or {}) do if Heat.WantedOf(M.Heat, J, Now) > N then return false end end
+	end
 	return true
 end
 

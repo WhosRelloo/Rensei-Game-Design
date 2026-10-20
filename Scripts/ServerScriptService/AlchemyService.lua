@@ -1264,6 +1264,12 @@ function AlchemyService.Cast(Player, Slot, Aim)
 	-- Player Identities: players who could see the cast note the technique (IdentityService.Witness)
 	if Outcome then
 		task.spawn(function() pcall(function() require(ServerScriptService.IdentityService).Witness(Player, Affinity) end) end)
+		-- Plan 2 (2026-10-20): a cast is loud (NoiseService), and unlicensed casting in front of the Authority is a
+		-- crime (HeatService). Both optional, like PuzzleService, so the Tutorial runs this file without them.
+		local SSS = game:GetService("ServerScriptService")
+		local Noise, Heat = SSS:FindFirstChild("NoiseService"), SSS:FindFirstChild("HeatService")
+		if Noise then task.spawn(pcall, function() require(Noise).Emit(Root.Position, "Cast", Character) end) end
+		if Heat then task.spawn(pcall, function() require(Heat).OnCast(Player) end) end
 	end
 	return Outcome
 end

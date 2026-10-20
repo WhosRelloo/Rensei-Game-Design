@@ -81,6 +81,12 @@ return function(Player, Action, Arg)
 	NextShot[Character] = Index
 	AttackRunner.Run(WCSCharacter, WeaponManager.Resolve(Character, Weapon.Shots[Index]), Weapon.Class .. "_Shot" .. Index, {
 		WalkSpeed = 10,
-		Strike = WeaponManager.Fire,
+		Strike = function(...)
+			-- a gunshot is the loudest thing there is (Plan 2: NoiseService, optional for the Tutorial)
+			local Noise = game:GetService("ServerScriptService"):FindFirstChild("NoiseService")
+			local Root = Character:FindFirstChild("HumanoidRootPart")
+			if Noise and Root then task.spawn(pcall, function() require(Noise).Emit(Root.Position, "Gunshot", Character) end) end
+			return WeaponManager.Fire(...)
+		end,
 	})
 end

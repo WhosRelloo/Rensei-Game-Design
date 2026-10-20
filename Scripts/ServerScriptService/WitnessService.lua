@@ -4,6 +4,8 @@
 -- remembered here, in server memory, so they can report the deed at a desk later (RumourService.Report).
 -- Strength (PROPOSAL): 1 per NPC witness, 2 per agent (Carrier: State / Circle agents), 3 per evidence.
 -- No witness and no evidence = strength 0 = no rumour (a ghost).
+-- Hostile NPCs (no Faction: bandits, scavengers) still notice you and are listed, but add no strength: they
+-- don't talk to anyone who matters (owner default, Plan 2, 2026-10-20).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,7 +21,9 @@ local Seen = {} -- [WitnessUserId] = {[SubjectUserId .. ":" .. DeedId] = os.time
 
 function WitnessService.Strength(Npcs, Evidence)
 	local S = 0
-	for _, W in ipairs(Npcs) do S += W.Carrier and WitnessService.Weights.Agent or WitnessService.Weights.Npc end
+	for _, W in ipairs(Npcs) do
+		if W.Faction then S += W.Carrier and WitnessService.Weights.Agent or WitnessService.Weights.Npc end
+	end
 	return S + (Evidence or 0) * WitnessService.Weights.Evidence
 end
 

@@ -70,7 +70,10 @@ local function Tiers(M)
 	return Out
 end
 
-MoralityService.Recorded = {} -- function(Player, DeedId, Def, Info = {Region, Strength, Scope}) after a deed counts
+-- function(Player, DeedId, Def, Info = {Region, Strength, Scope, Witnesses}) after a deed counts.
+-- Witnesses = WitnessService.Capture's result ({Npcs, Players, Strength}) when the deed was recorded with
+-- Ctx.Witness, else nil (HeatService: an agent who saw it raises Heat at once).
+MoralityService.Recorded = {}
 
 -- the region a character stands in (Rensei.Regions; outside every area volume = the City)
 function MoralityService.RegionOf(Character)
@@ -114,11 +117,20 @@ function MoralityService.Record(Player, DeedId, Quiet, Ctx)
 	-- where it's heard: a birth deed everywhere; a Local / Public one by the factions where it happened, if
 	-- anyone perceived it (word then travels: RumourService); a Private one nowhere until discovered
 	local Scope = E.Known or Def.Scope or "Private"
-	local Region = Ctx.Region or MoralityService.RegionOf(Player.Character)
-	local Strength = Ctx.Strength
+	local Region = Ctx.Region
+	if not Regions.Regions[Region or ""] then Region = MoralityService.RegionOf(Player.Character) end
+	local Strength = tonumber(Ctx.Strength)
+	local Witnesses = nil
 	if Strength == nil and Ctx.Witness then
-		local Ok, W = pcall(function() return require(ServerScriptService.WitnessService) end)
-		Strength = (Ok and W.Capture) and W.Capture(Player, DeedId, Ctx.Evidence).Strength or DEFAULT_STRENGTH.Local
+		local Ok, W = pcall(function()
+			return require(ServerScriptService.WitnessService).Capture(Player, DeedId, tonumber(Ctx.Evidence) or 0)
+		end)
+		if Ok and type(W) == "table" then
+			Witnesses, Strength = W, tonumber(W.Strength)
+		else
+			warn("MoralityService: witness capture failed for", DeedId, W)
+			Strength = DEFAULT_STRENGTH.Local
+		end
 	end
 	Strength = Strength or DEFAULT_STRENGTH[Scope] or 0
 	local Now = os.time()
@@ -140,7 +152,7 @@ function MoralityService.Record(Player, DeedId, Quiet, Ctx)
 		end
 	end
 	ProgressionService.Sync(Player)
-	local Info = {Region = Region, Strength = Strength, Scope = Scope}
+	local Info = {Region = Region, Strength = Strength, Scope = Scope, Witnesses = Witnesses}
 	for _, Listener in ipairs(MoralityService.Recorded) do task.spawn(Listener, Player, DeedId, Def, Info) end
 	return true
 end
@@ -257,7 +269,8 @@ function MoralityService.Start()
 				MoralityService.Rebuild(Data)
 				MoralityService.RecordOutcomes(Player, true)
 				-- word that travelled while they were away (offline catch-up)
-				pcall(function() require(ServerScriptService.RumourService).Tick(Player) end)
+				local Ok, Err = pcall(function() require(ServerScriptService.RumourService).Tick(Player) end)
+				if not Ok then warn("MoralityService: rumour catch-up on join failed:", Err) end
 				ProgressionService.Sync(Player)
 				return
 			end

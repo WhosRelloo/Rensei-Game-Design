@@ -70,9 +70,12 @@ function Core.Spawn(M, DeedId, Origin, Strength, Now)
 	return R
 end
 
+-- Returns the arrivals that landed something new ({Rumour, Place, Carrier, Heard, At}) and, second, every
+-- landing made ({Rumour, Place, Carrier, Reach, At}; Reach = the factions the carrier reaches there), which
+-- HeatService uses: a repeat crime still raises Heat where its deed was heard before.
 function Core.Advance(M, Now)
 	Ensure(M)
-	local Out = {}
+	local Out, Landings = {}, {}
 	while true do
 		local BestR, BestI, BestT
 		for _, R in ipairs(M.Rumours) do
@@ -85,7 +88,9 @@ function Core.Advance(M, Now)
 		if not BestR then break end
 		local F = table.remove(BestR.Fronts, BestI)
 		if BestR.Strength - F.Hops > 0 then
-			local Heard = Reputation.Land(M, F.Place, BestR.Deed, Regions.Reach(F.Place, F.Carrier), F.ArrivesAt)
+			local Reach = Regions.Reach(F.Place, F.Carrier)
+			local Heard = Reputation.Land(M, F.Place, BestR.Deed, Reach, F.ArrivesAt)
+			table.insert(Landings, {Rumour = BestR, Place = F.Place, Carrier = F.Carrier, Reach = Reach, At = F.ArrivesAt})
 			BestR.Reached[F.Place] = BestR.Reached[F.Place] or F.ArrivesAt
 			Push(BestR, F.Place, F.ArrivesAt, F.Carrier, F.Hops + 1)
 			if #Heard > 0 then
@@ -94,7 +99,7 @@ function Core.Advance(M, Now)
 			end
 		end
 	end
-	return Out
+	return Out, Landings
 end
 
 -- a witness silenced: the rumour loses that witness's weight; at 0 it's dead, fronts on the road included

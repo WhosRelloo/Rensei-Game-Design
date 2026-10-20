@@ -2,8 +2,12 @@ local W = require(game.ServerScriptService.WitnessService)
 return {
 	StrengthCountsWitnessesAndEvidence = function(T)
 		T.Eq(W.Strength({}, 0), 0, "a ghost")
-		T.Eq(W.Strength({{Carrier = false}, {Carrier = false}}), 2, "two townsfolk")
-		T.Eq(W.Strength({{Carrier = true}}, 1), 5, "an agent and one evidence")
+		T.Eq(W.Strength({{Carrier = false, Faction = "Townsfolk"}, {Carrier = false, Faction = "Foundry"}}), 2, "two townsfolk")
+		T.Eq(W.Strength({{Carrier = true, Faction = "Authority"}}, 1), 5, "an agent and one evidence")
+	end,
+	-- Plan 2 (owner default, 2026-10-20): hostile NPCs (no faction) notice you but don't talk to anyone
+	HostilesAddNoStrength = function(T)
+		T.Eq(W.Strength({{Carrier = false}, {Carrier = false, Faction = "Townsfolk"}}), 1, "a bandit and a townsperson")
 	end,
 	ReportsNeedARecordedWitness = function(T)
 		W.Note(1, 2, "d", 1000)

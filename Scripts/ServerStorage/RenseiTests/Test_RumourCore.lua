@@ -77,6 +77,17 @@ return {
 		T.Eq(#M.Rumours, Core.MaxLive)
 		T.Eq(M.Rumours[#M.Rumours].Deed, "d25", "newest kept")
 	end,
+	-- Plan 2: every landing is reported (HeatService), even where nobody hears the deed for the first time
+	LandingsIncludeRepeats = function(T)
+		local M = Fresh()
+		Reputation.Land(M, "City", "d", {"Authority"}, 0) -- the City's Authority knew already (an earlier crime)
+		Core.Spawn(M, "d", "Foundry", 2, 0)
+		local Arrivals, Landings = Core.Advance(M, 120)
+		T.Eq(#Arrivals, 0, "nothing new heard")
+		T.Eq(#Landings, 1, "but the dispatch landed")
+		T.Eq(Landings[1].Place, "City")
+		T.Same(Landings[1].Reach, {"Authority"}, "dispatch reaches the Authority")
+	end,
 	NewsIsBounded = function(T)
 		local M = Fresh()
 		for I = 1, 15 do Core.LandReport(M, "x" .. I, "City", "Authority", I) end

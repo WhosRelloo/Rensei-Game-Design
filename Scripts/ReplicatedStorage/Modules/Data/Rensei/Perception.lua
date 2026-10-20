@@ -1,6 +1,7 @@
 -- Perception (2026-10-19, Morality × Reputation spec §17.1, §17.2, §17.10): the numbers and the pure maths
 -- of what NPCs notice. PerceptionService (server) runs it; the eye-sigil HUD (Plan 2) will read it too.
--- Every number is a PROPOSAL (spec §18.7). Light (Exposure) and crouching arrive in Plan 2 (S2).
+-- Every number is a PROPOSAL (spec §18.7). Plan 2 (S2, 2026-10-20) adds light (Exposure), crouching, sounds
+-- (radii, footsteps by floor, wall muffling) and how bright a place is by the time of day.
 
 local Perception = {}
 
@@ -59,11 +60,71 @@ function Perception.ConeMult(Look, To)
 	return 0
 end
 
-function Perception.MoveMult(Speed)
+-- SpeedMult (optional): the character's SpeedMultiplier attribute. A speed buff scales the gaits too, so a
+-- buffed walk still reads as walking (Plan 1 follow-up).
+function Perception.MoveMult(Speed, SpeedMult)
+	Speed = Speed / math.max(0.25, SpeedMult or 1)
 	for _, M in ipairs(Perception.Move) do
 		if Speed <= M.Max then return M.Mult end
 	end
 	return 1
+end
+
+-- ===== Plan 2 (S2): crouching, light, sound =====
+Perception.CrouchMult = 0.5 -- sight while crouching (replaces the movement multiplier)
+
+-- Exposure 0..1 (LightService) -> sight multiplier: x0.2 in deep shadow up to x1.2 in bright light
+Perception.ExposureMin = 0.2
+Perception.ExposureMax = 1.2
+function Perception.ExposureMult(Exposure)
+	local E = math.clamp(tonumber(Exposure) or 1, 0, 1)
+	return Perception.ExposureMin + (Perception.ExposureMax - Perception.ExposureMin) * E
+end
+
+-- daylight by Lighting.ClockTime: full from 9 to 17, none from 20 to 6, ramps between (outdoors only;
+-- under a roof a place gets IndoorDay of it)
+Perception.IndoorDay = 0.35
+Perception.NightFloor = 0.05
+function Perception.Daylight(Clock)
+	local C = (tonumber(Clock) or 14) % 24
+	if C >= 9 and C <= 17 then return 1 end
+	if C <= 6 or C >= 20 then return Perception.NightFloor end
+	local T = C < 9 and (C - 6) / 3 or (20 - C) / 3
+	return Perception.NightFloor + (1 - Perception.NightFloor) * T
+end
+
+-- a tagged lamp's light on a point Dist away (Radius, Strength 0..1): full at the lamp, none at its radius
+function Perception.LampLight(Dist, Radius, Strength)
+	if Radius <= 0 or Dist >= Radius then return 0 end
+	return (Strength or 1) * (1 - Dist / Radius)
+end
+
+-- sounds (studs). An NPC within the radius goes to look at the spot: it learns where, not who.
+Perception.Sounds = {
+	Cast = 30, Clap = 8, Gunshot = 60, Hit = 20, Land = 12, Roll = 10, Splash = 12, Break = 25, LockPick = 6,
+}
+Perception.LoudAlchemy = {Cast = true, Clap = true} -- Agents hear these from twice as far
+Perception.AgentHearing = 2
+Perception.WallCut = 0.4 -- each wall between the sound and the NPC takes 40% off the radius
+Perception.MaxWalls = 3 -- walls counted per NPC per sound (one ray each); more count as 3
+
+-- footsteps by floor (Enum.Material name). Crouched: 0. Running or sprinting: x2.
+Perception.StepRadius = 5 -- any floor not listed
+Perception.Steps = {
+	Grass = 4, LeafyGrass = 4, Ground = 4, Mud = 4, Sand = 4, Snow = 4, Fabric = 4,
+	Wood = 7, WoodPlanks = 7,
+	Metal = 9, CorrodedMetal = 9, DiamondPlate = 9, Foil = 9, Pebble = 9, Cobblestone = 9,
+}
+Perception.RunSteps = 2
+function Perception.StepNoise(Material, Move, Crouching)
+	if Crouching then return 0 end
+	local R = Perception.Steps[Material] or Perception.StepRadius
+	return (Move or 1) > 1 and R * Perception.RunSteps or R
+end
+
+-- the radius a sound reaches through Walls walls
+function Perception.Muffled(Radius, Walls)
+	return Radius * (1 - Perception.WallCut) ^ math.min(Walls, Perception.MaxWalls)
 end
 
 -- awareness per second. Visible = the fraction of head / torso / feet in clear line of sight (0..1).

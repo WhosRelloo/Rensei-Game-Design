@@ -2,6 +2,163 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-20 — Plan 2: Heat and Wanted + sound and light
+
+Plan 2 of the Morality × Reputation roadmap: slices R3 (Heat) and S2 (sound and light). Approved in the session on 2026-10-20 (ImWaymonTTK: "Approved. Build Plan 2 as drafted, using the default answer for all 6 questions"). The plan is `plans/2026-10-20-plan2-heat-wanted.md`; what's left is in `plans/2026-10-20-plan2-followups.md`. Every number is a **PROPOSAL**. Built in **Rensei** (Ye) only.
+
+**Default answers used (yours to change):**
+1. The five Alchemy Trainers are **not** witnesses (unchanged).
+2. Field / Frost / Gale / Stone / Ward Alchemists are **rogues**: they keep the Agent sight type but have no faction, so they never raise Heat.
+3. The rumour hop rule stays (strength N → N−1 hops). This now decides Heat too: a crime seen by one townsperson in the Foundry never reaches the City, so it gives no State Heat.
+4. Hostile NPCs (no faction) still notice you but **add no rumour strength**.
+5. **No cell yet.** It comes with the arrests in Plans 6 / 7.
+6. Betraying Lise gives **no** Circle Heat. Circle Heat is wired, but no deed uses it yet.
+
+**What players notice**
+- **Crimes and Heat.** Two crimes, both new deeds:
+  - `unlicensed_cast`: from level 6, without a State licence, in a State place, while an Authority agent (today only Foreman Brask) saw you within 3 s. +10 State Heat per cast, at most +30 per place per hour. Order −1.
+  - `assault_townsfolk`: hitting a watcher. +15 Heat, Mercy −2, Order −2, Townsfolk −2. Once per victim per 30 s. **See the finding below: melee can't reach watchers today.**
+- **How Heat rises** (spec §6):
+  - **At once**, when the law of that place is there to hear it. The Authority is present in the City, and Townsfolk are the law in Lindenmoor. An agent who saw it counts as present, e.g. Brask in the Foundry.
+  - **Otherwise, when the word arrives.** For example, an assault in the Foundry with 2 witnesses' worth reaches the City's Authority by dispatch in 2 min: +15 State Heat.
+  - Each rumour raises each jurisdiction **once**. Gossip arriving later adds nothing more.
+- **Wanted 0–5** per jurisdiction (State / Militia / Circle) at Heat 20 / 50 / 100 / 180 / 300. A banner shows when the level changes ("State - Wanted 1", "State - no longer wanted").
+- **Heat decays** −5 per hour of real time, offline included.
+- **Fine.** Foreman Brask has a new line, **"I'll pay the fine." (Price: 100 per level)**. It shows only while you have State Heat and Wanted ≤ 2. Paying costs 100 × level, clears State Heat, and he answers with a new "fined" line. At Wanted 3+ his line is "About that fine…" → "Past that, friend." If you can't pay, the conversation closes and a toast says why.
+- **Wanted badge** (`WantedUI`, new): small badges to the right of the compass, one per jurisdiction you're wanted in (State blue, Militia brown, Circle dark red), with five pips. Hidden at Wanted 0, and with the compass's own rules.
+- **Sound** (`NoiseService`, new). Sounds are events with a radius. NPCs go to look at the **spot**; they learn where, not who.
+  - **Footsteps** by floor: grass / dirt 4, wood 7, metal / gravel 9, anything else 5. Running or sprinting ×2. Crouched 0.
+  - **Other sounds:** landing from a height (falling faster than 45 studs/s) 12, a dive into deep water 12, dash / roll 10, any hit 20, alchemy cast 30, gunshot 60.
+  - **Walls:** each wall between the sound and an NPC takes 40% off the radius (counted up to 3).
+  - **Modifiers:** Cautious NPCs hear ×1.3, and Agent-type NPCs hear alchemy ×2.
+- **Light** (`LightService`, new). Every enabled light in the world outside rigs (35 parts: lanterns, the forge, the crucible, embers) is tagged `RenseiLight` with a radius and strength from its light.
+  - **Exposure** (0–1) comes from the brightest lamp with a clear line to your torso, or from daylight: in full in the open, ×0.35 under a roof.
+  - **Sight:** NPCs see you ×0.2 in deep shadow, up to ×1.2 in bright light.
+  - **The game has no day cycle** (ClockTime 14.5), so the open is always bright.
+- **Crouching** (real Ctrl) sets `Crouching` on the server: NPCs fill awareness at half rate, and your steps are silent.
+- **Eye sigil** (`StealthUI`, new), bottom left above the party-name row. It's original art: a chalk-circle eye.
+  - The iris goes from dark to gold with your Exposure.
+  - The lid lowers while you crouch.
+  - A ring flares out to the reach of your last sound, then fades.
+  - It hides in menus, dialogue, cutscenes and at the Gate.
+
+**Built**
+
+| Piece | Kind | What |
+|---|---|---|
+| `Rensei.Heat` | new data | thresholds, decay, the per-hour cap, which law hears what (`Raised`), HUD colours |
+| `HeatService` | new | Add / Value / Wanted / Fine / Clear; crime listeners (`Recorded`, rumour landings, `OnCast`, hits on watchers); `Wanted_<J>` / `Heat_<J>` Player attributes; `SetClock` for tests |
+| `NoiseService` | new | `Emit`; steps, landings, splashes; hits via HitListeners; `Noise` / `NoiseAt` character attributes for the sigil |
+| `LightService` | new | lamp tagging, `ExposureAt` / `ExposureOf`, `Exposure` character attribute every 0.5 s |
+| `WantedUI`, `StealthUI` | new client UI | the badge and the eye sigil (UIHandler starts them) |
+| `Rensei.Deeds` | edit | the two crimes; new fields `Crime`, `CircleHeat`, `HeatCap` |
+| `Rensei.Perception` | edit | `CrouchMult`, `ExposureMult`, `Daylight`, `LampLight`, `Sounds`, `Steps`, `StepNoise`, `Muffled`; `MoveMult(Speed, SpeedMult)` |
+| `PerceptionService` | edit | `Hear` (walls, Cautious, Agents and alchemy), `Walls`; crouch and Exposure in the sight rate; `Lose(Rig, Home, Range)`; Call guard |
+| `MoralityService` | edit | `Info.Witnesses` (the full `Capture` result); hardened `Record`; warns if the join catch-up fails |
+| `WitnessService` | edit | NPCs with no faction add no strength (answer 4) |
+| `RumourService` / `.Core` | edit | `Core.Advance` also returns every landing (with `Reach`), which goes to HeatService; a "Word reached …: <reason>" toast for the newest arrival each tick |
+| `StoryLogic` | edit | conditions `Heat`, `HeatBelow`, `Wanted`, `WantedBelow` (decayed to now) |
+| `Dialogues` (Brask), `DialogueService` | edit | the fine lines and the `PayFine` action |
+| `AlchemyService` | edit | after a successful player cast: a Cast sound + `HeatService.OnCast` (both optional, so the Tutorial can run this file without them) |
+| `CharacterHandler` | edit | the `Crouching` attribute; a Roll sound on an accepted dash |
+| `Shoot` request | edit | a Gunshot sound when a shot fires |
+| `EnemyService` | edit | passes its home and leash to `Lose` |
+| `ServerHandler`, `UIHandler` | edit | start the three services and the two UIs |
+
+**Plan 1 follow-ups done:**
+- the witness list is passed on;
+- `Record` is hardened: Capture is pcalled, Evidence is coerced, an unknown region falls back;
+- `Call(S, nil)` is guarded;
+- an enemy that gave up at its leash no longer re-notices someone who stays beyond it (no Alert↔Cautious churn);
+- a speed buff no longer reads as sprinting (gaits ÷ `SpeedMultiplier`);
+- the crouch flag;
+- the catch-up warning;
+- the "Word reached" toast;
+- Test_Schema5 extras.
+
+**Tests.** All suites ran inside the game VM (Play), through an injected harness that snapshots the tester's save, runs `TestKit`, and restores it.
+- **Edit-mode suites:**
+  - `Test_TestKit` 4/0, `Test_Schema5` 6/0 (+2), `Test_Regions` 5/0, `Test_Reputation` 7/0, `Test_Perception` 4/0;
+  - `Test_Witness` 3/0 (+1; RED "a bandit and a townsperson: expected 1, got 2" first);
+  - `Test_RumourCore` 9/0 (+1);
+  - **new:** `Test_Heat` 6/0, `Test_Sound` 8/0.
+- **Play suites:**
+  - **new** `Play_Heat` 8/0:
+    - an agent-seen cast gives +10, and the cap holds at 30 → Wanted 1;
+    - no crime behind Brask, at level 5, or with a licence;
+    - an assault's Heat arrives with the dispatch and isn't repeated by gossip;
+    - the law present raises Heat at once (Militia in Lindenmoor, State in the City);
+    - a ghost crime raises nothing;
+    - the fine works, and is refused past Wanted 2 or without the money;
+    - decay.
+  - **new** `Play_Stealth` 9/0:
+    - one wall stops a 12-radius sound at 10 studs, and a 20-radius one gets through;
+    - running on metal is heard at 14 studs where walking on grass isn't;
+    - an Agent hears a cast at 45;
+    - a gunshot pulls a Grunt from 50;
+    - crouching halves the fill;
+    - deep shadow vs bright light gives a ratio of 0.17;
+    - a lamp lights a point at 0.75 and a wall puts it in shadow;
+    - a lamp put out / afternoon / under a roof give the right values;
+    - the leash stops the churn and a hit still alarms;
+    - `Step` with the focus gone doesn't error.
+  - **new** `Play_Assault` 1/0: the hit hook.
+  - Plan 1's `Play_Perception` 6/0, `Play_Rumours` 2/0, `Play_Morality` 3/0.
+- **Real input** (Studio Play as ImWaymonTTK; Level 6 and money set inside the snapshot):
+  - three **Z** casts (Cryo Shift) in front of Brask → State Heat 10 → 20 → 29.9 (the cap less decay), Wanted 1, and the badge showed one pip (screenshot);
+  - **E** to Brask, then **4** "I'll pay the fine." → money 1000 → 400, Heat 0, the badge hid, and the "fined" line showed;
+  - **Ctrl** crouch-walk at 6 studs/s → `Crouching` true and no step sound for 30+ s;
+  - walking on concrete → 5; sprinting on dirt → 8;
+  - **Q** dash → Roll 10;
+  - a 20-stud drop → Land 12.
+- **Cost** (game VM, 18 NPCs registered, 4 within 80 studs of the tester, 35 lamps): perception step 0.016 ms, one cast sound 0.012 ms, one Exposure check 0.020 ms. **Not measured:** 20 NPCs near 2 players. The MCP only runs solo Play.
+- **Save:** restored after the run with **0 differences**. A fresh Play then loaded it unchanged: Level 3, Money 120, Exp 70, only `born_Ishvalan`, no Heat or rumours.
+- **Console:** no game errors or warnings from the new or changed scripts.
+
+**Findings for you**
+- **Townsfolk can't be hit yet.** `HitboxManager` only counts targets under `workspace.World.Live`, and the watchers live in `World.NPCs`. Two real M1s at Tobin did nothing. The assault crime is wired and tested through `ProgressionService.RecordHit`, but it can't happen in play until watchers are hittable. That's your call: they'd need health, knockouts and respawns.
+- **Outdoors in daylight, enemies now notice you ×1.2 faster** than in Plan 1's timings, because the open sky is bright (Exposure 1 → ×1.2, spec §17.2). Shade, roofs and night now help. Tune with `Perception.ExposureMax` if the open feels too sharp.
+- **The Tutorial wasn't touched.** AlchemyService, CharacterHandler, EnemyService, StoryLogic, Perception, PerceptionService and the Shoot request now differ from the Tutorial's copies, which were meant to match Ye. The new lookups are optional, so copying them over later is safe once HeatService / NoiseService / LightService and Rensei.Heat go too.
+- During the real-input run, an Escape keypress (Roblox's own menu) left Tobin's dialogue box on screen with nothing answering it. One "Close" request from the client cleared it. Not caused by Plan 2 (DialogueUI only reacts while it thinks the box is open), and not investigated further.
+
+**This export also carries earlier Studio changes that weren't in the repo yet** (made before Plan 2, from the 2026-10-19 Automail / Alchemic Binding work):
+- `Dialogues`: the Lindenmoor mechanic Wren (`automail_mechanic`: fit / repair / remove automail, sell chalk);
+- `DialogueService`: `Ask` (one question with server-side answers), and the `Automail` and `Buy` actions;
+- `StoryLogic`: the `Automail` and `Money` conditions;
+- `UIHandler`: its module list.
+
+**Backups:** `ServerStorage.RenseiBackups["Pre-HeatWanted_2026-10-20"]`, 22 scripts:
+- MoralityService, RumourService, RumourService.Core, PerceptionService, Perception, Deeds, AlchemyService, CharacterHandler, StoryLogic, Dialogues, DialogueService, ServerHandler, UIHandler, Shoot, SwimService (untouched in the end), WitnessService, EnemyService;
+- tests: Play_Perception, Test_Schema5, Test_Perception, Test_Witness, Test_RumourCore.
+- Test_Witness and Test_RumourCore were edited before they were backed up. Their backups were rebuilt by removing this plan's additions, and they match the repo's copies byte for byte.
+
+**Exports** (Adler-32, the same in Studio and in the files):
+
+| File | Bytes | Adler-32 |
+|---|---|---|
+| Heat | 3577 | `6f6e79be` |
+| HeatService | 9483 | `d2f65a69` |
+| NoiseService | 5267 | `18d9ee04` |
+| LightService | 6057 | `284df244` |
+| WantedUI | 4545 | `e31aa8be` |
+| StealthUI | 5482 | `4a13ca34` |
+| PerceptionService | 16821 | `013e74b1` |
+| Perception | 6798 | `6d58b533` |
+| MoralityService | 12560 | `c0a0522f` |
+| RumourService | 3917 | `b3ef34ae` |
+| Core | 5002 | `0b8d52e7` |
+| WitnessService | 3263 | `7a924a04` |
+| Deeds | 6125 | `ef165e2d` |
+| StoryLogic | 10500 | `27266dd9` |
+| Dialogues | 47210 | `6d36babc` |
+| DialogueService | 13912 | `84d174cf` |
+| AlchemyService | 62651 | `4c9044a4` |
+| CharacterHandler | 8650 | `5dc5632b` |
+| EnemyService | 25124 | `ba534e95` |
+| ServerHandler | 5055 | `12f2efa7` |
+| Shoot | 4790 | `092c4cec` |
+| UIHandler | 2131 | `31e3c038` |
+
 ## 2026-10-20 — Tutorial synced with Ye's systems
 
 Owner request: "sync up the Tutorial place to the same systems the main game has" (task E). Scope approved 2026-10-20 as tiers 1–3: the combat and movement core, UI parity, and the systems a new player can use. Ye's main-game content stays out: quests, investigation, morality / rumours, minigames, puzzles, trials, Truth, ritual, Automail, compass, journal / Mastery tree UI, admin. **Tutorial** = place 74257385894576.

@@ -212,7 +212,7 @@ local function Brain(E)
 		local R = C and C:FindFirstChild("HumanoidRootPart")
 		if not R then return nil end
 		if (Flat(R.Position - E.Home.Position)).Magnitude > Def.LeashRange then
-			PerceptionService.Lose(Rig) -- beyond the leash: give up, warily
+			PerceptionService.Lose(Rig, E.Home.Position, Def.LeashRange) -- beyond the leash: give up, warily (and stop re-noticing them out there)
 			return nil
 		end
 		return C

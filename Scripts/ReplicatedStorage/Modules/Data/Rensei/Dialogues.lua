@@ -16,7 +16,8 @@
 --   }
 -- Action kinds: StartQuest, CompleteSignal (fires QuestService.Signal(Player, "Signal", Target)),
 --   SetFlag, GiveEvidence, GiveItem, StartMinigame, Deed (records a Rensei.Deeds deed once),
---   UnlockStyle {Style = "Boxing"} (a style trainer teaches a weapon style; requirements re-checked server-side).
+--   UnlockStyle {Style = "Boxing"} (a style trainer teaches a weapon style; requirements re-checked server-side),
+--   PayFine {Jurisdiction = "State"} (a State desk takes the fine: HeatService re-checks Wanted <= 2 and the money).
 -- Choice keys: Requires (greyed out unless met, with Show = "Locked"), ShowIf (hidden unless met).
 -- Conditions: see StoryLogic (incl. morality: Deed, NotDeed, Standing, Trait, Trust, Renown).
 -- Layout: the box fits about 240 characters of Text and 3-4 Choices before rows spill off-screen.
@@ -156,6 +157,12 @@ local TellLise = {Text = "\"It was Lise. The apprentice.\"", Next = "told_lise",
 	Action = {Kind = "Deed", Deed = "betrayed_lise"}}
 local AskInspectors = {Text = "\"Any word from the Authority's inspectors?\"", Next = "inspectors",
 	Requires = {Standing = {Authority = "Trusted"}}, Show = "Locked"}
+-- Plan 2 (2026-10-20, PROPOSAL): Brask is the Authority's man in the yard, so he takes State fines (spec §6:
+-- Wanted <= 2, 100 x level). Shown only while there's State Heat to pay off.
+local PayFine = {Text = "\"I'll pay the fine.\" (Price: 100 per level)", Next = "fined",
+	ShowIf = {Heat = {State = 1}, WantedBelow = {State = 2}},
+	Action = {Kind = "PayFine", Jurisdiction = "State"}}
+local TooFarGone = {Text = "\"About that fine...\"", Next = "no_fine", ShowIf = {Wanted = {State = 3}}}
 
 Dialogues.foundry_brask = {
 	Speaker = "Foreman Brask",
@@ -171,6 +178,7 @@ Dialogues.foundry_brask = {
 				{Text = "\"I'll find out.\"", Action = {Kind = "StartQuest", Quest = CHALK}, Next = "accepted"},
 				{Text = "\"What's in it for me?\"", Next = "pay"},
 				{Text = "\"Any work for a sword arm?\"", Next = "bounty"},
+				PayFine, TooFarGone,
 				Leave2,
 			},
 		},
@@ -199,6 +207,7 @@ Dialogues.foundry_brask = {
 				{Text = "\"Where should I look again?\"", Next = "accepted"},
 				TellBrask[1], TellBrask[2],
 				{Text = "\"Any work for a sword arm?\"", Next = "bounty"},
+				PayFine, TooFarGone,
 				{Text = "\"Not yet.\""},
 			},
 		},
@@ -214,6 +223,14 @@ Dialogues.foundry_brask = {
 			Text = "They asked after you. By name. Seems you're useful to them. Careful: the Authority remembers the useful ones longest.",
 			Choices = {Leave2},
 		},
+		fined = {
+			Text = "Counted and logged. The Authority gets its coin, you get a clean sheet, and I get to stop pretending I didn't see your hands glow. Licence first, next time.",
+			Choices = {Leave2},
+		},
+		no_fine = {
+			Text = "A fine? Past that, friend. Your name's on a dispatch now, not my ledger. I can't take your coin, and I'd keep walking if I were you.",
+			Choices = {Leave2},
+		},
 		after = {
 			Text = "The marks have stopped. That's all I asked.",
 			Alt = {
@@ -225,6 +242,7 @@ Dialogues.foundry_brask = {
 			Choices = {
 				TellLise, TellBrask[1], TellBrask[2], AskInspectors,
 				{Text = "\"Any work for a sword arm?\"", Next = "bounty"},
+				PayFine, TooFarGone,
 				Leave2,
 			},
 		},
@@ -768,4 +786,57 @@ Dialogues.style_lethwei = StyleTrainer("Master Thura", "Lethwei", {
 	Learned = "Now you have the shape of it. The rest you learn by being hit. Choose it when you train (Mastery, Class tab).",
 })
 
+
+-- PLACEHOLDER (2026-10-19): Wren, the Lindenmoor automail mechanic, at the workshop (Workspace.World.Map.Lindenmoor
+-- .Workshop.Mechanic). Fits, repairs and removes automail (AutomailService re-checks everything) and sells
+-- transmutation chalk (the Alchemic Binding's material, Rensei.Ritual). Lines are placeholders.
+Dialogues.automail_mechanic = {
+	Speaker = "Wren",
+	Start = "start",
+	Nodes = {
+		start = {
+			Text = "Name's Wren. I build arms, I fix arms, and I don't ask how you lost the first one. What'll it be?",
+			Alt = {{Requires = {Automail = true}, Text = "Back again. Let me hear that piston... What'll it be?"}},
+			Choices = {
+				{Text = "\"Tell me about automail.\"", Next = "about"},
+				{Text = "\"Fit me with an arm.\" [800]", Next = "confirm", ShowIf = {Automail = false}},
+				{Text = "\"Look over my arm.\"", Next = "service", ShowIf = {Automail = true}},
+				{Text = "\"Transmutation chalk.\" [150]", Action = {Kind = "Buy", Item = "Transmutation Chalk", Price = 150}, Next = "chalk"},
+				{Text = "\"Just looking.\""},
+			},
+		},
+		about = {
+			Text = "Steel right arm, piston in the forearm. Hit hard with your bare hands and the piston drives it home: "
+				.. "it cracks guards. It heats up - push it too hard and it locks till it cools. Water and beatings wear it; I repair it. And I can take it off again.",
+			Choices = {{Text = "\"Back.\"", Next = "start"}, {Text = "\"Thanks.\""}},
+		},
+		confirm = {
+			Text = "800, and your right arm becomes steel. Heavy bare-handed strikes fire the piston and build heat; the arm wears and needs repairs. "
+				.. "I can remove it later, but I don't refund. Sure?",
+			Choices = {
+				{Text = "\"Do it.\"", Requires = {Money = 800}, Show = "Locked", Action = {Kind = "Automail", Op = "Install"}},
+				{Text = "\"Not today.\"", Next = "start"},
+			},
+		},
+		service = {
+			Text = "Hm. Let's see the damage. Repairs run three a point of wear.",
+			Choices = {
+				{Text = "\"Repair it.\"", Action = {Kind = "Automail", Op = "Repair"}},
+				{Text = "\"Take it off.\"", Next = "remove"},
+				{Text = "\"Back.\"", Next = "start"},
+			},
+		},
+		remove = {
+			Text = "Off it comes? Your own arm's still under there - stiff, but yours. No refund on the steel.",
+			Choices = {
+				{Text = "\"Take it off.\"", Action = {Kind = "Automail", Op = "Remove"}},
+				{Text = "\"Keep it.\"", Next = "start"},
+			},
+		},
+		chalk = {
+			Text = "Ground bone-white chalk, the kind that holds a circle. Whatever you're drawing - draw it carefully.",
+			Choices = {{Text = "\"Back.\"", Next = "start"}, {Text = "\"Thanks.\""}},
+		},
+	},
+}
 return Dialogues

@@ -38,9 +38,12 @@ local function InRange(Player, Session)
 end
 
 local function Show(Player, Session)
-	if Session.Inline then -- DialogueService.Say: one line, no tree
+	if Session.Inline then -- DialogueService.Say: one line, no tree (or Ask: one question with server-side answers)
+		local Labels = Session.Inline.Choices or {"Leave"}
+		local Locked = {}
+		for I = 1, #Labels do Locked[I] = false end
 		Session.Shown = {{Choice = {}, Locked = false}}
-		UIService.Notify(Player, "Dialogue", {Speaker = Session.Inline.Speaker, Text = Session.Inline.Text, Choices = {"Leave"}, Locked = {false}})
+		UIService.Notify(Player, "Dialogue", {Speaker = Session.Inline.Speaker, Text = Session.Inline.Text, Choices = Labels, Locked = Locked})
 		return
 	end
 	local Def = Definitions[Session.Id]
@@ -113,10 +116,24 @@ function DialogueService.Say(Player, Model, Speaker, Text)
 	return true
 end
 
+-- One question with answers handled on the server (2026-10-19: the Alchemic Binding's consent). OnAnswer(Index) runs
+-- with the index of the picked choice, or nil if the player walked away, fought, left or another conversation
+-- replaced it. Works with the normal dialogue box (mouse, keys, touch); no new remote.
+function DialogueService.Ask(Player, Model, Speaker, Text, Choices, OnAnswer)
+	local Old = Sessions[Player]
+	if Old and Old.Inline and Old.Inline.OnAnswer then task.spawn(Old.Inline.OnAnswer, nil) end
+	local Session = {Inline = {Speaker = Speaker, Text = Text, Choices = Choices, OnAnswer = OnAnswer}, Model = Model}
+	Sessions[Player] = Session
+	Show(Player, Session)
+	return true
+end
+
 -- Always tells the client to close, session or not: a box left open with no session here would
 -- otherwise ignore every key and click (DialogueUI ignores the event when its box is shut).
 function DialogueService.Close(Player)
+	local Old = Sessions[Player]
 	Sessions[Player] = nil
+	if Old and Old.Inline and Old.Inline.OnAnswer and not Old.Answered then task.spawn(Old.Inline.OnAnswer, nil) end
 	UIService.Notify(Player, "DialogueEnd", {})
 end
 
@@ -145,6 +162,30 @@ local Actions = {
 		local Ok, Message = require(ServerScriptService.StyleService).Unlock(Player, Action.Style)
 		if Message then UIService.Notify(Player, "Toast", {Text = Message}) end
 		if Ok then ProgressionService.Sync(Player) end
+	end,
+	-- the Lindenmoor mechanic (AutomailService re-checks money and state): Op = Install | Remove | Repair
+	Automail = function(Player, Action)
+		local AS = require(ServerScriptService.AutomailService)
+		local Fn = ({Install = AS.Install, Remove = AS.Remove, Repair = AS.Repair})[Action.Op]
+		if not Fn then return end
+		local _, Message = Fn(Player)
+		if Message then UIService.Notify(Player, "Toast", {Text = Message}) end
+	end,
+	-- buy an item from an NPC: the price is re-checked and taken through ProgressionService
+	Buy = function(Player, Action)
+		if type(Action.Price) ~= "number" or type(Action.Item) ~= "string" then return end
+		if not ProgressionService.SpendMoney(Player, Action.Price) then
+			UIService.Notify(Player, "Toast", {Text = ("You need %d."):format(Action.Price)})
+			return
+		end
+		require(ServerScriptService.ItemService).Give(Player, Action.Item, Action.Amount or 1)
+		UIService.Notify(Player, "Toast", {Text = ("Bought %s."):format(Action.Item)})
+	end,
+	-- a State desk takes the fine (Plan 2; HeatService re-checks Wanted <= 2 and the money)
+	PayFine = function(Player, Action)
+		local Ok, Message = require(ServerScriptService.HeatService).Fine(Player, Action.Jurisdiction or "State")
+		if Message then UIService.Notify(Player, "Toast", {Text = Message}) end
+		if not Ok then DialogueService.Close(Player) end -- not paid: don't go on to the "paid" line
 	end,
 	-- alchemy trainers (TrainingService re-checks the path and the daily limit): the conversation closes
 	-- first, so the minigame / drill has the screen
@@ -184,7 +225,17 @@ function DialogueService.Choose(Player, Index)
 		DialogueService.Close(Player)
 		return false
 	end
-	if Session.Inline then DialogueService.Close(Player) return true end
+	if Session.Inline then
+		if Session.Inline.OnAnswer and Session.Inline.Choices and Session.Inline.Choices[Index] then
+			Session.Answered = true
+			Sessions[Player] = nil
+			UIService.Notify(Player, "DialogueEnd", {})
+			task.spawn(Session.Inline.OnAnswer, Index)
+			return true
+		end
+		DialogueService.Close(Player)
+		return true
+	end
 	-- the index refers to the choices this player was SHOWN (hidden ones never reach here)
 	local Entry = (Session.Shown or {})[Index]
 	if not Entry then DialogueService.Close(Player) return true end

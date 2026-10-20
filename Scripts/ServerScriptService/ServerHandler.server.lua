@@ -93,6 +93,9 @@ require(ServerScriptService.MinigameService).Start() -- Pressure Board, Array Re
 require(ServerScriptService.MoralityService).Start() -- deeds ledger: conduct, standing, trust, renown
 require(ServerScriptService.PerceptionService).Start() -- what NPCs notice: sight, alert phases (S1)
 require(ServerScriptService.RumourService).Start() -- word of deeds travelling between regions (R2)
+require(ServerScriptService.HeatService).Start() -- crimes -> Heat and Wanted per jurisdiction, fines (R3)
+require(ServerScriptService.LightService).Start() -- lamps, daylight and shadow -> Exposure (S2)
+require(ServerScriptService.NoiseService).Start() -- footsteps, landings, hits, casts, shots as sound events (S2)
 require(ServerScriptService.TrialService).Start() -- alchemy trials (RenseiTrial arenas)
 require(ServerScriptService.TrainingService).Start() -- trainer lessons / exercises (mastery training)
 require(ServerScriptService.RankService).Start() -- public rank / title / clan for the leaderboard

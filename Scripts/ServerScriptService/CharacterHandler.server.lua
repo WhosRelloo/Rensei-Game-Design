@@ -143,11 +143,14 @@ ReplicatedStorage.Remotes.StateRemote.OnServerEvent:Connect(function(Player,Stat
 					Status:Start()
 					CrouchStuns[CharacterState] = Status
 				end
+				-- Plan 2 (2026-10-20): NPCs see a crouching player at half rate, and crouched steps are silent
+				Character:SetAttribute("Crouching", true)
 			elseif Duration == false then
 				-- Only ever stop the Stun that crouching started.
 				local Status = CrouchStuns[CharacterState]
 				CrouchStuns[CharacterState] = nil
 				if Status then Status:Stop() end
+				Character:SetAttribute("Crouching", nil)
 			end
 		elseif typeof(Duration) == "number" and Duration == Duration and Duration > 0 then
 			local Now = os.clock()
@@ -161,6 +164,12 @@ ReplicatedStorage.Remotes.StateRemote.OnServerEvent:Connect(function(Player,Stat
 			end
 			Times[StateName] = Now
 			Skills[StateName].new(CharacterState):Start(math.min(Duration, MaxDuration))
+			-- the dash / roll is heard (Plan 2: NoiseService, optional so the Tutorial runs without it)
+			if StateName == "IFrame" then
+				local Noise = game:GetService("ServerScriptService"):FindFirstChild("NoiseService")
+				local Root = Character:FindFirstChild("HumanoidRootPart")
+				if Noise and Root then task.spawn(pcall, function() require(Noise).Emit(Root.Position, "Roll", Character) end) end
+			end
 		end
 	end
 end)

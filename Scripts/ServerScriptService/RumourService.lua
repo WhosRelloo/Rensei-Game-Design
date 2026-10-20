@@ -7,12 +7,17 @@
 --     or a Circle drop; it lands there at once. Reports for deeds they didn't witness are refused.
 -- Silencing witnesses and vouching are the next plans' content (they call Core.Silence); the clock can be
 -- swapped for tests (SetClock).
+-- Plan 2 (2026-10-20): every landing goes to HeatService (crimes raise Heat where the law hears them), and
+-- word that reached somewhere new shows as a toast with its reason line ("Word reached the City: ...").
 
 local Players = game:GetService("Players")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local Core = require(script.Core)
 local ProgressionService = require(ServerScriptService.ProgressionService)
+local UIService = require(ServerScriptService.UIService)
+local Regions = require(game:GetService("ReplicatedStorage").Modules.Data.Rensei.Regions)
+local Deeds = require(game:GetService("ReplicatedStorage").Modules.Data.Rensei.Deeds)
 
 local RumourService = {Core = Core}
 RumourService.TickSeconds = 60
@@ -29,8 +34,21 @@ end
 function RumourService.Tick(Player)
 	local M = Morality(Player)
 	if not M then return 0 end
-	local Arrivals = Core.Advance(M, Clock())
-	if #Arrivals > 0 then require(ServerScriptService.MoralityService).Refresh(Player) end
+	local Arrivals, Landings = Core.Advance(M, Clock())
+	if #Arrivals > 0 then
+		require(ServerScriptService.MoralityService).Refresh(Player)
+		-- the newest arrival's reason line (one toast per tick, however many arrived)
+		local A = Arrivals[#Arrivals]
+		local Def = Deeds[A.Rumour.Deed]
+		local Place = Regions.Regions[A.Place]
+		if type(Def) == "table" and Def.Text and Place then
+			UIService.Notify(Player, "Toast", {Text = ("Word reached %s: %s"):format(Place.Name, Def.Text)})
+		end
+	end
+	if Landings and #Landings > 0 then
+		local Ok, Err = pcall(function() require(ServerScriptService.HeatService).OnArrivals(Player, Landings) end)
+		if not Ok then warn("RumourService: heat on arrival failed:", Err) end
+	end
 	return #Arrivals
 end
 
