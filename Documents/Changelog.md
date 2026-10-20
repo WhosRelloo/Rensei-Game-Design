@@ -2,6 +2,56 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-19 — M1 speed pass
+
+Owner request: "fix some m1 strings being too slow (I want them to be within reasonable timing for their respective class type)". Design and target ranges approved. Rensei only; all new numbers are PROPOSALS, marked `-- PROPOSAL (2026-10-19 M1 pass)` in TuningConfig.
+
+**Measured string times** (Rensei Play, real input path: a LocalScript calling `ClientActions.Run("Attack", ...)`, held M1 and 0.12 s clicks, on `World.Live.Dummy`; press to the end of the finisher's recovery, server clock):
+
+| Class | Target | Config before → after | Measured before (held / clicks) | Measured after (held / clicks) |
+|---|---|---|---|---|
+| Daggers | 1.6–1.8 | 1.72 → 1.66 | 1.83 / 1.84 | 1.72 / 1.75 |
+| Fists (Brawler) | 1.8–2.0 | 2.31 → 1.87 | 2.45 / 2.45 | 1.93 / 1.97 |
+| Gauntlets | 1.8–2.0 | 2.12 → 1.88 | 2.20 / 2.25 | 1.93 / 1.95 |
+| Boxing | 1.8–2.0 | 2.15 → 1.88 | 2.29 / 2.28 | 1.94 / 1.97 |
+| Lethwei | 1.8–2.0 | 2.06 → 1.88 | 2.20 / 2.18 | 1.93 / 1.98 |
+| Rapier | 1.8–2.0 | 1.94 → 1.88 | 2.09 / 2.09 | 1.94 / 1.97 |
+| Guns (whip) | 1.9–2.1 | 1.99 (unchanged) | 2.17 / 2.10 | 2.03 / 2.07 |
+| Sword (Katana) | 2.0–2.2 | 2.40 → 2.06 | 2.53 / 2.57 | 2.12 / 2.15 |
+| Greatsword | 2.8–3.0 | 3.81 → 2.87 | 3.99 / 4.00 | 2.94 / 2.98 |
+
+**Hidden delay found and fixed** (`Managers.AttackRunner`): real strings ran 0.11–0.18 s over their config.
+- `AttackRunner.Run` waited for the attack by polling Heartbeat; that poll ran before the attack's last Heartbeat, so every swing returned a frame late. It now waits on a BindableEvent.
+- Each phase's wait ends on the first frame past its time and the overshoots added up. The recovery now ends on the attack's own clock (capped at 0.05 s; HitTimes attacks keep their timing).
+- Left: about one frame between swings inside WCS (skill end → restart) and the press → server frame; real strings are now config + ~0.05 s held, + ~0.08 s clicking.
+
+**What changed** (hits 1–3 mostly; Damage / Posture / Reach / Hitbox untouched; the finishers keep their knockback and stun):
+- Fists: 1–3 Startup 0.22 → 0.19, Recovery 0.16 → 0.10; finisher Startup 0.28 → 0.26, Recovery 0.55 → 0.40.
+- Gauntlets: 1–3 Startup 0.2 → 0.18, Recovery 0.14 → 0.10; finisher Recovery 0.5 → 0.44.
+- Boxing: 1–3 Startup 0.22 → 0.19, Recovery 0.16 → 0.10. Lethwei: 1–3 Recovery 0.2 → 0.14.
+- Sword: 1–3 Startup 0.24 → 0.22, Recovery 0.18 → 0.10; finisher Recovery 0.50 → 0.46.
+- Rapier: hits 1 / 3 Startup 0.18 → 0.21 (see speed-ups), 1–3 Recovery 0.14 → 0.10. Heavy Startup 0.34 → 0.47.
+- Greatsword: 1–3 Startup 0.40 → 0.32, Recovery 0.32 → 0.13, Stun 0.55 → 0.75 (hit 3: 0.85); finisher Startup 0.55 → 0.50, Recovery 0.6 → 0.52.
+- Daggers: 1–3 Recovery 0.12 → 0.10; hit 3 AnimPeak 0.45 → 0.19 (see below).
+- Lunging Thrust (Rapier dash attack): AnimPeak 0.29 → 0.33, the new Rapier_Light2 peak.
+- Comments: Rapier header (its idle is its own), `Downed.Grips.Rapier` (the grip moves the blade).
+- Enemies use the same tables, so enemy strings are faster too (a Greatsword bandit most of all).
+
+**Stun-gap check** (no infinite combos): for hits 1–3, Stun (MinStun 0.6 floor) ≥ Recovery + next Startup + Active on every class. Gaps now 0.32–0.50 s, Greatsword 0.57 / 0.57 / 0.77 against 0.75 / 0.75 / 0.85. Before this pass the Greatsword string was not a true combo (the target left stun between every hit); now it holds. Measured in Play: the target's Stun never dropped between hit 1 and hit 4 on any class. MaxChain 3.0 stays; the Greatsword chain is ~2.9 s.
+
+**Animation speed-ups** (AttackRunner plays an animation at AnimPeak / (Startup + Active / 2)):
+- Windups after the pass: Sword 1.23–1.35×, Greatsword 1.37–1.39×, Boxing 1.39×, Rapier 1.43–1.55× (was 1.77× on hits 1 / 3), Rapier heavy 1.38× (was 1.85×). Fists and Gauntlets have no AnimPeak (1×).
+- Over 1.6×, not changed: Daggers 1 / 2 / 4 at 2.0 / 2.16 / 1.75× (already in range; fixing it needs longer startups), and Lunging Thrust at 1.74× after the new peak.
+- Daggers M1 3: the new sheet id (wired 2026-10-19) is 0.417 s long but kept the old 0.45 peak, so it played clamped at 2.2×. Re-measured from the keyframes (fastest arm / torso turn between 0.133 and 0.250): 0.19, so 1.03×.
+- The follow-through after the impact plays faster with the shorter recoveries (AnimationManager Retime, capped 3×): up to 2.3–2.9× on Fists / Gauntlets hit 3, Greatsword 1–3 and Rapier 1–3.
+- Verified in Play: Rapier_Light1–4 played at 1.55 / 1.53 / 1.55 / 1.43, Rapier_Heavy at 1.38.
+
+**Tests:** Dummy, every class plus Boxing and Lethwei, held and clicked, before, after the AttackRunner fix alone, and after the retune; all 4 hits landed, no stun gaps. Held strings on an `AIPassive` Grunt (health raised) land the same times (Rapier 1.92–1.93, Daggers 1.72–1.73, Fists 1.92, Greatsword 2.93; misses there were the Grunt walking out of reach). Rapier heavy lands 0.47 s after the press. No game errors. The player's weapon, style and Combat Mode were restored and the profile matched its snapshot (Mastery had moved and was restored).
+
+**Not done:** the Tutorial was not mirrored (out of time); its TuningConfig has an older weapon block. The parry drill (`WorldChallenges`) attacks with fist Light1, now 0.19 s startup.
+
+Backups: `ServerStorage.RenseiBackups["Pre-M1Timing_2026-10-19"]` (TuningConfig 85093 bytes, AttackRunner 14575 bytes). AttackRunner's export also brings the Automail Piston Strike block that was in Studio but not yet in the repo.
+
 ## 2026-10-19 — Animation sheet: Rapier set, Dagger idle, grips wired
 
 Owner request: "fix all animations with the ones from the spreadsheet" (design approved). Rensei, mirrored to the Tutorial where the same objects exist.

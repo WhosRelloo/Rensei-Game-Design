@@ -95,8 +95,12 @@ local RunBody -- the attack itself (below)
 -- mid-heavy killed it before cleanup and left CombatState stuck on "Recovery" -- which cancels
 -- every dash on its first frame and keeps the AI / idle animations thinking you're attacking.
 -- Now cancelling the caller only stops the wait; the attack always finishes and cleans up.
+-- The caller is woken by an event when the attack ends (M1 speed pass 2026-10-19). It used to poll Heartbeat,
+-- and that poll ran before the attack's own last Heartbeat, so Run returned a frame late: one dead frame
+-- between every two swings of a string.
 function AttackRunner.Run(WCSCharacter, Def, SkillName, Opts)
 	local Result = nil
+	local Done = Instance.new("BindableEvent")
 	task.spawn(function()
 		local Ok, Outcome, Results = pcall(RunBody, WCSCharacter, Def, SkillName, Opts)
 		if not Ok then
@@ -110,8 +114,10 @@ function AttackRunner.Run(WCSCharacter, Def, SkillName, Opts)
 			Outcome, Results = "Interrupted", {}
 		end
 		Result = {Outcome, Results}
+		Done:Fire()
 	end)
-	while not Result do RunService.Heartbeat:Wait() end
+	if not Result then Done.Event:Wait() end
+	Done:Destroy()
 	return Result[1], Result[2]
 end
 
@@ -138,6 +144,17 @@ function RunBody(WCSCharacter, Def, SkillName, Opts)
 			Mult += SkillMods.Get(Character, "DashAttackDamage")
 		elseif tostring(SkillName):match("Heavy$") then
 			PostureMult += SkillMods.Get(Character, "HeavyPosture")
+			-- Automail Piston Strike (Rensei.Automail): a fitted, ready arm puts the piston behind the BARE-HANDED heavy
+			-- (SkillName "Heavy"); AutomailService adds the heat (server only)
+			if SkillName == "Heavy" and Character:GetAttribute("AutomailReady") and RunService:IsServer() then
+				local Ok, AS = pcall(require, game:GetService("ServerScriptService"):FindFirstChild("AutomailService"))
+				local Spec = Ok and AS and AS.StrikeBonus(Character)
+				if Spec then
+					PostureMult += Spec.PostureBonus
+					Mult += Spec.DamageBonus
+					AS.OnStrike(Character)
+				end
+			end
 		end
 		Character:SetAttribute("AttackMult", Mult ~= 1 and Mult or nil)
 		Character:SetAttribute("PostureMult", PostureMult ~= 1 and PostureMult or nil)
@@ -220,6 +237,7 @@ function RunBody(WCSCharacter, Def, SkillName, Opts)
 		Character:SetAttribute("FeintQueuedAt", nil)
 		if Queued and workspace:GetServerTimeNow() - Queued <= 0.15 then AttackRunner.Feint(Character) end
 	end
+	local PhaseStart = os.clock() -- the attack's own clock (Recovery below)
 	local Ok, Why = Hold(WCSCharacter, Token, Def.Startup, Opts.Feintable)
 	if not Ok then return Finish(Why) end
 
@@ -269,6 +287,12 @@ function RunBody(WCSCharacter, Def, SkillName, Opts)
 	-- Recovery (hit confirm: a whiff costs extra recovery)
 	SetPhase(Character, Token, "Recovery", SkillName)
 	local Recovery = Def.Recovery + ((Landed or Def.NoWhiffPenalty) and 0 or Tuning.Light.WhiffRecovery)
+	-- the recovery ends on the attack's own clock (M1 speed pass 2026-10-19): each phase's wait ends on the first
+	-- frame past its time, and those overshoots added up (about a frame per hit). HitTimes attacks keep their
+	-- timing (their strikes run longer than the active window by design). Capped at 0.05 s.
+	if not Def.HitTimes then
+		Recovery -= math.clamp((os.clock() - PhaseStart) - (Def.Startup + Def.Active), 0, 0.05)
+	end
 	Ok = Hold(WCSCharacter, Token, Recovery, false)
 	return Finish(Ok and (Landed and "Hit" or "Whiff") or "Interrupted", Results)
 end

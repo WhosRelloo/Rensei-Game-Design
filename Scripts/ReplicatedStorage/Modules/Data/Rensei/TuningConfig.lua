@@ -38,7 +38,7 @@ TuningConfig.Meter = {
 local LightHitbox = Vector3.new(6, 6, 7)
 
 -- Combat flow matched to Devil Hunter's code (user request 2026-10-14, "more like Devil Hunter"):
---   * hitstun 0.6s on lights (DH Stuntime), longer than the 0.42s swing-to-swing gap, so a landed
+--   * hitstun 0.6s on lights (DH Stuntime), longer than the swing-to-swing gap (0.37 s on fists since the 2026-10-19 M1 pass), so a landed
 --     string stays a true combo instead of letting the target slip out or block between hits;
 --   * the combo remembers its place for 2s (DH ComboReset);
 --   * you keep moving while you fight: DH walk 15 -> 13 swinging, 10 heavy, 12 blocking, 4 stunned
@@ -51,10 +51,10 @@ TuningConfig.Light = {
 	AttackWalkSpeed = 14, -- walk speed while swinging (DH 13/15; was 6)
 	MinStun = 0.6, -- every weapon's non-finisher lights stun at least this long (DH Stuntime)
 	Hits = {
-		{Anim = "FistCombo1", Startup = 0.22, Active = 0.08, Recovery = 0.16, Damage = 17, Posture = 8, Stun = 0.6, Velocity = "Pull", Hitbox = LightHitbox, Reach = 3.5},
-		{Anim = "FistCombo2", Startup = 0.22, Active = 0.08, Recovery = 0.16, Damage = 17, Posture = 8, Stun = 0.6, Velocity = "Pull", Hitbox = LightHitbox, Reach = 3.5},
-		{Anim = "FistCombo3", Startup = 0.22, Active = 0.08, Recovery = 0.16, Damage = 17, Posture = 8, Stun = 0.6, Velocity = "Pull", Hitbox = LightHitbox, Reach = 3.5},
-		{Anim = "FistCombo5", Startup = 0.28, Active = 0.10, Recovery = 0.55, Damage = 24, Posture = 14, Stun = 0.9, Velocity = "Knockback", Hitbox = LightHitbox, Reach = 3.5},
+		{Anim = "FistCombo1", Startup = 0.19, Active = 0.08, Recovery = 0.10, Damage = 17, Posture = 8, Stun = 0.6, Velocity = "Pull", Hitbox = LightHitbox, Reach = 3.5}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.22 -> 0.19, Recovery 0.16 -> 0.10
+		{Anim = "FistCombo2", Startup = 0.19, Active = 0.08, Recovery = 0.10, Damage = 17, Posture = 8, Stun = 0.6, Velocity = "Pull", Hitbox = LightHitbox, Reach = 3.5}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.22 -> 0.19, Recovery 0.16 -> 0.10
+		{Anim = "FistCombo3", Startup = 0.19, Active = 0.08, Recovery = 0.10, Damage = 17, Posture = 8, Stun = 0.6, Velocity = "Pull", Hitbox = LightHitbox, Reach = 3.5}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.22 -> 0.19, Recovery 0.16 -> 0.10
+		{Anim = "FistCombo5", Startup = 0.26, Active = 0.10, Recovery = 0.40, Damage = 24, Posture = 14, Stun = 0.9, Velocity = "Knockback", Hitbox = LightHitbox, Reach = 3.5}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.28 -> 0.26, Recovery 0.55 -> 0.40 (string 2.31 -> 1.87 s)
 	},
 }
 
@@ -383,10 +383,10 @@ TuningConfig.Weapons = {
 		HoldAnim = "Sword_Hold",
 		-- M1 1-4 from the Animation ID's sheet (pass 3, 2026-10-17: Katana1-4); AnimPeak = each animation's Hit keyframe
 		Light = {Hits = {
-			Hit{Anim = "Sword_Light1", AnimPeak = 0.35, Startup = 0.24, Active = 0.08, Recovery = 0.18, Damage = 20, Posture = 9, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(7, 6, 8), Reach = 4},
-			Hit{Anim = "Sword_Light2", AnimPeak = 0.32, Startup = 0.24, Active = 0.08, Recovery = 0.18, Damage = 20, Posture = 9, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(7, 6, 8), Reach = 4},
-			Hit{Anim = "Sword_Light3", AnimPeak = 0.32, Startup = 0.24, Active = 0.08, Recovery = 0.18, Damage = 20, Posture = 9, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(7, 6, 8), Reach = 4},
-			Hit{Anim = "Sword_Light4", AnimPeak = 0.30, Startup = 0.30, Active = 0.10, Recovery = 0.50, Damage = 27, Posture = 16, Stun = 0.9, Velocity = "Knockback", Hitbox = Vector3.new(8, 6, 9), Reach = 4},
+			Hit{Anim = "Sword_Light1", AnimPeak = 0.35, Startup = 0.22, Active = 0.08, Recovery = 0.10, Damage = 20, Posture = 9, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(7, 6, 8), Reach = 4}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.24 -> 0.22, Recovery 0.18 -> 0.10
+			Hit{Anim = "Sword_Light2", AnimPeak = 0.32, Startup = 0.22, Active = 0.08, Recovery = 0.10, Damage = 20, Posture = 9, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(7, 6, 8), Reach = 4}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.24 -> 0.22, Recovery 0.18 -> 0.10
+			Hit{Anim = "Sword_Light3", AnimPeak = 0.32, Startup = 0.22, Active = 0.08, Recovery = 0.10, Damage = 20, Posture = 9, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(7, 6, 8), Reach = 4}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.24 -> 0.22, Recovery 0.18 -> 0.10
+			Hit{Anim = "Sword_Light4", AnimPeak = 0.30, Startup = 0.30, Active = 0.10, Recovery = 0.46, Damage = 27, Posture = 16, Stun = 0.9, Velocity = "Knockback", Hitbox = Vector3.new(8, 6, 9), Reach = 4}, -- PROPOSAL (2026-10-19 M1 pass): Recovery 0.50 -> 0.46 (string 2.40 -> 2.06 s)
 		}},
 		Heavy = {Anim = "Sword_Heavy", AnimPeak = 0.38, Startup = 0.42, Active = 0.12, Recovery = 0.5, Damage = 36, Posture = 40, Stun = 0.9, Velocity = "Knockback", Hitbox = Vector3.new(8, 7, 9), Reach = 4.5, Step = 18, Cooldown = 1.3},
 		-- Dragonflash: a lunging slash.
@@ -397,7 +397,7 @@ TuningConfig.Weapons = {
 
 	Rapier = {
 		Display = "Rapier",
-		-- Borrows the sword's draw / sheathe, run, idle and hold (same grip as the katana).
+		-- Borrows the sword's draw / sheathe, run and hold (same grip as the katana); its idle is its own (Rapier_Idle).
 		Draw = {Equip = "Sword_Equip", SwapAt = 0.05, Unequip = "Sword_Equip", UnequipReverse = true, UnequipSpeed = 1.2, UnequipSwapAt = 0.7}, -- Sword_Sheathe: sheet id broken (2026-10-18)
 		RunAnim = "Sword_Run",
 		IdleAnim = "Rapier_Idle", -- Animation ID's sheet (2026-10-16)
@@ -408,14 +408,14 @@ TuningConfig.Weapons = {
 		-- KeyframeSequence (R6 Torso > Right Arm > Hilt chain from the poses, Hilt at (0, -0.65, 0), tip 4.25 studs down
 		-- the blade; a keyframe's speed = the mean of its two neighbouring keyframe intervals).
 		Light = {Hits = {
-			Hit{Anim = "Rapier_Light1", AnimPeak = 0.38, Startup = 0.18, Active = 0.07, Recovery = 0.14, Damage = 14, Posture = 6, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(4, 5, 10), Reach = 5},
-			Hit{Anim = "Rapier_Light2", AnimPeak = 0.33, Startup = 0.18, Active = 0.07, Recovery = 0.14, Damage = 14, Posture = 6, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(4, 5, 10), Reach = 5},
-			Hit{Anim = "Rapier_Light3", AnimPeak = 0.38, Startup = 0.18, Active = 0.07, Recovery = 0.14, Damage = 14, Posture = 6, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(4, 5, 10), Reach = 5},
+			Hit{Anim = "Rapier_Light1", AnimPeak = 0.38, Startup = 0.21, Active = 0.07, Recovery = 0.10, Damage = 14, Posture = 6, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(4, 5, 10), Reach = 5}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.18 -> 0.21 (windup 1.77x -> 1.55x), Recovery 0.14 -> 0.10
+			Hit{Anim = "Rapier_Light2", AnimPeak = 0.33, Startup = 0.18, Active = 0.07, Recovery = 0.10, Damage = 14, Posture = 6, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(4, 5, 10), Reach = 5}, -- PROPOSAL (2026-10-19 M1 pass): Recovery 0.14 -> 0.10
+			Hit{Anim = "Rapier_Light3", AnimPeak = 0.38, Startup = 0.21, Active = 0.07, Recovery = 0.10, Damage = 14, Posture = 6, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(4, 5, 10), Reach = 5}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.18 -> 0.21 (windup 1.77x -> 1.55x), Recovery 0.14 -> 0.10 (string 1.94 -> 1.88 s)
 			Hit{Anim = "Rapier_Light4", AnimPeak = 0.40, Startup = 0.24, Active = 0.08, Recovery = 0.45, Damage = 20, Posture = 12, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(4, 5, 11), Reach = 5.5},
 		}},
 		-- Rapier CRIT from the Animation ID's sheet (2026-10-19 id, 1.35 s, no marker). AnimPeak measured 2026-10-19 the
 		-- same way as the M1s (blade-tip speed peak at the 0.717 s keyframe; was 0.43 on the old id).
-		Heavy = {Anim = "Rapier_Heavy", AnimPeak = 0.72, Startup = 0.34, Active = 0.1, Recovery = 0.4, Damage = 30, Posture = 30, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(4, 5, 12), Reach = 6, Step = 22, Cooldown = 1.1},
+		Heavy = {Anim = "Rapier_Heavy", AnimPeak = 0.72, Startup = 0.47, Active = 0.1, Recovery = 0.4, Damage = 30, Posture = 30, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(4, 5, 12), Reach = 6, Step = 22, Cooldown = 1.1}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.34 -> 0.47: the new CRIT played at 1.85x, now 1.38x (a longer windup on the punish)
 		-- Flurry: five fast thrusts.
 		Skill = {Name = "Flurry", Anim = "Rapier_Skill", AnimSpeed = 0.9, Startup = 0.18, Active = 0.45, MultiHit = 5, Recovery = 0.35, Damage = 6, Posture = 4, Stun = 0.35, Velocity = "Pull", Hitbox = Vector3.new(5, 5, 10), Reach = 5, Stamina = 18, Cooldown = 6},
 		-- Precision: +25% damage against a target that is winding up or recovering (counter-hit).
@@ -429,10 +429,10 @@ TuningConfig.Weapons = {
 		IdleAnim = "Gauntlets_Idle", -- Caestus idle, Animation ID's sheet (2026-10-16)
 		-- Lights use the fist combo (Caestus set only has a heavy and a barrage).
 		Light = {Hits = {
-			Hit{Anim = "FistCombo1", Startup = 0.2, Active = 0.08, Recovery = 0.14, Damage = 18, Posture = 9, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 7), Reach = 3.5},
-			Hit{Anim = "FistCombo2", Startup = 0.2, Active = 0.08, Recovery = 0.14, Damage = 18, Posture = 9, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 7), Reach = 3.5},
-			Hit{Anim = "FistCombo3", Startup = 0.2, Active = 0.08, Recovery = 0.14, Damage = 18, Posture = 9, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 7), Reach = 3.5},
-			Hit{Anim = "FistCombo5", Startup = 0.26, Active = 0.1, Recovery = 0.5, Damage = 25, Posture = 16, Stun = 0.9, Velocity = "Knockback", Hitbox = Vector3.new(6, 6, 7), Reach = 3.5},
+			Hit{Anim = "FistCombo1", Startup = 0.18, Active = 0.08, Recovery = 0.10, Damage = 18, Posture = 9, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 7), Reach = 3.5}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.2 -> 0.18, Recovery 0.14 -> 0.10
+			Hit{Anim = "FistCombo2", Startup = 0.18, Active = 0.08, Recovery = 0.10, Damage = 18, Posture = 9, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 7), Reach = 3.5}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.2 -> 0.18, Recovery 0.14 -> 0.10
+			Hit{Anim = "FistCombo3", Startup = 0.18, Active = 0.08, Recovery = 0.10, Damage = 18, Posture = 9, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 7), Reach = 3.5}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.2 -> 0.18, Recovery 0.14 -> 0.10
+			Hit{Anim = "FistCombo5", Startup = 0.26, Active = 0.1, Recovery = 0.44, Damage = 25, Posture = 16, Stun = 0.9, Velocity = "Knockback", Hitbox = Vector3.new(6, 6, 7), Reach = 3.5}, -- PROPOSAL (2026-10-19 M1 pass): Recovery 0.5 -> 0.44 (string 2.12 -> 1.88 s)
 		}},
 		-- Caestus CRIT from the Animation ID's sheet (2026-10-16); its swing peaks at 0.45s.
 		Heavy = {Anim = "Gauntlets_Heavy", AnimPeak = 0.88, Startup = 0.38, Active = 0.1, Recovery = 0.45, Damage = 34, Posture = 45, Stun = 0.9, Velocity = "Knockback", Hitbox = Vector3.new(6, 6, 8), Reach = 3.5, Step = 16, Cooldown = 1.2},
@@ -458,10 +458,10 @@ TuningConfig.Weapons = {
 		SwingStep = 12, -- forward step (studs/s) late in each light's windup
 		HitstopMult = 1.4,
 		Light = {AttackWalkSpeed = 10, Hits = { -- slower than other weapons' 14 (heavy weapon; was 4)
-			Hit{Anim = "Greatsword_Light1", AnimPeak = 0.53, Startup = 0.40, Active = 0.12, Recovery = 0.32, Damage = 30, Posture = 16, Stun = 0.55, Velocity = "Pull", Hitbox = Vector3.new(10, 7, 10), Reach = 5},
-			Hit{Anim = "Greatsword_Light2", AnimPeak = 0.52, Startup = 0.40, Active = 0.12, Recovery = 0.32, Damage = 30, Posture = 16, Stun = 0.55, Velocity = "Pull", Hitbox = Vector3.new(10, 7, 10), Reach = 5},
-			Hit{Anim = "Greatsword_Light3", AnimPeak = 0.53, Startup = 0.40, Active = 0.12, Recovery = 0.32, Damage = 30, Posture = 16, Stun = 0.55, Velocity = "Pull", Hitbox = Vector3.new(10, 7, 10), Reach = 5},
-			Hit{Anim = "Greatsword_Light4", AnimPeak = 0.78, Startup = 0.55, Active = 0.14, Recovery = 0.6, Damage = 38, Posture = 28, Stun = 1.0, Velocity = "Knockback", Hitbox = Vector3.new(11, 7, 11), Reach = 5},
+			Hit{Anim = "Greatsword_Light1", AnimPeak = 0.53, Startup = 0.32, Active = 0.12, Recovery = 0.13, Damage = 30, Posture = 16, Stun = 0.75, Velocity = "Pull", Hitbox = Vector3.new(10, 7, 10), Reach = 5}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.40 -> 0.32, Recovery 0.32 -> 0.13, Stun 0.55 -> 0.75 (holds the 0.57 s gap)
+			Hit{Anim = "Greatsword_Light2", AnimPeak = 0.52, Startup = 0.32, Active = 0.12, Recovery = 0.13, Damage = 30, Posture = 16, Stun = 0.75, Velocity = "Pull", Hitbox = Vector3.new(10, 7, 10), Reach = 5}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.40 -> 0.32, Recovery 0.32 -> 0.13, Stun 0.55 -> 0.75 (holds the 0.57 s gap)
+			Hit{Anim = "Greatsword_Light3", AnimPeak = 0.53, Startup = 0.32, Active = 0.12, Recovery = 0.13, Damage = 30, Posture = 16, Stun = 0.85, Velocity = "Pull", Hitbox = Vector3.new(10, 7, 10), Reach = 5}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.40 -> 0.32, Recovery 0.32 -> 0.13, Stun 0.55 -> 0.85 (holds the 0.77 s gap to the finisher)
+			Hit{Anim = "Greatsword_Light4", AnimPeak = 0.78, Startup = 0.50, Active = 0.14, Recovery = 0.52, Damage = 38, Posture = 28, Stun = 1.0, Velocity = "Knockback", Hitbox = Vector3.new(11, 7, 11), Reach = 5}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.55 -> 0.50, Recovery 0.6 -> 0.52 (string 3.81 -> 2.87 s)
 		}},
 		Heavy = {Anim = "Greatsword_Heavy", AnimPeak = 0.83, Startup = 0.55, Active = 0.14, Recovery = 0.6, Damage = 50, Posture = 55, Stun = 1.0, Velocity = "Knockback", Hitbox = Vector3.new(10, 8, 11), Reach = 5, Step = 14, Cooldown = 1.6, HyperArmor = true},
 		-- Whirlwind: two spinning hits all around you.
@@ -476,9 +476,9 @@ TuningConfig.Weapons = {
 		RunAnim = "Daggers_Run",
 		HoldAnim = "Daggers_Hold",
 		Light = {Hits = {
-			Hit{Anim = "Daggers_Light1", AnimPeak = 0.37, Startup = 0.15, Active = 0.07, Recovery = 0.12, Damage = 12, Posture = 5, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 6), Reach = 3.5},
-			Hit{Anim = "Daggers_Light2", AnimPeak = 0.40, Startup = 0.15, Active = 0.07, Recovery = 0.12, Damage = 12, Posture = 5, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 6), Reach = 3.5},
-			Hit{Anim = "Daggers_Light3", AnimPeak = 0.45, Startup = 0.15, Active = 0.07, Recovery = 0.12, Damage = 12, Posture = 5, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 6), Reach = 3.5},
+			Hit{Anim = "Daggers_Light1", AnimPeak = 0.37, Startup = 0.15, Active = 0.07, Recovery = 0.10, Damage = 12, Posture = 5, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 6), Reach = 3.5}, -- PROPOSAL (2026-10-19 M1 pass): Recovery 0.12 -> 0.10
+			Hit{Anim = "Daggers_Light2", AnimPeak = 0.40, Startup = 0.15, Active = 0.07, Recovery = 0.10, Damage = 12, Posture = 5, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 6), Reach = 3.5}, -- PROPOSAL (2026-10-19 M1 pass): Recovery 0.12 -> 0.10
+			Hit{Anim = "Daggers_Light3", AnimPeak = 0.19, Startup = 0.15, Active = 0.07, Recovery = 0.10, Damage = 12, Posture = 5, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(6, 6, 6), Reach = 3.5}, -- PROPOSAL (2026-10-19 M1 pass): Recovery 0.12 -> 0.10 (string 1.72 -> 1.66 s); AnimPeak 0.45 -> 0.19 measured: the sheet id wired 2026-10-19 is 0.417 s long, its fastest arm / torso turn is between the 0.133 and 0.250 keyframes (0.45 was the old id's)
 			Hit{Anim = "Daggers_Light4", AnimPeak = 0.42, Startup = 0.2, Active = 0.08, Recovery = 0.42, Damage = 16, Posture = 10, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(6, 6, 7), Reach = 3.5},
 		}},
 		Heavy = {Anim = "Daggers_Heavy", AnimPeak = 0.54, Startup = 0.3, Active = 0.1, Recovery = 0.45, Damage = 28, Posture = 26, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(6, 6, 8), Reach = 4, Step = 20, Cooldown = 1.0},
@@ -1066,7 +1066,7 @@ end
 TuningConfig.WeaponDashAttacks = {
 	Sword = {Name = "Rising Cut", Anim = "Sword_Light4", AnimPeak = 0.30, Startup = 0.18, Active = 0.12, Recovery = 0.42,
 		Damage = 26, Posture = 16, Reach = 5, Hitbox = Vector3.new(8, 6, 9), Lunge = 70, LungeTime = 0.26, Cooldown = 2.2},
-	Rapier = {Name = "Lunging Thrust", Anim = "Rapier_Light2", AnimPeak = 0.29, Startup = 0.14, Active = 0.1, Recovery = 0.35,
+	Rapier = {Name = "Lunging Thrust", Anim = "Rapier_Light2", AnimPeak = 0.33, Startup = 0.14, Active = 0.1, Recovery = 0.35, -- PROPOSAL (2026-10-19 M1 pass): AnimPeak 0.29 -> 0.33, the new Rapier_Light2's measured peak
 		Damage = 20, Posture = 10, Reach = 6.5, Hitbox = Vector3.new(4, 5, 11), Lunge = 85, LungeTime = 0.3, Velocity = "Pull", Cooldown = 1.8},
 	Greatsword = {Name = "Cleaving Charge", Anim = "Greatsword_Light1", AnimPeak = 0.53, Startup = 0.32, Active = 0.16, Recovery = 0.6,
 		Damage = 34, Posture = 24, Stun = 0.8, Reach = 5, Hitbox = Vector3.new(11, 7, 9), Lunge = 50, LungeTime = 0.3, HyperArmor = true,
@@ -1187,7 +1187,7 @@ TuningConfig.Downed.Grips = {
 	Fists = {Grip = "Gauntlets_Grip", Victim = "Gauntlets_Gripped", Length = 2.23},
 	Gauntlets = {Grip = "Gauntlets_Grip", Victim = "Gauntlets_Gripped", Length = 2.23},
 	Daggers = {Grip = "Daggers_Grip", Victim = "Daggers_Gripped", Length = 1.2},
-	Rapier = {Grip = "Rapier_Grip", Victim = "Rapier_Gripped", Length = 1.23}, -- sheet 2026-10-19 (the grip keys Hilt under a pose our rig lacks: the blade stays in the hand pose)
+	Rapier = {Grip = "Rapier_Grip", Victim = "Rapier_Gripped", Length = 1.23}, -- sheet 2026-10-19; the grip keys Right Arm > Hilt and moves the blade (grip part renamed Hilt, 2026-10-19)
 	Sword = {Grip = "Sword_Grip", Victim = "Sword_Gripped", Length = 2.0},
 	Greatsword = {Grip = "Greatsword_Grip", Victim = "Greatsword_Gripped", Length = 1.33},
 	Guns = {Grip = "Guns_Grip", Victim = "Guns_Gripped", Length = 3.0}, -- Gun Grip Victim: sheet 2026-10-18
@@ -1205,9 +1205,9 @@ TuningConfig.Styles = {
 		Boxing = {
 			AttackWalkSpeed = 16,
 			Light = {Hits = {
-				{Anim = "Boxing_Light1", AnimPeak = 0.32, Startup = 0.22, Active = 0.08, Recovery = 0.16, Damage = 15, Posture = 6, Stun = 0.65, Velocity = "Pull", Reach = 3.2},
-				{Anim = "Boxing_Light2", AnimPeak = 0.32, Startup = 0.22, Active = 0.08, Recovery = 0.16, Damage = 15, Posture = 6, Stun = 0.65, Velocity = "Pull", Reach = 3.2},
-				{Anim = "Boxing_Light3", AnimPeak = 0.32, Startup = 0.22, Active = 0.08, Recovery = 0.16, Damage = 15, Posture = 6, Stun = 0.65, Velocity = "Pull", Reach = 3.2},
+				{Anim = "Boxing_Light1", AnimPeak = 0.32, Startup = 0.19, Active = 0.08, Recovery = 0.10, Damage = 15, Posture = 6, Stun = 0.65, Velocity = "Pull", Reach = 3.2}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.22 -> 0.19, Recovery 0.16 -> 0.10
+				{Anim = "Boxing_Light2", AnimPeak = 0.32, Startup = 0.19, Active = 0.08, Recovery = 0.10, Damage = 15, Posture = 6, Stun = 0.65, Velocity = "Pull", Reach = 3.2}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.22 -> 0.19, Recovery 0.16 -> 0.10
+				{Anim = "Boxing_Light3", AnimPeak = 0.32, Startup = 0.19, Active = 0.08, Recovery = 0.10, Damage = 15, Posture = 6, Stun = 0.65, Velocity = "Pull", Reach = 3.2}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.22 -> 0.19, Recovery 0.16 -> 0.10 (string 2.15 -> 1.88 s)
 				-- owner 2026-10-18 "fix boxing infinite combo'ing": the string looped because the finisher stunned (0.75 s)
 				-- past its recovery + the next jab's startup (0.30 + 0.22 s). Now 0.35 s stun / 0.45 s recovery: after a full
 				-- string the target is free ~0.32 s before the next jab can land (block / dodge window).
@@ -1223,9 +1223,9 @@ TuningConfig.Styles = {
 		Lethwei = {
 			AttackWalkSpeed = 12,
 			Light = {Hits = {
-				{Anim = "Lethwei_Light1", AnimPeak = 0.18, Startup = 0.16, Active = 0.06, Recovery = 0.2, Damage = 16, Posture = 12, Stun = 0.6, Velocity = "Pull", Reach = 3.2},
-				{Anim = "Lethwei_Light2", AnimPeak = 0.18, Startup = 0.16, Active = 0.06, Recovery = 0.2, Damage = 16, Posture = 12, Stun = 0.6, Velocity = "Pull", Reach = 3.2},
-				{Anim = "Lethwei_Light3", AnimPeak = 0.15, Startup = 0.14, Active = 0.06, Recovery = 0.2, Damage = 16, Posture = 12, Stun = 0.6, Velocity = "Pull", Reach = 3.2},
+				{Anim = "Lethwei_Light1", AnimPeak = 0.18, Startup = 0.16, Active = 0.06, Recovery = 0.14, Damage = 16, Posture = 12, Stun = 0.6, Velocity = "Pull", Reach = 3.2}, -- PROPOSAL (2026-10-19 M1 pass): Recovery 0.2 -> 0.14
+				{Anim = "Lethwei_Light2", AnimPeak = 0.18, Startup = 0.16, Active = 0.06, Recovery = 0.14, Damage = 16, Posture = 12, Stun = 0.6, Velocity = "Pull", Reach = 3.2}, -- PROPOSAL (2026-10-19 M1 pass): Recovery 0.2 -> 0.14
+				{Anim = "Lethwei_Light3", AnimPeak = 0.15, Startup = 0.14, Active = 0.06, Recovery = 0.14, Damage = 16, Posture = 12, Stun = 0.6, Velocity = "Pull", Reach = 3.2}, -- PROPOSAL (2026-10-19 M1 pass): Recovery 0.2 -> 0.14 (string 2.06 -> 1.88 s; the long finisher recovery stays)
 				{Anim = "Lethwei_Light4", AnimPeak = 0.12, Startup = 0.14, Active = 0.08, Recovery = 0.6, Damage = 26, Posture = 20, Stun = 0.9, Velocity = "Knockback", Reach = 3.4},
 			}},
 			Heavy = {Anim = "Lethwei_Heavy", AnimPeak = 0.42, Startup = 0.42, Active = 0.12, Recovery = 0.6, Damage = 34, Posture = 55, Stun = 1.0,
