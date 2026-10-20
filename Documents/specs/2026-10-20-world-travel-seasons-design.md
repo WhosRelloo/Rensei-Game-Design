@@ -131,6 +131,49 @@ This spec covers the **world backbone**:
 - `TrainRideClient`: the scrolling scenery, seats and loading screen.
 - `Travel` data module: routes, prices, times, ride events.
 
+### The train model (owner, 2026-10-20)
+
+**Owner:** "I want the train model to be made in blender and have it have a FMA style. I want it to have a nice interior too, with areas for players to board, etc. with interiors in some of the connecting cars to it." The owner chose **5 cars plus the engine**. The owner's three reference pictures are:
+- an FMA locomotive in a station shed;
+- a maroon coach with framed windows;
+- a 3rd-class interior with facing benches.
+
+- **How it's built:**
+  - In Blender, as a part kit (Block, Cylinder and Wedge pieces) under `Art/Blender/train/`.
+  - Exported with the same pipeline as Lindenmoor: `export.py`, then layout JSON, then `studio_kit.py`, which writes the import chunks and `.rbxmx` kit files.
+  - Rounded shapes (the boiler, the arched roofs) are made of cylinders and tilted slabs.
+- **The train, from the front:**
+  1. **Locomotive and tender:**
+     - navy-black (#23262D) with brass trim;
+     - a big round smokebox door ringed with bolts, and twin headlamps (Neon, with a light);
+     - a boiler, a cab, driving wheels and side rods;
+     - steam from the stack (a ParticleEmitter).
+  2. **Baggage car:**
+     - crates, mail sacks and a dim lamp;
+     - a sliding side door on the freight-yard side: the stowaway route.
+  3. **3rd class:** an open saloon, with facing pairs of benches either side of a centre aisle, as in the owner's third picture.
+  4. **Dining car:** six tables for four and a bar counter. Ride events (overheard rumours, the pickpocket) happen here.
+  5. **2nd class:** a side corridor with four compartments, each with two facing benches and a sliding door.
+  6. **Private cabin car:** two cabins (a bed bench, a table and a lamp) and a small sitting nook.
+- **Coach look:**
+  - outside: deep maroon (#6A1F24) with a black underframe and a grey arched roof;
+  - windows: wood-framed, about 4 × 3.5, every 6 studs;
+  - inside: cream walls (#E6DCC2), dark-green benches (#2F4A3A), wood trim, brass lamps and luggage racks.
+- **R6 sizes:**
+  - each coach 64 long × 12 wide outside, with 10.5 headroom inside;
+  - aisles and corridors at least 4 wide;
+  - doors 5 × 8.5 at both ends of each coach, with two steps down to the platform;
+  - covered gangways (4 × 8.5) join the cars;
+  - benches are Seat parts, so R6 players can sit.
+- **Where players can go by ticket class:**
+  - 3rd-class tickets ride in 3rd class and can visit the dining car;
+  - 2nd class adds the 2nd-class car;
+  - private cabin tickets reach every car.
+  - The conductor checks the class at each car's door.
+- **Two copies per station:**
+  - the platform train, standing with its doors open (its vestibules are the boarding areas);
+  - the ride train, out of the playable world, with the same interior. Players are moved into it behind a short "doors closing" fade.
+
 ## 3. Road journeys
 
 - **The exit:** walking through a road exit opens a travel card showing the destination, the trip time (30–60 s), the risk, and who's coming (your party).
@@ -217,6 +260,7 @@ This spec covers the **world backbone**:
 ## Build order
 
 1. **Backbone:**
+   - the Blender train (locomotive, tender and 5 cars) and its Studio import;
    - Packages;
    - `Travel` data;
    - `TravelService`, `StationService`, `TrainRideClient`;
