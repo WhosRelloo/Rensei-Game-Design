@@ -111,7 +111,9 @@ function ItemService.Use(Player, Tool)
 	local Info = ItemData[Tool.Name]
 	-- transmutation chalk: starts a circle (RitualService checks everything; the chalk is spent per attempt there)
 	if Info and Info.Ritual then
-		require(game:GetService("ServerScriptService").RitualService).BeginCircle(Player)
+		-- optional: the Tutorial place runs this file without RitualService (Tutorial sync 2026-10-20)
+		local Ritual = game:GetService("ServerScriptService"):FindFirstChild("RitualService")
+		if Ritual then require(Ritual).BeginCircle(Player) end
 		return
 	end
 	if not Info or Info.Type ~= "Consumable" or not Info.Heal then return end

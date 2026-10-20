@@ -2,6 +2,80 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-20 — Tutorial synced with Ye's systems
+
+Owner request: "sync up the Tutorial place to the same systems the main game has" (task E). Scope approved 2026-10-20 as tiers 1–3: the combat and movement core, UI parity, and the systems a new player can use. Ye's main-game content stays out: quests, investigation, morality / rumours, minigames, puzzles, trials, Truth, ritual, Automail, compass, journal / Mastery tree UI, admin. **Tutorial** = place 74257385894576.
+
+**How:** every script and instance was copied byte for byte from Ye. Script sources and instances (SerializationService) went through a localhost relay between the two Studio windows, and each script was checked with an Adler-32 checksum before and after it was written. Everything replaced is in the Tutorial's `ServerStorage.RenseiBackups["Pre-YeSync_2026-10-20"]`: scripts as source copies, replaced models under `ReplacedInstances`, the old animation ids and walk speeds as StringValues.
+
+**Before:** 407 scripts were identical, 51 had diverged (the Tutorial had older copies), and 96 existed only in Ye.
+
+**Copied from Ye (58 scripts)**
+- Combat and movement core:
+  - data: TuningConfig, SkillData, Styles, Settings;
+  - managers: AttackRunner, DamageManager, DownedManager, JumpManager, JumpManager.LedgeWalk, MovementState, SkillMods, LocomotionSync, MoverManager, ResourceManager, WeaponManager, Keybinds;
+  - combat skills: Block, FistSwing, Heavy;
+  - client: ClientHandler with Roll and Run;
+  - server: CharacterHandler, StyleService, ItemService, LoadoutService;
+  - requests: CombatMode, WeaponSkill, Style.
+
+  This brings the 2026-10-19 animation wiring, the M1 speed pass with its AttackRunner fix, and the VV parry into the Tutorial.
+- UI: UIState, UIMotion, MenuKit, HUDUI (with StoryLogic, Factions, ClassSkills, SkillTree, Ranks), CombatModeUI, MobileControls, SettingsUI, PromptUI, PopupUI, DialogueUI, CombatLogUI (the "IN COMBAT" badge), ItemData.Consumable.
+- Systems:
+  - swimming: SwimService, SwimClient and the Swim request;
+  - guns: the Shoot request;
+  - the ClassSkill request;
+  - AlchemyService and Effects.Alchemy.EarthShapes;
+  - enemies: EnemyService, PerceptionService with Perception data, CombatDirector;
+  - Mastery: SkillTreeService, so the Mastery unlocks bought in Ye apply here too.
+- Instances:
+  - animations: the Registry, class-skill, style, swim and ledge folders, weapon Grips, the gun whips and heavy, Rapier lights 1/3/4, the sheathes;
+  - 23 weapon animation ids updated to Ye's;
+  - the Katana and Rapier models with the `Hilt` part (step A's fix);
+  - gun VFX;
+  - the seven Settings rows Ye added (Aim, CombatLog, Compass, FieldOfView, PostEffects, UIAnimations, UISounds);
+  - one HUD stroke.
+
+**Kept as the Tutorial's own, with small edits:**
+- `CharacterHandler.DataManager` (the FlowData shim): added `WaitProfile`, which Ye's CharacterHandler uses.
+- `ServerHandler`:
+  - the client may now call `TraversalState` (Ye's JumpManager climbs, wall-runs and ledge-walks through it; without it, climbing never started on the server);
+  - it now starts PerceptionService, SwimService and CombatDirector.
+- `UIHandler`: starts CombatLogUI and UIMotion.
+- `ProgressionService.ApplyCharacter`: applies the Mastery max-health bonus and publishes the skill tree (`SkillTreeService.Publish`), as Ye does.
+- `TutorialController`: the Alchemy beat asks for X only from a player who has unlocked it. Ye's rule: Z comes with every path; X, C and V are bought in the Mastery tree. Before this, the beat asked everyone for X, which AlchemyService refuses until it's bought, so the beat couldn't be finished.
+- Place settings: `StarterCharacter.Humanoid.WalkSpeed` 12 → 16 and `StarterPlayer.CharacterWalkSpeed` 20 → 16, matching Ye.
+
+**Changed in Ye too (the same file in both places):**
+- `AlchemyService`: the PuzzleService lookup on every cast is now optional (`FindFirstChild`). The Tutorial has no PuzzleService, so every cast failed there. Ye behaves the same. The repo copy was 128 bytes behind Ye before this, so this export also carries that earlier change.
+- `ItemService`: using transmutation chalk looks up RitualService optionally, so a player carrying chalk into the Tutorial doesn't hit an error.
+- Backups: Ye's `ServerStorage.RenseiBackups["Pre-TutorialSync_2026-10-20"]`.
+
+**Tests** (Tutorial Play as ImWaymonTTK, one run from beat 1 to the finish with real keyboard / mouse input; the parry press went through the client's own `ClientActions.Run("Block")`, the same function the F key runs, timed off the Dummy's swing):
+1. **Footwork:** a sprint (24 → 30 speed), a jump and two dashes passed.
+2. **Report In:** passed.
+3. **The Wall:** the first run found `TraversalState` missing (fixed above). After the fix, the server set `Traversal = Climb`, the climb moved 6 studs sideways (A / D), and W climbed over the top.
+4. **Strikes:** Combat Mode, 4 Katana lights at the new timing, and a heavy.
+5. **Break a Guard:** broken with light strings.
+6. **Defend:**
+   - three held blocks counted;
+   - a test script inside the game showed each tap's parry window open for 0.25 s;
+   - fixed-interval taps never lined up with a hit, so the press was timed off the Dummy's swing: the window opened at 83.31 and the hit at 83.40 came back `PerfectParried`.
+7. **Alchemy:** casting failed on PuzzleService (fixed above), then Cryo Shift (Z) cast. X is asked for only once it's unlocked.
+8. **The Bout:** the Dummy went from 300 HP to knocked in four light strings, and the grip (B) finished it.
+9. **The Gate:** walking in ran the finale and fired `FinishTutorial` ("Studio can't teleport").
+
+No game errors in the output after the fixes. The test scripts existed only during Play.
+
+**Side effects:** the run went through the real save. Its `Flow` is TutorialDone = true and IntroSeen = true, the same as before for this account (Studio ignores TutorialDone and replays from beat 1).
+
+**For the owner:**
+- For a player without X, the Alchemy line reads "{X} for nothing yet". It's harmless, but the wording could change.
+- Not covered by the run:
+  - the swimming, gun, style and class-skill requests (copied, not exercised here);
+  - EnemyService squads (the Tutorial only has the Dummy);
+  - the Sword animation keyframe saves that carry a `Hilt` pose, which are Studio-only saves and weren't copied.
+
 ## 2026-10-20 — Admin panel: lock, audit, new tools, staff log
 
 Owner request: "add more features to the admin panel and lock it behind me and ImWaymonTTK as the admins for the panel. Completely audit the admin panel for any extra features it could use for better debugging, gameplay, trading, etc." Decisions: only those two accounts, everywhere, Studio included; trading is a separate project, scheduled last (no Trades tab). Task D of the 2026-10-19 queue. The tool list below was approved in the session on 2026-10-20.

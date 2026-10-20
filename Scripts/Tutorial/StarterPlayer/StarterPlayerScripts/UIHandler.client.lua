@@ -1,0 +1,33 @@
+-- Boots the Rensei UI. Menu keys per the controls doc: ` Inventory, M Stats. Settings is not in
+-- the doc and uses P. All menus are disabled in combat (UIState). Touch buttons on mobile.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ContextActionService = game:GetService("ContextActionService")
+
+local UI = ReplicatedStorage.Modules.UI
+local UIState = require(UI.UIState)
+
+for _, Name in ipairs({"HUDUI", "PopupUI", "PartyUI", "DialogueUI", "InventoryUI", "SettingsUI", "CombatModeUI", "CooldownUI", "AlchemyUI", "MobileControls", "PromptUI", "ChatUI", "IntroCutscene", "CombatLogUI"}) do -- CombatLogUI: from Ye (sync 2026-10-20)
+	require(UI[Name]).Start()
+end
+require(UI.StatsUI).Initiate()
+-- walk / run animations follow the character's real speed (the speed audit, 2026-10-18)
+require(ReplicatedStorage.Modules.Managers.LocomotionSync).Start()
+UIState.Start()
+-- after every module has built its frames: hover/press springs, menu + popup motion (from Ye, sync 2026-10-20)
+require(UI.UIMotion).Start(UIState.Gui)
+
+local Menus = {
+	{Action = "RenseiInventory", Menu = "Inventory", Key = Enum.KeyCode.Backquote, Title = "Bag"},
+	{Action = "RenseiStats", Menu = "Stats", Key = Enum.KeyCode.M, Title = "Stats"},
+	{Action = "RenseiSettings", Menu = "Settings", Key = Enum.KeyCode.P, Title = "Menu"},
+}
+for I, M in ipairs(Menus) do
+	ContextActionService:BindAction(M.Action, function(_, State)
+		if State == Enum.UserInputState.Begin then UIState.ToggleMenu(M.Menu) end
+		return Enum.ContextActionResult.Sink
+	end, true, M.Key)
+	ContextActionService:SetTitle(M.Action, M.Title)
+	ContextActionService:SetPosition(M.Action, UDim2.new(1, -70 - (I - 1) * 62, 0, 10))
+end
+
+script:SetAttribute("Started", os.time())

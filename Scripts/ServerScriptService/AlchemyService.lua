@@ -1078,8 +1078,10 @@ local function RunCast(Player, Character, Root, WC, Affinity, Slot, Def, Impl, A
 	local Cost = Cfg.MeterCost[Slot] or 0
 	-- Puzzle casts (PROPOSAL, 2026-10-15): out of combat, a cast next to a mechanism that reacts to this
 	-- element costs no meter -- the meter only fills in fights, and no puzzle should need one first.
-	local Puzzles = require(game:GetService("ServerScriptService").PuzzleService)
-	if Player and not Character:GetAttribute("InCombat") and Puzzles.ReactsNear(Affinity, Root.Position) then Cost = 0 end
+	-- optional: the Tutorial place runs this file without PuzzleService (Tutorial sync 2026-10-20)
+	local PuzzleModule = game:GetService("ServerScriptService"):FindFirstChild("PuzzleService")
+	local Puzzles = PuzzleModule and require(PuzzleModule) or nil
+	if Player and Puzzles and not Character:GetAttribute("InCombat") and Puzzles.ReactsNear(Affinity, Root.Position) then Cost = 0 end
 	local MeterBefore = ResourceManager.Get(Character, "Meter")
 	if not ResourceManager.Spend(Character, "Meter", Cost) then
 		-- Blood Price (keystone): out of meter, pay the rest in health
@@ -1123,6 +1125,7 @@ local function RunCast(Player, Character, Root, WC, Affinity, Slot, Def, Impl, A
 	local SkillName = "Alchemy_" .. Def.Id
 	-- the windup = the sheet's Cast (+ its CastDelay where it has one: Alloy Divider)
 	local Windup = (Def.Cast + (Def.CastDelay or 0)) * SkillMods.Mult(Character, "Windup") -- Swift Array
+		* (Character:GetAttribute("TruthClap") or 1) -- the Truth clap: faster once the caster has passed a Gate trial (Rensei.Truth)
 	-- Steady Array: walk at full speed while casting
 	local CastWalk = SkillMods.Get(Character, "CastWalkSpeed") > 0
 		and game:GetService("StarterPlayer").StarterCharacter.Humanoid.WalkSpeed * (Character:GetAttribute("SpeedMultiplier") or 1) -- the base walk
@@ -1202,7 +1205,7 @@ local function RunCast(Player, Character, Root, WC, Affinity, Slot, Def, Impl, A
 			if Visual then pcall(function() Visual:Destroy() end) Visual = nil end -- the fire leaves the hands
 			if Kind.OnActive then Kind.OnActive(Ctx) end
 			-- environmental reactions (PuzzleService): any move of this element, in front of the caster
-			if Player then pcall(Puzzles.React, Player, Affinity, Root.Position, Ctx.Direction) end
+			if Player and Puzzles then pcall(Puzzles.React, Player, Affinity, Root.Position, Ctx.Direction) end
 		end,
 		-- moves without their own Strike (the lunge) use the attack's server hitbox sweep
 		Strike = Kind.Strike and function()
