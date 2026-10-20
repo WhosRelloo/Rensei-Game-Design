@@ -2,6 +2,25 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-20 — Blender style test: a Lindenmoor corner at R6 scale
+
+**Owner:** "Continue" (after the world map concept), with Blender connected.
+
+- **Blender connection:** the owner's Blender Lab MCP server (from the Claude desktop app) is now also registered in Claude Code (`claude mcp add blender`, user scope). Its tools load after a restart of Claude Code. Until then, this session drives the same server from a small script.
+- **Style test:** built in its own scene (`Rensei_StyleTest`); the default scene was not touched. Scale is 1 unit = 1 stud. It contains:
+  - a chunky stacked-slab rock outcrop with an authored ledge strip (1.2 deep, 7 up; tagged `RenseiLedge` in Studio);
+  - an oak with a layered slab canopy and hanging roots, plus cypress;
+  - a stone-base, timber-and-plaster farmhouse with a terracotta roof, a 6 × 9 door and a lantern;
+  - a two-row field wall, 4 studs high (the vault height);
+  - 3-stud terraces, a 10-wide dirt path with stone edging, grass clumps and hay-bale cover;
+  - two R6 stand-ins (4 × 5 × 1) for scale;
+  - procedural PBR materials, bounded fog, a low warm sun and two warm practical lights.
+- **Files:**
+  - `Art/Blender/Lindenmoor_StyleTest.blend`;
+  - `Art/Blender/lindenmoor_styletest_build.py` (rebuilds the scene from scratch);
+  - the render: `Documents/images/Map Concept/Lindenmoor style test v1.png`.
+- **Next, once the look is approved:** split it into the modular kit (rocks / cliffs with ledge pieces, trees, farmhouse parts, walls), export FBX at stud scale, import into Studio with MaterialVariants.
+
 ## 2026-10-20 — Concept: world map layout and visual style (not built)
 
 **Owner:** "give me a concept idea on how the map layout would work based on all the documents and slideshows... starter area grassy farmland... deepwoken/semi-stylized, NO LOW POLY... respective to R6 height and... all the movement, combat, and parkour mechanics".
