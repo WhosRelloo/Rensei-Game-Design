@@ -2,6 +2,27 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-21 — World Plan 1, Task 5: TravelService and group teleports
+
+- **Save:** a new `Travel` field holds the region you were last in, your unused tickets, and the trip under way. It is added to old saves automatically.
+- **`FlowTeleport.SendGroup`:** everyone in the list goes in one teleport and lands in the same server. A failure retries, and after the last try every member is kicked back. `Send` is unchanged.
+- **`TravelService`** (new, in `RenseiServer`):
+  - tickets: add, check, and use one of a chosen class;
+  - `Depart`, which sends a group along a route;
+  - arrival at a named point (`RenseiArrival` parts);
+  - an `Arrived` event, which Task 6's stations use.
+- **Safety: the arrival trusts the save, not the player.** Before the teleport, the server writes the trip (route, destination, arrival point, class) into each traveller's save.
+  - On arrival, only a trip to *this* region counts: that exact ticket is used up and the region is saved.
+  - Anyone who turns up somewhere they didn't travel to is sent back to their last region.
+  - This closes a hole where a player could jump to any region, skip its level gate and keep their ticket.
+  - Saves are released all at once, so a full train doesn't wait one player at a time.
+- **Lindenmoor:** two arrival points, `Platform` and `NorthGate`.
+- **Menu:** a returning player now goes back to the region they were last in (`Places.ResumePlace`); new and old saves still go to Lindenmoor. The `Places` module is synced to the Menu and Tutorial, and the new `FlowTeleport` to the Tutorial. The Menu copy follows when that place is open in Studio.
+- **Tests (Ye, Play):** Travel 7/7, Boot 2/2, Heat 8/8, Rumours 2/2.
+  - Covered: tickets, the Studio arrival, a forged arrival refused, a trip that arrives and uses the right class, and a stale trip cleared with the ticket kept.
+  - The real hop between places can only be tested after the owner publishes.
+- **Backups:** `RenseiBackups["Pre-TravelService_2026-10-21"]`, in Ye, Menu and Tutorial.
+
 ## 2026-10-21 — World Plan 1, Task 4: Foundry Yard boots the full game
 
 - **Packages:** the owner turned the 13 shared roots into Roblox Packages, with auto-update on. Their ids are in `Art/Studio/Travel/packages.json`.
