@@ -2,6 +2,13 @@
 
 Owner's to-do list, in the owner's words. The order is the owner's, and none of it is started.
 
+## Next, right after World Plan 1 (owner, 2026-10-21)
+- [ ] **Hostages:** "make a cool option for other players to take others hostage, and have it intertwine with the game's mechanics already". The owner's choices are in the spec draft `Documents/specs/2026-10-21-hostage-design.md`, which is waiting for owner approval:
+  - taking: from knocked, plus a stealth grab;
+  - what the captor can do: shield, ransom, bounty, journeys;
+  - getting free: struggle, rescue, time limit, captor's choice;
+  - where: never in safe zones.
+
 ## After the world plans (owner, 2026-10-20)
 
 These start after the world, travel and seasons plans are finished (`Documents/specs/2026-10-20-world-travel-seasons-design.md`).
