@@ -5,7 +5,8 @@ python rbxc.py list | schema <tool> | call <tool> <json-args or @file.json>
 Runs its own StudioMCP.exe next to Claude Code's, so big generated Luau files go to Studio without passing through chat.
 Match the Studio by place id (e.g. "placeId: 106992859583940" = Rensei/Ye); a name that matches 0 or 2+ Studios is refused.
 """
-import json, subprocess, sys, threading, queue
+import json
+import time, subprocess, sys, threading, queue
 
 import glob, os
 EXE = sorted(glob.glob(os.path.expandvars(r"%LOCALAPPDATA%\Roblox\Versions\*\StudioMCP.exe")), key=os.path.getmtime)[-1]
@@ -65,11 +66,15 @@ def main():
             r = c.req("tools/call", {"name": "list_roblox_studios", "arguments": {}})
             print(r["result"]["content"][0]["text"])
         elif cmd == "luau":
-            r = c.req("tools/call", {"name": "list_roblox_studios", "arguments": {}})
-            txt = r["result"]["content"][0]["text"]
-            data = json.loads(txt)
-            items = data if isinstance(data, list) else data.get("studios") or data.get("instances") or []
-            hits = [i for i in items if sys.argv[2] in i.get("name", "")]
+            for attempt in range(10):  # Studio names can read null for a moment; retry before giving up
+                r = c.req("tools/call", {"name": "list_roblox_studios", "arguments": {}})
+                txt = r["result"]["content"][0]["text"]
+                data = json.loads(txt)
+                items = data if isinstance(data, list) else data.get("studios") or data.get("instances") or []
+                hits = [i for i in items if sys.argv[2] in (i.get("name") or "")]
+                if len(hits) == 1:
+                    break
+                time.sleep(2)
             if len(hits) != 1:
                 print("studio match error:", [i.get("name") for i in items]); return
             src = sys.argv[4]

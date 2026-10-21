@@ -11,5 +11,8 @@
   "StarterPlayer.StarterCharacterScripts.Animate": "rbxassetid://70578886403358",
   "ServerStorage.RenseiServer": "rbxassetid://136952592909125",
   "ServerStorage.TruthAssets": "rbxassetid://100110217488856",
-  "ServerScriptService.RenseiBoot": "rbxassetid://121831990357877"
+  "ServerScriptService.RenseiBoot": "rbxassetid://121831990357877",
+  "StarterPlayer.StarterCharacter": "rbxassetid://86195945492982",
+  "SoundService.SFX": "rbxassetid://71774526700019",
+  "SoundService.Music": "rbxassetid://73244835277135"
 }
