@@ -122,6 +122,11 @@ function GroupFailed(G, Why, Final)
 	TryGroup(G)
 end
 
+-- Whether the player is in a group teleport (SendGroup) that hasn't finished or failed.
+function FlowTeleport.InGroup(Player)
+	return Groups[Player] ~= nil
+end
+
 -- Send every player in List to PlaceId together (does not yield). Same TeleportData rules as Send.
 function FlowTeleport.SendGroup(List, PlaceId, Data, OnFail)
 	local Options = Instance.new("TeleportOptions")
