@@ -1,0 +1,15 @@
+{
+  "ReplicatedStorage.Modules": "rbxassetid://93881868321364",
+  "ReplicatedStorage.Remotes": "rbxassetid://86569241925979",
+  "ReplicatedStorage.Assets": "rbxassetid://91921092226558",
+  "StarterGui.Uis": "rbxassetid://74397767261638",
+  "StarterPlayer.StarterPlayerScripts.ClientHandler": "rbxassetid://86399163331249",
+  "StarterPlayer.StarterPlayerScripts.PlayerData": "rbxassetid://137954660526162",
+  "StarterPlayer.StarterPlayerScripts.PlayerModule": "rbxassetid://125428954394773",
+  "StarterPlayer.StarterPlayerScripts.UIHandler": "rbxassetid://93672332706683",
+  "StarterPlayer.StarterPlayerScripts.SwimClient": "rbxassetid://87859756582460",
+  "StarterPlayer.StarterCharacterScripts.Animate": "rbxassetid://70578886403358",
+  "ServerStorage.RenseiServer": "rbxassetid://136952592909125",
+  "ServerStorage.TruthAssets": "rbxassetid://100110217488856",
+  "ServerScriptService.RenseiBoot": "rbxassetid://121831990357877"
+}
