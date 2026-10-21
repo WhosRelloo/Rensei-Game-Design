@@ -6,7 +6,8 @@
 -- Station = "Foundry") with an R6 clerk, and a DepartureBoard. Server code: StationService (in RenseiServer).
 -- Task 8 (2026-10-21): the south road: a dirt road out through the gate, a RoadGate arch over it with RoadExit (tag
 -- RenseiRoadExit, Route = "RoadLindenmoorFoundry", Arrive = "NorthGate"; RoadService gives it a prompt), and
--- AmbushArena (tag RenseiAmbushArena), an invisible 60 x 1 x 60 marker. Server code: RoadService (in RenseiServer).
+-- AmbushArena (tag RenseiAmbushArena), an invisible 60 x 1 x 60 marker outside the gate, ringed by fence posts and
+-- stones (walking out past them is fleeing), on more ground south of the gate. Server code: RoadService (RenseiServer).
 -- The template Baseplate and SpawnLocation go to ServerStorage.RenseiBackups["Pre-WorldPlan1_2026-10-20"].
 -- Re-runnable: rebuilds World.Map.Foundry (all Foundry content comes from this script). The real region is a later
 -- plan; every size is a PROPOSAL.
@@ -196,7 +197,8 @@ board(Vector3.new(5.6, 6.4 + 8, 70), Vector3.new(-1, 0, 0)) -- PROPOSAL: at the 
 -- The brief puts the exit at the gate itself (150, 5, 190), which is also the SouthGate arrival point: someone who
 -- has just arrived would stand in the exit's prompt. The exit moved 32 out along the road (prompt reach 12).
 local EXIT_Z = 222 -- PROPOSAL
-part("Road", Vector3.new(12, 0.2, 76), CFrame.new(150, 4.1, 222), Enum.Material.Ground, Color3.fromRGB(110, 92, 70)) -- PROPOSAL: gate (z 184) to the ground's edge (z 260)
+part("GroundSouth", Vector3.new(400, 4, 120), CFrame.new(0, 2, 320), Enum.Material.Grass, Color3.fromRGB(82, 106, 54)) -- PROPOSAL (fix round 1): room outside the gate for the arena and a flee
+part("Road", Vector3.new(12, 0.2, 196), CFrame.new(150, 4.1, 282), Enum.Material.Ground, Color3.fromRGB(110, 92, 70)) -- PROPOSAL: gate (z 184) to the ground's edge (z 380)
 local function roadGate(Pos, Out, Route, Arrive) -- Pos: on the road surface; Out: the way the road leaves
 	local M = Instance.new("Model")
 	M.Name = "RoadGate"
@@ -215,10 +217,28 @@ local function roadGate(Pos, Out, Route, Arrive) -- Pos: on the road surface; Ou
 	return E
 end
 roadGate(Vector3.new(150, 4.2, EXIT_Z), Vector3.new(0, 0, 1), "RoadLindenmoorFoundry", "NorthGate")
--- the ambush arena: the brief's (100, 5, 150), its bottom on the ground (top 4); clear of the gate and the road
-local arena = part("AmbushArena", Vector3.new(60, 1, 60), CFrame.new(100, 4.5, 150), Enum.Material.SmoothPlastic, Color3.new(1, 1, 1))
+-- the ambush arena (fix round 1: outside the town gate, away from the SouthGate arrival at (150, 190)): x 50..110,
+-- z 220..280, its bottom on the ground (top 4); 34 from the road, 50 from the arrival, with room around it to flee
+local arena = part("AmbushArena", Vector3.new(60, 1, 60), CFrame.new(80, 4.5, 250), Enum.Material.SmoothPlastic, Color3.new(1, 1, 1)) -- PROPOSAL position
 arena.Transparency, arena.CanCollide, arena.CanQuery, arena.CanTouch, arena.CastShadow = 1, false, false, false, false
 CS:AddTag(arena, "RenseiAmbushArena")
+-- its edge, made visible: this placeholder place has no village kit, so the posts copy Lindenmoor's kit FencePost
+-- (0.5 x 4.47 x 0.5, Wood, measured in Ye) and the corners get rock piles in the gate's stone colour
+local ring = Instance.new("Model")
+ring.Name = "AmbushRing"
+local POST_GAP = 7.5 -- PROPOSAL: studs between posts (an R6 is 4 wide, so there is always a way out)
+for side = 0, 3 do
+	for i = 0, 7 do
+		local along = -30 + (i + 0.5) * POST_GAP -- half a gap in from each corner: the middle of each side is open
+		local x, z = along, -30
+		if side == 1 then x, z = 30, along elseif side == 2 then x, z = -along, 30 elseif side == 3 then x, z = -30, -along end
+		part("RingPost", Vector3.new(0.5, 4.47, 0.5), CFrame.new(80 + x, 4 + 2.235, 250 + z), Enum.Material.Wood, Color3.fromRGB(78, 56, 40), ring)
+	end
+end
+for _, c in ipairs({{-1, -1}, {1, -1}, {1, 1}, {-1, 1}}) do
+	part("RingStone", Vector3.new(5, 3, 4), CFrame.new(80 + c[1] * 33, 5.3, 250 + c[2] * 33) * CFrame.Angles(0, math.rad(25 * c[1]), 0), Enum.Material.Rock, Color3.fromRGB(111, 117, 102), ring)
+end
+ring.Parent = F
 
 F.Parent = World.Map
 return "foundry placeholder + station + south road built; template baseplate + spawn backed up"

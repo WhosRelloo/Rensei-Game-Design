@@ -309,9 +309,14 @@ local function RoadCard(Data)
 	if No then No.Activated:Connect(CloseCard) end
 end
 
-local Journey, JourneyShown
+local Journey, JourneyShown, RoadTeleportGui
 local function CloseJourney()
 	if Journey then Journey:Destroy() Journey = nil end
+	if RoadTeleportGui then -- the road's teleport screen goes with it (a later teleport sets its own)
+		pcall(function() TeleportService:SetTeleportGui(nil) end)
+		RoadTeleportGui:Destroy()
+		RoadTeleportGui = nil
+	end
 end
 local function AreaPanel(Dest, Line) -- HUD2.NewAreaDiscovered, relabelled
 	local P = Template("HUD2.NewAreaDiscovered")
@@ -325,7 +330,10 @@ end
 local function JourneyScreen(Data)
 	CloseCard()
 	CloseJourney()
-	local Seconds = math.max(tonumber(Data.Seconds) or 40, 1)
+	local Seconds = math.max(tonumber(Data.Seconds) or 40, 1) -- the route's trip time (the text)
+	local Total = math.max(tonumber(Data.Total) or Seconds, 0.1) -- the whole road in real seconds (the bar)
+	local Ends = tonumber(Data.Ends) or (workspace:GetServerTimeNow() + Total) -- server time the road ends (resumed
+	-- after an ambush, it carries on from where it stopped)
 	local Dest, From = tostring(Data.Dest or "the road's end"), tostring(Data.From or "here")
 	local S = Template("bg") -- the menus' backdrop, full screen
 	if not S then return end
@@ -344,11 +352,10 @@ local function JourneyScreen(Data)
 	S.Parent = Gui
 	Journey, JourneyShown = S, os.clock()
 	task.spawn(function()
-		local T0 = os.clock()
 		while Journey == S do
-			local T = os.clock() - T0
-			local Left = math.max(0, math.ceil(Seconds - T))
-			if Bar and Bar:FindFirstChild("Bar") then Fill.Set(Bar.Bar, T / Seconds) end
+			local Rest = math.max(0, Ends - workspace:GetServerTimeNow())
+			local Left = math.ceil(Rest / Total * Seconds) -- in the route's seconds (Studio tests run it faster)
+			if Bar and Bar:FindFirstChild("Bar") then Fill.Set(Bar.Bar, 1 - Rest / Total) end
 			if Bar then SetText(Bar, "HP", ("%d:%02d"):format(Left // 60, Left % 60)) end
 			task.wait(0.1)
 		end
@@ -362,8 +369,9 @@ local function JourneyScreen(Data)
 		if P then P.Parent = B end
 		B.Parent = G
 		TeleportService:SetTeleportGui(G)
+		RoadTeleportGui = G
 	end
-	task.delay(Seconds + 10, function() -- never stuck behind it if the arrival never comes
+	task.delay(math.max(0, Ends - workspace:GetServerTimeNow()) + 10, function() -- never stuck behind it if the arrival never comes
 		if Journey == S then CloseJourney() FadeTo(1, 0.3) end
 	end)
 end
@@ -387,12 +395,10 @@ Event.OnClientEvent:Connect(function(Kind, Data)
 		CloseCard()
 		CloseJourney()
 		FadeTo(0, 0.15)
-		task.delay(0.4, function() FadeTo(1, 0.5) end)
-		if type(Data.Text) == "string" then Say(Data.Text, 5) end
+		task.delay(0.4, function() FadeTo(1, 0.5) end) -- the words come as the game's own toast (RoadService)
 	elseif Kind == "RoadCancel" then
 		CloseJourney()
-		FadeTo(1, 0.3)
-		if type(Data.Text) == "string" then Say(Data.Text, 5) end
+		FadeTo(1, 0.3) -- the reason comes as the game's own toast (RoadService)
 	elseif Kind == "OpenTickets" then
 		task.spawn(OpenTickets)
 	elseif Kind == "Board" then

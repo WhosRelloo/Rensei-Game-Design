@@ -9,7 +9,8 @@
 --   * (Task 8) RoadGate: a stone arch over the north road with RoadExit (tag RenseiRoadExit, Route =
 --     "RoadLindenmoorFoundry", Arrive = "SouthGate"; RoadService gives it a prompt), and AmbushArena (tag
 --     RenseiAmbushArena), an invisible 60 x 1 x 60 marker on the flat ground west of the north road. Both sit
---     directly in World.Map.Lindenmoor, on the ground found by a ray down.
+--     directly in World.Map.Lindenmoor, on the ground found by a ray down. (Fix round 1) AmbushRing: the village's
+--     fence posts and creek stones around the arena's edge, since walking out past it is fleeing.
 -- Server code: StationService. Every number here is a PROPOSAL unless it was measured in Ye (marked "measured").
 assert(game.PlaceId == 106992859583940, "station_lindenmoor.lua is for Ye (106992859583940) only")
 local CS = game:GetService("CollectionService")
@@ -200,9 +201,17 @@ board(St, O + Vector3.new(-254.8, 6.5 + 8, 30), Vector3.new(-1, 0, 0)) -- PROPOS
 --    big oaks, so it moved to the open flat ground beside the road beyond the valley (both measured in Ye).
 local EXIT_Z = 360 -- PROPOSAL: 30 out from the NorthGate arrival (prompt reach 12); the road (12 wide) starts at z 354
 local ARENA_X, ARENA_Z = -50, 420 -- PROPOSAL: x -80..-20, 14 clear of the road's west edge (x -6); flat ground
-local function ground(X, Z) -- the world Y of the walkable surface at local (X, Z)
+local function ground(X, Z) -- the world Y of the walkable surface at local (X, Z), ignoring what a re-run replaces
 	local Ray = RaycastParams.new()
 	Ray.RespectCanCollide = true
+	local Skip = {}
+	for _, N in ipairs({"RoadGate", "AmbushArena", "AmbushRing"}) do
+		for _, C in ipairs(L:GetChildren()) do
+			if C.Name == N then table.insert(Skip, C) end
+		end
+	end
+	Ray.FilterType = Enum.RaycastFilterType.Exclude
+	Ray.FilterDescendantsInstances = Skip
 	local Hit = workspace:Raycast(O + Vector3.new(X, 40, Z), Vector3.new(0, -120, 0), Ray)
 	assert(Hit, ("no ground under local (%d, %d)"):format(X, Z))
 	return Hit.Position.Y
@@ -232,8 +241,45 @@ local function ambushArena(Parent, Pos) -- Pos: on the ground; the marker's bott
 	CS:AddTag(A, "RenseiAmbushArena")
 	return A
 end
+-- the clearing's edge, made visible (fix round 1: walking out past it is fleeing): the village's own fence posts
+-- (Lindenmoor.Fences.FencePost) every few studs, with gaps to walk through, and its creek-bank stones at the corners
+local POST_GAP = 7.5 -- PROPOSAL: studs between posts (an R6 is 4 wide, so there is always a way out)
+local function arenaRing(Parent, Arena)
+	clear(Parent, "AmbushRing")
+	local Post = L:FindFirstChild("Fences") and L.Fences:FindFirstChild("FencePost")
+	local Stones
+	for _, S in ipairs(L.Scenery.CreekBanks:GetChildren()) do
+		if S:IsA("Model") and S.Name:find("^BankStones") then Stones = S break end
+	end
+	assert(Post and Stones, "the village's FencePost / BankStones kit pieces are missing")
+	local M = mark(Instance.new("Model"))
+	M.Name = "AmbushRing"
+	local Half, Floor = Arena.Size.X / 2, Arena.Position.Y - Arena.Size.Y / 2
+	local N = math.floor(Arena.Size.X / POST_GAP + 0.5)
+	for Side = 0, 3 do
+		for I = 0, N - 1 do
+			local Along = -Half + (I + 0.5) * POST_GAP -- half a gap in from each corner: the middle of each side is open
+			local X, Z = Along, -Half
+			if Side == 1 then X, Z = Half, Along elseif Side == 2 then X, Z = -Along, Half elseif Side == 3 then X, Z = -Half, -Along end
+			local P = Post:Clone()
+			P.Name = "RingPost"
+			P.CFrame = CFrame.new(Arena.Position.X + X, Floor + P.Size.Y / 2, Arena.Position.Z + Z)
+			P.Parent = M
+		end
+	end
+	for _, C in ipairs({{-1, -1}, {1, -1}, {1, 1}, {-1, 1}}) do
+		local S = Stones:Clone()
+		S.Name = "RingStones"
+		local _, Size = S:GetBoundingBox()
+		S:PivotTo(CFrame.new(Arena.Position.X + C[1] * (Half + 3), Floor + Size.Y / 2 - 0.5, Arena.Position.Z + C[2] * (Half + 3)))
+		S.Parent = M
+	end
+	M.Parent = Parent
+	return M
+end
 local Exit = roadGate(L, Vector3.new(O.X, ground(0, EXIT_Z), O.Z + EXIT_Z), Vector3.new(0, 0, 1), "RoadLindenmoorFoundry", "SouthGate")
 local Arena = ambushArena(L, Vector3.new(O.X + ARENA_X, ground(ARENA_X, ARENA_Z), O.Z + ARENA_Z))
+arenaRing(L, Arena)
 
 return "lindenmoor station built: platform z " .. PLAT_S .. ".." .. PLAT_N .. ", trains, booth, board; road exit at "
 	.. tostring(Exit.Position - O) .. ", arena at " .. tostring(Arena.Position - O)

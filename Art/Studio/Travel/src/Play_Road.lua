@@ -1,5 +1,14 @@
 local SSS = game.ServerScriptService
 local ROUTE = "RoadLindenmoorFoundry"
+-- fix round 1: the road now takes the route's 40 s; Studio tests run it 50x faster (TimeScale does nothing live)
+require(SSS.RoadService).TimeScale = 0.02
+
+-- off the road and out of any ambush (a resumed trip from the last test may still be running)
+local function Idle(P)
+	local RS = require(SSS.RoadService)
+	local t0 = os.clock()
+	while (RS.OnRoad(P) or RS.InAmbush(P)) and os.clock() - t0 < 6 do task.wait(0.1) end
+end
 
 -- a living character to test with (a death test respawns it)
 local function Ready(P)
@@ -42,11 +51,16 @@ return {
 		task.wait(1)
 		T.True(not RS.InAmbush(P), "journey continued")
 	end,
-	-- added (task 8): nobody walks out of the arena before the fight is won; the enemies are kept in too
-	CantLeaveTheArenaBeforeTheFightIsWon = function(T)
-		local RS, ES = require(SSS.RoadService), require(SSS.EnemyService)
+	-- fix round 1 (world spec §3): walking out past the clearing's edge is fleeing: the journey goes on, and once
+	-- nobody is left in the arena its enemies are removed (no ArenaCleared for a flee)
+	FleeingPastTheEdgeContinuesTheJourney = function(T)
+		local RS, TS, ES = require(SSS.RoadService), require(SSS.TravelService), require(SSS.EnemyService)
 		local P = game.Players:GetPlayers()[1]
 		Ready(P)
+		Idle(P)
+		local Got, Cleared
+		local C1 = TS.Arrived.Event:Connect(function(Who) if Who == P then Got = true end end)
+		local C2 = RS.ArenaCleared.Event:Connect(function() Cleared = true end)
 		local Ok, Err = pcall(function()
 			T.Eq(RS.Journey(P, ROUTE, true), "ambush")
 			local Arena = workspace:FindFirstChild("AmbushArena", true)
@@ -56,14 +70,69 @@ return {
 				T.True(ES.Active[Rig] ~= nil, "a live EnemyService enemy")
 				Rig:SetAttribute("AIPassive", true)
 			end
-			P.Character:PivotTo(Arena.CFrame + Vector3.new(0, 3, 120)) -- walked off down the road
+			task.wait(1) -- the client owns the character: let the move into the arena land before walking
+			P.Character.Humanoid:MoveTo((Arena.CFrame * CFrame.new(0, 0, Arena.Size.Z / 2 + RS.Margin + 10)).Position) -- walk off
+			local t0 = os.clock()
+			while RS.InAmbush(P) and os.clock() - t0 < 8 do task.wait(0.1) end
+			T.True(not RS.InAmbush(P), "fled: out of the ambush")
+			t0 = os.clock()
+			while not Got and os.clock() - t0 < 5 do task.wait(0.1) end
+			T.True(Got, "the journey went on: arrived")
+			for _, Rig in ipairs(Rigs) do T.True(Rig.Parent == nil and ES.Active[Rig] == nil, "the empty arena's enemies are removed") end
+			T.True(not Cleared, "a flee is not a win")
+		end)
+		C1:Disconnect()
+		C2:Disconnect()
+		RS.ClearArena(P)
+		Idle(P) -- the resumed trip ends before the next test
+		T.True(Ok, tostring(Err))
+	end,
+	-- fix round 1: a far jump out of the arena (a teleport) is put back, the enemies too; a second party's ambush while
+	-- the arena is in use is refused ("blocked")
+	AFarJumpOutOfTheArenaIsPutBack = function(T)
+		local RS = require(SSS.RoadService)
+		local P = game.Players:GetPlayers()[1]
+		Ready(P)
+		Idle(P)
+		local Ok, Err = pcall(function()
+			T.Eq(RS.Journey(P, ROUTE, true), "ambush")
+			local Arena = workspace:FindFirstChild("AmbushArena", true)
+			local Rigs = RS.EnemiesOf(P)
+			for _, Rig in ipairs(Rigs) do Rig:SetAttribute("AIPassive", true) end
+			P.Character:PivotTo(Arena.CFrame + Vector3.new(0, 3, 120))
 			Rigs[1]:PivotTo(Arena.CFrame + Vector3.new(0, 3, -120))
 			task.wait(1)
 			T.True((P.Character.HumanoidRootPart.Position - Arena.Position).Magnitude < 40, "put back in the arena")
 			T.True(RS.InAmbush(P), "still in the ambush")
 			T.True((Rigs[1].HumanoidRootPart.Position - Arena.Position).Magnitude < 40, "the enemy is put back too")
+			T.Eq(RS.Journey(P, ROUTE, true), "blocked", "the arena is taken")
 		end)
 		RS.ClearArena(P)
+		Idle(P) -- the resumed trip ends before the next test
+		T.True(Ok, tostring(Err))
+	end,
+	-- fix round 1: nobody escapes a knock, a grip, a carry or a fight by road
+	DownHeldOrFightingCantSetOff = function(T)
+		local RS = require(SSS.RoadService)
+		local P = game.Players:GetPlayers()[1]
+		local C = Ready(P)
+		Idle(P)
+		local Exit = ExitOf(ROUTE)
+		local Was = {}
+		local Names = {"Knocked", "GrippedBy", "CarriedBy", "Gripping", "Carrying", "InCombat"}
+		for _, N in ipairs(Names) do Was[N] = C:GetAttribute(N) end
+		local Ok, Err = pcall(function()
+			C:PivotTo(Exit.CFrame)
+			task.wait(0.2)
+			for _, Case in ipairs({{"Knocked", true}, {"GrippedBy", "Someone"}, {"CarriedBy", "Someone"}, {"Gripping", "Someone"}, {"Carrying", "Someone"}, {"InCombat", true}}) do
+				C:SetAttribute(Case[1], Case[2])
+				local Go, Why = RS.Request(P, ROUTE)
+				C:SetAttribute(Case[1], Was[Case[1]])
+				T.True(not Go and type(Why) == "string", Case[1] .. " refused (" .. tostring(Why) .. ")")
+				task.wait(0.05)
+			end
+		end)
+		for _, N in ipairs(Names) do C:SetAttribute(N, Was[N]) end
 		T.True(Ok, tostring(Err))
 	end,
 	-- added (task 8): beating every enemy continues the journey (ArenaCleared, then the arrival); the rigs are gone
@@ -71,6 +140,7 @@ return {
 		local RS, TS, ES = require(SSS.RoadService), require(SSS.TravelService), require(SSS.EnemyService)
 		local P = game.Players:GetPlayers()[1]
 		Ready(P)
+		Idle(P)
 		local Got, Cleared
 		local C1 = TS.Arrived.Event:Connect(function(Who) if Who == P then Got = true end end)
 		local C2 = RS.ArenaCleared.Event:Connect(function(Route, List) if table.find(List, P) then Cleared = Route end end)
@@ -91,6 +161,7 @@ return {
 		C1:Disconnect()
 		C2:Disconnect()
 		RS.ClearArena(P)
+		Idle(P) -- the resumed trip ends before the next test
 		T.True(Ok, tostring(Err))
 	end,
 	-- added (task 8): dying in the arena: respawn in town, off the journey (no travel), the empty arena is cleared
@@ -98,6 +169,7 @@ return {
 		local RS, TS, ES = require(SSS.RoadService), require(SSS.TravelService), require(SSS.EnemyService)
 		local P = game.Players:GetPlayers()[1]
 		Ready(P)
+		Idle(P)
 		local Got
 		local C = TS.Arrived.Event:Connect(function(Who) if Who == P then Got = true end end)
 		local Ok, Err = pcall(function()
@@ -120,6 +192,7 @@ return {
 		end)
 		C:Disconnect()
 		RS.ClearArena(P)
+		Idle(P)
 		Ready(P)
 		T.True(Ok, tostring(Err))
 	end,
@@ -128,6 +201,7 @@ return {
 		local RS, TS = require(SSS.RoadService), require(SSS.TravelService)
 		local P = game.Players:GetPlayers()[1]
 		Ready(P)
+		Idle(P)
 		local Got
 		local C = TS.Arrived.Event:Connect(function(Who) if Who == P then Got = true end end)
 		local Ok, Err = pcall(function()
