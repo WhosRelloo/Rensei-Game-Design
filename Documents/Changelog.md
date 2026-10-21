@@ -2,6 +2,20 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-20 — World Plan 1, Task 3: server code now lives in ServerStorage.RenseiServer
+
+- **Editing has moved.** In Ye, every server script and module now lives in `ServerStorage.RenseiServer`; this is where you edit server code from now on. **jenkins2bee-prog: please edit there too.**
+  - `ServerScriptService` holds only `RenseiBoot`. At server start it copies `RenseiServer` into ServerScriptService, modules first, so every `ServerScriptService.<name>` path in the code still works and nothing in the game changed.
+  - This is what lets every region place run the same code as one Roblox Package (Task 4).
+- **Backup:** `RenseiBackups["Pre-WorldPlan1_2026-10-20"].SSS`.
+- **Tests:**
+  - Every Play suite gives the same results before and after the move: Heat, Morality, Perception, Rumours, Stealth, Assault and AditBoards, plus the new `Play_Boot`.
+  - Three Edit-mode suites now look for server modules in either place: Schema5, Witness and RumourCore.
+  - The rule for new tests is in `Documents/Lindenmoor Kit.md`.
+  - The temporary save-snapshot hook now refuses to run outside Studio.
+- **Already failing, not caused by this:** `Test_Sound` (0/8; it expects Perception functions that changed), plus one test each in Witness and RumourCore.
+- **Backlog:** the owner's request for civilian NPCs that react to players and the world is added to `Documents/Backlog.md`, for after this plan.
+
 ## 2026-10-20 — World Plan 1, Task 2: the FMA train kit
 
 **Owner:** "I want the train model to be made in blender and have it have a FMA style... a nice interior too"; chose 5 cars plus the engine.

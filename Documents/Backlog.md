@@ -33,5 +33,8 @@ These start after the world, travel and seasons plans are finished (`Documents/s
 - [ ] **Leaderboard:** the scroll doesn't work.
 - [ ] **Party health bars:** they don't update live.
 
+### World life (owner, 2026-10-20, during World Plan 1)
+- [ ] **Civilian NPCs** that walk around Lindenmoor and react to the players and the environment, building on the rumour, reputation and morality systems (`RumourService`, `MoralityService`, `WitnessService`, `PerceptionService`).
+
 ## Already queued
 - [ ] **Trading:** design approved (`Documents/specs/2026-10-19-trading-design.md`). The owner's rule: only after all the plans.
