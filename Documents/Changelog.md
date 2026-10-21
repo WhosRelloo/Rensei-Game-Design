@@ -2,6 +2,25 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-21 — World Plan 1, Task 4 (in progress): Foundry Yard gets the game
+
+- **Packages:** the owner turned the 13 shared roots into Roblox Packages, with auto-update on. Their ids are in `Art/Studio/Travel/packages.json`.
+- **Foundry Yard (109591196441030), a placeholder for now:**
+  - the `workspace.World` skeleton;
+  - a 400×400 ground;
+  - a cobbled platform with rails;
+  - two arrival points (`Platform` and `SouthGate`, with a gate arch);
+  - a spawn and the "Foundry Yard" area.
+  
+  The template Baseplate and SpawnLocation are backed up in `RenseiBackups["Pre-WorldPlan1_2026-10-20"]`. Every size is a PROPOSAL; the real region is a later plan. Ye's lighting and place settings are copied with `place_setup.lua`; Lighting.Technology must be set by hand.
+- **Bug fixed: the server wouldn't start after packaging.** `RenseiBoot` tried to copy the package's own `PackageLink`, which Roblox won't clone. That broke Ye as well as Foundry.
+  - Now it skips the link, and one bad child can't stop the rest from copying.
+  - The old version is in `RenseiBackups["Pre-WorldPlan1_2026-10-20"].RenseiBoot_v1`.
+  - **Tests (Ye, Play):** Boot 2/2, Heat 8/8, AditBoards 10/10. The owner's save was snapshotted and restored, and the temporary hook was removed.
+- **Still needed from the owner** before Foundry can start the game:
+  1. publish the `RenseiBoot` package change from Ye;
+  2. turn `StarterPlayer.StarterCharacter`, `SoundService.SFX` and `SoundService.Music` into Packages. The game needs them and Foundry doesn't have them yet.
+
 ## 2026-10-20 — World Plan 1, Task 3: server code now lives in ServerStorage.RenseiServer
 
 - **Editing has moved.** In Ye, every server script and module now lives in `ServerStorage.RenseiServer`; this is where you edit server code from now on. **jenkins2bee-prog: please edit there too.**
