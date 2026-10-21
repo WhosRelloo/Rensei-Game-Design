@@ -2,6 +2,21 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-21 — World Plan 1, Task 7: things happen on the train
+
+- **`RideEvents` (new, in `RenseiServer`):** each ride may roll one event (the weights are in `Travel`, PROPOSAL):
+  - **Inspection:** the conductor checks tickets. A rider with no ticket is fined 3× the base fare. Someone who can't pay is marked to be put off, which Task 9 acts on. Money never goes below 0.
+  - **Rumour:** a passenger repeats something "someone" did, taken from rumours already going around, preferring ones heard at the destination. No player is named. Deeds written as "you…" are skipped because they read oddly.
+  - **Pickpocket:** a little money goes missing, never more than you carry.
+  - **Holdup:** two bandits burst into the dining car.
+    - They are real enemies that fight and give the normal rewards.
+    - They can't leave the train, and they are removed when the ride ends or everyone is gone.
+    - They never respawn.
+- **Death aboard (a ruling to confirm):** if you die on the ride, you come to back in town and your ticket is still good; you're no longer pulled back into the train.
+- **Tests (Ye, Play):** RideEvents 9/9, Station 8/8, Travel 7/7, Boot 2/2. The death test uses a real death.
+- **Backups:** `RenseiBackups["Pre-RideEvents_2026-10-21"]`.
+- **For the owner:** publish `RenseiServer`.
+
 ## 2026-10-21 — World Plan 1, Task 6: the station and the train ride
 
 - **Lindenmoor station (Ye):**
