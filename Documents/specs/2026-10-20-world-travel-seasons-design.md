@@ -188,6 +188,35 @@ This spec covers the **world backbone**:
   - When you win, or flee by leaving the arena's edge, the journey continues.
 - **Who gets in:** free, with no papers check, which is why Wanted players and smugglers use it. A party travels together.
 
+### 3b. Roads on foot (owner, 2026-10-21; replaces §3's travel card, sky trip and arena)
+**Owner:** "the 'On the road' option should be a free roam type of RPG thing, where the passageway (or road) they are on TP's them to the outside area of the next place they were traveling to. Sort of like a seemless cutscene from Tomb Raider or Last of Us or God of War. I want the players to have the ability to (sorta) fast travel with the train or to travel to the areas on foot."
+
+**Owner's choices:**
+- encounters along the road;
+- a party crosses together if close;
+- the train stays as it is (fast travel);
+- a slide ends in a walk unless sprint is held or auto-run is on.
+
+- **The passage:** each road exit becomes a real, walkable stretch of road that leaves the region. Lindenmoor's is north, Foundry Yard's is south, about 300–400 studs (PROPOSAL).
+  - It's built in the part-ground style (stepped slabs, a dirt road), with kit trees, rocks and fences along it.
+  - It ends in a **threshold**: a bend, cutting or tree tunnel that hides the view ahead.
+  - Walking onto the passage shows the existing area banner (HUD2.NewAreaDiscovered): "The North Road — to the Foundry Yard". You can turn back at any point.
+- **The crossing** (seamless, like a game cutscene):
+  1. When you step into the threshold, the client takes over: the character keeps walking along the road and the camera eases into a follow shot down the road.
+  2. A short blend (the road darkening under the trees, using existing art) covers a group teleport through `TravelService.Depart`. The Trip is still written by the server before the teleport, as before.
+  3. In the destination you appear at the start of its matching passage, already walking inward, from the same camera angle. The blend lifts and control returns.
+  - In Studio the "teleport" is a loopback to this place's own passage start, so the crossing can be tested.
+- **Parties:**
+  - When one member crosses, every party member on the passage within 40 studs (PROPOSAL) crosses with them in the same group teleport, landing in the same server.
+  - Members further back cross when they reach the threshold. As a best effort, they are sent to the server their party went to: the arriving server shares its server id through MemoryStore for 2 minutes (PROPOSAL).
+- **Encounters:**
+  - Two or three encounter points along each passage. Entering one rolls `Travel.AmbushChance(Night, Winter, Wanted)` once per party per crossing.
+  - On a hit, bandits (a State patrol or an Elite if Wanted) come out from cover ahead. They are real enemies, spawned the way Task 7 does it (no respawn), leashed to that stretch of road, and cleaned up when nobody has been near for 30 s (PROPOSAL).
+  - You fight them, or run past them to the threshold. Reaching the threshold crosses as normal.
+- **Who may use it:** anyone. There's no ticket and no papers check, so Wanted players and smugglers use it. It can't be entered while knocked, gripped, carried, gripping or carrying (as in Task 8). A player in combat can still cross; fleeing over the threshold is allowed.
+- **Trip time:** the walk itself. At about 400 studs, that's 20–30 s walking and less sprinting.
+- **Removed from Task 8:** the travel card, the trip held in the sky, the road arena and the journey screen. Kept: `Travel.AmbushChance`, the Trip-on-save security, Toasts, and Task 8's Down/Held checks.
+
 ## 4. How travel ties into the other systems
 
 - **Money:**
