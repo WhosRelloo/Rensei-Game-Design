@@ -2,6 +2,30 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-21 — World Plan 1, Task 8: road journeys and ambushes
+
+- **Road exits:**
+  - **Lindenmoor:** the north road, under a stone gate arch, 30 studs past the NorthGate arrival point (which now sits on the road surface).
+  - **Foundry Yard:** a new south road strip with its own arch.
+  - **Setting off:** hold the prompt, then press "Set off" on the travel card. Only the party leader can start. Party members within 60 studs come along, and anyone knocked, held or fighting stays behind and is told why.
+  - **Who may travel:** no ticket and no papers check, so Wanted players travel this way.
+- **`RoadService` (new, in `RenseiServer`):**
+  - **The trip:** it takes its full time (40 s on this route).
+    - The party waits safely out of the world, each trip in its own spot, and nobody can fight on the road.
+    - The journey screen counts down from the server's clock.
+  - **Ambush:**
+    - The chance is from the spec: 15% base, plus night, winter and Wanted, capped at 60%.
+    - It stops the trip partway, and the party fights bandits (an Elite if Wanted) in a road arena in the origin place.
+    - **Win or flee:** win, or flee by leaving the arena's marked edge (fence posts and stones). Either way the journey continues for the time left. A far teleport out is put back. Knocked enemies count as beaten after an 8 s grace (PROPOSAL), and grips in progress get time to finish.
+    - **One party at a time:** a second party is told "The road ahead is blocked. Try again shortly."
+  - **Leaving:** death or leaving the server takes you out of the journey, and enemies are always cleaned up.
+- **UI (existing assets only):**
+  - The travel card and journey screen are built from the existing party panel, banner, background and boss bar art.
+  - Messages use the game's toasts.
+- **Tests (Ye, Play):** Road 11/11, Travel 7/7, Station 8/8, RideEvents 9/9, Boot 2/2. Multi-player paths and the live teleport are untested until there's a publish and a second player.
+- **Backups:** `RenseiBackups["Pre-Roads_2026-10-21"]`.
+- **For the owner:** publish `RenseiServer`. TravelClient is copied into Foundry.
+
 ## 2026-10-21 — World Plan 1, Task 7: things happen on the train
 
 - **`RideEvents` (new, in `RenseiServer`):** each ride may roll one event (the weights are in `Travel`, PROPOSAL):
