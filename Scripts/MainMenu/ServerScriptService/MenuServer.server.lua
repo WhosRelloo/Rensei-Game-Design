@@ -221,7 +221,7 @@ local function Play(Player)
 	if not Profile then return false, "Pick a save slot first." end
 	local Next = Places.NextFor(Profile.Data)
 	if Next == "Customize" then return false, "Create your character first." end
-	local PlaceId = Places[Next]
+	local PlaceId = Next == "Main" and Places.ResumePlace(Profile.Data) or Places[Next] -- World plan 1: back to the region they were last in
 	if RunService:IsStudio() then
 		return true, "Studio can't teleport. Live, this goes to the " .. Next .. " place.", Next
 	end
