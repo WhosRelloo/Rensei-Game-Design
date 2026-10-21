@@ -2,6 +2,27 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-20 — World Plan 1, Task 2: the FMA train kit
+
+**Owner:** "I want the train model to be made in blender and have it have a FMA style... a nice interior too"; chose 5 cars plus the engine.
+
+- **Blender (`Art/Blender/train/train.py`, `Art/Blender/Train.blend`):** a part kit 440 studs long, about 1,480 objects:
+  - **Locomotive (72 long):** navy-black with brass, a round smokebox door ringed with 12 bolts, twin lit headlamps, three coupled drivers with rods, steam from the chimney.
+  - **Tender**.
+  - **Baggage car:** crates, mail sacks, and the stowaway door on the freight-yard side.
+  - **3rd class:** an open saloon with 28 seats on facing benches.
+  - **Dining car:** six tables for four (24 seats) and a bar.
+  - **2nd class:** a side corridor and 4 compartments, 8 seats.
+  - **Private cabin car:** two cabins and a sitting nook, 4 seats.
+  - **Every coach:** maroon with wood-framed windows, cream inside, an arched roof, gangways between cars, vestibule doors with steps, plus invisible BoardZones, CarDoors (for the conductor's class check) and a StowZone.
+- **Pipeline:**
+  - `export.py` takes a scene and output path, and exports Seat parts and invisible helper parts with attributes.
+  - `studio_kit.py` takes a folder, builds Seats, helper attributes and the steam ParticleEmitter, and adds the train materials.
+  - The Lindenmoor export stays byte-identical.
+- **Studio:** `ServerStorage.TrainKit` in Ye, 7 models; counts checked. The trains are placed at the stations in Task 6.
+- **Renders:** `Documents/images/Map Concept/Train - *.png` (locomotive, coach side, 3rd-class interior, dining car, baggage door).
+- **Reviewed:** the review found three gaps (12 dining seats, no steam, the baggage door on the platform side). All three are fixed and re-reviewed.
+
 ## 2026-10-20 — Fixes: custom hair in the Tutorial, every enemy grippable, grip alignment audit
 
 **Owner:** fix custom hair IDs not saving, make every enemy grippable, and check how the players line up during a grip.
