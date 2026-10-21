@@ -7,6 +7,7 @@
 local S = Instance.new("Script")
 S.Name = "LMTestHook_TEMP"
 S.Source = [==[
+if not game:GetService("RunService"):IsStudio() then return end -- never runs on a live server (RenseiServer is cloned into every server and becomes a Package)
 -- TEMP: snapshot the tester's profile on load, restore on demand. Delete after.
 local Players = game:GetService("Players")
 local HS = game:GetService("HttpService")
