@@ -1,7 +1,14 @@
 -- TravelClient (World plan 1, 2026-10-20): ticket window, departure boards, the ride's scenery and fades, the
 -- teleport screen, and (Task 8) the road's travel card and journey screen. Server: StationService and RoadService
--- (Remotes.Travel / Remotes.TravelEvent). Style matches Modules.UI (Rensei palette: dark panel, brass accents).
--- Every number is a PROPOSAL.
+-- (Remotes.Travel / Remotes.TravelEvent). Every number is a PROPOSAL.
+-- Owner rule (2026-10-21): every visual here is built ONLY from the game's existing UI art, cloned from the
+-- StarterGui.Uis templates (no new panels, corner blobs or drawn shapes):
+--   * ticket window   = the Settings menu (Settings.MainFrame: its panel, header, option rows and Enable buttons),
+--                       closed with the kit's round X (HUD2.Infos.Search.DeletButton, as DialogueUI's close);
+--   * departure board = the Party Invitation panel (HUD2.Party) on the board's SurfaceGui;
+--   * rail messages   = the game's own toast (HUD2.Notification, through UIState "Toast", as the server's toasts);
+--   * teleport screen = the menus' backdrop (bg) and the area panel (HUD2.NewAreaDiscovered);
+--   * the road's card and journey screen (Task 8), below.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -21,8 +28,7 @@ local Gui = Instance.new("ScreenGui")
 Gui.Name, Gui.ResetOnSpawn, Gui.IgnoreGuiInset, Gui.DisplayOrder = "TravelUI", false, true, 50
 Gui.Parent = Player:WaitForChild("PlayerGui")
 
-local PANEL, BRASS, INK = Color3.fromRGB(21, 26, 28), Color3.fromRGB(176, 138, 60), Color3.fromRGB(236, 226, 212)
-
+-- the full-screen black used to fade in and out of the ride (a transition, not a panel)
 local Fade = Instance.new("Frame")
 Fade.Size, Fade.BackgroundColor3, Fade.BackgroundTransparency, Fade.ZIndex = UDim2.fromScale(1, 1), Color3.new(0, 0, 0), 1, 50
 Fade.Parent = Gui
@@ -30,21 +36,51 @@ local function FadeTo(Alpha, Time)
 	TweenService:Create(Fade, TweenInfo.new(Time), {BackgroundTransparency = Alpha}):Play()
 end
 
--- a short notice under the top of the screen ("Board" / "Message")
-local Notice = Instance.new("TextLabel")
-Notice.Size, Notice.Position, Notice.AnchorPoint = UDim2.fromOffset(420, 36), UDim2.new(0.5, 0, 0, 90), Vector2.new(0.5, 0)
-Notice.BackgroundColor3, Notice.BackgroundTransparency, Notice.TextColor3 = PANEL, 0.15, INK
-Notice.Font, Notice.TextScaled, Notice.Visible, Notice.ZIndex = Enum.Font.Gotham, true, false, 40
-Notice.Parent = Gui
-Instance.new("UICorner", Notice).CornerRadius = UDim.new(0, 6)
-local NoticeStroke = Instance.new("UIStroke", Notice)
-NoticeStroke.Color, NoticeStroke.ApplyStrokeMode = BRASS, Enum.ApplyStrokeMode.Border
-local NoticeToken
-local function Say(Text, Seconds)
-	local Token = {}
-	NoticeToken = Token
-	Notice.Text, Notice.Visible = Text, true
-	task.delay(Seconds or 4, function() if NoticeToken == Token then Notice.Visible = false end end)
+-- ===== the game's own UI art =====
+local function Template(Path) -- an untouched copy from StarterGui.Uis (else the player's live Uis)
+	local Root = game:GetService("StarterGui"):FindFirstChild("Uis") or Player.PlayerGui:WaitForChild("Uis", 10)
+	local I = Root
+	for Name in string.gmatch(Path, "[^%.]+") do I = I and I:FindFirstChild(Name) end
+	if not I then return nil end
+	local C = I:Clone()
+	C.Visible = true
+	return C
+end
+-- raise a cloned piece and everything in it by Z (TravelUI uses global ZIndex order: a clone's children must stay
+-- above its own art, and above the fade)
+local function Lift(Root, Z)
+	for _, D in ipairs(Root:GetDescendants()) do
+		if D:IsA("GuiObject") then D.ZIndex += Z end
+	end
+	Root.ZIndex += Z
+end
+local function SetText(Parent, Path, Text)
+	local I = Parent
+	for Name in string.gmatch(Path, "[^%.]+") do I = I and I:FindFirstChild(Name) end
+	if I and I:IsA("TextLabel") then I.RichText = true I.Text = Text end
+end
+local function Escape(S) -- player names into RichText
+	return (tostring(S):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"))
+end
+local function AreaPanel(Dest, Line, Title) -- HUD2.NewAreaDiscovered, relabelled
+	local P = Template("HUD2.NewAreaDiscovered")
+	if not P then return nil end
+	P.AnchorPoint, P.Position = Vector2.new(0.5, 0), UDim2.fromScale(0.5, 0.22)
+	SetText(P, "Header.Title", Title or "ON THE ROAD")
+	SetText(P, "Header.Head", Escape(Dest))
+	SetText(P, "MainText", Line)
+	return P
+end
+-- the game's own toast (PopupUI shows UIState's "Toast" on HUD2.Notification, the same lane the server's
+-- UIService.Notify toasts use)
+local UIState
+local function Toast(Text)
+	if not UIState then
+		local Ok, M = pcall(require, ReplicatedStorage.Modules.UI.UIState)
+		if not Ok then return end
+		UIState = M
+	end
+	UIState.Emit("Toast", {Text = Escape(Text)})
 end
 
 local Busy = false
@@ -61,81 +97,149 @@ local function Ask(Op, Args)
 	return A, B
 end
 
-local Window
-local function Label(Parent, Text, Size, Pos, Bold)
-	local L = Instance.new("TextLabel")
-	L.BackgroundTransparency, L.Text, L.TextColor3, L.Size, L.Position = 1, Text, INK, Size, Pos
-	L.Font, L.TextScaled, L.TextXAlignment = Bold and Enum.Font.GothamBold or Enum.Font.Gotham, true, Enum.TextXAlignment.Left
-	L.Parent = Parent
-	return L
-end
 local function RegionName(Id)
 	return Id and Places.Regions[Id] and Places.Regions[Id].Name or Id or "?"
 end
-local function OpenTickets()
+
+-- ===== the ticket window: the Settings menu, relabelled =====
+-- One option row ("Ticket for", cycling Me -> each other player by UserId), then per line a heading row ("To X",
+-- plus the class you hold) and a row per class with its price on the Settings Enable button. The status line sits
+-- at the foot of the panel. Its own ScreenGui with Uis's settings (sibling ZIndex, safe-area insets), so the art
+-- keeps its authored layering and fits phones; it sits just under TravelUI's fade.
+local Window
+local GOLD_TEXT = Color3.fromRGB(214, 200, 90) -- the Settings Enable button's lettering
+local function CloseTickets()
 	if Window then Window:Destroy() Window = nil end
+end
+local function OpenTickets()
+	CloseTickets()
 	local Rows = Ask("Prices")
 	if type(Rows) ~= "table" then return end
-	Window = Instance.new("Frame")
-	Window.Name = "Tickets"
-	Window.Size, Window.Position, Window.AnchorPoint = UDim2.fromOffset(460, 80 + math.max(#Rows, 1) * 70), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5)
-	Window.BackgroundColor3 = PANEL
-	Window.Parent = Gui
-	Instance.new("UICorner", Window).CornerRadius = UDim.new(0, 6)
-	local Stroke = Instance.new("UIStroke", Window)
-	Stroke.Color = BRASS
-	Label(Window, "Tickets", UDim2.fromOffset(300, 30), UDim2.fromOffset(16, 10), true)
-	local Status = Label(Window, #Rows == 0 and "No trains run from here yet." or "", UDim2.fromOffset(428, 20), UDim2.new(0, 16, 1, -28), false)
+	local Panel = Template("Settings")
+	local Main = Panel and Panel:FindFirstChild("MainFrame")
+	local List = Main and Main:FindFirstChild("Container")
+	local RowArt = List and List:FindFirstChild("CameraShake")
+	local Controls = RowArt and RowArt:FindFirstChild("Controls")
+	local ButtonArt = Controls and Controls:FindFirstChild("Enable")
+	if not (ButtonArt and RowArt:FindFirstChild("Title")) then -- no Uis art in this place: no window (nothing errors)
+		if Panel then Panel:Destroy() end
+		return
+	end
+	local S = Instance.new("ScreenGui")
+	S.Name, S.ResetOnSpawn, S.DisplayOrder, S.ZIndexBehavior = "Tickets", false, 49, Enum.ZIndexBehavior.Sibling
+	S.IgnoreGuiInset, S.ScreenInsets = false, Enum.ScreenInsets.CoreUISafeInsets
+	Window = S
+	Panel.Name = "Panel"
+	SetText(Main, "Header.Head", "TICKETS")
+	-- the Settings tabs and the original options go; one option row and its Enable button stay as patterns
+	local Tabs = Main:FindFirstChild("Sections")
+	if Tabs then Tabs:Destroy() end
+	RowArt.Parent = nil
+	ButtonArt.Parent = nil
+	for _, C in ipairs(Controls:GetChildren()) do
+		if C:IsA("GuiObject") then C:Destroy() end
+	end
+	for _, C in ipairs(List:GetChildren()) do
+		if C:IsA("GuiObject") then C:Destroy() end
+	end
+	-- the list stops above the status line and scrolls if a station has many lines
+	List.AnchorPoint, List.Position, List.Size = Vector2.new(0.5, 0), UDim2.fromScale(0.503, 0.095), UDim2.fromScale(0.973, 0.745)
+	List.ClipsDescendants, List.ScrollingDirection = true, Enum.ScrollingDirection.Y -- (its authored canvas and
+	-- hidden scroll bar stay as the Settings menu has them)
+	local Order = 0
+	local function Row(Text, Heading)
+		Order += 1
+		local R = RowArt:Clone()
+		R.Name, R.LayoutOrder = "Row" .. Order, Order
+		local T = R.Title
+		T.Text = Text
+		if Heading then -- a line's heading: gold, across the whole row, no buttons
+			T.TextColor3 = GOLD_TEXT
+			T.Size = UDim2.new(0.92, 0, T.Size.Y.Scale, T.Size.Y.Offset)
+		end
+		R.Parent = List
+		return R
+	end
+	local function Button(R, Text)
+		local B = ButtonArt:Clone()
+		SetText(B, "Head", Text)
+		B.Parent = R.Controls
+		return B
+	end
+	-- the status line, in the option rows' lettering, at the foot of the panel
+	local Status = RowArt.Title:Clone()
+	Status.Name, Status.AnchorPoint, Status.Position = "Status", Vector2.new(0.5, 0.5), UDim2.fromScale(0.5, 0.895)
+	Status.Size, Status.TextXAlignment = UDim2.fromScale(0.86, 0.036), Enum.TextXAlignment.Center
+	Status.Text = #Rows == 0 and "No trains run from here yet." or "Pick a line and a class."
+	Status.Parent = Main
 	-- who the ticket is for: you, or another player (the server only allows party members), sent by UserId
 	local For = nil -- nil = me, else a Player
-	local ForButton = Instance.new("TextButton")
-	ForButton.Size, ForButton.Position = UDim2.fromOffset(170, 26), UDim2.new(1, -214, 0, 10)
-	ForButton.BackgroundColor3, ForButton.TextColor3, ForButton.Font, ForButton.TextScaled = Color3.fromRGB(36, 44, 47), INK, Enum.Font.Gotham, true
-	ForButton.Text = "For: me"
-	ForButton.Parent = Window
-	Instance.new("UICorner", ForButton).CornerRadius = UDim.new(0, 4)
+	local ForButton = Button(Row("Ticket for"), "Me")
 	ForButton.Activated:Connect(function() -- cycles me -> each other player -> me
-		local List = {}
+		local Others = {}
 		for _, Q in ipairs(Players:GetPlayers()) do
-			if Q ~= Player then table.insert(List, Q) end
+			if Q ~= Player then table.insert(Others, Q) end
 		end
 		local Next = nil
 		if not For then
-			Next = List[1]
+			Next = Others[1]
 		else
-			for I, Q in ipairs(List) do
-				if Q == For then Next = List[I + 1] break end
+			for I, Q in ipairs(Others) do
+				if Q == For then Next = Others[I + 1] break end
 			end
 		end
 		For = Next
-		ForButton.Text = For and ("For: " .. For.DisplayName) or "For: me"
+		SetText(ForButton, "Head", For and Escape(For.DisplayName) or "Me")
 	end)
-	for I, Row in ipairs(Rows) do
-		local Y = 50 + (I - 1) * 70
-		local Held = Row.Held and Travel.Classes[Row.Held] and ("  (holding " .. Travel.Classes[Row.Held].Name .. ")") or ""
-		Label(Window, "To " .. RegionName(Row.To) .. Held, UDim2.fromOffset(428, 22), UDim2.fromOffset(16, Y), false)
-		for J, C in ipairs(Travel.ClassOrder) do
-			local B = Instance.new("TextButton")
-			B.Size, B.Position = UDim2.fromOffset(136, 32), UDim2.fromOffset(16 + (J - 1) * 144, Y + 26)
-			B.BackgroundColor3, B.TextColor3, B.Font, B.TextScaled = Color3.fromRGB(36, 44, 47), INK, Enum.Font.Gotham, true
-			B.Text = ("%s  $%d"):format(Travel.Classes[C].Name, Row.Prices[C] or 0)
-			B.Parent = Window
-			Instance.new("UICorner", B).CornerRadius = UDim.new(0, 4)
+	for _, Line in ipairs(Rows) do
+		local Held = Line.Held and Travel.Classes[Line.Held] and ("  (holding " .. Travel.Classes[Line.Held].Name .. ")") or ""
+		Row("To " .. RegionName(Line.To) .. Held, true)
+		for _, C in ipairs(Travel.ClassOrder) do
+			local B = Button(Row(Travel.Classes[C].Name), ("$%d"):format(Line.Prices[C] or 0))
 			B.Activated:Connect(function()
-				local Ok, Why = Ask("Buy", {Route = Row.Route, Class = C, For = For and For.Parent and For.UserId or nil})
+				local Ok, Why = Ask("Buy", {Route = Line.Route, Class = C, For = For and For.Parent and For.UserId or nil})
 				Status.Text = Ok and "Bought. Board when the doors open." or (Why or "Couldn't buy that.")
 			end)
 		end
 	end
-	local Close = Instance.new("TextButton")
-	Close.Size, Close.Position, Close.Text = UDim2.fromOffset(28, 28), UDim2.new(1, -36, 0, 8), "X"
-	Close.BackgroundColor3, Close.TextColor3 = Color3.fromRGB(36, 44, 47), INK
-	Close.Parent = Window
-	Close.Activated:Connect(function() if Window then Window:Destroy() Window = nil end end)
+	-- close: the kit's round X, on the panel's top right corner
+	local Close = Template("HUD2.Infos.Search.DeletButton")
+	if Close then
+		Close.Name, Close.AnchorPoint, Close.Position = "Close", Vector2.new(0.5, 0.5), UDim2.fromScale(0.955, 0.045)
+		Close.Size = UDim2.fromScale(0.075, 0.075)
+		if not Close:FindFirstChildOfClass("UIAspectRatioConstraint") then
+			local A = Instance.new("UIAspectRatioConstraint")
+			A.AspectRatio = 1
+			A.Parent = Close
+		end
+		Close.ZIndex = 5
+		Close.Parent = Main
+		Close.Activated:Connect(function() if Window == S then CloseTickets() end end)
+	end
+	Panel.Parent = S
+	S.Parent = Player:WaitForChild("PlayerGui")
 end
 
 -- departure boards: parts tagged RenseiDepartureBoard (named DepartureBoard) get a SurfaceGui with the next train on
--- each line that runs from here (the server lists them in Remotes.Travel's "Lines" attribute)
+-- each line that runs from here (the server lists them in Remotes.Travel's "Lines" attribute), written on the Party
+-- Invitation panel (HUD2.Party, without its buttons)
+local function BoardCard(B)
+	local SG = B:FindFirstChild("Board")
+	if SG and not SG:FindFirstChild("Card") then SG:Destroy() SG = nil end -- an older board's plain label
+	if SG then return SG.Card end
+	local Card = Template("HUD2.Party")
+	if not Card then return nil end
+	SG = Instance.new("SurfaceGui")
+	SG.Name, SG.Face, SG.SizingMode, SG.PixelsPerStud = "Board", Enum.NormalId.Front, Enum.SurfaceGuiSizingMode.PixelsPerStud, 40
+	SG.ZIndexBehavior, SG.LightInfluence = Enum.ZIndexBehavior.Sibling, 0
+	Card.Name, Card.AnchorPoint, Card.Position, Card.Size = "Card", Vector2.new(0.5, 0.5), UDim2.fromScale(0.5, 0.5), UDim2.fromScale(1, 1)
+	local Buttons = Card:FindFirstChild("Buttons")
+	if Buttons then Buttons:Destroy() end
+	SetText(Card, "Head", "DEPARTURES")
+	Card.Parent = SG
+	SG.Parent = B
+	return Card
+end
 local function Boards()
 	while true do
 		local Now = workspace:GetServerTimeNow()
@@ -144,22 +248,15 @@ local function Boards()
 			local D = Travel.NextDeparture(RouteId, Now)
 			if D then
 				local Left = math.max(0, math.floor(D - Now))
-				table.insert(Lines, ("%-20s %d:%02d%s"):format(RegionName(Travel.Other(RouteId, Here)), Left // 60, Left % 60, Travel.BoardingOpen(RouteId, Now) and "  BOARDING" or ""))
+				table.insert(Lines, ("%s  %d:%02d%s"):format(Escape(RegionName(Travel.Other(RouteId, Here))), Left // 60, Left % 60,
+					Travel.BoardingOpen(RouteId, Now) and '  <font color="#D6C85A">BOARDING</font>' or ""))
 			end
 		end
-		local Text = #Lines > 0 and table.concat(Lines, "\n") or "NO SERVICE"
+		local Text = #Lines > 0 and table.concat(Lines, "<br />") or "NO SERVICE"
 		for _, B in ipairs(CollectionService:GetTagged("RenseiDepartureBoard")) do
 			if B:IsA("BasePart") and B:IsDescendantOf(workspace) then
-				local SG = B:FindFirstChild("Board")
-				if not SG then
-					SG = Instance.new("SurfaceGui")
-					SG.Name, SG.Face, SG.SizingMode, SG.PixelsPerStud = "Board", Enum.NormalId.Front, Enum.SurfaceGuiSizingMode.PixelsPerStud, 40
-					local T = Instance.new("TextLabel")
-					T.Name, T.Size, T.BackgroundColor3, T.TextColor3, T.TextScaled, T.Font = "T", UDim2.fromScale(1, 1), PANEL, BRASS, true, Enum.Font.Code
-					T.Parent = SG
-					SG.Parent = B
-				end
-				SG.T.Text = "DEPARTURES\n" .. Text
+				local Card = BoardCard(B)
+				if Card then SetText(Card, "MainText", Text) end
 			end
 		end
 		task.wait(1)
@@ -225,18 +322,17 @@ local function Ride(Seconds, Route)
 	end)
 end
 
+-- the rail's teleport screen (TeleportGui): the menus' backdrop and the area panel, as the road's
 local function TeleportScreen(Dest)
 	local S = Instance.new("ScreenGui")
 	S.IgnoreGuiInset = true
-	local F = Instance.new("Frame")
-	F.Size, F.BackgroundColor3 = UDim2.fromScale(1, 1), Color3.fromRGB(12, 14, 15)
-	F.Parent = S
-	local T = Instance.new("TextLabel")
-	T.Size, T.Position, T.AnchorPoint = UDim2.fromScale(0.6, 0.1), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5)
-	T.BackgroundTransparency, T.TextColor3, T.TextScaled, T.Font = 1, INK, true, Enum.Font.GothamBold
-	T.Text = "Pulling into " .. (Dest or "the station") .. "..."
-	T.Parent = F
-	TeleportService:SetTeleportGui(S)
+	local B = Template("bg")
+	if B then
+		local P = AreaPanel(Dest or "the station", ("Pulling into %s..."):format(Escape(Dest or "the station")), "ON THE RAILS")
+		if P then P.Parent = B end
+		B.Parent = S
+		TeleportService:SetTeleportGui(S)
+	end
 	FadeTo(0, 0.5)
 end
 
@@ -247,41 +343,16 @@ end
 --                      boss bar (HUD.BossHealth) as the road: From on its left, the destination on its right, the
 --                      party's progress as its fill (Modules.UI.Fill), the time left in the middle;
 --   * teleport screen (TeleportGui) = the same backdrop and area panel.
+-- (Template, Lift, SetText, Escape and AreaPanel are at the top: the ticket window and boards use them too.)
 -- "Set off" only asks: the server checks the road, the exit, the leader and the level, and rolls the ambush.
 local Fill = require(ReplicatedStorage.Modules.UI.Fill)
-local function Template(Path) -- an untouched copy from StarterGui.Uis (else the player's live Uis)
-	local Root = game:GetService("StarterGui"):FindFirstChild("Uis") or Player.PlayerGui:WaitForChild("Uis", 10)
-	local I = Root
-	for Name in string.gmatch(Path, "[^%.]+") do I = I and I:FindFirstChild(Name) end
-	if not I then return nil end
-	local C = I:Clone()
-	C.Visible = true
-	return C
-end
--- raise a cloned piece and everything in it by Z (TravelUI uses global ZIndex order: a clone's children must stay
--- above its own art, and above the fade)
-local function Lift(Root, Z)
-	for _, D in ipairs(Root:GetDescendants()) do
-		if D:IsA("GuiObject") then D.ZIndex += Z end
-	end
-	Root.ZIndex += Z
-end
-local function SetText(Parent, Path, Text)
-	local I = Parent
-	for Name in string.gmatch(Path, "[^%.]+") do I = I and I:FindFirstChild(Name) end
-	if I and I:IsA("TextLabel") then I.RichText = true I.Text = Text end
-end
-local function Escape(S) -- player names into RichText
-	return (tostring(S):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"))
-end
-
 local Card
 local function CloseCard()
 	if Card then Card:Destroy() Card = nil end
 end
 local function RoadCard(Data)
 	CloseCard()
-	if Window then Window:Destroy() Window = nil end
+	CloseTickets()
 	local F = Template("HUD2.Party")
 	if not F then return end
 	F.Name = "RoadCard"
@@ -317,15 +388,6 @@ local function CloseJourney()
 		RoadTeleportGui:Destroy()
 		RoadTeleportGui = nil
 	end
-end
-local function AreaPanel(Dest, Line) -- HUD2.NewAreaDiscovered, relabelled
-	local P = Template("HUD2.NewAreaDiscovered")
-	if not P then return nil end
-	P.AnchorPoint, P.Position = Vector2.new(0.5, 0), UDim2.fromScale(0.5, 0.22)
-	SetText(P, "Header.Title", "ON THE ROAD")
-	SetText(P, "Header.Head", Escape(Dest))
-	SetText(P, "MainText", Line)
-	return P
 end
 local function JourneyScreen(Data)
 	CloseCard()
@@ -403,9 +465,9 @@ Event.OnClientEvent:Connect(function(Kind, Data)
 		task.spawn(OpenTickets)
 	elseif Kind == "Board" then
 		local Left = math.max(0, math.floor((Data.Departs or 0) - workspace:GetServerTimeNow()))
-		Say(("All aboard. Departs in %d:%02d."):format(Left // 60, Left % 60), 4)
+		Toast(("All aboard. Departs in %d:%02d."):format(Left // 60, Left % 60))
 	elseif Kind == "RideStart" then
-		if Window then Window:Destroy() Window = nil end
+		CloseTickets()
 		task.spawn(Ride, Data.Seconds or 50, Data.Route)
 	elseif Kind == "RideEnd" then
 		TeleportScreen(Data.Dest or RegionName(Travel.Other(Data.Route, Here)))
@@ -416,9 +478,9 @@ Event.OnClientEvent:Connect(function(Kind, Data)
 			if Scenery then Scenery:Destroy() Scenery = nil end
 			FadeTo(1, 0.3)
 		end)
-		if type(Data.Text) == "string" then Say(Data.Text, 5) end
+		if type(Data.Text) == "string" then Toast(Data.Text) end
 	elseif Kind == "Message" then
-		if type(Data.Text) == "string" then Say(Data.Text, 5) end
+		-- nothing more to show: StationService sends these same words as the game's toast (UIService.Notify)
 	end
 end)
 

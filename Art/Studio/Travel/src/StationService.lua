@@ -422,6 +422,7 @@ local function AddPrompt(Clerk)
 	local Prompt = Instance.new("ProximityPrompt")
 	Prompt.Name = "TicketPrompt"
 	Prompt.ActionText, Prompt.ObjectText, Prompt.MaxActivationDistance = "Buy a ticket", "Ticket clerk", 10
+	Prompt.Style = Enum.ProximityPromptStyle.Custom -- drawn by Modules.UI.PromptUI in the game's own art (owner rule 2026-10-21)
 	Prompt.Parent = Clerk
 	Prompt.Triggered:Connect(function(P) Event:FireClient(P, "OpenTickets", {}) end)
 end

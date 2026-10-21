@@ -756,6 +756,7 @@ local function AddPrompt(Exit)
 	local Prompt = Instance.new("ProximityPrompt")
 	Prompt.Name = "RoadPrompt"
 	Prompt.ActionText, Prompt.ObjectText = "Travel the road", "To " .. RegionName(Dest)
+	Prompt.Style = Enum.ProximityPromptStyle.Custom -- drawn by Modules.UI.PromptUI in the game's own art (owner rule 2026-10-21)
 	Prompt.HoldDuration, Prompt.MaxActivationDistance = 1, RoadService.PromptReach
 	Prompt.RequiresLineOfSight = false -- the exit part is invisible and not queryable
 	Prompt.Parent = Exit
