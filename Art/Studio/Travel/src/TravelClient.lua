@@ -85,6 +85,30 @@ local function OpenTickets()
 	Stroke.Color = BRASS
 	Label(Window, "Tickets", UDim2.fromOffset(300, 30), UDim2.fromOffset(16, 10), true)
 	local Status = Label(Window, #Rows == 0 and "No trains run from here yet." or "", UDim2.fromOffset(428, 20), UDim2.new(0, 16, 1, -28), false)
+	-- who the ticket is for: you, or another player (the server only allows party members), sent by UserId
+	local For = nil -- nil = me, else a Player
+	local ForButton = Instance.new("TextButton")
+	ForButton.Size, ForButton.Position = UDim2.fromOffset(170, 26), UDim2.new(1, -214, 0, 10)
+	ForButton.BackgroundColor3, ForButton.TextColor3, ForButton.Font, ForButton.TextScaled = Color3.fromRGB(36, 44, 47), INK, Enum.Font.Gotham, true
+	ForButton.Text = "For: me"
+	ForButton.Parent = Window
+	Instance.new("UICorner", ForButton).CornerRadius = UDim.new(0, 4)
+	ForButton.Activated:Connect(function() -- cycles me -> each other player -> me
+		local List = {}
+		for _, Q in ipairs(Players:GetPlayers()) do
+			if Q ~= Player then table.insert(List, Q) end
+		end
+		local Next = nil
+		if not For then
+			Next = List[1]
+		else
+			for I, Q in ipairs(List) do
+				if Q == For then Next = List[I + 1] break end
+			end
+		end
+		For = Next
+		ForButton.Text = For and ("For: " .. For.DisplayName) or "For: me"
+	end)
 	for I, Row in ipairs(Rows) do
 		local Y = 50 + (I - 1) * 70
 		local Held = Row.Held and Travel.Classes[Row.Held] and ("  (holding " .. Travel.Classes[Row.Held].Name .. ")") or ""
@@ -97,7 +121,7 @@ local function OpenTickets()
 			B.Parent = Window
 			Instance.new("UICorner", B).CornerRadius = UDim.new(0, 4)
 			B.Activated:Connect(function()
-				local Ok, Why = Ask("Buy", {Route = Row.Route, Class = C})
+				local Ok, Why = Ask("Buy", {Route = Row.Route, Class = C, For = For and For.Parent and For.UserId or nil})
 				Status.Text = Ok and "Bought. Board when the doors open." or (Why or "Couldn't buy that.")
 			end)
 		end
@@ -143,13 +167,19 @@ end
 
 -- the ride: scenery blocks scroll past the ride train's windows
 local Scenery
-local function Ride(Seconds)
+local function RideTrainOf(Route)
+	for _, T in ipairs(CollectionService:GetTagged("RenseiRideTrain")) do
+		if T:GetAttribute("Route") == Route and T:IsDescendantOf(workspace) then return T end
+	end
+	return nil
+end
+local function Ride(Seconds, Route)
 	FadeTo(0, 0.5)
 	task.wait(0.7)
 	FadeTo(1, 0.8)
-	local Train = workspace:FindFirstChild("RideTrain", true)
+	local Train = RideTrainOf(Route)
 	local T0 = os.clock()
-	while not Train and os.clock() - T0 < 2 do task.wait(0.1) Train = workspace:FindFirstChild("RideTrain", true) end
+	while not Train and os.clock() - T0 < 2 do task.wait(0.1) Train = RideTrainOf(Route) end
 	if not Train then return end
 	if Scenery then Scenery:Destroy() end
 	local Length = Train:GetAttribute("Length") or 440
@@ -218,11 +248,17 @@ Event.OnClientEvent:Connect(function(Kind, Data)
 		Say(("All aboard. Departs in %d:%02d."):format(Left // 60, Left % 60), 4)
 	elseif Kind == "RideStart" then
 		if Window then Window:Destroy() Window = nil end
-		task.spawn(Ride, Data.Seconds or 50)
+		task.spawn(Ride, Data.Seconds or 50, Data.Route)
 	elseif Kind == "RideEnd" then
 		TeleportScreen(Data.Dest or RegionName(Travel.Other(Data.Route, Here)))
 		if Scenery then Scenery:Destroy() Scenery = nil end
 		task.delay(3, function() FadeTo(1, 0.5) end) -- Studio loopback (or a failed hop): fade back in
+	elseif Kind == "RideCancel" then
+		task.delay(0.8, function()
+			if Scenery then Scenery:Destroy() Scenery = nil end
+			FadeTo(1, 0.3)
+		end)
+		if type(Data.Text) == "string" then Say(Data.Text, 5) end
 	elseif Kind == "Message" then
 		if type(Data.Text) == "string" then Say(Data.Text, 5) end
 	end

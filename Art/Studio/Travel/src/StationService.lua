@@ -4,7 +4,9 @@
 --   * Departures run on the shared clock (Travel.NextDeparture on os.time()), so every server agrees.
 --   * Boarding: from Travel.BoardingWindow seconds before departure, a player with a ticket standing inside a car of
 --     the platform train (a BoardZone is inside its car) is aboard and is told so ("Board"); the conductor pushes back
---     anyone at a CarDoor whose class doesn't reach that car, and tells them why.
+--     anyone at a CarDoor whose class doesn't reach that car, and tells them why. The barrier is re-checked on the
+--     server when everyone moves: a rider in a car their class doesn't reach (or in the locomotive / tender) rides in
+--     the nearest car they may use; anyone no longer in the train after the fade stays behind with the ticket.
 --   * At departure: a "doors closing" fade, everyone aboard moves to the same spot in the ride train (seated players
 --     to the same seat), the ride runs Route.Ride seconds (events from Task 7 hook Departing), then
 --     TravelService.Depart sends them all together. Anyone who can't go (already teleporting, or dropped by Depart)
@@ -34,12 +36,15 @@ StationService.DoorPush = 4 -- PROPOSAL: studs the conductor pushes someone back
 StationService.FallCatch = 20 -- PROPOSAL: a rider this far below the ride train is put back in their spot
 StationService.UnseatSettle = 0.3 -- PROPOSAL: seconds after standing a rider up before moving them (the client
                                   -- owns the character; moved in the same frame, it can stay where the seat was)
+StationService.Stale = 5 -- PROPOSAL: a departure slot noticed up to this many seconds late (a server hitch) still departs
 StationService.AskGap = 0.25 -- PROPOSAL: seconds between a player's requests on the Travel remote
 StationService.HoldClock = false -- Studio tests only: true stops scheduled departures (a live server ignores it)
 
 local Remote, Event
 local Riding = {} -- [Player] = RouteId
 local Boxes = {} -- [car Model] = {CF, Size}; the trains are anchored and never move
+local Kinds = {} -- [car Model] = CarKind (read from its BoardZone / CarDoor parts) or false (locomotive, tender)
+local Zones = {} -- [train Model] = {BoardZone parts}
 local Told = {} -- [Player] = "Route|departure" we last sent "Board" for
 local LastPush, LastAsk = {}, {}
 
@@ -50,11 +55,11 @@ local function Level(P)
 	return D and D.Level or 1
 end
 
-local function FindPlayer(From, Name)
+local function FindPlayer(From, UserId)
 	local Party = PartyService.Get(From)
-	if not Party then return nil end
+	if not Party or type(UserId) ~= "number" then return nil end
 	for _, M in ipairs(Party.Members) do
-		if M.Name == Name or M.DisplayName == Name then return M end
+		if M.UserId == UserId then return M end -- by UserId: names and display names can be duplicated or changed
 	end
 	return nil
 end
@@ -75,14 +80,15 @@ local function Lines()
 	return Out
 end
 
-function StationService.Buy(Player, RouteId, ClassId, ForName)
+-- ForUserId: buy for a party member (their UserId) instead of yourself
+function StationService.Buy(Player, RouteId, ClassId, ForUserId)
 	local R = type(RouteId) == "string" and Travel.Routes[RouteId]
 	if not R or R.Kind ~= "Rail" or type(ClassId) ~= "string" or not Travel.Classes[ClassId] then return false, "No such ticket." end
 	if not Travel.Other(RouteId, TravelService.Here()) then return false, "That train doesn't stop here." end
 	if not TrainOf("RenseiPlatformTrain", RouteId) then return false, "That line isn't running yet." end
 	local Rider = Player
-	if ForName then
-		Rider = FindPlayer(Player, ForName)
+	if ForUserId and ForUserId ~= Player.UserId then
+		Rider = FindPlayer(Player, ForUserId)
 		if not Rider then return false, "They aren't in your party." end
 	end
 	local Ok, Why = Travel.CanTake(Level(Rider), RouteId)
@@ -109,7 +115,7 @@ local function CarBox(Car)
 	return B
 end
 
--- inside one of the train's cars (not just its overall box, which reaches over the platform edge)
+-- the car of the train Pos is inside (not just the train's overall box, which reaches over the platform edge), or nil
 local function InTrain(Train, Pos)
 	for _, Car in ipairs(Train:GetChildren()) do
 		if Car:IsA("Model") then
@@ -117,11 +123,61 @@ local function InTrain(Train, Pos)
 			local L = B.CF:PointToObjectSpace(Pos)
 			if math.abs(L.X) <= B.Size.X / 2 and math.abs(L.Y) <= B.Size.Y / 2
 				and math.abs(L.Z) <= math.min(B.Size.Z / 2, StationService.CarHalfWidth) then
-				return true
+				return Car
 			end
 		end
 	end
-	return false
+	return nil
+end
+StationService.CarAt = InTrain
+
+-- a car's kind, from any part in it carrying CarKind (its BoardZones and CarDoors); nil for the locomotive and tender
+local function CarKind(Car)
+	local K = Kinds[Car]
+	if K == nil then
+		K = false
+		for _, D in ipairs(Car:GetDescendants()) do
+			if D:GetAttribute("CarKind") then K = D:GetAttribute("CarKind") break end
+		end
+		Kinds[Car] = K
+	end
+	return K or nil
+end
+StationService.CarKind = CarKind
+
+local function ZonesOf(Train)
+	local Z = Zones[Train]
+	if not Z then
+		Z = {}
+		for _, D in ipairs(Train:GetDescendants()) do
+			if D:IsA("BasePart") and D.Name:find("BoardZone") and D:GetAttribute("CarKind") then table.insert(Z, D) end
+		end
+		Zones[Train] = Z
+	end
+	return Z
+end
+
+local function InPart(Part, Pos)
+	local L = Part.CFrame:PointToObjectSpace(Pos)
+	return math.abs(L.X) <= Part.Size.X / 2 and math.abs(L.Y) <= Part.Size.Y / 2 and math.abs(L.Z) <= Part.Size.Z / 2
+end
+
+-- where a rider may stand: nil if Pos is fine (a car their class reaches, or a vestibule BoardZone of the car they're
+-- in), else the nearest BoardZone of the platform train that their class reaches
+local function AllowedSpot(P, RouteId, Train, Car, Pos)
+	local Kind = CarKind(Car)
+	if Kind and StationService.CanEnter(P, RouteId, Kind) then return nil end
+	for _, Z in ipairs(ZonesOf(Train)) do
+		if Z:IsDescendantOf(Car) and InPart(Z, Pos) then return nil end
+	end
+	local Best, BestD
+	for _, Z in ipairs(ZonesOf(Train)) do
+		if StationService.CanEnter(P, RouteId, Z:GetAttribute("CarKind")) then
+			local D = (Z.Position - Pos).Magnitude
+			if not BestD or D < BestD then Best, BestD = Z, D end
+		end
+	end
+	return Best
 end
 
 function StationService.Aboard(RouteId)
@@ -130,7 +186,7 @@ function StationService.Aboard(RouteId)
 	if not Train then return Out end
 	for _, P in ipairs(Players:GetPlayers()) do
 		local Root = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
-		if Root and not Riding[P] and TravelService.HasTicket(P, RouteId) and InTrain(Train, Root.Position) then table.insert(Out, P) end
+		if Root and not Riding[P] and TravelService.HasTicket(P, RouteId) and InTrain(Train, Root.Position) ~= nil then table.insert(Out, P) end
 	end
 	return Out
 end
@@ -202,17 +258,30 @@ local function Depart(RouteId, RideSeconds)
 	end
 	task.wait(StationService.FadeTime) -- the client fades to black ("doors closing")
 	local Spot = {}
+	local Moved = {}
 	for _, P in ipairs(List) do
 		local C = P.Character
 		local H = C and C:FindFirstChildOfClass("Humanoid")
-		if C and C.Parent and Riding[P] == RouteId then
+		local Root = C and C.Parent and C:FindFirstChild("HumanoidRootPart")
+		-- re-check after the fade: anyone who stepped off (or reset) stays behind with the ticket
+		local Car = Root and Riding[P] == RouteId and InTrain(Platform, Root.Position)
+		if Car then
 			local Seat = Unseat(P) or Was[P] -- (sat down again during the fade?)
-			local To = Seat and Seat:IsDescendantOf(Platform) and RideSeat(Ride, Offset, Seat)
-			Spot[P] = Offset * C:GetPivot()
+			-- the class barrier, checked on the server: someone in a car their class doesn't reach (a teleported
+			-- client never touches a CarDoor), or in the locomotive / tender, rides in the nearest car they may use
+			local Zone = AllowedSpot(P, RouteId, Platform, Car, Root.Position)
+			local To = not Zone and Seat and Seat:IsDescendantOf(Platform) and RideSeat(Ride, Offset, Seat)
+			Spot[P] = Offset * (Zone and Zone.CFrame or C:GetPivot())
 			C:PivotTo(Spot[P])
 			if To then task.defer(function() if not To.Occupant and H.Parent then To:Sit(H) end end) end
+			table.insert(Moved, P)
+		elseif Riding[P] == RouteId then
+			Riding[P] = nil
+			if P.Parent then Event:FireClient(P, "RideCancel", {Route = RouteId, Text = "The train left without you. Your ticket is still good."}) end
 		end
 	end
+	List = Moved
+	if #List == 0 then return end
 	StationService.Departing:Fire(RouteId, List, RideSeconds)
 	local Ends = os.clock() + RideSeconds
 	local Floor = Ride:GetPivot().Position.Y - StationService.FallCatch
@@ -247,6 +316,12 @@ local function Depart(RouteId, RideSeconds)
 			for _, P in ipairs(Went or {}) do Sent[P] = true end
 		else
 			warn("[StationService] Depart failed on " .. RouteId .. ": " .. tostring(Mode))
+			if not RunService:IsStudio() then -- live: their saves may already be released, so they can't stay here
+				for _, P in ipairs(Going) do
+					if P.Parent then P:Kick(("The journey to %s couldn't be completed. Your ticket is still valid; please rejoin."):format(tostring(DestName))) end
+				end
+				return
+			end
 		end
 	end
 	for _, P in ipairs(Going) do
@@ -276,10 +351,14 @@ local function Clock()
 		local Now = os.time()
 		for _, RouteId in ipairs(Lines()) do
 			local R = Travel.Routes[RouteId]
-			local Prev = math.floor(Now / R.Every) * R.Every -- the departure that just happened
-			if Last[RouteId] ~= Prev and Now - Prev < 2 then
+			local Prev = math.floor(Now / R.Every) * R.Every -- the departure slot that just started
+			if Last[RouteId] == nil then Last[RouteId] = Prev end -- seeded: a line first seen mid-slot waits for the next one
+			if Prev > Last[RouteId] then
 				Last[RouteId] = Prev
-				if not (StationService.HoldClock and RunService:IsStudio()) then task.spawn(Depart, RouteId, R.Ride) end
+				-- a hitch longer than Stale skips this departure rather than leaving very late
+				if Now - Prev <= StationService.Stale and not (StationService.HoldClock and RunService:IsStudio()) then
+					task.spawn(Depart, RouteId, R.Ride)
+				end
 			elseif Travel.BoardingOpen(RouteId, Now) then
 				local Next = Travel.NextDeparture(RouteId, Now)
 				local Key = RouteId .. "|" .. Next
@@ -328,7 +407,7 @@ function StationService.Start()
 		Args = type(Args) == "table" and Args or {}
 		if Op == "Buy" then
 			if not NearClerk(Player) then return false, "Buy tickets at the station's ticket clerk." end
-			return StationService.Buy(Player, Args.Route, Args.Class, type(Args.For) == "string" and Args.For or nil)
+			return StationService.Buy(Player, Args.Route, Args.Class, type(Args.For) == "number" and Args.For or nil)
 		elseif Op == "Prices" then
 			local Out = {}
 			for _, RouteId in ipairs(Lines()) do

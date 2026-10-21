@@ -53,4 +53,28 @@ return {
 		SS.HoldClock = false
 		T.Eq(TS.HasTicket(P, "LindenmoorFoundry"), nil, "arrived (loopback) and used the ticket")
 	end,
+	-- review fix 1 (2026-10-21): the class barrier holds even for someone who never touched a CarDoor
+	ThirdClassInTheCabinCarRidesInAnAllowedCar = function(T)
+		local SS, TS = require(SSS.StationService), require(SSS.TravelService)
+		local Travel = require(game.ReplicatedStorage.Modules.Data.Rensei.Travel)
+		SS.HoldClock = true
+		local P = game.Players:GetPlayers()[1]
+		TS.AddTicket(P, "LindenmoorFoundry", "Third")
+		local Platform = workspace:FindFirstChild("PlatformTrain", true)
+		local Cabin = Platform:FindFirstChild("CabinCar_Main")
+		P.Character:PivotTo(Cabin:GetPivot() * CFrame.new(0, 7.5, 0)) -- the middle of the cabin car, not a vestibule
+		task.wait(0.5)
+		local Car = SS.CarAt(Platform, P.Character.HumanoidRootPart.Position)
+		T.True(Car == Cabin, "starts in the cabin car (" .. tostring(Car and Car.Name) .. ")")
+		SS.DepartNow("LindenmoorFoundry", 3)
+		task.wait(1.2)
+		local Ride = workspace:FindFirstChild("RideTrain", true)
+		local In = SS.CarAt(Ride, P.Character.HumanoidRootPart.Position)
+		local Kind = In and SS.CarKind(In)
+		T.True(Kind ~= nil and Travel.ClassReaches("Third", Kind), "rides in a car 3rd class reaches (" .. tostring(In and In.Name) .. ")")
+		local t0 = os.clock()
+		while TS.HasTicket(P, "LindenmoorFoundry") and os.clock() - t0 < 8 do task.wait(0.2) end
+		SS.HoldClock = false
+		T.Eq(TS.HasTicket(P, "LindenmoorFoundry"), nil, "arrived and used the ticket")
+	end,
 }
