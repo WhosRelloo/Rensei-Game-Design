@@ -132,4 +132,43 @@ return {
 		SS.HoldClock = false
 		T.Eq(TS.HasTicket(P, "LindenmoorFoundry"), nil, "arrived and used the ticket")
 	end,
+	-- task 7 fix round 1 (controller ruling): dying aboard drops you from the ride, the ticket kept, and the
+	-- character you respawn with is never pulled into the train. A real death: the humanoid's Health is set to 0.
+	DeathAboardDropsYouFromTheRide = function(T)
+		local SS, TS = require(SSS.StationService), require(SSS.TravelService)
+		local P = game.Players:GetPlayers()[1]
+		SS.HoldClock = true
+		local Ok, Err = pcall(function()
+			TS.AddTicket(P, "LindenmoorFoundry", "Third")
+			local Zone
+			for _, d in ipairs(workspace:GetDescendants()) do
+				if d.Name:find("BoardZone") and d:GetAttribute("CarKind") == "ThirdClass" and d:FindFirstAncestor("PlatformTrain") then Zone = d break end
+			end
+			P.Character:PivotTo(Zone.CFrame)
+			task.wait(0.5)
+			local t0 = os.clock()
+			SS.DepartNow("LindenmoorFoundry", 10)
+			task.wait(1.5)
+			T.Eq(SS.Riding(P), "LindenmoorFoundry", "riding")
+			local Old = P.Character
+			Old.Humanoid.Health = 0
+			task.wait(0.3)
+			T.Eq(SS.Riding(P), nil, "off the ride at death")
+			local t1 = os.clock()
+			while (P.Character == Old or not (P.Character and P.Character:FindFirstChild("HumanoidRootPart"))) and os.clock() - t1 < 12 do task.wait(0.2) end
+			local New = P.Character
+			T.True(New ~= Old and New:FindFirstChild("HumanoidRootPart"), "respawned")
+			task.wait(2)
+			T.True(os.clock() - t0 < 10, "still within the ride (" .. math.floor(os.clock() - t0) .. " s)")
+			T.True(New.HumanoidRootPart.Position.Y < 300, "the new character stays in town (y " .. math.floor(New.HumanoidRootPart.Position.Y) .. ")")
+			while os.clock() - t0 < 11 do task.wait(0.2) end
+			T.True(New.HumanoidRootPart.Position.Y < 300, "still in town after the ride")
+			T.Eq(TS.HasTicket(P, "LindenmoorFoundry"), "Third", "the ticket is kept")
+		end)
+		SS.HoldClock = false
+		if TS.HasTicket(P, "LindenmoorFoundry") then TS.UseTicket(P, "LindenmoorFoundry") end
+		local t2 = os.clock()
+		while not (P.Character and P.Character:FindFirstChild("HumanoidRootPart")) and os.clock() - t2 < 10 do task.wait(0.2) end
+		T.True(Ok, tostring(Err))
+	end,
 }

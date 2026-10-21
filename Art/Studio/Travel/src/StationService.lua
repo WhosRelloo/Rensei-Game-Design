@@ -10,7 +10,8 @@
 --   * At departure: a "doors closing" fade, everyone aboard moves to the same spot in the ride train (seated players
 --     to the same seat), the ride runs Route.Ride seconds (events from Task 7 hook Departing), then
 --     TravelService.Depart sends them all together. Anyone who can't go (already teleporting, or dropped by Depart)
---     is put back on this platform with the ticket kept.
+--     is put back on this platform with the ticket kept. A rider who dies aboard (or whose character is replaced)
+--     is off the ride, ticket kept; only the character that boarded is ever moved back into the train.
 -- Every number is a PROPOSAL.
 local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
@@ -259,6 +260,7 @@ local function Depart(RouteId, RideSeconds)
 	end
 	task.wait(StationService.FadeTime) -- the client fades to black ("doors closing")
 	local Spot = {}
+	local Body = {} -- [Player] = the character that boarded (the watchdogs only ever move that one)
 	local Moved = {}
 	for _, P in ipairs(List) do
 		local C = P.Character
@@ -277,6 +279,7 @@ local function Depart(RouteId, RideSeconds)
 			local To = not Zone and Seat and Seat:IsDescendantOf(Car) and RideSeat(Ride, Offset, Seat)
 			Spot[P] = Offset * (Zone and Zone.CFrame or C:GetPivot())
 			C:PivotTo(Spot[P])
+			Body[P] = C
 			if To then task.defer(function() if not To.Occupant and H.Parent then To:Sit(H) end end) end
 			table.insert(Moved, P)
 		elseif Riding[P] == RouteId then
@@ -286,28 +289,43 @@ local function Depart(RouteId, RideSeconds)
 	end
 	List = Moved
 	if #List == 0 then return end
+	-- death aboard (controller ruling, 2026-10-21): a rider whose humanoid dies or whose character is replaced
+	-- (respawned in town) is off the ride, keeping the ticket; nobody pulls the new character back into the train
+	local Conns = {}
+	local function Off(P)
+		if Riding[P] ~= RouteId or not Body[P] then return end
+		Riding[P], Spot[P], Was[P], Body[P] = nil, nil, nil, nil
+		if P.Parent then Event:FireClient(P, "RideCancel", {Route = RouteId, Text = "You came to back in town. Your ticket is still good."}) end
+	end
+	for _, P in ipairs(List) do
+		local H = Body[P]:FindFirstChildOfClass("Humanoid")
+		if H then table.insert(Conns, H.Died:Connect(function() Off(P) end)) end
+		table.insert(Conns, P.CharacterAdded:Connect(function() Off(P) end))
+	end
 	StationService.Departing:Fire(RouteId, List, RideSeconds)
 	local Ends = os.clock() + RideSeconds
 	local Floor = Ride:GetPivot().Position.Y - StationService.FallCatch
 	while os.clock() < Ends do
 		task.wait(math.clamp(Ends - os.clock(), 0, 0.5))
 		for _, P in ipairs(List) do
-			local Root = Riding[P] == RouteId and Spot[P] and P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+			local C = Body[P]
+			local Root = Riding[P] == RouteId and Spot[P] and C and P.Character == C and C:FindFirstChild("HumanoidRootPart")
 			if Root and Root.Position.Y < Floor then -- got out of the ride train: back to their spot
 				Unseat(P)
-				P.Character:PivotTo(Spot[P])
+				C:PivotTo(Spot[P])
 			elseif Root then -- walked (or teleported) into a car their class doesn't reach: the conductor sends them back
 				local Car = InTrain(Ride, Root.Position)
 				local Zone = Car and AllowedSpot(P, RouteId, Ride, Car, Root.Position)
 				if Zone and Zone ~= NOWHERE then
 					Unseat(P)
 					Spot[P] = Zone.CFrame
-					P.Character:PivotTo(Spot[P])
+					C:PivotTo(Spot[P])
 					Notify(P, "Conductor: \"Your ticket isn't for this car.\"")
 				end
 			end
 		end
 	end
+	for _, Conn in ipairs(Conns) do Conn:Disconnect() end
 	-- who goes: still here, still riding, and not already in another teleport (Depart filters too)
 	local Stood = false
 	for _, P in ipairs(List) do -- the arrival (or the walk back) moves them; the ride-train seats must stay put

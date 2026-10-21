@@ -87,6 +87,48 @@ return {
 		RE.ClearHoldup()
 		T.True(Ok, tostring(Err))
 	end,
+	-- fix round 1: a deed line in the second person is never a "someone who ..." rumour
+	RumourSkipsSecondPersonDeeds = function(T)
+		local RE = require(SSS.RideEvents)
+		local Deeds = require(game.ReplicatedStorage.Modules.Data.Rensei.Deeds)
+		T.True(RE.SecondPerson("Promised Tobin you'd keep quiet about his nap"), "you'd")
+		T.True(RE.SecondPerson("YOU'RE the one"), "you're, any case")
+		T.True(RE.SecondPerson("Kept your word"), "your")
+		T.True(RE.SecondPerson("Asked if it was you"), "you at the end")
+		T.True(not RE.SecondPerson("Reported Lise, the unlicensed apprentice, to the Authority"), "third person")
+		T.True(not RE.SecondPerson("Helped the youth at the bayou"), "whole words only")
+		T.True(type(Deeds.promised_tobin) == "table" and RE.SecondPerson(Deeds.promised_tobin.Text), "the real deed line is skipped")
+	end,
+	-- fix round 1: if the 2nd bandit fails to spawn, the 1st is still tracked, kept aboard and cleared
+	PartialHoldupSpawnKeepsTheFirstBandit = function(T)
+		local RE, SS, ES = require(SSS.RideEvents), require(SSS.StationService), require(SSS.EnemyService)
+		local P = game.Players:GetPlayers()[1]
+		local Real, Calls = ES.Spawn, 0
+		ES.Spawn = function(Part)
+			Calls += 1
+			if Calls == 2 then error("test: the second spawn fails") end
+			return Real(Part)
+		end
+		local Ok, Err = pcall(function()
+			local N = RE.Run("Holdup", "LindenmoorFoundry", {P}, {[P] = true})
+			ES.Spawn = Real
+			local Rigs = RE.BanditsOf("LindenmoorFoundry")
+			T.Eq(N, 1, "one bandit spawned")
+			T.Eq(#Rigs, 1, "and it is tracked")
+			local Rig = Rigs[1]
+			Rig:SetAttribute("AIPassive", true)
+			Rig:PivotTo(Rig:GetPivot() - Vector3.new(0, 60, 0))
+			task.wait(1.2)
+			local Ride = workspace:FindFirstChild("RideTrain", true)
+			T.True(SS.CarAt(Ride, Rig.HumanoidRootPart.Position) ~= nil, "contained")
+			RE.ClearHoldup("LindenmoorFoundry")
+			task.wait()
+			T.True(Rig.Parent == nil and ES.Active[Rig] == nil, "cleared")
+		end)
+		ES.Spawn = Real
+		RE.ClearHoldup()
+		T.True(Ok, tostring(Err))
+	end,
 	-- added (task 7): a real departure runs the ride's event, and a holdup ends with the ride
 	DepartureRunsTheEventAndTheHoldupEndsAtArrival = function(T)
 		local RE, SS, TS = require(SSS.RideEvents), require(SSS.StationService), require(SSS.TravelService)

@@ -55,6 +55,17 @@ local function DiningCar(Ride)
 	return nil
 end
 
+-- a deed line in the second person ("promised Tobin you'd keep quiet") reads wrong after "someone who": skipped.
+-- Whole words, any case; "you" also catches "you'd" / "you're" / "you’d" (the apostrophe ends the word).
+local function SecondPerson(Text)
+	local L = Text:lower()
+	for _, W in ipairs({"you", "your", "yours", "yourself"}) do
+		if L:find("%f[%a]" .. W .. "%f[%A]") then return true end
+	end
+	return false
+end
+RideEvents.SecondPerson = SecondPerson
+
 -- a rumour about one of the riders, preferring one that has already reached the destination
 local function RumourLine(RouteId, List)
 	local Deeds = require(ReplicatedStorage.Modules.Data.Rensei.Deeds)
@@ -67,7 +78,8 @@ local function RumourLine(RouteId, List)
 		if type(Rumours) == "table" then
 			for _, R in ipairs(Rumours) do
 				local Def = type(R) == "table" and Deeds[R.Deed]
-				if type(Def) == "table" and type(Def.Text) == "string" and not Def.Birth and not R.Suppressed then
+				if type(Def) == "table" and type(Def.Text) == "string" and not Def.Birth and not R.Suppressed
+					and not SecondPerson(Def.Text) then
 					table.insert(Any, Def.Text)
 					if Dest and type(R.Reached) == "table" and R.Reached[Dest] then table.insert(There, Def.Text) end
 				end
@@ -148,6 +160,7 @@ function RideEvents.Run(EventId, RouteId, List, HasTicket)
 			Ray.FilterType = Enum.RaycastFilterType.Include
 			Ray.FilterDescendantsInstances = {Car}
 			local Mine = {}
+			Bandits[RouteId] = Mine -- tracked from the first spawn, so a later failure can't orphan an earlier bandit
 			for I = 1, RideEvents.BanditCount do
 				local X = (I - (RideEvents.BanditCount + 1) / 2) * RideEvents.BanditGap
 				local From = CF * CFrame.new(X, 0, 0) -- the aisle runs down the car's centre line
@@ -159,17 +172,20 @@ function RideEvents.Run(EventId, RouteId, List, HasTicket)
 					local Out = CF.RightVector * (X >= 0 and 1 or -1) -- back to back, each facing one end of the car
 					Mark.CFrame = CFrame.lookAt(Hit.Position, Hit.Position + Out)
 					Mark:SetAttribute("EnemyType", RideEvents.BanditType)
-					local Rig = EnemyService.Spawn(Mark)
-					if Rig then
+					local Ok, Rig = pcall(EnemyService.Spawn, Mark)
+					if not Ok then
+						warn("[RideEvents] bandit " .. I .. " failed to spawn on " .. RouteId .. ": " .. tostring(Rig))
+					elseif typeof(Rig) == "Instance" then
 						table.insert(Mine, {Rig = Rig, Home = Rig:GetPivot()})
 						N += 1
 					end
 				end
 			end
 			if N > 0 then
-				Bandits[RouteId] = Mine
 				task.spawn(Contain, RouteId, Ride, Mine)
 				for _, P in ipairs(List) do Say(P, "\"Nobody move! Hand over your valuables!\"") end
+			elseif Bandits[RouteId] == Mine then
+				Bandits[RouteId] = nil
 			end
 		end
 		return N
