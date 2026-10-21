@@ -2,6 +2,32 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-21 — World Plan 1, Task 6: the station and the train ride
+
+- **Lindenmoor station (Ye):**
+  - the FMA train waiting at the platform;
+  - a ticket booth with a clerk ("press E");
+  - a departure board on posts that counts down to the next train.
+  
+  A second copy of the train ("RideTrain") runs high above the map for the journey itself.
+- **Foundry Yard:** the same station on its placeholder platform (`station_foundry.lua`, safe to re-run). The train kit was copied from the committed import, and its geometry matches Ye's exactly. Foundry's older copy, which predated the review fixes, is in backups.
+- **`StationService` (new, in `RenseiServer`):**
+  - **Buying tickets:** you buy at the clerk (the server checks you're near one). You can also buy for a party member, matched by UserId.
+  - **The conductor:**
+    - Doors check your class: 3rd class can use the dining car but not 2nd class. You need a ticket to board at all.
+    - The server checks the class again at departure and during the ride, so a cheating client can't teleport into a class it didn't pay for.
+    - Seats carry over into the ride train.
+  - **Departures:**
+    - Trains leave every 150 s (PROPOSAL), and the clock survives a short server hitch.
+    - The screen fades, everyone aboard rides together, and they arrive as a group (Task 5's `Depart`).
+    - Anyone who steps off during the fade stays behind and keeps their ticket.
+- **`TravelClient` (new):** the ticket window, the departure boards, the ride screen with scenery out the windows, and the teleport screen.
+- **Tests (Ye, Play):** Station 7/7, Travel 7/7, Boot 2/2, Heat 8/8. The tests cover buying, the conductor, a seated ride, stepping off during the fade, and wrong-class seats and cars. The real journey between places needs a publish.
+- **For the owner:**
+  - Publish the `RenseiServer` package, which carries StationService.
+  - Turn `StarterPlayerScripts.TravelClient` into a Package. Foundry has a plain copy for now.
+- **Backups:** `RenseiBackups["Pre-Stations_2026-10-21"]`.
+
 ## 2026-10-21 — World Plan 1, Task 5: TravelService and group teleports
 
 - **Save:** a new `Travel` field holds the region you were last in, your unused tickets, and the trip under way. It is added to old saves automatically.
