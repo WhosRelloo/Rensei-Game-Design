@@ -2,7 +2,7 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
-## 2026-10-21 — World Plan 1, Task 4 (in progress): Foundry Yard gets the game
+## 2026-10-21 — World Plan 1, Task 4: Foundry Yard boots the full game
 
 - **Packages:** the owner turned the 13 shared roots into Roblox Packages, with auto-update on. Their ids are in `Art/Studio/Travel/packages.json`.
 - **Foundry Yard (109591196441030), a placeholder for now:**
@@ -17,9 +17,14 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
   - Now it skips the link, and one bad child can't stop the rest from copying.
   - The old version is in `RenseiBackups["Pre-WorldPlan1_2026-10-20"].RenseiBoot_v1`.
   - **Tests (Ye, Play):** Boot 2/2, Heat 8/8, AditBoards 10/10. The owner's save was snapshotted and restored, and the temporary hook was removed.
-- **Still needed from the owner** before Foundry can start the game:
-  1. publish the `RenseiBoot` package change from Ye;
-  2. turn `StarterPlayer.StarterCharacter`, `SoundService.SFX` and `SoundService.Music` into Packages. The game needs them and Foundry doesn't have them yet.
+- **More packages:** the owner published the `RenseiBoot` fix (now v2) and packaged `StarterPlayer.StarterCharacter`, `SoundService.SFX` and `SoundService.Music`. All four are now in Foundry, which makes 16 packages.
+- **Boot test (Foundry, Play):** Boot passes 2/2. The character spawns on the platform in the "Foundry Yard" area, and the console has no game errors. The owner's save was snapshotted and restored, and the hook was removed.
+- **Review fixes:**
+  - The settings that `place_setup.lua` generates now refuse to run in Ye.
+  - The leftover tool tags are removed from the Foundry package roots.
+  - The v1 RenseiBoot backup no longer links to the package, so auto-update can't overwrite it.
+- **Tooling:** `Art/Tools/rbxc.py` retries when Studio briefly reports a window with no name.
+- **For the owner:** in Foundry, set Lighting.Technology by hand to match Ye. Keep or delete the template SunRays and DepthOfField (Ye has neither). Save the place.
 
 ## 2026-10-20 — World Plan 1, Task 3: server code now lives in ServerStorage.RenseiServer
 
