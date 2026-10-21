@@ -68,7 +68,7 @@ local MATN = HS:JSONDecode([==[{json.dumps(data["mats"])}]==])
 local O = Vector3.new({data["origin"][0]}, {data["origin"][1]}, {data["origin"][2]})
 local NOCOLLIDE = HS:JSONDecode([==[{json.dumps(list(NO_COLLIDE))}]==])
 local NOCOLLIDE_KINDS = HS:JSONDecode([==[{json.dumps(list(NO_COLLIDE_KINDS))}]==])
-"""
+""" + steam_lua()
 
 
 LUA_BODY = """
@@ -129,6 +129,7 @@ for I, PF in ipairs(DATA) do
 				Part:SetAttribute(K, V)
 			end
 		end
+		if Part:GetAttribute("Emit") == "Steam" then Steam(Part) end -- the locomotive's chimney
 		Part.Parent = Model
 		table.insert(List, Part)
 		Parts += 1
@@ -190,6 +191,60 @@ def attrs_xml(js):
     return f'<BinaryString name="AttributesSerialize">{base64.b64encode(out).decode()}</BinaryString>'
 
 
+# Steam from a part with the attribute Emit = "Steam" (the train's chimney helper). ALL values PROPOSAL:
+# soft white-grey puffs rising and spreading (Rate 8, Lifetime 3-5 s, size 1 -> 6, speed 4-5).
+STEAM = {"Texture": "rbxasset://textures/particles/smoke_main.dds", "Rate": 8, "Lifetime": (3, 5), "Speed": (4, 5),
+         "Spread": 10, "Size": ((0, 1), (0.5, 3.5), (1, 6)), "Transparency": ((0, 0.3), (0.6, 0.6), (1, 1)),
+         "Color": ((0, "ebebeb"), (1, "b4b4b4")), "Accel": (0, 1.5, 0), "Drag": 0.6, "RotSpeed": (-20, 20)}
+
+
+def _hex3(h):
+    return [round(int(h[i:i + 2], 16) / 255, 4) for i in (0, 2, 4)]
+
+
+def steam_lua():
+    s = STEAM
+    num = ", ".join(f"NumberSequenceKeypoint.new({t}, {v})" for t, v in s["Size"])
+    tra = ", ".join(f"NumberSequenceKeypoint.new({t}, {v})" for t, v in s["Transparency"])
+    col = ", ".join(f'ColorSequenceKeypoint.new({t}, Color3.fromHex("{c}"))' for t, c in s["Color"])
+    return ("local function Steam(Part)\n"
+            "\tlocal E = Instance.new(\"ParticleEmitter\")\n"
+            "\tE.Name = \"Steam\"\n"
+            f"\tE.Texture = \"{s['Texture']}\"\n"
+            f"\tE.Rate = {s['Rate']}\n"
+            f"\tE.Lifetime = NumberRange.new({s['Lifetime'][0]}, {s['Lifetime'][1]})\n"
+            f"\tE.Speed = NumberRange.new({s['Speed'][0]}, {s['Speed'][1]})\n"
+            f"\tE.SpreadAngle = Vector2.new({s['Spread']}, {s['Spread']})\n"
+            f"\tE.Size = NumberSequence.new({{{num}}})\n"
+            f"\tE.Transparency = NumberSequence.new({{{tra}}})\n"
+            f"\tE.Color = ColorSequence.new({{{col}}})\n"
+            f"\tE.Acceleration = Vector3.new({s['Accel'][0]}, {s['Accel'][1]}, {s['Accel'][2]})\n"
+            f"\tE.Drag = {s['Drag']}\n"
+            f"\tE.RotSpeed = NumberRange.new({s['RotSpeed'][0]}, {s['RotSpeed'][1]})\n"
+            "\tE.Rotation = NumberRange.new(0, 360)\n"
+            "\tE.EmissionDirection = Enum.NormalId.Top\n"
+            "\tE.Parent = Part\n"
+            "end\n")
+
+
+def steam_xml(ref):
+    s = STEAM
+    seq = lambda pts: "".join(f"{t} {v} 0 " for t, v in pts)
+    col = "".join(f"{t} {' '.join(str(c) for c in _hex3(h))} 0 " for t, h in s["Color"])
+    return (f'<Item class="ParticleEmitter" referent="{ref}"><Properties><string name="Name">Steam</string>'
+            f'<Content name="Texture"><url>{s["Texture"]}</url></Content><float name="Rate">{s["Rate"]}</float>'
+            f'<NumberRange name="Lifetime">{s["Lifetime"][0]} {s["Lifetime"][1]} </NumberRange>'
+            f'<NumberRange name="Speed">{s["Speed"][0]} {s["Speed"][1]} </NumberRange>'
+            f'<Vector2 name="SpreadAngle"><X>{s["Spread"]}</X><Y>{s["Spread"]}</Y></Vector2>'
+            f'<NumberSequence name="Size">{seq(s["Size"])}</NumberSequence>'
+            f'<NumberSequence name="Transparency">{seq(s["Transparency"])}</NumberSequence>'
+            f'<ColorSequence name="Color">{col}</ColorSequence>'
+            f'<Vector3 name="Acceleration"><X>{s["Accel"][0]}</X><Y>{s["Accel"][1]}</Y><Z>{s["Accel"][2]}</Z></Vector3>'
+            f'<float name="Drag">{s["Drag"]}</float><NumberRange name="RotSpeed">{s["RotSpeed"][0]} {s["RotSpeed"][1]} </NumberRange>'
+            '<NumberRange name="Rotation">0 360 </NumberRange><token name="EmissionDirection">1</token>'
+            '</Properties></Item>')
+
+
 def rbxmx(pf, mats):
     """One Model, pivot at the origin (parts keep their CFrames relative to the prefab pivot)."""
     ref = [0]
@@ -225,6 +280,8 @@ def rbxmx(pf, mats):
                           f'<token name="Material">{MAT_ENUM[mat]}</token><Color3uint8 name="Color3uint8">{rgb_uint(col)}</Color3uint8>'
                           f'<float name="Transparency">{tr}</float><token name="TopSurface">0</token><token name="BottomSurface">0</token>'
                           + shape_xml + extra + "</Properties>", ""])
+        if len(p) > 14 and isinstance(p[14], str) and json.loads(p[14]).get("Emit") == "Steam":
+            parts_xml[-1][1] += steam_xml(nref())
     for l in pf["l"]:  # [x, y, z, range, brightness, shadows, r, g, b]
         best, bd = 0, 1e9
         for i, (x, y, z, mat) in enumerate(plist):

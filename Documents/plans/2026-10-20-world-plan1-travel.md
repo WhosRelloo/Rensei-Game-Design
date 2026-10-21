@@ -670,9 +670,10 @@ def cabin_car(rt):
 
 def baggage_car(rt):
     coach_shell(rt, "BaggageCar", windows=False, side_door_mid=True)
-    # open sliding door on -y (freight-yard side): a gap in the lower panel is faked by the StowZone and a slid door leaf
-    P(rt, "DoorLeaf", (6, 0.4, 8), (5.5, -(W / 2 + 0.4), FLOOR + 4), "maroon")
-    P(rt, "StowZone", (5, 3, 7), (0, -3.6, FLOOR + 3.5), "helper", invisible=True, attr={"CarKind": "BaggageCar"})
+    # open sliding door on +y = Roblox local +Z, the freight-yard side (Task 6 turns the cars by Angles(0, -90deg, 0),
+    # so local +Z faces world -X, away from Ye's platform). Fix round 1: was -y, which faced the platform.
+    P(rt, "DoorLeaf", (6, 0.4, 8), (5.5, (W / 2 + 0.4), FLOOR + 4), "maroon")
+    P(rt, "StowZone", (5, 3, 7), (0, 3.6, FLOOR + 3.5), "helper", invisible=True, attr={"CarKind": "BaggageCar"})
     import random
     rnd = random.Random(7)
     for k in range(10):
@@ -766,7 +767,8 @@ def run():
     - 7 models;
     - every passenger car has 2 `BoardZone` parts and 2 `CarDoor` parts;
     - the baggage car has 1 `StowZone`;
-    - Seat count: ThirdClass 28, DiningCar 12, SecondClass 8, CabinCar 4.
+    - Seat count: ThirdClass 28, DiningCar 24 (six tables for four), SecondClass 8, CabinCar 4.
+    - The Locomotive's `SteamOut` part holds a ParticleEmitter named `Steam`.
   - Check with:
 
 ```lua

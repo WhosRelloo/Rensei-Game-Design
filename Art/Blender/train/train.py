@@ -177,7 +177,8 @@ def coach_shell(rt, kind, windows=True, win=None, door_gap=None, lamp_energy=150
             P(rt, f"LiningLow{sd}{j}", (b - a, 0.2, WIN_Z0 - FLOOR), ((a + b) / 2, s * (W / 2 - 0.75), (FLOOR + WIN_Z0) / 2), "cream", bevel=0)
         P(rt, f"Upper{sd}", (xb - xa, 0.6, WALL - WIN_Z1 + 0.1), (0, y, (WIN_Z1 - 0.1 + WALL) / 2), "maroon")
         P(rt, f"LiningHigh{sd}", (xb - xa, 0.2, WALL - 0.1 - WIN_Z1), (0, s * (W / 2 - 0.75), (WIN_Z1 + WALL - 0.1) / 2), "cream", bevel=0)
-        P(rt, f"Waist{sd}", (xb - xa, 0.3, 0.25), (0, s * (W / 2 + 0.05), WIN_Z0 - 0.6), "brass", bevel=0)  # brass lining strip
+        for j, (a, b) in enumerate(spans):  # brass lining strip (broken by an open side door)
+            P(rt, f"Waist{sd}{j}", (b - a, 0.3, 0.25), ((a + b) / 2, s * (W / 2 + 0.05), WIN_Z0 - 0.6), "brass", bevel=0)
         items = []
         if windows:
             items = list((win or {}).get(s, DEFAULT_WINDOWS))
@@ -277,21 +278,23 @@ def third_class(rt):
 
 
 def dining(rt):
-    """Six tables (two chairs each, 12 Seats) along a centre aisle, and a bar counter with a bottle shelf."""
+    """Six tables for four (spec): three each side of a 4.2-wide centre aisle. Each table has a two-place bench at
+    each end, so 4 Seats a table (1.5 wide each), 24 in all. A bar counter with a bottle shelf beyond the tables."""
     coach_shell(rt, "DiningCar")
     for i, x in enumerate((-18, -6, 6)):
         for side in (-1, 1):
             sd = "L" if side > 0 else "R"
-            y = side * 3.55
-            P(rt, f"Table{i}{sd}", (3.0, 2.8, 0.3), (x, y, FLOOR + 2.9), "wood")
-            P(rt, f"TableCloth{i}{sd}", (2.6, 2.4, 0.06), (x, y, FLOOR + 3.08), "cream", bevel=0)
+            y = side * 3.6                # PROPOSAL: tables + benches span |y| 2.1 .. 5.1 (aisle |y| < 2.1)
+            P(rt, f"Table{i}{sd}", (3.0, 3.0, 0.3), (x, y, FLOOR + 2.9), "wood")
+            P(rt, f"TableCloth{i}{sd}", (2.6, 2.6, 0.06), (x, y, FLOOR + 3.08), "cream", bevel=0)
             P(rt, f"Leg{i}{sd}", (0.4, 0.4, 2.75), (x, y, FLOOR + 1.375), "brass", bevel=0)
-            P(rt, f"TableLamp{i}{sd}", (0.5, 0.5, 0.7), (x, y + side * 0.8, FLOOR + 3.45), "glow", bevel=0.1)
+            P(rt, f"TableLamp{i}{sd}", (0.5, 0.5, 0.7), (x, y + side * 1.0, FLOOR + 3.45), "glow", bevel=0.1)
             for j, dx in enumerate((-2.4, 2.4)):
-                f = 1 if dx < 0 else -1  # chairs face the table
-                P(rt, f"ChairBase{i}{sd}{j}", (1.4, 1.6, 1.55), (x + dx, y, FLOOR + 0.775), "wood")
-                seat(rt, f"Chair{i}{sd}{j}", (1.6, 1.8, 0.5), (x + dx, y, FLOOR + 1.8), "bench", (f, 0))
-                P(rt, f"ChairBack{i}{sd}{j}", (0.4, 1.8, 2.6), (x + dx - f * 0.8, y, FLOOR + 3.2), "wood")
+                f = 1 if dx < 0 else -1  # the benches face the table
+                P(rt, f"ChairBase{i}{sd}{j}", (1.4, 3.0, 1.55), (x + dx, y, FLOOR + 0.775), "wood")
+                for k, dy in enumerate((-0.75, 0.75)):  # two places per bench
+                    seat(rt, f"Chair{i}{sd}{j}{k}", (1.6, 1.45, 0.5), (x + dx, y + dy, FLOOR + 1.8), "bench", (f, 0))
+                P(rt, f"ChairBack{i}{sd}{j}", (0.4, 3.0, 2.6), (x + dx - f * 0.8, y, FLOOR + 3.2), "wood")
     P(rt, "Bar", (12, 2.4, 3.6), (17, -2.8, FLOOR + 1.8), "wood")
     P(rt, "BarTop", (12.4, 2.8, 0.3), (17, -2.8, FLOOR + 3.75), "brass")
     P(rt, "Shelf", (12, 0.8, 0.3), (17, -4.75, FLOOR + 3.9), "wood")
@@ -359,15 +362,18 @@ def cabin_car(rt):
 
 
 def baggage_car(rt):
-    """Crates, mail sacks and a dim lamp; an open sliding door on -y (the freight-yard side: the stowaway route)."""
-    coach_shell(rt, "BaggageCar", windows=False, door_gap=(-1, -2.5, 2.5), lamp_energy=700)
-    P(rt, "DoorLeaf", (5.4, 0.3, 7.0), (5.6, -(W / 2 + 0.15), FLOOR + 3.5), "maroon")
-    P(rt, "DoorRail", (11.8, 0.3, 0.3), (2.8, -(W / 2 + 0.15), FLOOR + 7.25), "black", bevel=0)
-    P(rt, "DoorFrameL", (0.4, 0.8, 7.1), (-2.7, -(W / 2 - 0.3), FLOOR + 3.55), "wood", bevel=0.02)
-    P(rt, "DoorFrameR", (0.4, 0.8, 7.1), (2.7, -(W / 2 - 0.3), FLOOR + 3.55), "wood", bevel=0.02)
-    P(rt, "StowZone", (5, 3, 7), (0, -3.6, FLOOR + 3.5), "helper", invisible=True, attr={"CarKind": "BaggageCar"})
+    """Crates, mail sacks and a dim lamp; an open sliding door on +y = Roblox local +Z (the freight-yard side: the
+    stowaway route). World Plan 1 Task 6 turns each car by CFrame.Angles(0, -90deg, 0), which sends local +Z to world
+    -X in Ye: away from the platform (the platform is on the track's +X side)."""
+    D = 1  # the door side (Blender y sign)
+    coach_shell(rt, "BaggageCar", windows=False, door_gap=(D, -2.5, 2.5), lamp_energy=700)
+    P(rt, "DoorLeaf", (5.4, 0.3, 7.0), (5.6, D * (W / 2 + 0.15), FLOOR + 3.5), "maroon")
+    P(rt, "DoorRail", (11.8, 0.3, 0.3), (2.8, D * (W / 2 + 0.15), FLOOR + 7.25), "black", bevel=0)
+    P(rt, "DoorFrameL", (0.4, 0.8, 7.1), (-2.7, D * (W / 2 - 0.3), FLOOR + 3.55), "wood", bevel=0.02)
+    P(rt, "DoorFrameR", (0.4, 0.8, 7.1), (2.7, D * (W / 2 - 0.3), FLOOR + 3.55), "wood", bevel=0.02)
+    P(rt, "StowZone", (5, 3, 7), (0, D * 3.6, FLOOR + 3.5), "helper", invisible=True, attr={"CarKind": "BaggageCar"})
     rnd = random.Random(7)
-    placed = [(-3.5, 3.5, -5.2, -1.5)]  # keep the doorway and the StowZone clear
+    placed = [(-3.5, 3.5, 1.5, 5.2) if D > 0 else (-3.5, 3.5, -5.2, -1.5)]  # keep the doorway and the StowZone clear
     inner = W / 2 - 0.85
 
     def free(x0, x1, y0, y1):
@@ -508,6 +514,8 @@ CAMS = {  # name: (location, look-at, lens mm)
     "loco": ((24, -26, 8.5), (-14, 0, 8.5), 28),
     "coach": ((-178, -34, 6.5), (-212, 0, 8.5), 30),
     "interior": ((-184.2, 0.0, 9.6), (-230, 0.0, 7.6), 14),
+    "dining": ((-262, 0.8, 11.6), (-284, -3.6, 5.0), 16),
+    "baggage": ((-118, 30, 6.5), (-140, 0, 6.5), 30),
 }
 
 
@@ -527,7 +535,7 @@ def render_setup():
     props = [box("R_Ground", (900, 300, 1), (-200, 0, -1.3), ground, rc, bevel=0),
              box("R_RailL", (900, 0.5, 0.6), (-200, GAUGE, -0.3), iron, rc, bevel=0),
              box("R_RailR", (900, 0.5, 0.6), (-200, -GAUGE, -0.3), iron, rc, bevel=0),
-             box("R_Platform", (300, 10, 2.4), (-230, 11, -0.4), stone, rc, bevel=0.05)]
+             box("R_Platform", (300, 10, 2.4), (-230, -11, -0.4), stone, rc, bevel=0.05)]  # -y = Ye's platform side
     for i in range(160):
         props.append(box(f"R_Sleeper{i}", (1.2, 8, 0.5), (60 - i * 5.0, 0, -0.85), timber, rc, bevel=0))
     for o in props:
