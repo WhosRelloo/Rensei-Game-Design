@@ -87,6 +87,90 @@ return {
 		Idle(P) -- the resumed trip ends before the next test
 		T.True(Ok, tostring(Err))
 	end,
+	-- fix round 2: a dash out (about 100 studs/s, under MaxSpeed) is a flee, not a teleport
+	DashingOutOfTheArenaIsAFlee = function(T)
+		local RS, TS = require(SSS.RoadService), require(SSS.TravelService)
+		local P = game.Players:GetPlayers()[1]
+		Ready(P)
+		Idle(P)
+		local Got
+		local C = TS.Arrived.Event:Connect(function(Who) if Who == P then Got = true end end)
+		local Ok, Err = pcall(function()
+			T.Eq(RS.Journey(P, ROUTE, true), "ambush")
+			for _, Rig in ipairs(RS.EnemiesOf(P)) do Rig:SetAttribute("AIPassive", true) end
+			local Arena = workspace:FindFirstChild("AmbushArena", true)
+			local Half = Arena.Size.Z / 2
+			P.Character:PivotTo(Arena.CFrame * CFrame.new(0, 3, Half)) -- at the edge, inside
+			task.wait(0.6)
+			T.True(RS.InAmbush(P), "still in it at the edge")
+			P.Character:PivotTo(Arena.CFrame * CFrame.new(0, 3, Half + 25)) -- one dash: 25 studs in a 0.25 s check
+			local t0 = os.clock()
+			while RS.InAmbush(P) and os.clock() - t0 < 3 do task.wait(0.1) end
+			T.True(not RS.InAmbush(P), "fled")
+			t0 = os.clock()
+			while not Got and os.clock() - t0 < 5 do task.wait(0.1) end
+			T.True(Got, "the journey went on")
+		end)
+		C:Disconnect()
+		RS.ClearArena(P)
+		Idle(P)
+		T.True(Ok, tostring(Err))
+	end,
+	-- fix round 2: on the road you are held in the sky with the Climbing status (no attacks, skills or alchemy), and
+	-- let go at the end
+	OnTheRoadYouCantFight = function(T)
+		local RS = require(SSS.RoadService)
+		local P = game.Players:GetPlayers()[1]
+		Ready(P)
+		Idle(P)
+		local Ok, Err = pcall(function()
+			local Done
+			task.spawn(function() Done = RS.Journey(P, ROUTE, false) end)
+			task.wait(0.3)
+			local C = P.Character
+			T.True(RS.OnRoad(P), "on the road")
+			T.True(C.HumanoidRootPart.Anchored and C.HumanoidRootPart.Position.Y > 1000, "held out of reach")
+			T.True(RS.Gated(C), "the Climbing status: no fighting")
+			local t0 = os.clock()
+			while not Done and os.clock() - t0 < 5 do task.wait(0.1) end
+			T.Eq(Done, "loopback")
+			T.True(not C.HumanoidRootPart.Anchored, "let go")
+			T.True(not RS.Gated(C), "can fight again")
+		end)
+		Idle(P)
+		T.True(Ok, tostring(Err))
+	end,
+	-- fix round 2: someone gripping when the fight is won gets to finish; someone carrying sets the body down and goes
+	GripAndCarryAtTheWin = function(T)
+		local RS, TS = require(SSS.RoadService), require(SSS.TravelService)
+		local P = game.Players:GetPlayers()[1]
+		Ready(P)
+		Idle(P)
+		local Got
+		local Conn = TS.Arrived.Event:Connect(function(Who) if Who == P then Got = true end end)
+		local C = P.Character
+		local Ok, Err = pcall(function()
+			T.Eq(RS.Journey(P, ROUTE, true), "ambush")
+			local Rigs = RS.EnemiesOf(P)
+			for _, Rig in ipairs(Rigs) do Rig:SetAttribute("AIPassive", true) end
+			C:SetAttribute("Gripping", "Test")
+			for _, Rig in ipairs(Rigs) do Rig.Humanoid.Health = 0 end
+			task.wait(RS.ClearDelay + 1)
+			T.True(RS.InAmbush(P), "waits for the grip to finish")
+			C:SetAttribute("Gripping", nil)
+			C:SetAttribute("Carrying", "Test") -- now carrying a body instead
+			local t0 = os.clock()
+			while not Got and os.clock() - t0 < 4 do task.wait(0.1) end
+			T.True(Got, "went on")
+			T.True(C:GetAttribute("Carrying") == nil, "the body was set down")
+		end)
+		Conn:Disconnect()
+		C:SetAttribute("Gripping", nil)
+		C:SetAttribute("Carrying", nil)
+		RS.ClearArena(P)
+		Idle(P)
+		T.True(Ok, tostring(Err))
+	end,
 	-- fix round 1: a far jump out of the arena (a teleport) is put back, the enemies too; a second party's ambush while
 	-- the arena is in use is refused ("blocked")
 	AFarJumpOutOfTheArenaIsPutBack = function(T)

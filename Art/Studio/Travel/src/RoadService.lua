@@ -8,7 +8,8 @@
 --     The client only asks.
 --   * Journey(Leader, RouteId, ForceAmbush?): the leader and the party members near the leader who are fit to go
 --     travel together: free, no papers (the others are told why they stayed). The trip takes the route's Seconds:
---     the party is held out of harm (anchored, out of sight high above the exit) while the clients show the journey
+--     the party is held out of harm (anchored, out of sight high above the exit, each trip in its own slot, with the
+--     Climbing status every attack, skill and alchemy cast already refuses) while the clients show the journey
 --     screen with a real countdown, then TravelService.Depart sends them. The server rolls the ambush at the start
 --     (Travel.AmbushChance: night, winter, the party's highest State Wanted) and reserves the arena; partway along
 --     (AmbushAt) "the trip stops": the party is put in this place's ambush arena (RenseiAmbushArena) with 2-3
@@ -16,8 +17,10 @@
 --   * The arena (world spec §3: "When you win, or flee by leaving the arena's edge, the journey continues"):
 --       - Win: every enemy down -> the journey continues for whoever is still standing in the arena, for the time
 --         that was left (ArenaCleared fires).
---       - Flee: walking out past the edge (a plausible step from inside, then staying out for FleeHold s) -> that
---         member's journey continues for the time left. A far jump (a teleport) or being held is put back instead.
+--       - Flee: walking, sprinting or dashing out past the edge (from inside, never faster than MaxSpeed, then
+--         staying out for FleeHold s) -> that member's journey continues for the time left. A far jump (a teleport)
+--         or being held is put back instead. Someone mid-grip when the fight ends gets to finish it; someone carrying
+--         a body sets it down first.
 --       - Death in the arena: the player respawns in town as usual and is off the journey (no travel, no pull-back).
 --       - Leaving the server, or another teleport taking them: off the journey.
 --       - Nobody left in the arena: the enemies are removed (not killed: no reward).
@@ -48,12 +51,17 @@ RoadService.AskGap = 3 -- PROPOSAL: seconds between one player's accepted road r
 RoadService.AmbushAt = 0.4 -- PROPOSAL: share of the trip after which an ambush stops it
 RoadService.HoldHeight = 1500 -- PROPOSAL: studs above the exit the party is held (anchored) during the trip
 RoadService.HoldGap = 8 -- PROPOSAL: studs between held party members
+RoadService.SlotGap = 200 -- PROPOSAL: studs between two trips' hold slots (strangers never share the sky)
+RoadService.HoldDeadline = 25 -- PROPOSAL: live, seconds after Depart a sent player may still be held before release / kick
+RoadService.StreamWait = 1 -- PROPOSAL: seconds to let the world stream in around a spot before moving someone there
 RoadService.ClearDelay = 2 -- PROPOSAL (brief): seconds after the last enemy dies before the journey continues
 RoadService.KnockedGrace = 8 -- PROPOSAL: with every enemy down but some only knocked, seconds to finish them first
 RoadService.Margin = 4 -- PROPOSAL: studs past the arena's edge that still count as inside
-RoadService.FleeBand = 20 -- PROPOSAL: a first step out must land within this many studs past Margin to start a flee
+RoadService.FleeBand = 45 -- PROPOSAL: a first step out must land within this many studs past Margin to start a flee
+                           -- (a full dash, MaxSpeed 110 x Duration 0.325 = 36, plus a step)
 RoadService.FleeHold = 0.75 -- PROPOSAL: seconds outside before it counts as fleeing (a knockback that comes back isn't)
-RoadService.MaxStep = 16 -- PROPOSAL: studs per watchdog tick a walk / sprint / dash can cover; more is a teleport
+RoadService.MaxSpeed = 120 -- PROPOSAL: studs per second a walk / sprint / dash can reach (TuningConfig.Dash.MaxSpeed
+                           -- is 110); faster, measured over the real time between checks, is a teleport
 RoadService.Tick = 0.25 -- PROPOSAL: seconds between watchdog checks
 RoadService.Gap = 12 -- PROPOSAL: the party stands this far from the arena's centre, the enemies as far on the other side
 RoadService.TimeScale = 1 -- Studio tests only: road time x this (e.g. 0.02); a live server always uses 1
@@ -68,7 +76,8 @@ local HELD = {"Knocked", "GrippedBy", "CarriedBy", "Gripping", "Carrying"}
 local Event -- Remotes.TravelEvent (made by StationService)
 local Ambushes = {} -- [Player] = the ambush they're in
 local InUse = {} -- [arena part] = true (reserved by a trip that rolled an ambush) or the ambush in it
-local OnRoad = {} -- [Player] = true from the start of a journey until it ends (departed, ambushed or dropped)
+local OnRoad = {} -- [Player] = the token of the journey / trip that has them on the road (until it ends)
+local Slots = {} -- [n] = os.clock() deadline: hold slot n is taken until then (freed early when its trip ends)
 local LastAsk = {}
 
 local function Notify(P, Text) if P.Parent then UIService.Notify(P, "Toast", {Text = Text}) end end
@@ -160,15 +169,83 @@ local function Unseat(P)
 	return true
 end
 
-local function Release(C)
-	local R = C and C:FindFirstChild("HumanoidRootPart")
-	if R then R.Anchored = false end
+-- no attacks, skills or alchemy while on the road: the WCS Climbing status, which every attack, block, cast, skill,
+-- shot, sprint, roll and crouch already refuses (MovementState / SwimService use it the same way)
+local function Gate(C, On)
+	pcall(function()
+		local WCS = require(ReplicatedStorage.Modules.Framework.WCS)
+		local Climbing = require(ReplicatedStorage.Modules.Skills.States.Climbing)
+		local CS = WCS.Character.GetCharacterFromInstance(C)
+		if not CS then return end
+		if On then
+			if not CS:HasStatusEffects({Climbing}) then Climbing.new(CS):Start() end
+		else
+			for _, S in pairs(CS:GetAllActiveStatusEffectsOfType(Climbing)) do S:Stop() end
+		end
+	end)
+end
+RoadService.Gated = function(C) -- tests
+	local Ok, Has = pcall(function()
+		local WCS = require(ReplicatedStorage.Modules.Framework.WCS)
+		local CS = WCS.Character.GetCharacterFromInstance(C)
+		return CS and CS:HasStatusEffects({require(ReplicatedStorage.Modules.Skills.States.Climbing)})
+	end)
+	return Ok and Has == true
 end
 
--- back at the exit, on the town side (a trip that couldn't go)
+local function Hold(C, CF)
+	local R = C and C:FindFirstChild("HumanoidRootPart")
+	if not R then return end
+	C:PivotTo(CF)
+	R.AssemblyLinearVelocity = Vector3.zero
+	R.Anchored = true
+	Gate(C, true)
+end
+
+local function Release(C)
+	local R = C and C:FindFirstChild("HumanoidRootPart")
+	if R then
+		R.AssemblyLinearVelocity = Vector3.zero
+		R.Anchored = false
+	end
+	if C then Gate(C, false) end
+end
+
+-- let the world stream in around each {Player, Position} (in parallel, up to StreamWait s), before moving them there
+local function Stream(List)
+	local Left = #List
+	for _, E in ipairs(List) do
+		task.spawn(function()
+			pcall(E[1].RequestStreamAroundAsync, E[1], E[2], RoadService.StreamWait)
+			Left -= 1
+		end)
+	end
+	local T0 = os.clock()
+	while Left > 0 and os.clock() - T0 < RoadService.StreamWait do task.wait(0.05) end
+end
+
+-- back at the exit, on the town side, on their feet (a trip that couldn't go on)
 local function PutBack(P, Exit)
 	local C = P.Character
-	if C and Exit then C:PivotTo(Exit.CFrame * CFrame.new(0, -1, 8)) end
+	if not (C and Exit) then return end
+	local CF = Exit.CFrame * CFrame.new(0, -1, 8)
+	Stream({{P, CF.Position}})
+	if P.Character ~= C then return end
+	C:PivotTo(CF)
+	Release(C)
+end
+
+-- a hold slot of its own for each trip: n * SlotGap along X, high above the exit
+local function TakeSlot(Seconds)
+	local Now = os.clock()
+	local N = 0
+	while Slots[N] and Slots[N] > Now do N += 1 end
+	Slots[N] = Now + Seconds
+	return N
+end
+local function FreeSlot(N, After)
+	if N == nil then return end
+	if After then Slots[N] = os.clock() + After else Slots[N] = nil end
 end
 
 function RoadService.Chance(MaxWanted)
@@ -177,9 +254,10 @@ function RoadService.Chance(MaxWanted)
 end
 
 function RoadService.InAmbush(P) return Ambushes[P] ~= nil end
-function RoadService.OnRoad(P) return OnRoad[P] == true end
+function RoadService.OnRoad(P) return OnRoad[P] ~= nil end
 
 local Ambush -- defined below (the trip and the ambush call each other)
+local SafeTrip
 
 -- The road: Left seconds held out of harm, then the teleport. With AmbushIn (the arena is reserved), the trip stops
 -- after AmbushIn seconds and the party is put in the arena. Returns "sent" | "loopback" | "ambush" | "none" | "failed".
@@ -189,15 +267,20 @@ local function Trip(List, RouteId, Arrive, Left, AmbushIn, Arena, MaxWanted)
 	local Seconds = Travel.Routes[RouteId].Seconds
 	local K = Scale()
 	local Exit = ExitFor(RouteId)
-	local Base = (Exit and Exit.Position or Vector3.zero) + Vector3.new(0, RoadService.HoldHeight, 0)
+	local Token = {} -- this trip's mark in OnRoad
+	local Slot = TakeSlot((Left * K) + RoadService.HoldDeadline + 30)
+	local Base = (Exit and Exit.Position or Vector3.zero) + Vector3.new(Slot * RoadService.SlotGap, RoadService.HoldHeight, 0)
 	local Members, Body, Conns = {}, {}, {}
+	local function Mine(P) return OnRoad[P] == Token end
 	local function Off(P, Text) -- dropped from the road: they stay here; the road is free, so nothing is lost
 		local I = table.find(Members, P)
 		if not I then return end
 		table.remove(Members, I)
-		Release(Body[P])
+		local C = Body[P]
 		Body[P] = nil
-		OnRoad[P] = nil
+		if Mine(P) then OnRoad[P] = nil end
+		local H = C and C:FindFirstChildOfClass("Humanoid")
+		if H and H.Health > 0 and P.Parent and P.Character == C then PutBack(P, Exit) else Release(C) end
 		if Text then Send(P, "RoadCancel", {Route = RouteId}) Notify(P, Text) end
 	end
 	local Seated = false
@@ -213,17 +296,14 @@ local function Trip(List, RouteId, Arrive, Left, AmbushIn, Arena, MaxWanted)
 		if P.Parent and R and H and H.Health > 0 then
 			table.insert(Members, P)
 			Body[P] = C
-			OnRoad[P] = true
-			-- held high above the exit, anchored: out of sight and out of reach of every fight for the whole trip
-			C:PivotTo(CFrame.new(Base + Vector3.new((I - 1) * RoadService.HoldGap, 0, 0)))
-			R.AssemblyLinearVelocity = Vector3.zero
-			R.Anchored = true
+			OnRoad[P] = Token
+			-- held in this trip's own slot high above the exit, anchored and unable to attack: out of sight and out of
+			-- reach of every fight for the whole trip
+			Hold(C, CFrame.new(Base + Vector3.new((I - 1) * RoadService.HoldGap, 0, 0)))
 			table.insert(Conns, H.Died:Connect(function() Off(P, DIED) end))
 			table.insert(Conns, P.CharacterAdded:Connect(function() Off(P, DIED) end))
 			Send(P, "RoadStart", {Route = RouteId, From = RegionName(Here), Dest = Dest, Seconds = Seconds,
 				Total = Seconds * K, Ends = Now + Left * K})
-		else
-			OnRoad[P] = nil
 		end
 	end
 	local Stop = (AmbushIn or Left) * K
@@ -240,29 +320,35 @@ local function Trip(List, RouteId, Arrive, Left, AmbushIn, Arena, MaxWanted)
 	end
 	for _, C in ipairs(Conns) do C:Disconnect() end
 	if #Members == 0 then
+		FreeSlot(Slot)
 		if Arena and InUse[Arena] == true then InUse[Arena] = nil end
 		return "none"
 	end
-	if AmbushIn then -- the trip stops: the ambush
+	if AmbushIn then -- the trip stops: the ambush (still held: Ambush moves them, then lets go)
 		for _, P in ipairs(Members) do
-			Release(Body[P])
-			OnRoad[P] = nil
+			if Mine(P) then OnRoad[P] = nil end
 		end
 		if InUse[Arena] == true then InUse[Arena] = nil end -- the reservation; Ambush takes the arena
-		if Ambush(Members, RouteId, Arrive, Arena, MaxWanted, Left - AmbushIn) then return "ambush" end
-		return Trip(Members, RouteId, Arrive, Left - AmbushIn) -- couldn't set it up: the rest of the road
+		local A = Ambush(Members, RouteId, Arrive, Arena, MaxWanted, Left - AmbushIn, Exit)
+		FreeSlot(Slot)
+		if A then return "ambush" end
+		return Trip(Members, RouteId, Arrive, Left - AmbushIn) -- couldn't set it up: the rest of the road (re-held)
 	end
+	local DepartAt = os.clock()
 	local Ok, Mode, Went = pcall(TravelService.Depart, Members, RouteId, Arrive)
 	if not Ok then warn("[RoadService] Depart failed on " .. RouteId .. ": " .. tostring(Mode)) end
-	local Sent = {}
+	local Sent, Held = {}, {}
 	for _, P in ipairs(Ok and Went or {}) do Sent[P] = true end
 	for _, P in ipairs(Members) do
-		OnRoad[P] = nil
-		-- live, the sent stay held until the teleport takes them; Studio's loopback has already moved them
-		if RunService:IsStudio() or not Sent[P] then Release(Body[P]) end
-		if not Sent[P] and P.Parent then
+		if Mine(P) then OnRoad[P] = nil end
+		if Sent[P] and not RunService:IsStudio() then
+			table.insert(Held, P) -- live: held until the teleport takes them (Studio's loopback has already moved them)
+		elseif Sent[P] then
+			Release(Body[P])
+		elseif P.Parent then
 			if not Ok and not RunService:IsStudio() then -- live: their saves may already be released
-				P:Kick(("The road to %s couldn't be travelled. Please rejoin."):format(Dest))
+				Release(Body[P])
+				P:Kick(("The road to %s couldn't be travelled. Your journey is still free to take; please rejoin."):format(Dest))
 			else -- dropped by Depart (already teleporting, no save loaded): back at the exit
 				PutBack(P, Exit)
 				Send(P, "RoadCancel", {Route = RouteId})
@@ -270,7 +356,49 @@ local function Trip(List, RouteId, Arrive, Left, AmbushIn, Arena, MaxWanted)
 			end
 		end
 	end
+	if #Held == 0 then
+		FreeSlot(Slot)
+	else -- live: no hold without a deadline
+		FreeSlot(Slot, RoadService.HoldDeadline + 5)
+		task.delay(math.max(0, RoadService.HoldDeadline - (os.clock() - DepartAt)), function()
+			for _, P in ipairs(Held) do
+				local C = Body[P]
+				local R = C and C.Parent and P.Parent and P.Character == C and C:FindFirstChild("HumanoidRootPart")
+				if R and R.Anchored then
+					if ProgressionService.GetData(P) then -- the save is still here: back at the exit
+						PutBack(P, Exit)
+						Send(P, "RoadCancel", {Route = RouteId})
+						Notify(P, "The road couldn't take you this time.")
+					else -- the save was released for the teleport: they can't stay
+						Release(C)
+						P:Kick(("The road to %s couldn't be travelled. Your journey is still free to take; please rejoin."):format(Dest))
+					end
+				end
+			end
+			FreeSlot(Slot)
+		end)
+	end
 	return Ok and Mode or "failed"
+end
+
+-- a trip that throws must not leave anyone anchored in the sky, or the arena reserved
+SafeTrip = function(List, RouteId, Arrive, Left, AmbushIn, Arena, MaxWanted)
+	local Ok, Res = pcall(Trip, List, RouteId, Arrive, Left, AmbushIn, Arena, MaxWanted)
+	if Ok then return Res end
+	warn("[RoadService] trip failed on " .. tostring(RouteId) .. ": " .. tostring(Res))
+	if Arena and InUse[Arena] == true then InUse[Arena] = nil end
+	local Exit = ExitFor(RouteId)
+	for _, P in ipairs(List) do
+		OnRoad[P] = nil
+		local C = P.Parent and P.Character
+		local R = C and C:FindFirstChild("HumanoidRootPart")
+		if R and R.Anchored then PutBack(P, Exit) end
+		if P.Parent and not Ambushes[P] then
+			Send(P, "RoadCancel", {Route = RouteId})
+			Notify(P, "You couldn't set off this time.")
+		end
+	end
+	return "failed"
 end
 
 -- ===== The ambush arena =====
@@ -283,7 +411,7 @@ local function RemoveEnemy(Rig)
 end
 
 local function Forget(A, P)
-	A.Body[P], A.Spot[P], A.Last[P], A.Was[P], A.OutSince[P] = nil, nil, nil, nil, nil
+	A.Body[P], A.Spot[P], A.Last[P], A.LastT[P], A.Was[P], A.OutSince[P] = nil, nil, nil, nil, nil, nil
 	if Ambushes[P] == A then Ambushes[P] = nil end
 end
 
@@ -300,6 +428,10 @@ local function Finish(A, Won)
 	if not Won then return end
 	local Still = {}
 	for _, M in ipairs(A.Party) do
+		local C = M.Parent and M.Character == A.Body[M] and M.Character
+		if C and C:GetAttribute("Carrying") then -- set the body down first; it isn't taken along
+			pcall(function() require(ReplicatedStorage.Modules.Managers.DownedManager).Drop(C) end)
+		end
 		if M.Parent and Root(M) and M.Character == A.Body[M] then
 			table.insert(Still, M)
 		elseif M.Parent then -- down or held when the fight ended: they stay
@@ -308,7 +440,7 @@ local function Finish(A, Won)
 		end
 	end
 	RoadService.ArenaCleared:Fire(A.Route, Still)
-	if #Still > 0 then task.spawn(Trip, Still, A.Route, A.Arrive, A.Left) end
+	if #Still > 0 then task.spawn(SafeTrip, Still, A.Route, A.Arrive, A.Left) end
 end
 
 local function Drop(A, P, Text)
@@ -327,7 +459,7 @@ local function Flee(A, P)
 	table.remove(A.Party, I)
 	Forget(A, P)
 	Notify(P, "You got away. The road goes on.")
-	task.spawn(Trip, {P}, A.Route, A.Arrive, A.Left)
+	task.spawn(SafeTrip, {P}, A.Route, A.Arrive, A.Left)
 	if #A.Party == 0 then Finish(A, false) end -- the enemies go; no ArenaCleared for a flee
 end
 
@@ -353,6 +485,11 @@ local function Zone(Arena, Pos)
 	return 2
 end
 
+local function GripTime()
+	local Ok, T = pcall(function() return require(ReplicatedStorage.Modules.Data.Rensei.TuningConfig).Downed.GripTime end)
+	return Ok and tonumber(T) or 2
+end
+
 local function WatchTick(A, Told)
 	for _, P in ipairs(table.clone(A.Party)) do
 		if A.Done then return end
@@ -363,12 +500,15 @@ local function WatchTick(A, Told)
 			local R = C and P.Character == C and C:FindFirstChild("HumanoidRootPart")
 			if R then
 				local Z = Zone(A.Arena, R.Position)
-				local Step = A.Last[P] and (R.Position - A.Last[P]).Magnitude or 0
+				local Now = os.clock()
+				-- studs per second since the last check, over the real time between checks (a dash peaks near 110)
+				local Dt = A.LastT[P] and math.max(Now - A.LastT[P], 1 / 60) or RoadService.Tick
+				local Speed = A.Last[P] and (R.Position - A.Last[P]).Magnitude / Dt or 0
 				if Z == 0 then
 					A.OutSince[P] = nil
-				elseif not Held(C) and Step <= RoadService.MaxStep and (A.OutSince[P] or (A.Was[P] == 0 and Z == 1)) then
-					A.OutSince[P] = A.OutSince[P] or os.clock() -- on foot, out past the edge: fleeing?
-					if os.clock() - A.OutSince[P] >= RoadService.FleeHold then
+				elseif not Held(C) and Speed <= RoadService.MaxSpeed and (A.OutSince[P] or (A.Was[P] == 0 and Z == 1)) then
+					A.OutSince[P] = A.OutSince[P] or Now -- on foot (walk, sprint, dash), out past the edge: fleeing?
+					if Now - A.OutSince[P] >= RoadService.FleeHold then
 						Flee(A, P)
 						continue
 					end
@@ -377,12 +517,12 @@ local function WatchTick(A, Told)
 					R.AssemblyLinearVelocity = Vector3.zero
 					C:PivotTo(A.Spot[P])
 					A.OutSince[P], Z = nil, 0
-					if not Told[P] or os.clock() - Told[P] > 3 then
-						Told[P] = os.clock()
+					if not Told[P] or Now - Told[P] > 3 then
+						Told[P] = Now
 						Notify(P, "Win the fight, or flee on foot past the edge of the clearing.")
 					end
 				end
-				A.Was[P], A.Last[P] = Z, R.Position
+				A.Was[P], A.Last[P], A.LastT[P] = Z, R.Position, Now
 			end
 		end
 	end
@@ -396,10 +536,20 @@ local function WatchTick(A, Told)
 	end
 	local Up, Knocked = Count(A)
 	if Up == 0 then
-		A.DownSince = A.DownSince or os.clock()
+		local Now = os.clock()
+		A.DownSince = A.DownSince or Now
 		-- all dead: on after ClearDelay; some only knocked: a few seconds to finish them (grip) first
 		local Wait = Knocked == 0 and RoadService.ClearDelay or RoadService.KnockedGrace
-		if os.clock() - A.DownSince >= Wait then Finish(A, true) end
+		if Now - A.DownSince >= Wait then
+			-- someone mid-grip gets to finish it (up to GripTime + 1 s) before the party moves on
+			local Gripping = false
+			for _, P in ipairs(A.Party) do
+				local C = A.Body[P]
+				if C and C.Parent and C:GetAttribute("Gripping") then Gripping = true end
+			end
+			if Gripping and Now - A.DownSince < Wait + GripTime() + 1 then return end
+			Finish(A, true)
+		end
 	else
 		A.DownSince = nil
 	end
@@ -415,15 +565,17 @@ local function Watch(A)
 	end
 end
 
--- Returns the ambush, or nil if it couldn't be set up (no one to move, or no enemy spawned): the caller goes on.
-function Ambush(Party, RouteId, Arrive, Arena, MaxWanted, Left)
-	local Ready = {}
+-- Returns the ambush, or nil if it couldn't be set up (no one fit to move, or no enemy spawned): the caller goes on.
+-- The party arrives held (anchored); each is moved into the arena first and let go there. Anyone not fit to fight
+-- (knocked or held by something on the road) is set down at the exit instead, never dropped from the sky.
+function Ambush(Party, RouteId, Arrive, Arena, MaxWanted, Left, Exit)
+	local Ready, Down = {}, {}
 	for _, M in ipairs(Party) do
-		if M.Parent and Root(M) then table.insert(Ready, M) end
+		if M.Parent and Root(M) then table.insert(Ready, M) elseif M.Parent then table.insert(Down, M) end
 	end
 	if #Ready == 0 or InUse[Arena] then return nil end
 	local A = {Route = RouteId, Arrive = Arrive, Arena = Arena, Left = Left, Party = {}, Enemies = {}, Conns = {},
-		Body = {}, Spot = {}, Last = {}, Was = {}, OutSince = {}}
+		Body = {}, Spot = {}, Last = {}, LastT = {}, Was = {}, OutSince = {}}
 	InUse[Arena] = A
 	local EnemyService = require(ServerScriptService.EnemyService)
 	local Kind = (MaxWanted or 0) >= 1 and "Elite" or "Grunt" -- Elite = "Bandit Duelist"
@@ -447,21 +599,37 @@ function Ambush(Party, RouteId, Arrive, Arena, MaxWanted, Left)
 		InUse[Arena] = nil
 		return nil
 	end
+	for _, M in ipairs(Down) do
+		PutBack(M, Exit)
+		Send(M, "RoadCancel", {Route = RouteId})
+		Notify(M, "You couldn't go on along the road.")
+	end
+	local Spots = {}
 	for I, M in ipairs(Ready) do
-		local C = M.Character
-		Ambushes[M] = A
-		table.insert(A.Party, M)
-		A.Body[M] = C
 		A.Spot[M] = Arena.CFrame * CFrame.new((I - (#Ready + 1) / 2) * 4, Arena.Size.Y / 2 + 3, RoadService.Gap)
-		Unseat(M)
-		task.spawn(function() pcall(M.RequestStreamAroundAsync, M, A.Spot[M].Position, 2) end)
-		C:PivotTo(A.Spot[M])
-		A.Was[M], A.Last[M] = 0, A.Spot[M].Position
-		local H = C:FindFirstChildOfClass("Humanoid")
-		if H then table.insert(A.Conns, H.Died:Connect(function() Drop(A, M, DIED) end)) end
-		table.insert(A.Conns, M.CharacterAdded:Connect(function() Drop(A, M, DIED) end))
-		Send(M, "RoadAmbush", {Route = RouteId})
-		Notify(M, AMBUSH)
+		table.insert(Spots, {M, A.Spot[M].Position})
+	end
+	Stream(Spots)
+	for _, M in ipairs(Ready) do
+		local C = M.Character
+		if M.Parent and C then
+			Ambushes[M] = A
+			table.insert(A.Party, M)
+			A.Body[M] = C
+			Unseat(M)
+			C:PivotTo(A.Spot[M]) -- moved while still anchored, then let go there
+			Release(C)
+			A.Was[M], A.Last[M], A.LastT[M] = 0, A.Spot[M].Position, os.clock()
+			local H = C:FindFirstChildOfClass("Humanoid")
+			if H then table.insert(A.Conns, H.Died:Connect(function() Drop(A, M, DIED) end)) end
+			table.insert(A.Conns, M.CharacterAdded:Connect(function() Drop(A, M, DIED) end))
+			Send(M, "RoadAmbush", {Route = RouteId})
+			Notify(M, AMBUSH)
+		end
+	end
+	if #A.Party == 0 then
+		Finish(A, false)
+		return nil
 	end
 	task.spawn(Watch, A)
 	return A
@@ -483,14 +651,16 @@ function RoadService.EnemiesOf(P)
 end
 
 -- YIELDS for the trip (or until the ambush). Returns "ambush" | "sent" | "loopback" (or "blocked": the arena is in use;
--- "none": nobody could go; "failed": Depart threw). The caller has done the checks.
+-- "none": nobody could go; "failed": the trip threw). The caller has done the checks.
 function RoadService.Journey(Leader, RouteId, ForceAmbush)
 	local R = Travel.Routes[RouteId]
 	assert(R and R.Kind == "Road", "not a road")
 	assert(Travel.Other(RouteId, TravelService.Here()), "that road doesn't leave " .. TravelService.Here())
 	local Party, Left = Gather(Leader, RouteId)
 	for _, L in ipairs(Left) do Notify(L[1], "Your party set off on the road without you. " .. L[2]) end
-	for _, P in ipairs(Party) do OnRoad[P] = true end
+	local Token = {}
+	for _, P in ipairs(Party) do OnRoad[P] = Token end
+	local Reserved
 	local Ok, Res = pcall(function()
 		local Exit = ExitFor(RouteId)
 		local Arrive = Exit and Exit:GetAttribute("Arrive") or "Platform"
@@ -505,13 +675,21 @@ function RoadService.Journey(Leader, RouteId, ForceAmbush)
 				return "blocked"
 			end
 			InUse[Arena] = true -- reserved for this trip's ambush
+			Reserved = Arena
 		end
-		return Trip(Party, RouteId, Arrive, R.Seconds, Arena and R.Seconds * RoadService.AmbushAt or nil, Arena, MaxWanted)
+		return SafeTrip(Party, RouteId, Arrive, R.Seconds, Arena and R.Seconds * RoadService.AmbushAt or nil, Arena, MaxWanted)
 	end)
-	for _, P in ipairs(Party) do OnRoad[P] = nil end -- every way out of here: off the road (a resumed trip sets it again)
+	for _, P in ipairs(Party) do -- only those still on this journey (a trip or a resumed trip has its own mark)
+		if OnRoad[P] == Token then OnRoad[P] = nil end
+	end
 	if not Ok then
 		warn("[RoadService] journey failed: " .. tostring(Res))
+		if Reserved and InUse[Reserved] == true then InUse[Reserved] = nil end
+		local Exit = ExitFor(RouteId)
 		for _, P in ipairs(Party) do
+			local C = P.Parent and P.Character
+			local Root0 = C and C:FindFirstChild("HumanoidRootPart")
+			if Root0 and Root0.Anchored then PutBack(P, Exit) end
 			Send(P, "RoadCancel", {Route = RouteId})
 			Notify(P, "You couldn't set off this time.")
 		end
