@@ -1,0 +1,363 @@
+-- StationService (World plan 1, 2026-10-20; world spec §2, §4): the railway in this region.
+--   * Ticket clerk (RenseiTicketClerk): Buy(Route, Class[, party member]) charges ProgressionService.SpendMoney.
+--     Only lines with a RenseiPlatformTrain in this place are sold. The remote also checks the buyer is at a clerk.
+--   * Departures run on the shared clock (Travel.NextDeparture on os.time()), so every server agrees.
+--   * Boarding: from Travel.BoardingWindow seconds before departure, a player with a ticket standing inside a car of
+--     the platform train (a BoardZone is inside its car) is aboard and is told so ("Board"); the conductor pushes back
+--     anyone at a CarDoor whose class doesn't reach that car, and tells them why.
+--   * At departure: a "doors closing" fade, everyone aboard moves to the same spot in the ride train (seated players
+--     to the same seat), the ride runs Route.Ride seconds (events from Task 7 hook Departing), then
+--     TravelService.Depart sends them all together. Anyone who can't go (already teleporting, or dropped by Depart)
+--     is put back on this platform with the ticket kept.
+-- Every number is a PROPOSAL.
+local Players = game:GetService("Players")
+local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+local RunService = game:GetService("RunService")
+
+local Travel = require(ReplicatedStorage.Modules.Data.Rensei.Travel)
+local Places = require(ReplicatedStorage.Modules.Data.Rensei.Places)
+local TravelService = require(ServerScriptService.TravelService)
+local ProgressionService = require(ServerScriptService.ProgressionService)
+local UIService = require(ServerScriptService.UIService)
+local PartyService = require(ServerScriptService.PartyService)
+local FlowTeleport = require(ServerScriptService.FlowTeleport)
+
+local StationService = {}
+StationService.Departing = Instance.new("BindableEvent") -- (RouteId, {Player}, RideSeconds)
+StationService.Season = function() return "Summer" end -- the seasons plan replaces this
+StationService.FadeTime = 0.6 -- PROPOSAL: the client's "doors closing" fade before everyone moves
+StationService.ClerkReach = 14 -- PROPOSAL: studs from a ticket clerk a Buy request may come from (the prompt reaches 10)
+StationService.CarHalfWidth = 5.6 -- PROPOSAL: inside a car = within this of its centre line (the body is about 11.4 wide)
+StationService.DoorPush = 4 -- PROPOSAL: studs the conductor pushes someone back from a CarDoor
+StationService.FallCatch = 20 -- PROPOSAL: a rider this far below the ride train is put back in their spot
+StationService.UnseatSettle = 0.3 -- PROPOSAL: seconds after standing a rider up before moving them (the client
+                                  -- owns the character; moved in the same frame, it can stay where the seat was)
+StationService.AskGap = 0.25 -- PROPOSAL: seconds between a player's requests on the Travel remote
+StationService.HoldClock = false -- Studio tests only: true stops scheduled departures (a live server ignores it)
+
+local Remote, Event
+local Riding = {} -- [Player] = RouteId
+local Boxes = {} -- [car Model] = {CF, Size}; the trains are anchored and never move
+local Told = {} -- [Player] = "Route|departure" we last sent "Board" for
+local LastPush, LastAsk = {}, {}
+
+local function Notify(P, Text) UIService.Notify(P, "Toast", {Text = Text}) end
+
+local function Level(P)
+	local D = ProgressionService.GetData(P)
+	return D and D.Level or 1
+end
+
+local function FindPlayer(From, Name)
+	local Party = PartyService.Get(From)
+	if not Party then return nil end
+	for _, M in ipairs(Party.Members) do
+		if M.Name == Name or M.DisplayName == Name then return M end
+	end
+	return nil
+end
+
+local function TrainOf(Tag, RouteId)
+	for _, T in ipairs(CollectionService:GetTagged(Tag)) do
+		if T:GetAttribute("Route") == RouteId and T:IsDescendantOf(workspace) then return T end
+	end
+	return nil
+end
+
+-- the rail lines that run from this place (a platform train is here)
+local function Lines()
+	local Out = {}
+	for _, RouteId in ipairs(Travel.RoutesFrom(TravelService.Here(), "Rail")) do
+		if TrainOf("RenseiPlatformTrain", RouteId) then table.insert(Out, RouteId) end
+	end
+	return Out
+end
+
+function StationService.Buy(Player, RouteId, ClassId, ForName)
+	local R = type(RouteId) == "string" and Travel.Routes[RouteId]
+	if not R or R.Kind ~= "Rail" or type(ClassId) ~= "string" or not Travel.Classes[ClassId] then return false, "No such ticket." end
+	if not Travel.Other(RouteId, TravelService.Here()) then return false, "That train doesn't stop here." end
+	if not TrainOf("RenseiPlatformTrain", RouteId) then return false, "That line isn't running yet." end
+	local Rider = Player
+	if ForName then
+		Rider = FindPlayer(Player, ForName)
+		if not Rider then return false, "They aren't in your party." end
+	end
+	local Ok, Why = Travel.CanTake(Level(Rider), RouteId)
+	if not Ok then return false, Why end
+	local Price = Travel.Price(RouteId, ClassId, StationService.Season())
+	if not ProgressionService.SpendMoney(Player, Price) then return false, ("A ticket costs $%d."):format(Price) end
+	TravelService.AddTicket(Rider, RouteId, ClassId)
+	if Rider ~= Player then Notify(Rider, Player.DisplayName .. " bought you a ticket.") end
+	return true
+end
+
+function StationService.CanEnter(Player, RouteId, CarKind)
+	local C = TravelService.HasTicket(Player, RouteId)
+	return C ~= nil and Travel.ClassReaches(C, CarKind)
+end
+
+local function CarBox(Car)
+	local B = Boxes[Car]
+	if not B then
+		local CF, Size = Car:GetBoundingBox() -- oriented by the car's pivot: X along the car, Z across
+		B = {CF = CF, Size = Size}
+		Boxes[Car] = B
+	end
+	return B
+end
+
+-- inside one of the train's cars (not just its overall box, which reaches over the platform edge)
+local function InTrain(Train, Pos)
+	for _, Car in ipairs(Train:GetChildren()) do
+		if Car:IsA("Model") then
+			local B = CarBox(Car)
+			local L = B.CF:PointToObjectSpace(Pos)
+			if math.abs(L.X) <= B.Size.X / 2 and math.abs(L.Y) <= B.Size.Y / 2
+				and math.abs(L.Z) <= math.min(B.Size.Z / 2, StationService.CarHalfWidth) then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+function StationService.Aboard(RouteId)
+	local Train = TrainOf("RenseiPlatformTrain", RouteId)
+	local Out = {}
+	if not Train then return Out end
+	for _, P in ipairs(Players:GetPlayers()) do
+		local Root = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+		if Root and not Riding[P] and TravelService.HasTicket(P, RouteId) and InTrain(Train, Root.Position) then table.insert(Out, P) end
+	end
+	return Out
+end
+
+-- conductor: a CarDoor touched by someone whose class doesn't reach that car pushes them back the way they came
+local function Guard(Door)
+	Door.Touched:Connect(function(Hit)
+		local Char = Hit.Parent
+		local P = Char and Players:GetPlayerFromCharacter(Char)
+		if not P then return end
+		local Car = Door:FindFirstAncestorWhichIsA("Model")
+		local Train = Car and Car:FindFirstAncestorWhichIsA("Model")
+		local RouteId = Train and Train:GetAttribute("Route")
+		if not RouteId then return end
+		if StationService.CanEnter(P, RouteId, Door:GetAttribute("CarKind")) then return end
+		local Root = Char:FindFirstChild("HumanoidRootPart")
+		local Now = os.clock()
+		if not Root or (LastPush[P] and Now - LastPush[P] < 0.25) then return end
+		LastPush[P] = Now
+		local N = Door.CFrame.RightVector -- the door is thin along its X: the way through it
+		local V = Root.AssemblyLinearVelocity:Dot(N)
+		local Dir = math.abs(V) > 1 and -math.sign(V) or ((Root.Position - Door.Position):Dot(N) >= 0 and 1 or -1)
+		Root.CFrame += N * Dir * StationService.DoorPush
+		if not P:GetAttribute("ConductorWarned") then
+			P:SetAttribute("ConductorWarned", true)
+			local Has = TravelService.HasTicket(P, RouteId)
+			Notify(P, Has and "Conductor: \"Your ticket isn't for this car.\"" or "Conductor: \"Ticket for this car, please.\"")
+			task.delay(2, function() P:SetAttribute("ConductorWarned", nil) end)
+		end
+	end)
+end
+
+-- off an (anchored) train seat: moving a seated character would drag the seat along on its SeatWeld
+local function Unseat(P)
+	local H = P.Character and P.Character:FindFirstChildOfClass("Humanoid")
+	local Seat = H and H.SeatPart
+	if not Seat then return nil end
+	H.Sit = false
+	local W = Seat:FindFirstChild("SeatWeld")
+	if W then W:Destroy() end
+	return Seat
+end
+
+-- the ride-train seat at the same place as a platform-train seat
+local function RideSeat(Ride, Offset, Seat)
+	local At = (Offset * Seat.CFrame).Position
+	for _, S in ipairs(Ride:GetDescendants()) do
+		if S:IsA("Seat") and (S.Position - At).Magnitude < 0.2 then return S end
+	end
+	return nil
+end
+
+local function Depart(RouteId, RideSeconds)
+	local Platform, Ride = TrainOf("RenseiPlatformTrain", RouteId), TrainOf("RenseiRideTrain", RouteId)
+	if not (Platform and Ride) then return end
+	local List = StationService.Aboard(RouteId)
+	if #List == 0 then return end
+	local Offset = Ride:GetPivot() * Platform:GetPivot():Inverse()
+	local Was = {} -- [Player] = the platform-train seat they sat in
+	for _, P in ipairs(List) do
+		Riding[P] = RouteId
+		Was[P] = Unseat(P) -- stood up now, moved after the fade
+		Event:FireClient(P, "RideStart", {Route = RouteId, Seconds = RideSeconds})
+		local C = P.Character
+		if C then -- stream the ride train in around them while the screen is black
+			local To = (Offset * C:GetPivot()).Position
+			task.spawn(function() pcall(P.RequestStreamAroundAsync, P, To, StationService.FadeTime) end)
+		end
+	end
+	task.wait(StationService.FadeTime) -- the client fades to black ("doors closing")
+	local Spot = {}
+	for _, P in ipairs(List) do
+		local C = P.Character
+		local H = C and C:FindFirstChildOfClass("Humanoid")
+		if C and C.Parent and Riding[P] == RouteId then
+			local Seat = Unseat(P) or Was[P] -- (sat down again during the fade?)
+			local To = Seat and Seat:IsDescendantOf(Platform) and RideSeat(Ride, Offset, Seat)
+			Spot[P] = Offset * C:GetPivot()
+			C:PivotTo(Spot[P])
+			if To then task.defer(function() if not To.Occupant and H.Parent then To:Sit(H) end end) end
+		end
+	end
+	StationService.Departing:Fire(RouteId, List, RideSeconds)
+	local Ends = os.clock() + RideSeconds
+	local Floor = Ride:GetPivot().Position.Y - StationService.FallCatch
+	while os.clock() < Ends do
+		task.wait(math.clamp(Ends - os.clock(), 0, 0.5))
+		for _, P in ipairs(List) do -- anyone who got out of the ride train goes back to their spot
+			local Root = Riding[P] == RouteId and Spot[P] and P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+			if Root and Root.Position.Y < Floor then P.Character:PivotTo(Spot[P]) end
+		end
+	end
+	-- who goes: still here, still riding, and not already in another teleport (Depart filters too)
+	local Stood = false
+	for _, P in ipairs(List) do -- the arrival (or the walk back) moves them; the ride-train seats must stay put
+		if Riding[P] == RouteId and Unseat(P) then Stood = true end
+	end
+	if Stood then task.wait(StationService.UnseatSettle) end
+	local Going, Back = {}, {}
+	for _, P in ipairs(List) do
+		if P.Parent and Riding[P] == RouteId then
+			if FlowTeleport.Busy(P) or FlowTeleport.InGroup(P) then table.insert(Back, P) else table.insert(Going, P) end
+		end
+		Riding[P] = nil -- cleared before Depart, which yields while the saves are released
+	end
+	local Here = TravelService.Here()
+	local Dest = Travel.Other(RouteId, Here)
+	local DestName = Dest and Places.Regions[Dest] and Places.Regions[Dest].Name or Dest
+	for _, P in ipairs(Going) do Event:FireClient(P, "RideEnd", {Route = RouteId, Dest = DestName}) end
+	local Sent = {}
+	if #Going > 0 then
+		local Ok, Mode, Went = pcall(TravelService.Depart, Going, RouteId, "Platform")
+		if Ok then
+			for _, P in ipairs(Went or {}) do Sent[P] = true end
+		else
+			warn("[StationService] Depart failed on " .. RouteId .. ": " .. tostring(Mode))
+		end
+	end
+	for _, P in ipairs(Going) do
+		if not Sent[P] then table.insert(Back, P) end
+	end
+	for _, P in ipairs(Back) do -- couldn't travel: back to this platform, the ticket kept
+		if P.Parent then
+			local At = TravelService.ArrivalPoint("Platform")
+			if At and P.Character then P.Character:PivotTo(At.CFrame + Vector3.new(0, TravelService.SpawnLift or 3, 0)) end
+			Event:FireClient(P, "Message", {Text = "The train couldn't take you this time. Your ticket is still good."})
+			Notify(P, "The train couldn't take you this time. Your ticket is still good.")
+		end
+	end
+end
+
+-- test hook: depart now with a short ride (Studio only; does nothing on a live server)
+function StationService.DepartNow(RouteId, RideSeconds)
+	if not RunService:IsStudio() then return end
+	task.spawn(Depart, RouteId, RideSeconds or Travel.Routes[RouteId].Ride)
+end
+
+function StationService.Riding(Player) return Riding[Player] end
+
+local function Clock()
+	local Last = {}
+	while true do
+		local Now = os.time()
+		for _, RouteId in ipairs(Lines()) do
+			local R = Travel.Routes[RouteId]
+			local Prev = math.floor(Now / R.Every) * R.Every -- the departure that just happened
+			if Last[RouteId] ~= Prev and Now - Prev < 2 then
+				Last[RouteId] = Prev
+				if not (StationService.HoldClock and RunService:IsStudio()) then task.spawn(Depart, RouteId, R.Ride) end
+			elseif Travel.BoardingOpen(RouteId, Now) then
+				local Next = Travel.NextDeparture(RouteId, Now)
+				local Key = RouteId .. "|" .. Next
+				for _, P in ipairs(StationService.Aboard(RouteId)) do
+					if Told[P] ~= Key then
+						Told[P] = Key
+						Event:FireClient(P, "Board", {Route = RouteId, Departs = Next})
+					end
+				end
+			end
+		end
+		task.wait(1)
+	end
+end
+
+local function NearClerk(P)
+	local Root = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+	if not Root then return false end
+	for _, C in ipairs(CollectionService:GetTagged("RenseiTicketClerk")) do
+		if C:IsA("BasePart") and C:IsDescendantOf(workspace) and (C.Position - Root.Position).Magnitude <= StationService.ClerkReach then return true end
+	end
+	return false
+end
+
+local function AddPrompt(Clerk)
+	if not Clerk:IsA("BasePart") or Clerk:FindFirstChild("TicketPrompt") then return end
+	local Prompt = Instance.new("ProximityPrompt")
+	Prompt.Name = "TicketPrompt"
+	Prompt.ActionText, Prompt.ObjectText, Prompt.MaxActivationDistance = "Buy a ticket", "Ticket clerk", 10
+	Prompt.Parent = Clerk
+	Prompt.Triggered:Connect(function(P) Event:FireClient(P, "OpenTickets", {}) end)
+end
+
+function StationService.Start()
+	local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+	Remote = Remotes:FindFirstChild("Travel") or Instance.new("RemoteFunction")
+	Remote.Name = "Travel"
+	Remote.Parent = Remotes
+	Event = Remotes:FindFirstChild("TravelEvent") or Instance.new("RemoteEvent")
+	Event.Name = "TravelEvent"
+	Event.Parent = Remotes
+	Remote.OnServerInvoke = function(Player, Op, Args)
+		local Now = os.clock()
+		if LastAsk[Player] and Now - LastAsk[Player] < StationService.AskGap then return false, "One moment." end
+		LastAsk[Player] = Now
+		Args = type(Args) == "table" and Args or {}
+		if Op == "Buy" then
+			if not NearClerk(Player) then return false, "Buy tickets at the station's ticket clerk." end
+			return StationService.Buy(Player, Args.Route, Args.Class, type(Args.For) == "string" and Args.For or nil)
+		elseif Op == "Prices" then
+			local Out = {}
+			for _, RouteId in ipairs(Lines()) do
+				local Row = {Route = RouteId, To = Travel.Other(RouteId, TravelService.Here()), Prices = {}, Held = TravelService.HasTicket(Player, RouteId)}
+				for _, C in ipairs(Travel.ClassOrder) do Row.Prices[C] = Travel.Price(RouteId, C, StationService.Season()) end
+				table.insert(Out, Row)
+			end
+			return Out
+		end
+		return false, "Unknown request."
+	end
+	Remote:SetAttribute("Lines", table.concat(Lines(), ",")) -- the departure boards show only these
+	Remote:SetAttribute("Ready", true)
+	for _, Clerk in ipairs(CollectionService:GetTagged("RenseiTicketClerk")) do AddPrompt(Clerk) end
+	CollectionService:GetInstanceAddedSignal("RenseiTicketClerk"):Connect(AddPrompt)
+	for _, Tag in ipairs({"RenseiPlatformTrain", "RenseiRideTrain"}) do
+		for _, T in ipairs(CollectionService:GetTagged(Tag)) do
+			for _, D in ipairs(T:GetDescendants()) do
+				if D:IsA("BasePart") and D.Name:find("CarDoor") and D:GetAttribute("CarKind") then
+					CollectionService:AddTag(D, "RenseiCarDoor")
+					Guard(D)
+				end
+			end
+		end
+	end
+	Players.PlayerRemoving:Connect(function(P)
+		Riding[P], Told[P], LastPush[P], LastAsk[P] = nil, nil, nil, nil
+	end)
+	task.spawn(Clock)
+end
+
+return StationService

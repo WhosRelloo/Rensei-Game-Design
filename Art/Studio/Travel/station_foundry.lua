@@ -1,10 +1,20 @@
--- Foundry Yard placeholder (World Plan 1 Task 4, 2026-10-20): run in the Foundry Yard place (109591196441030), Edit.
--- The same World skeleton as Ye (Live, Visuals, Map, EnemySpawns, NPCs), a 400x400 part ground, a cobbled platform
--- with rails, two RenseiArrival points (Platform, SouthGate) with a gate arch, a spawn and the "Foundry Yard" area.
+-- Foundry Yard placeholder (World Plan 1 Task 4, 2026-10-20; station added by Task 6, 2026-10-21): run in the Foundry
+-- Yard place (109591196441030), Edit. Needs ServerStorage.TrainKit (copy it from Ye first; the script stops if missing).
+-- The same World skeleton as Ye (Live, Visuals, Map, EnemySpawns, NPCs), a part ground, a cobbled platform with
+-- rails, two RenseiArrival points (Platform, SouthGate) with a gate arch, a spawn and the "Foundry Yard" area, and the
+-- station (Task 6): PlatformTrain + RideTrain (Route = "LindenmoorFoundry"), a ticket booth (RenseiTicketClerk,
+-- Station = "Foundry") with an R6 clerk, and a DepartureBoard. Server code: StationService (in RenseiServer).
 -- The template Baseplate and SpawnLocation go to ServerStorage.RenseiBackups["Pre-WorldPlan1_2026-10-20"].
--- Re-runnable: rebuilds World.Map.Foundry. The real region is a later plan; every size is a PROPOSAL.
+-- Re-runnable: rebuilds World.Map.Foundry (all Foundry content comes from this script). The real region is a later
+-- plan; every size is a PROPOSAL.
+assert(game.PlaceId == 109591196441030, "station_foundry.lua is for Foundry Yard (109591196441030) only")
 local CS = game:GetService("CollectionService")
 local SS = game:GetService("ServerStorage")
+local Kit = SS:FindFirstChild("TrainKit")
+assert(Kit, "ServerStorage.TrainKit is missing in Foundry Yard: copy it from Ye (ServerStorage.TrainKit) first, then re-run")
+for _, N in ipairs({"Locomotive_Main", "Tender_Main", "BaggageCar_Main", "ThirdClass_Main", "DiningCar_Main", "SecondClass_Main", "CabinCar_Main"}) do
+	assert(Kit:FindFirstChild(N), "ServerStorage.TrainKit." .. N .. " is missing")
+end
 local Backups = SS:FindFirstChild("RenseiBackups") or Instance.new("Folder")
 Backups.Name = "RenseiBackups"
 Backups.Parent = SS
@@ -29,18 +39,27 @@ local old = World.Map:FindFirstChild("Foundry")
 if old then old:Destroy() end
 local F = Instance.new("Model")
 F.Name = "Foundry"
-local function part(name, size, cf, mat, color)
+local function part(name, size, cf, mat, color, parent)
 	local p = Instance.new("Part")
 	p.Name, p.Size, p.CFrame, p.Material, p.Color = name, size, cf, mat, color
 	p.Anchored = true
 	p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
-	p.Parent = F
+	p.Parent = parent or F
 	return p
 end
-part("Ground", Vector3.new(400, 4, 400), CFrame.new(0, 2, 0), Enum.Material.Grass, Color3.fromRGB(82, 106, 54))
-part("Platform", Vector3.new(12, 2.4, 340), CFrame.new(0, 5.2, 0), Enum.Material.Cobblestone, Color3.fromRGB(122, 118, 108))
-for _, x in ipairs({-12.6, -7.4}) do
-	part("Rail", Vector3.new(0.5, 0.6, 400), CFrame.new(x, 4.3, 0), Enum.Material.Metal, Color3.fromRGB(58, 56, 53))
+
+-- Track and platform (Task 6). The track centre is 6 from the platform edge, as in Ye (the coaches' steps reach 7).
+local TRACK_X = -12 -- PROPOSAL (Task 4 had -10: only 4 from the platform edge, too close for the coaches)
+local RAIL_TOP = 4.6 -- rail centre 4.3 + half its 0.6 height; the kit's pivot is at the wheel bottoms
+local NOSE_Z = 240 -- PROPOSAL: the locomotive's nose, 6 short of the buffer stop; the 440-long train ends at z -200
+local PLAT_Z = -35 -- PROPOSAL: the 340-long platform runs z -205..135, under the five cars behind the tender
+part("Ground", Vector3.new(400, 4, 520), CFrame.new(0, 2, 0), Enum.Material.Grass, Color3.fromRGB(82, 106, 54)) -- 520 on Z (was 400) for the 500-long track
+part("Platform", Vector3.new(12, 2.4, 340), CFrame.new(0, 5.2, PLAT_Z), Enum.Material.Cobblestone, Color3.fromRGB(122, 118, 108))
+for _, x in ipairs({TRACK_X - 2.6, TRACK_X + 2.6}) do
+	part("Rail", Vector3.new(0.5, 0.6, 500), CFrame.new(x, 4.3, 0), Enum.Material.Metal, Color3.fromRGB(58, 56, 53))
+end
+for _, z in ipairs({-251, 251}) do
+	part("BufferStop", Vector3.new(7, 2.6, 1.6), CFrame.new(TRACK_X, 5.6, z), Enum.Material.Wood, Color3.fromRGB(110, 40, 32))
 end
 local function arrival(point, pos)
 	local a = part("Arrival_" .. point, Vector3.new(4, 1, 4), CFrame.new(pos), Enum.Material.SmoothPlastic, Color3.new(1, 1, 1))
@@ -62,5 +81,113 @@ local area = part("Foundry YardArea", Vector3.new(400, 120, 400), CFrame.new(0, 
 area.Transparency, area.CanCollide, area.CanQuery, area.CanTouch = 1, false, false, false
 area:SetAttribute("AreaName", "Foundry Yard")
 CS:AddTag(area, "RenseiArea")
+
+-- ===== The station (World Plan 1 Task 6). Same layout code as station_lindenmoor.lua. =====
+local St = Instance.new("Model")
+St.Name = "Station"
+St.Parent = F
+local ORDER = {"Locomotive_Main", "Tender_Main", "BaggageCar_Main", "ThirdClass_Main", "DiningCar_Main", "SecondClass_Main", "CabinCar_Main"}
+local LEN = {Locomotive_Main = 72, Tender_Main = 30} -- the coaches are 64; 3 between cars (the kit's spacing)
+
+-- invisible walls in the ride train's open side doors and open end gangways, so nobody steps off at 400 studs
+local function blockRide(T)
+	for _, Z in ipairs(T:GetDescendants()) do
+		if Z:IsA("BasePart") and Z.Name:find("BoardZone") then
+			for _, S in ipairs({-1, 1}) do
+				local W = part("RideBlock", Vector3.new(Z.Size.X + 0.4, Z.Size.Y + 1, 0.4), Z.CFrame * CFrame.new(0, 0.5, S * 5.95), Enum.Material.SmoothPlastic, Color3.new(1, 1, 1), T) -- PROPOSAL: in the side opening (jambs at 5.7, grabs at 6.15)
+				W.Transparency, W.CanQuery, W.CanTouch, W.CastShadow = 1, false, false, false
+			end
+		end
+	end
+	for _, E in ipairs({{"BaggageCar_Main", 1}, {"CabinCar_Main", -1}}) do -- the open gangways at the ends of the coaches
+		local Car = T:FindFirstChild(E[1])
+		if Car then
+			local W = part("RideBlock", Vector3.new(0.4, 10, 7), Car:GetPivot() * CFrame.new(E[2] * 33.3, 8.5, 0), Enum.Material.SmoothPlastic, Color3.new(1, 1, 1), T) -- PROPOSAL
+			W.Transparency, W.CanQuery, W.CanTouch, W.CastShadow = 1, false, false, false
+		end
+	end
+end
+
+local function lay(Name, Origin, Route, Tag)
+	local T = Instance.new("Model")
+	T.Name = Name
+	T:SetAttribute("Route", Route)
+	T:SetAttribute("Length", 440)
+	local Z = 0
+	for _, N in ipairs(ORDER) do
+		local Len = LEN[N] or 64
+		local Car = Kit[N]:Clone()
+		Car:PivotTo(CFrame.new(Origin + Vector3.new(0, 0, -(Z + Len / 2))) * CFrame.Angles(0, -math.rad(90), 0))
+		Car.Parent = T
+		Z += Len + 3
+	end
+	T.WorldPivot = CFrame.new(Origin) -- the nose, at rail top: StationService maps platform -> ride by the pivots
+	if Tag == "RenseiRideTrain" then blockRide(T) end
+	CS:AddTag(T, Tag)
+	T.Parent = St
+	return T
+end
+lay("PlatformTrain", Vector3.new(TRACK_X, RAIL_TOP, NOSE_Z), "LindenmoorFoundry", "RenseiPlatformTrain")
+lay("RideTrain", Vector3.new(0, 400, -1600), "LindenmoorFoundry", "RenseiRideTrain")
+
+local function booth(CF, Station)
+	local M = Instance.new("Model")
+	M.Name = "TicketBooth"
+	local WOOD, TRIM = Color3.fromRGB(122, 90, 62), Color3.fromRGB(86, 62, 44)
+	local Clerk = part("TicketClerk", Vector3.new(6, 3, 1.2), CF * CFrame.new(0, 1.5, 0), Enum.Material.WoodPlanks, WOOD, M)
+	Clerk:SetAttribute("Station", Station)
+	CS:AddTag(Clerk, "RenseiTicketClerk")
+	part("BoothBack", Vector3.new(6, 7.5, 0.3), CF * CFrame.new(0, 3.75, 3.2), Enum.Material.WoodPlanks, TRIM, M)
+	for _, S in ipairs({-1, 1}) do
+		part("BoothSide", Vector3.new(0.3, 7.5, 3.8), CF * CFrame.new(S * 3.15, 3.75, 1.45), Enum.Material.WoodPlanks, TRIM, M)
+	end
+	part("BoothRoof", Vector3.new(7, 0.4, 4.8), CF * CFrame.new(0, 7.7, 1.2), Enum.Material.WoodPlanks, TRIM, M)
+	local Sign = part("BoothSign", Vector3.new(6, 1.2, 0.3), CF * CFrame.new(0, 6.9, -0.1), Enum.Material.Wood, Color3.fromRGB(40, 34, 30), M)
+	local SG = Instance.new("SurfaceGui")
+	SG.Face, SG.PixelsPerStud, SG.SizingMode = Enum.NormalId.Front, 50, Enum.SurfaceGuiSizingMode.PixelsPerStud
+	SG.Parent = Sign
+	local Tx = Instance.new("TextLabel")
+	Tx.Size, Tx.BackgroundTransparency, Tx.Text, Tx.TextScaled = UDim2.fromScale(1, 1), 1, "TICKETS", true
+	Tx.Font, Tx.TextColor3 = Enum.Font.Antique, Color3.fromRGB(214, 176, 92)
+	Tx.Parent = SG
+	-- the clerk: R6, State-blue uniform (PROPOSAL colours; the Heat UI's State blue, darkened for cloth)
+	local D = Instance.new("HumanoidDescription")
+	local SKIN, COAT, TROUSERS = Color3.fromRGB(234, 190, 152), Color3.fromRGB(44, 62, 104), Color3.fromRGB(30, 36, 54)
+	D.HeadColor, D.TorsoColor, D.LeftArmColor, D.RightArmColor = SKIN, COAT, COAT, COAT
+	D.LeftLegColor, D.RightLegColor = TROUSERS, TROUSERS
+	local N = game:GetService("Players"):CreateHumanoidModelFromDescription(D, Enum.HumanoidRigType.R6)
+	N.Name = "Clerk"
+	local A = N:FindFirstChild("Animate")
+	if A then A:Destroy() end
+	for _, P in ipairs(N:GetDescendants()) do
+		if P:IsA("BasePart") then P.Anchored = true end
+	end
+	N.PrimaryPart = N:FindFirstChild("HumanoidRootPart")
+	N.Humanoid.DisplayName = "Ticket clerk"
+	N.Humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+	N:PivotTo(CF * CFrame.new(0, 3, 1.9))
+	N.Parent = M
+	M.Parent = St
+	return M
+end
+-- PROPOSAL: on the platform's back half (x 2..6, top 6.4), facing the track (-X)
+booth(CFrame.lookAt(Vector3.new(2.5, 6.4, 40), Vector3.new(1.5, 6.4, 40)), "Foundry")
+
+local function board(Pos, Facing)
+	local M = Instance.new("Model")
+	M.Name = "DepartureBoardStand"
+	local CF = CFrame.lookAt(Pos, Pos + Facing)
+	local Board = part("DepartureBoard", Vector3.new(8, 4, 0.4), CF, Enum.Material.Wood, Color3.fromRGB(40, 34, 30), M)
+	CS:AddTag(Board, "RenseiDepartureBoard")
+	local Foot = Pos.Y - 2 - 6 -- the posts go from the board's bottom down to the platform top (8 below the centre)
+	for _, S in ipairs({-1, 1}) do
+		local At = (CF * CFrame.new(S * 3.6, 0, 0.35)).Position
+		part("BoardPost", Vector3.new(0.5, (Pos.Y + 2) - Foot, 0.5), CFrame.new(At.X, (Pos.Y + 2 + Foot) / 2, At.Z), Enum.Material.Metal, Color3.fromRGB(58, 56, 53), M)
+	end
+	M.Parent = St
+	return M
+end
+board(Vector3.new(5.6, 6.4 + 8, 70), Vector3.new(-1, 0, 0)) -- PROPOSAL: at the platform's back edge, facing the track; bottom 12.4
+
 F.Parent = World.Map
-return "foundry placeholder built; template baseplate + spawn backed up"
+return "foundry placeholder + station built; template baseplate + spawn backed up"
