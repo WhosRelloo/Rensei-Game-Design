@@ -1,14 +1,16 @@
 """Lindenmoor kit for Roblox Studio, generated from layout.json (Art/Blender/lindenmoor/export.py).
 
-python -I studio_kit.py
+python -I studio_kit.py [folder]      (folder holds layout.json; default: this script's folder)
   -> import/chunk_NN.lua   build every Blender prefab as a Model under ServerStorage.LindenmoorStaging (run in order)
   -> kit/<Group>/<Model>.rbxmx   one drag-in model per kit piece (pivot at the origin), for hand placement
 Then run import/finish.lua (hand-written): backup, swap into Workspace.World.Map.Lindenmoor, re-skin, kit folder.
 
 Materials are Roblox built-ins (Plaster, ClayRoofTiles, RoofShingles, WoodPlanks, Cobblestone, LeafyGrass, ...) with
 a colour each; the names stay the Blender material names so MaterialVariants can be layered on later.
+Part rows may carry field 14 (1 = invisible helper: Transparency 1, CanCollide off, CanQuery/CanTouch on) and field 15
+(a JSON string of attributes). Shape 3 is a Seat (box-sized). Art/Studio/Train uses this with the train kit.
 Every colour is a PROPOSAL."""
-import json, math, os, xml.sax.saxutils as sx
+import base64, json, math, os, struct, sys, xml.sax.saxutils as sx
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -29,6 +31,10 @@ MATS = {
     "LM_ClothBlue": ("Fabric", "3c5a78", 0), "LM_ClothTent": ("Fabric", "6e6248", 0), "LM_Paper": ("SmoothPlastic", "e6dcc2", 0),
     "LM_FlowerWhite": ("SmoothPlastic", "e9e4d6", 0), "LM_FlowerYellow": ("SmoothPlastic", "e0b83a", 0),
     "LM_FlowerViolet": ("SmoothPlastic", "8a6cb0", 0),
+    # the FMA train kit (Art/Blender/train/train.py, 2026-10-20): PROPOSAL colours from the world spec
+    "LM_TrainNavy": ("Metal", "23262d", 0), "LM_TrainMaroon": ("WoodPlanks", "6a1f24", 0), "LM_TrainBlack": ("Metal", "1b1c1e", 0),
+    "LM_TrainRoof": ("Metal", "4a4d50", 0), "LM_Brass": ("Metal", "b08a3c", 0), "LM_Cream": ("Plaster", "e6dcc2", 0),
+    "LM_BenchGreen": ("Fabric", "2f4a3a", 0), "LM_TrainWood": ("Wood", "5a3a26", 0), "LM_Helper": ("SmoothPlastic", "ffffff", 0),
 }
 MAT_ENUM = {"Plastic": 256, "SmoothPlastic": 272, "Neon": 288, "Wood": 512, "WoodPlanks": 528, "Slate": 800, "Brick": 848,
             "Cobblestone": 880, "Rock": 896, "Grass": 1280, "LeafyGrass": 1284, "Fabric": 1312, "Metal": 1088, "Glass": 1568,
@@ -39,7 +45,8 @@ NO_COLLIDE = ("Tuft", "Crop", "Vine", "Bloom", "Cloth", "Line", "Hinge", "Bar0",
 NO_COLLIDE_KINDS = ("EdgeStone",)
 # kit pieces: (kind, how many variants)
 KIT = {"Farmhouse": 9, "Oak": 4, "OakBig": 3, "Cypress": 3, "LampPost": 1, "Barn": 1, "TentHalf": 1, "FirePit": 1, "CampProps": 1,
-       "RidgeTerrace": 3, "BankStones": 3, "EdgeStone": 3, "Square": 1}
+       "RidgeTerrace": 3, "BankStones": 3, "EdgeStone": 3, "Square": 1,
+       "Locomotive": 1, "Tender": 1, "BaggageCar": 1, "ThirdClass": 1, "DiningCar": 1, "SecondClass": 1, "CabinCar": 1}
 CHUNK_PARTS = 1100
 
 
@@ -96,7 +103,14 @@ for I, PF in ipairs(DATA) do
 	local Base = CFrame.new(O) * CF(PF.cf, 1)
 	local List = {}
 	for _, P in ipairs(PF.p) do
-		local Part = P[2] == 2 and Instance.new("WedgePart") or Instance.new("Part")
+		local Part
+		if P[2] == 2 then
+			Part = Instance.new("WedgePart")
+		elseif P[2] == 3 then
+			Part = Instance.new("Seat")
+		else
+			Part = Instance.new("Part")
+		end
 		if P[2] == 1 then Part.Shape = Enum.PartType.Cylinder end
 		Part.Name = P[1]
 		Part.Size = Vector3.new(P[4], P[5], P[6])
@@ -107,6 +121,14 @@ for I, PF in ipairs(DATA) do
 		Part.TopSurface, Part.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
 		Part.CanCollide = Collides(PF.k, P[1])
 		Part.CastShadow = Part.Size.X * Part.Size.Y * Part.Size.Z > 1.5
+		if P[14] == 1 then -- invisible helper (BoardZone, StowZone, CarDoor, ...)
+			Part.Transparency, Part.CanCollide, Part.CanQuery, Part.CanTouch, Part.CastShadow = 1, false, true, true, false
+		end
+		if type(P[15]) == "string" then
+			for K, V in pairs(HS:JSONDecode(P[15])) do
+				Part:SetAttribute(K, V)
+			end
+		end
 		Part.Parent = Model
 		table.insert(List, Part)
 		Parts += 1
@@ -149,6 +171,25 @@ def quat_mat(qx, qy, qz, qw):
             [2 * (qx * qz - qy * qw), 2 * (qy * qz + qx * qw), 1 - 2 * (qx * qx + qy * qy)]]
 
 
+def attrs_xml(js):
+    """Roblox AttributesSerialize blob (string / bool / number values) for an rbxmx part."""
+    d = json.loads(js)
+
+    def st(t):
+        b = t.encode("utf-8")
+        return struct.pack("<I", len(b)) + b
+    out = struct.pack("<I", len(d))
+    for k, v in d.items():
+        out += st(str(k))
+        if isinstance(v, bool):
+            out += b"\x03" + (b"\x01" if v else b"\x00")
+        elif isinstance(v, (int, float)):
+            out += b"\x06" + struct.pack("<d", float(v))
+        else:
+            out += b"\x02" + st(str(v))
+    return f'<BinaryString name="AttributesSerialize">{base64.b64encode(out).decode()}</BinaryString>'
+
+
 def rbxmx(pf, mats):
     """One Model, pivot at the origin (parts keep their CFrames relative to the prefab pivot)."""
     ref = [0]
@@ -163,21 +204,27 @@ def rbxmx(pf, mats):
         x, y, z, qx, qy, qz, qw = p[6:13]
         R = quat_mat(qx, qy, qz, qw)
         mat, col, tr = MATS.get(mats[mi], ("Plastic", "ff00ff", 0))
-        cls = "WedgePart" if shape == 2 else "Part"
+        cls = {2: "WedgePart", 3: "Seat"}.get(shape, "Part")
         collide = "true"
         if pf["k"] in NO_COLLIDE_KINDS or any(s in name for s in NO_COLLIDE):
             collide = "false"
-        shape_xml = '<token name="shape">2</token>' if shape == 1 else ('<token name="shape">1</token>' if cls == "Part" else "")
+        helper = len(p) > 13 and p[13] == 1
+        extra = ""
+        if helper:
+            collide, tr = "false", 1
+        if len(p) > 14 and isinstance(p[14], str):
+            extra = attrs_xml(p[14])
+        shape_xml = '<token name="shape">2</token>' if shape == 1 else ('<token name="shape">1</token>' if cls != "WedgePart" else "")
         plist.append((x, y, z, mat))
         parts_xml.append([f'<Item class="{cls}" referent="{nref()}"><Properties>'
                           f'<string name="Name">{sx.escape(name)}</string><bool name="Anchored">true</bool>'
                           f'<bool name="CanCollide">{collide}</bool>'
-                          f'<bool name="CastShadow">{"true" if sx_ * sy_ * sz_ > 1.5 else "false"}</bool>'
+                          f'<bool name="CastShadow">{"true" if sx_ * sy_ * sz_ > 1.5 and not helper else "false"}</bool>'
                           + cf_xml("CoordinateFrame", "CFrame", x, y, z, R)
                           + f'<Vector3 name="size"><X>{sx_}</X><Y>{sy_}</Y><Z>{sz_}</Z></Vector3>'
                           f'<token name="Material">{MAT_ENUM[mat]}</token><Color3uint8 name="Color3uint8">{rgb_uint(col)}</Color3uint8>'
                           f'<float name="Transparency">{tr}</float><token name="TopSurface">0</token><token name="BottomSurface">0</token>'
-                          + shape_xml + "</Properties>", ""])
+                          + shape_xml + extra + "</Properties>", ""])
     for l in pf["l"]:  # [x, y, z, range, brightness, shadows, r, g, b]
         best, bd = 0, 1e9
         for i, (x, y, z, mat) in enumerate(plist):
@@ -196,12 +243,13 @@ def rbxmx(pf, mats):
             + "</OptionalCoordinateFrame></Properties>" + body + "</Item></roblox>")
 
 
-def main():
-    data = json.load(open(os.path.join(HERE, "layout.json"), encoding="utf-8"))
+def main(folder=HERE):
+    folder = os.path.abspath(folder)
+    data = json.load(open(os.path.join(folder, "layout.json"), encoding="utf-8"))
     pre = data["prefabs"]
     for pf in pre:
         pf["l"] = [[*l[:3], l[3], light_props(l)["brightness"], light_props(l)["shadows"], *l[5:8]] for l in pf["l"]]
-    imp = os.path.join(HERE, "import")
+    imp = os.path.join(folder, "import")
     os.makedirs(imp, exist_ok=True)
     for f in os.listdir(imp):
         if f.startswith("chunk_"):
@@ -226,7 +274,7 @@ def main():
     json.dump({"models": len(pre), "parts": sum(len(p["p"]) for p in pre), "groups": groups},
               open(os.path.join(imp, "expected.json"), "w"), indent=1)
     # kit
-    kit = os.path.join(HERE, "kit")
+    kit = os.path.join(folder, "kit")
     taken = {}
     files = 0
     for pf in sorted(pre, key=lambda p: (p["k"], p["id"])):
@@ -242,4 +290,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1] if len(sys.argv) > 1 else HERE)
