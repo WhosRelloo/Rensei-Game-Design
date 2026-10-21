@@ -163,3 +163,9 @@ The owner's profile was snapshotted when it loaded and restored before Stop. The
 - Canopy shade (exposure 0.35 under it against 1.00 in the open), and the gorge ledge unchanged.
 - The owner also walked the routes ("All of the walks are clear").
 - The owner's profile was snapshotted and restored, and the temporary hook was deleted.
+
+## Studio tooling note (2026-10-20, World Plan 1 Task 3)
+- Server code now lives in `ServerStorage.RenseiServer`. In Edit mode, edit server scripts there, not in ServerScriptService.
+  - `ServerScriptService.RenseiBoot` clones every `RenseiServer` child into ServerScriptService at server start (ModuleScripts and Folders first), so `ServerScriptService.<Name>` paths still work at runtime.
+  - Source: `Art/Studio/Travel/src/RenseiBoot.lua`; the one-time move: `Art/Studio/Travel/boot_move.lua`; backup: `RenseiBackups["Pre-WorldPlan1_2026-10-20"].SSS`.
+  - The Play test profile hook (`Art/Studio/Travel/test_hook.lua`) now installs `LMTestHook_TEMP` into `ServerStorage.RenseiServer`; delete it there after the tests.
