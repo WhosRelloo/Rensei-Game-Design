@@ -77,4 +77,59 @@ return {
 		SS.HoldClock = false
 		T.Eq(TS.HasTicket(P, "LindenmoorFoundry"), nil, "arrived and used the ticket")
 	end,
+	-- review fix 2: a seat taken before the fade, in a car the ticket doesn't reach, isn't carried over
+	CabinSeatBeforeTheFadeIsNotCarriedOver = function(T)
+		local SS, TS = require(SSS.StationService), require(SSS.TravelService)
+		local Travel = require(game.ReplicatedStorage.Modules.Data.Rensei.Travel)
+		SS.HoldClock = true
+		local P = game.Players:GetPlayers()[1]
+		local H = P.Character.Humanoid
+		TS.AddTicket(P, "LindenmoorFoundry", "Third")
+		local Platform = workspace:FindFirstChild("PlatformTrain", true)
+		local CabinSeat
+		for _, S in ipairs(Platform.CabinCar_Main:GetDescendants()) do if S:IsA("Seat") then CabinSeat = S break end end
+		P.Character:PivotTo(CabinSeat.CFrame + Vector3.new(0, 2, 0))
+		task.wait(0.3)
+		CabinSeat:Sit(H)
+		task.wait(0.5)
+		T.True(H.SeatPart == CabinSeat, "sitting in a cabin seat")
+		SS.DepartNow("LindenmoorFoundry", 3) -- stands them up (Was = the cabin seat) and fades
+		task.wait(0.25)
+		P.Character:PivotTo(Platform.ThirdClass_Main:GetPivot() * CFrame.new(0, 7.5, 0)) -- into 3rd class during the fade
+		task.wait(1.2)
+		local Ride = workspace:FindFirstChild("RideTrain", true)
+		local In = SS.CarAt(Ride, P.Character.HumanoidRootPart.Position)
+		local Kind = In and SS.CarKind(In)
+		T.True(not (H.SeatPart and H.SeatPart:IsDescendantOf(Ride.CabinCar_Main)), "not seated in the ride train's cabin car")
+		T.True(Kind ~= nil and Travel.ClassReaches("Third", Kind), "rides in a car 3rd class reaches (" .. tostring(In and In.Name) .. ")")
+		local t0 = os.clock()
+		while TS.HasTicket(P, "LindenmoorFoundry") and os.clock() - t0 < 8 do task.wait(0.2) end
+		SS.HoldClock = false
+		T.Eq(TS.HasTicket(P, "LindenmoorFoundry"), nil, "arrived and used the ticket")
+	end,
+	-- review fix 2: walking into a car the ticket doesn't reach during the ride gets you sent back
+	DisallowedCarDuringTheRideIsCorrected = function(T)
+		local SS, TS = require(SSS.StationService), require(SSS.TravelService)
+		local Travel = require(game.ReplicatedStorage.Modules.Data.Rensei.Travel)
+		SS.HoldClock = true
+		local P = game.Players:GetPlayers()[1]
+		TS.AddTicket(P, "LindenmoorFoundry", "Third")
+		local Platform = workspace:FindFirstChild("PlatformTrain", true)
+		local Zone
+		for _, d in ipairs(Platform.ThirdClass_Main:GetChildren()) do if d.Name:find("BoardZone") then Zone = d break end end
+		P.Character:PivotTo(Zone.CFrame)
+		task.wait(0.5)
+		SS.DepartNow("LindenmoorFoundry", 5)
+		task.wait(1.2)
+		local Ride = workspace:FindFirstChild("RideTrain", true)
+		P.Character:PivotTo(Ride.CabinCar_Main:GetPivot() * CFrame.new(0, 7.5, 0)) -- into the cabin car mid-ride
+		task.wait(1.2)
+		local In = SS.CarAt(Ride, P.Character.HumanoidRootPart.Position)
+		local Kind = In and SS.CarKind(In)
+		T.True(Kind ~= nil and Travel.ClassReaches("Third", Kind), "back in a car 3rd class reaches (" .. tostring(In and In.Name) .. ")")
+		local t0 = os.clock()
+		while TS.HasTicket(P, "LindenmoorFoundry") and os.clock() - t0 < 10 do task.wait(0.2) end
+		SS.HoldClock = false
+		T.Eq(TS.HasTicket(P, "LindenmoorFoundry"), nil, "arrived and used the ticket")
+	end,
 }

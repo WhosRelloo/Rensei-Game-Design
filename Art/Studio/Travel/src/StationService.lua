@@ -163,7 +163,8 @@ local function InPart(Part, Pos)
 end
 
 -- where a rider may stand: nil if Pos is fine (a car their class reaches, or a vestibule BoardZone of the car they're
--- in), else the nearest BoardZone of the platform train that their class reaches
+-- in), else the nearest BoardZone of Train that their class reaches, or NOWHERE if there is none (fail closed)
+local NOWHERE = {}
 local function AllowedSpot(P, RouteId, Train, Car, Pos)
 	local Kind = CarKind(Car)
 	if Kind and StationService.CanEnter(P, RouteId, Kind) then return nil end
@@ -177,7 +178,7 @@ local function AllowedSpot(P, RouteId, Train, Car, Pos)
 			if not BestD or D < BestD then Best, BestD = Z, D end
 		end
 	end
-	return Best
+	return Best or NOWHERE
 end
 
 function StationService.Aboard(RouteId)
@@ -265,12 +266,15 @@ local function Depart(RouteId, RideSeconds)
 		local Root = C and C.Parent and C:FindFirstChild("HumanoidRootPart")
 		-- re-check after the fade: anyone who stepped off (or reset) stays behind with the ticket
 		local Car = Root and Riding[P] == RouteId and InTrain(Platform, Root.Position)
+		-- the class barrier, checked on the server: someone in a car their class doesn't reach (a teleported client
+		-- never touches a CarDoor), or in the locomotive / tender, rides in the nearest car they may use; if no car on
+		-- this train takes their ticket, they stay behind like someone who stepped off
+		local Zone = Car and AllowedSpot(P, RouteId, Platform, Car, Root.Position)
+		if Zone == NOWHERE then Car = nil end
 		if Car then
 			local Seat = Unseat(P) or Was[P] -- (sat down again during the fade?)
-			-- the class barrier, checked on the server: someone in a car their class doesn't reach (a teleported
-			-- client never touches a CarDoor), or in the locomotive / tender, rides in the nearest car they may use
-			local Zone = AllowedSpot(P, RouteId, Platform, Car, Root.Position)
-			local To = not Zone and Seat and Seat:IsDescendantOf(Platform) and RideSeat(Ride, Offset, Seat)
+			-- only a seat in the car that was just checked (Was[P] is from before the fade, maybe another car)
+			local To = not Zone and Seat and Seat:IsDescendantOf(Car) and RideSeat(Ride, Offset, Seat)
 			Spot[P] = Offset * (Zone and Zone.CFrame or C:GetPivot())
 			C:PivotTo(Spot[P])
 			if To then task.defer(function() if not To.Occupant and H.Parent then To:Sit(H) end end) end
@@ -287,9 +291,21 @@ local function Depart(RouteId, RideSeconds)
 	local Floor = Ride:GetPivot().Position.Y - StationService.FallCatch
 	while os.clock() < Ends do
 		task.wait(math.clamp(Ends - os.clock(), 0, 0.5))
-		for _, P in ipairs(List) do -- anyone who got out of the ride train goes back to their spot
+		for _, P in ipairs(List) do
 			local Root = Riding[P] == RouteId and Spot[P] and P.Character and P.Character:FindFirstChild("HumanoidRootPart")
-			if Root and Root.Position.Y < Floor then P.Character:PivotTo(Spot[P]) end
+			if Root and Root.Position.Y < Floor then -- got out of the ride train: back to their spot
+				Unseat(P)
+				P.Character:PivotTo(Spot[P])
+			elseif Root then -- walked (or teleported) into a car their class doesn't reach: the conductor sends them back
+				local Car = InTrain(Ride, Root.Position)
+				local Zone = Car and AllowedSpot(P, RouteId, Ride, Car, Root.Position)
+				if Zone and Zone ~= NOWHERE then
+					Unseat(P)
+					Spot[P] = Zone.CFrame
+					P.Character:PivotTo(Spot[P])
+					Notify(P, "Conductor: \"Your ticket isn't for this car.\"")
+				end
+			end
 		end
 	end
 	-- who goes: still here, still riding, and not already in another teleport (Depart filters too)
@@ -320,7 +336,7 @@ local function Depart(RouteId, RideSeconds)
 				for _, P in ipairs(Going) do
 					if P.Parent then P:Kick(("The journey to %s couldn't be completed. Your ticket is still valid; please rejoin."):format(tostring(DestName))) end
 				end
-				return
+				Going = {} -- kicked; the Back players below still go back to the platform
 			end
 		end
 	end
