@@ -2,6 +2,37 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-20 — Fixes: custom hair in the Tutorial, every enemy grippable, grip alignment audit
+
+**Owner:** fix custom hair IDs not saving, make every enemy grippable, and check how the players line up during a grip.
+
+- **Hair:**
+  - **Cause:** saving was fine (the Menu saves `HairIds`; Ye applies them). The Tutorial place ran stale copies of `AppearanceService` and `Rensei.Customization` with no typed hair, hex hair colours, custom skin or female body. So typed hair vanished there.
+  - **Fix:** the Tutorial now has Ye's exact modules (9,542 and 19,208 bytes). Backup: `RenseiBackups["Pre-HairSync_2026-10-20"]`. Generator: `Art/Studio/Fixes/tutorial_hair_sync_make_push.py`.
+  - **Checked in Tutorial Play:** the owner's two typed hairs (14891305487, 18935646653) load and are worn. The owner's profile was snapshotted and restored.
+  - The region places still need these modules once they're playable (packages, World Plan 1 Task 4).
+- **Grippable enemies:**
+  - `EnemyService` now makes every enemy knockable unless its definition says `Knockable = false`. The Sparring partner opts out, in `TuningConfig`.
+  - A knocked alchemist no longer raises its guard, and a knocked Elite no longer parries.
+  - Backup: `RenseiBackups["Pre-GripAll_2026-10-20"]`. Script: `Art/Studio/Fixes/grip_all_enemies.lua`.
+  - **Checked in Ye Play:** every live enemy type is knockable (Grunt ×4, Adit Scavenger ×2, all five alchemists, Elite). A Grunt at 0 HP was knocked, gripped, and died.
+  - **Design consequence:** an enemy at 0 HP now goes down and must be gripped (or carried) to finish; otherwise it recovers after 20 s.
+- **Grip alignment (audit; nothing changed):**
+  - A grip welds the gripper's root onto the victim's root, so how the bodies line up comes from the animation pair.
+  - Each pair was posed on R6 stand-ins at 50% of the animation:
+
+    | Pair | Torso gap | Height difference |
+    |---|---|---|
+    | Fists | 1.25 | gripper 1.07 above |
+    | Sword | 1.30 | gripper 0.40 below |
+    | Greatsword | **3.41** | 0.32 (the bodies don't meet) |
+    | Rapier | 2.64 | gripper **2.61 above** |
+
+  - The Daggers and Guns grip animations didn't load (length 0), so they're probably unpublished to the group.
+  - Animation lengths differ: Rapier victim 1.80 vs grip 1.23, Greatsword 1.13 vs 1.33, Guns 3.25 vs 3.0.
+  - `Knocked`, `Gripped`, `Gripping`, `Carried` and `Carrying` have empty AnimationIds. The owner publishes those.
+  - **Suggested next step (owner's call):** per-pair offsets in `Tuning.Downed.Grips`, or re-authored Greatsword and Rapier pairs.
+
 ## 2026-10-20 — Halvard's Adit: the boards smash open
 
 **Owner:** "I want the boards to physically smash when hit or hit with alchemy". Who sees them broken: "Each player, unless they are in a party".
