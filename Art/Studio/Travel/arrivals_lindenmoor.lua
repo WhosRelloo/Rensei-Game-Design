@@ -1,7 +1,8 @@
 -- Lindenmoor arrival points (World Plan 1 Task 5, 2026-10-21): run in Ye (106992859583940), Edit.
 -- Two RenseiArrival parts under World.Map.Lindenmoor (TravelService.ArrivalPoint / Spawn read them):
 --   Platform  = on the station platform, local (-259, 7.5, 0) = world (-259, 11.5, -650)
---   NorthGate = on the north road,       local (0, 6, 330)    = world (0, 10, -320)
+--   NorthGate = on the north road at local (0, 330), sitting on the road surface (Task 8: found by a ray down;
+--               it was at local y 6, about 7 above the road there; measured surface local y -1.3, Ground.Tops.Ramp)
 -- Same arrival() helper as station_foundry.lua: an invisible, non-colliding 4x1x4 part with a Point attribute.
 -- Re-runnable: replaces the two parts. The positions are the plan's; the part size is a PROPOSAL.
 local CS = game:GetService("CollectionService")
@@ -21,5 +22,10 @@ local function arrival(point, pos)
 	return a
 end
 local p = arrival("Platform", O + Vector3.new(-259, 7.5, 0))
-local n = arrival("NorthGate", O + Vector3.new(0, 6, 330))
+-- the north road's surface under local (0, 330): the part's bottom sits on it
+local Ray = RaycastParams.new()
+Ray.RespectCanCollide = true
+local Hit = workspace:Raycast(O + Vector3.new(0, 30, 330), Vector3.new(0, -80, 0), Ray)
+assert(Hit, "no road surface under the NorthGate arrival")
+local n = arrival("NorthGate", Vector3.new(O.X, Hit.Position.Y + 0.5, O.Z + 330))
 return ("arrivals: Platform %s, NorthGate %s"):format(tostring(p.Position), tostring(n.Position))

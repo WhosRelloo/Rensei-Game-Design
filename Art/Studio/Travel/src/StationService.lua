@@ -450,6 +450,9 @@ function StationService.Start()
 				table.insert(Out, Row)
 			end
 			return Out
+		elseif Op == "Road" then -- a road exit's "Set off" (World plan 1 Task 8): RoadService checks the road, the
+			-- asker's distance from its exit, the party leader and the level, and rolls the ambush
+			return require(ServerScriptService.RoadService).Request(Player, Args.Route)
 		end
 		return false, "Unknown request."
 	end

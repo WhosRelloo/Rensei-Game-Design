@@ -4,6 +4,9 @@
 -- rails, two RenseiArrival points (Platform, SouthGate) with a gate arch, a spawn and the "Foundry Yard" area, and the
 -- station (Task 6): PlatformTrain + RideTrain (Route = "LindenmoorFoundry"), a ticket booth (RenseiTicketClerk,
 -- Station = "Foundry") with an R6 clerk, and a DepartureBoard. Server code: StationService (in RenseiServer).
+-- Task 8 (2026-10-21): the south road: a dirt road out through the gate, a RoadGate arch over it with RoadExit (tag
+-- RenseiRoadExit, Route = "RoadLindenmoorFoundry", Arrive = "NorthGate"; RoadService gives it a prompt), and
+-- AmbushArena (tag RenseiAmbushArena), an invisible 60 x 1 x 60 marker. Server code: RoadService (in RenseiServer).
 -- The template Baseplate and SpawnLocation go to ServerStorage.RenseiBackups["Pre-WorldPlan1_2026-10-20"].
 -- Re-runnable: rebuilds World.Map.Foundry (all Foundry content comes from this script). The real region is a later
 -- plan; every size is a PROPOSAL.
@@ -189,5 +192,33 @@ local function board(Pos, Facing)
 end
 board(Vector3.new(5.6, 6.4 + 8, 70), Vector3.new(-1, 0, 0)) -- PROPOSAL: at the platform's back edge, facing the track; bottom 12.4
 
+-- ===== The south road (World Plan 1 Task 8). Same RoadGate as station_lindenmoor.lua. =====
+-- The brief puts the exit at the gate itself (150, 5, 190), which is also the SouthGate arrival point: someone who
+-- has just arrived would stand in the exit's prompt. The exit moved 32 out along the road (prompt reach 12).
+local EXIT_Z = 222 -- PROPOSAL
+part("Road", Vector3.new(12, 0.2, 76), CFrame.new(150, 4.1, 222), Enum.Material.Ground, Color3.fromRGB(110, 92, 70)) -- PROPOSAL: gate (z 184) to the ground's edge (z 260)
+local function roadGate(Pos, Out, Route, Arrive) -- Pos: on the road surface; Out: the way the road leaves
+	local M = Instance.new("Model")
+	M.Name = "RoadGate"
+	local CF = CFrame.lookAt(Pos, Pos + Out)
+	local STONE = Color3.fromRGB(141, 133, 119)
+	for _, S in ipairs({-1, 1}) do -- PROPOSAL sizes, clear of the 12-wide road
+		part("GatePillar", Vector3.new(3, 12, 3), CF * CFrame.new(S * 8.5, 6, 0), Enum.Material.Cobblestone, STONE, M)
+	end
+	part("GateLintel", Vector3.new(20, 2.5, 3.5), CF * CFrame.new(0, 13.25, 0), Enum.Material.Cobblestone, STONE, M)
+	local E = part("RoadExit", Vector3.new(6, 8, 2), CF * CFrame.new(0, 4, 0), Enum.Material.SmoothPlastic, Color3.new(1, 1, 1), M) -- brief size
+	E.Transparency, E.CanCollide, E.CanQuery, E.CanTouch, E.CastShadow = 1, false, false, false, false
+	E:SetAttribute("Route", Route)
+	E:SetAttribute("Arrive", Arrive)
+	CS:AddTag(E, "RenseiRoadExit")
+	M.Parent = F
+	return E
+end
+roadGate(Vector3.new(150, 4.2, EXIT_Z), Vector3.new(0, 0, 1), "RoadLindenmoorFoundry", "NorthGate")
+-- the ambush arena: the brief's (100, 5, 150), its bottom on the ground (top 4); clear of the gate and the road
+local arena = part("AmbushArena", Vector3.new(60, 1, 60), CFrame.new(100, 4.5, 150), Enum.Material.SmoothPlastic, Color3.new(1, 1, 1))
+arena.Transparency, arena.CanCollide, arena.CanQuery, arena.CanTouch, arena.CastShadow = 1, false, false, false, false
+CS:AddTag(arena, "RenseiAmbushArena")
+
 F.Parent = World.Map
-return "foundry placeholder + station built; template baseplate + spawn backed up"
+return "foundry placeholder + station + south road built; template baseplate + spawn backed up"

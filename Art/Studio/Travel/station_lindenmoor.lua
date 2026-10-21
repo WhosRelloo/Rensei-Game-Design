@@ -6,6 +6,10 @@
 --   * TicketBooth: a counter part TicketClerk (tag RenseiTicketClerk, Station = "Lindenmoor") and an R6 clerk in
 --     State blue, beside the station house;
 --   * DepartureBoard (tag RenseiDepartureBoard; TravelClient draws the times on it).
+--   * (Task 8) RoadGate: a stone arch over the north road with RoadExit (tag RenseiRoadExit, Route =
+--     "RoadLindenmoorFoundry", Arrive = "SouthGate"; RoadService gives it a prompt), and AmbushArena (tag
+--     RenseiAmbushArena), an invisible 60 x 1 x 60 marker on the flat ground west of the north road. Both sit
+--     directly in World.Map.Lindenmoor, on the ground found by a ray down.
 -- Server code: StationService. Every number here is a PROPOSAL unless it was measured in Ye (marked "measured").
 assert(game.PlaceId == 106992859583940, "station_lindenmoor.lua is for Ye (106992859583940) only")
 local CS = game:GetService("CollectionService")
@@ -190,4 +194,46 @@ local function board(Parent, Pos, Facing)
 end
 board(St, O + Vector3.new(-254.8, 6.5 + 8, 30), Vector3.new(-1, 0, 0)) -- PROPOSAL: bottom 12.5, clear of heads
 
-return "lindenmoor station built: platform z " .. PLAT_S .. ".." .. PLAT_N .. ", trains, booth, board"
+-- 5. the north road (World Plan 1 Task 8): the road exit under a stone arch, and the ambush arena.
+--    The brief's exit (local z 340) was 10 from the NorthGate arrival (z 330), inside the prompt's reach, so the exit
+--    moved out along the road to where it leaves the valley; the brief's arena (local (-80, 300)) is under the rim's
+--    big oaks, so it moved to the open flat ground beside the road beyond the valley (both measured in Ye).
+local EXIT_Z = 360 -- PROPOSAL: 30 out from the NorthGate arrival (prompt reach 12); the road (12 wide) starts at z 354
+local ARENA_X, ARENA_Z = -50, 420 -- PROPOSAL: x -80..-20, 14 clear of the road's west edge (x -6); flat ground
+local function ground(X, Z) -- the world Y of the walkable surface at local (X, Z)
+	local Ray = RaycastParams.new()
+	Ray.RespectCanCollide = true
+	local Hit = workspace:Raycast(O + Vector3.new(X, 40, Z), Vector3.new(0, -120, 0), Ray)
+	assert(Hit, ("no ground under local (%d, %d)"):format(X, Z))
+	return Hit.Position.Y
+end
+local function roadGate(Parent, Pos, Out, Route, Arrive) -- Pos: on the road surface; Out: the way the road leaves
+	clear(Parent, "RoadGate")
+	local M = mark(Instance.new("Model"))
+	M.Name = "RoadGate"
+	local CF = CFrame.lookAt(Pos, Pos + Out)
+	local STONE = Color3.fromRGB(141, 133, 119)
+	for _, S in ipairs({-1, 1}) do -- PROPOSAL sizes (the same arch as the Foundry's gate), clear of the 12-wide road
+		part(M, "GatePillar", Vector3.new(3, 12, 3), CF * CFrame.new(S * 8.5, 6, 0), Enum.Material.Cobblestone, STONE)
+	end
+	part(M, "GateLintel", Vector3.new(20, 2.5, 3.5), CF * CFrame.new(0, 13.25, 0), Enum.Material.Cobblestone, STONE)
+	local E = part(M, "RoadExit", Vector3.new(6, 8, 2), CF * CFrame.new(0, 4, 0), Enum.Material.SmoothPlastic, Color3.new(1, 1, 1)) -- brief size
+	E.Transparency, E.CanCollide, E.CanQuery, E.CanTouch, E.CastShadow = 1, false, false, false, false
+	E:SetAttribute("Route", Route)
+	E:SetAttribute("Arrive", Arrive)
+	CS:AddTag(E, "RenseiRoadExit")
+	M.Parent = Parent
+	return E
+end
+local function ambushArena(Parent, Pos) -- Pos: on the ground; the marker's bottom sits on it
+	clear(Parent, "AmbushArena")
+	local A = mark(part(Parent, "AmbushArena", Vector3.new(60, 1, 60), CFrame.new(Pos + Vector3.new(0, 0.5, 0)), Enum.Material.SmoothPlastic, Color3.new(1, 1, 1)))
+	A.Transparency, A.CanCollide, A.CanQuery, A.CanTouch, A.CastShadow = 1, false, false, false, false
+	CS:AddTag(A, "RenseiAmbushArena")
+	return A
+end
+local Exit = roadGate(L, Vector3.new(O.X, ground(0, EXIT_Z), O.Z + EXIT_Z), Vector3.new(0, 0, 1), "RoadLindenmoorFoundry", "SouthGate")
+local Arena = ambushArena(L, Vector3.new(O.X + ARENA_X, ground(ARENA_X, ARENA_Z), O.Z + ARENA_Z))
+
+return "lindenmoor station built: platform z " .. PLAT_S .. ".." .. PLAT_N .. ", trains, booth, board; road exit at "
+	.. tostring(Exit.Position - O) .. ", arena at " .. tostring(Arena.Position - O)

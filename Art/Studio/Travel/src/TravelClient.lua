@@ -1,6 +1,7 @@
 -- TravelClient (World plan 1, 2026-10-20): ticket window, departure boards, the ride's scenery and fades, the
--- teleport screen. Server: StationService (Remotes.Travel / Remotes.TravelEvent). Style matches Modules.UI (Rensei
--- palette: dark panel, brass accents). Every number is a PROPOSAL.
+-- teleport screen, and (Task 8) the road's travel card and journey screen. Server: StationService and RoadService
+-- (Remotes.Travel / Remotes.TravelEvent). Style matches Modules.UI (Rensei palette: dark panel, brass accents).
+-- Every number is a PROPOSAL.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -239,9 +240,160 @@ local function TeleportScreen(Dest)
 	FadeTo(0, 0.5)
 end
 
+-- ===== Road journeys (RoadService, World plan 1 Task 8) =====
+-- Built only from the game's own UI art (owner rule 2026-10-21), cloned from the Uis templates:
+--   * travel card    = the Party Invitation panel (HUD2.Party: Head, MainText, Buttons.Accept / Decline);
+--   * journey screen = the menu backdrop (bg, with its vignettes), the area panel (HUD2.NewAreaDiscovered) and the
+--                      boss bar (HUD.BossHealth) as the road: From on its left, the destination on its right, the
+--                      party's progress as its fill (Modules.UI.Fill), the time left in the middle;
+--   * teleport screen (TeleportGui) = the same backdrop and area panel.
+-- "Set off" only asks: the server checks the road, the exit, the leader and the level, and rolls the ambush.
+local Fill = require(ReplicatedStorage.Modules.UI.Fill)
+local function Template(Path) -- an untouched copy from StarterGui.Uis (else the player's live Uis)
+	local Root = game:GetService("StarterGui"):FindFirstChild("Uis") or Player.PlayerGui:WaitForChild("Uis", 10)
+	local I = Root
+	for Name in string.gmatch(Path, "[^%.]+") do I = I and I:FindFirstChild(Name) end
+	if not I then return nil end
+	local C = I:Clone()
+	C.Visible = true
+	return C
+end
+-- raise a cloned piece and everything in it by Z (TravelUI uses global ZIndex order: a clone's children must stay
+-- above its own art, and above the fade)
+local function Lift(Root, Z)
+	for _, D in ipairs(Root:GetDescendants()) do
+		if D:IsA("GuiObject") then D.ZIndex += Z end
+	end
+	Root.ZIndex += Z
+end
+local function SetText(Parent, Path, Text)
+	local I = Parent
+	for Name in string.gmatch(Path, "[^%.]+") do I = I and I:FindFirstChild(Name) end
+	if I and I:IsA("TextLabel") then I.RichText = true I.Text = Text end
+end
+local function Escape(S) -- player names into RichText
+	return (tostring(S):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"))
+end
+
+local Card
+local function CloseCard()
+	if Card then Card:Destroy() Card = nil end
+end
+local function RoadCard(Data)
+	CloseCard()
+	if Window then Window:Destroy() Window = nil end
+	local F = Template("HUD2.Party")
+	if not F then return end
+	F.Name = "RoadCard"
+	F.AnchorPoint, F.Position, F.Size = Vector2.new(0.5, 0.5), UDim2.fromScale(0.5, 0.4), UDim2.fromScale(0.3, 1) -- PROPOSAL: 0.3 of the
+	-- screen wide; the art's own 2.34:1 ratio constraint sets the height
+	Lift(F, 45)
+	local Names = {}
+	for _, N in ipairs(type(Data.Party) == "table" and Data.Party or {}) do table.insert(Names, Escape(N)) end
+	local Body = ("To %s, about %d s<br />Ambush risk %d%%<br />Coming: %s"):format(Escape(Data.Dest or "?"),
+		tonumber(Data.Seconds) or 0, tonumber(Data.Risk) or 0, #Names > 0 and table.concat(Names, ", ") or "you")
+	SetText(F, "Head", "THE ROAD")
+	SetText(F, "MainText", Body)
+	SetText(F, "Buttons.Accept.Vitality", "Set off")
+	SetText(F, "Buttons.Decline.Strengh", "Not yet")
+	F.Parent = Gui
+	Card = F
+	local Buttons = F:FindFirstChild("Buttons")
+	local Go, No = Buttons and Buttons:FindFirstChild("Accept"), Buttons and Buttons:FindFirstChild("Decline")
+	if Go then
+		Go.Activated:Connect(function()
+			local Ok, Why = Ask("Road", {Route = Data.Route})
+			if Ok then CloseCard() elseif Card == F then SetText(F, "MainText", Escape(Why or "You can't set off yet.")) end
+		end)
+	end
+	if No then No.Activated:Connect(CloseCard) end
+end
+
+local Journey, JourneyShown
+local function CloseJourney()
+	if Journey then Journey:Destroy() Journey = nil end
+end
+local function AreaPanel(Dest, Line) -- HUD2.NewAreaDiscovered, relabelled
+	local P = Template("HUD2.NewAreaDiscovered")
+	if not P then return nil end
+	P.AnchorPoint, P.Position = Vector2.new(0.5, 0), UDim2.fromScale(0.5, 0.22)
+	SetText(P, "Header.Title", "ON THE ROAD")
+	SetText(P, "Header.Head", Escape(Dest))
+	SetText(P, "MainText", Line)
+	return P
+end
+local function JourneyScreen(Data)
+	CloseCard()
+	CloseJourney()
+	local Seconds = math.max(tonumber(Data.Seconds) or 40, 1)
+	local Dest, From = tostring(Data.Dest or "the road's end"), tostring(Data.From or "here")
+	local S = Template("bg") -- the menus' backdrop, full screen
+	if not S then return end
+	S.Name = "Journey"
+	local Line = ("From %s, about %d seconds on the road."):format(Escape(From), Seconds)
+	local Panel = AreaPanel(Dest, Line)
+	if Panel then Panel.Parent = S end
+	local Bar = Template("HUD.BossHealth") -- the road: the party's progress fills it
+	if Bar then
+		Bar.AnchorPoint, Bar.Position = Vector2.new(0.5, 0), UDim2.fromScale(0.5, 0.66)
+		SetText(Bar, "Head", Escape(From))
+		SetText(Bar, "Text", Escape(Dest))
+		Bar.Parent = S
+	end
+	Lift(S, 60) -- over the fade
+	S.Parent = Gui
+	Journey, JourneyShown = S, os.clock()
+	task.spawn(function()
+		local T0 = os.clock()
+		while Journey == S do
+			local T = os.clock() - T0
+			local Left = math.max(0, math.ceil(Seconds - T))
+			if Bar and Bar:FindFirstChild("Bar") then Fill.Set(Bar.Bar, T / Seconds) end
+			if Bar then SetText(Bar, "HP", ("%d:%02d"):format(Left // 60, Left % 60)) end
+			task.wait(0.1)
+		end
+	end)
+	-- what shows while the teleport runs (the TeleportGui carries over until the next place loads)
+	local G = Instance.new("ScreenGui")
+	G.IgnoreGuiInset = true
+	local B = Template("bg")
+	if B then
+		local P = AreaPanel(Dest, Line)
+		if P then P.Parent = B end
+		B.Parent = G
+		TeleportService:SetTeleportGui(G)
+	end
+	task.delay(Seconds + 10, function() -- never stuck behind it if the arrival never comes
+		if Journey == S then CloseJourney() FadeTo(1, 0.3) end
+	end)
+end
+local function EndJourney()
+	local S = Journey
+	if not S then return end
+	task.delay(math.max(0, 3 - (os.clock() - (JourneyShown or 0))), function() -- PROPOSAL: shown at least 3 s
+		if Journey == S then CloseJourney() end
+	end)
+end
+
 Event.OnClientEvent:Connect(function(Kind, Data)
 	Data = type(Data) == "table" and Data or {}
-	if Kind == "OpenTickets" then
+	if Kind == "RoadCard" then
+		RoadCard(Data)
+	elseif Kind == "RoadStart" then
+		JourneyScreen(Data)
+	elseif Kind == "RoadEnd" then
+		EndJourney()
+	elseif Kind == "RoadAmbush" then
+		CloseCard()
+		CloseJourney()
+		FadeTo(0, 0.15)
+		task.delay(0.4, function() FadeTo(1, 0.5) end)
+		if type(Data.Text) == "string" then Say(Data.Text, 5) end
+	elseif Kind == "RoadCancel" then
+		CloseJourney()
+		FadeTo(1, 0.3)
+		if type(Data.Text) == "string" then Say(Data.Text, 5) end
+	elseif Kind == "OpenTickets" then
 		task.spawn(OpenTickets)
 	elseif Kind == "Board" then
 		local Left = math.max(0, math.floor((Data.Departs or 0) - workspace:GetServerTimeNow()))
