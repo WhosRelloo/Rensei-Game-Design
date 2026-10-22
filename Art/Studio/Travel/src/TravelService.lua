@@ -111,7 +111,9 @@ function TravelService.Arrive(Player, Info)
 end
 
 -- Returns "sent" | "loopback", and the players that actually left (busy or unloaded ones are dropped).
-function TravelService.Depart(List, RouteId, ArriveAt)
+-- Join (optional, Task 8b): a server of the destination place to try first (a road party's stragglers follow their
+-- party there); if it's full or gone, FlowTeleport falls back to the normal teleport.
+function TravelService.Depart(List, RouteId, ArriveAt, Join)
 	local Here = TravelService.Here()
 	local Dest = Travel.Other(RouteId, Here)
 	assert(Dest, "route " .. tostring(RouteId) .. " doesn't leave " .. Here)
@@ -149,7 +151,7 @@ function TravelService.Depart(List, RouteId, ArriveAt)
 	FlowTeleport.SendGroup(Going, Places.Regions[Dest].PlaceId, {Travel = {Route = RouteId, Arrive = ArriveAt, From = Here}},
 		function(P)
 			P:Kick(("The journey to %s couldn't be completed. Your ticket is still valid; please rejoin."):format(Name))
-		end)
+		end, type(Join) == "string" and {ServerInstanceId = Join} or nil)
 	return "sent", Going
 end
 

@@ -1,13 +1,13 @@
 -- TravelClient (World plan 1, 2026-10-20): ticket window, departure boards, the ride's scenery and fades, the
--- teleport screen, and (Task 8) the road's travel card and journey screen. Server: StationService and RoadService
--- (Remotes.Travel / Remotes.TravelEvent). Every number is a PROPOSAL.
+-- teleport screen, and (Task 8b) roads on foot: the passage's banner and the crossing's walk, camera and darkness.
+-- Server: StationService and RoadService (Remotes.Travel / Remotes.TravelEvent). Every number is a PROPOSAL.
 -- Owner rule (2026-10-21): every visual here is built ONLY from the game's existing UI art, cloned from the
 -- StarterGui.Uis templates (no new panels, corner blobs or drawn shapes):
 --   * ticket window   = a look-alike of the NPC dialogue box (Uis.Dialogue: the box, its choice plates and highlight);
 --   * departure board = the Party Invitation panel (HUD2.Party) on the board's SurfaceGui;
 --   * rail messages   = the game's own toast (HUD2.Notification, through UIState "Toast", as the server's toasts);
 --   * teleport screen = the menus' backdrop (bg) and the area panel (HUD2.NewAreaDiscovered);
---   * the road's card and journey screen (Task 8), below.
+--   * roads on foot (Task 8b), below: the area panel as the passage's banner, the ride's black fade as the darkness.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -114,7 +114,7 @@ end
 local Window
 local OpenToken = 0
 local Opening = nil -- the token of an open waiting for the clerk's prices
-local JourneyActive = function() return false end -- set once the journey screen's state exists (below)
+local CrossingActive = function() return false end -- set once the road crossing's state exists (below)
 local HiddenHud -- the HUD parts this window hid (the real dialogue hides them too: its choices sit there)
 local Conns = {} -- this window's connections, cut when it closes
 local MIN_TOUCH = 40 -- PROPOSAL: a choice's minimum height in px on a phone
@@ -172,9 +172,9 @@ local function OpenTickets()
 	task.delay(ASK_TIMEOUT, function() if Opening == Wait then Opening = nil end end) -- never stuck on a lost answer
 	local Rows = Ask("Prices")
 	if Opening == Wait then Opening = nil end
-	-- the clerk answered: still wanted? (closed, reopened, a ride or road fade, or the journey screen meanwhile)
+	-- the clerk answered: still wanted? (closed, reopened, a ride or road fade, or a road crossing meanwhile)
 	if OpenToken ~= Mine or type(Rows) ~= "table" then return end
-	if Fade.BackgroundTransparency < 0.99 or JourneyActive() or not NearClerk() then return end
+	if Fade.BackgroundTransparency < 0.99 or CrossingActive() or not NearClerk() then return end
 	local Box = Template("Dialogue")
 	local Main = Box and Box:FindFirstChild("MainFrame")
 	local Authored = Box and Box:FindFirstChild("Choices")
@@ -455,7 +455,7 @@ local function Ride(Seconds, Route)
 	end)
 end
 
--- the rail's teleport screen (TeleportGui): the menus' backdrop and the area panel, as the road's
+-- the rail's teleport screen (TeleportGui): the menus' backdrop and the area panel
 local function TeleportScreen(Dest)
 	local S = Instance.new("ScreenGui")
 	S.IgnoreGuiInset = true
@@ -469,132 +469,210 @@ local function TeleportScreen(Dest)
 	FadeTo(0, 0.5)
 end
 
--- ===== Road journeys (RoadService, World plan 1 Task 8) =====
--- Built only from the game's own UI art (owner rule 2026-10-21), cloned from the Uis templates:
---   * travel card    = the Party Invitation panel (HUD2.Party: Head, MainText, Buttons.Accept / Decline);
---   * journey screen = the menu backdrop (bg, with its vignettes), the area panel (HUD2.NewAreaDiscovered) and the
---                      boss bar (HUD.BossHealth) as the road: From on its left, the destination on its right, the
---                      party's progress as its fill (Modules.UI.Fill), the time left in the middle;
---   * teleport screen (TeleportGui) = the same backdrop and area panel.
--- (Template, Lift, SetText, Escape and AreaPanel are at the top: the ticket window and boards use them too.)
--- "Set off" only asks: the server checks the road, the exit, the leader and the level, and rolls the ambush.
-local Fill = require(ReplicatedStorage.Modules.UI.Fill)
-local Card
-local function CloseCard()
-	if Card then Card:Destroy() Card = nil end
-end
-local function RoadCard(Data)
-	CloseCard()
-	CloseTickets()
-	local F = Template("HUD2.Party")
-	if not F then return end
-	F.Name = "RoadCard"
-	F.AnchorPoint, F.Position, F.Size = Vector2.new(0.5, 0.5), UDim2.fromScale(0.5, 0.4), UDim2.fromScale(0.3, 1) -- PROPOSAL: 0.3 of the
-	-- screen wide; the art's own 2.34:1 ratio constraint sets the height
-	Lift(F, 45)
-	local Names = {}
-	for _, N in ipairs(type(Data.Party) == "table" and Data.Party or {}) do table.insert(Names, Escape(N)) end
-	local Body = ("To %s, about %d s<br />Ambush risk %d%%<br />Coming: %s"):format(Escape(Data.Dest or "?"),
-		tonumber(Data.Seconds) or 0, tonumber(Data.Risk) or 0, #Names > 0 and table.concat(Names, ", ") or "you")
-	SetText(F, "Head", "THE ROAD")
-	SetText(F, "MainText", Body)
-	SetText(F, "Buttons.Accept.Vitality", "Set off")
-	SetText(F, "Buttons.Decline.Strengh", "Not yet")
-	F.Parent = Gui
-	Card = F
-	local Buttons = F:FindFirstChild("Buttons")
-	local Go, No = Buttons and Buttons:FindFirstChild("Accept"), Buttons and Buttons:FindFirstChild("Decline")
-	if Go then
-		Go.Activated:Connect(function()
-			local Ok, Why = Ask("Road", {Route = Data.Route})
-			if Ok then CloseCard() elseif Card == F then SetText(F, "MainText", Escape(Why or "You can't set off yet.")) end
-		end)
+-- ===== Roads on foot (World plan 1 Task 8b, world spec §3b; server: RoadService) =====
+-- Built only from what the game already has (owner rule 2026-10-21):
+--   * the passage's banner = the area panel (the live Uis.HUD2.NewAreaDiscovered), shown when you walk onto a passage:
+--     UIMotion's own HUD2 hook punches it in (Pop + SlideIn), and UIMotion.Fade takes it out;
+--   * the crossing's darkness = the ride's full-screen black fade (Fade, above); the TeleportGui is the same black, so
+--     the teleport is hidden;
+--   * the camera: a low follow shot down the road, eased in and out (no UI).
+-- While crossing, the character walks on down the road by itself (Humanoid:Move, with the controls taken over) in the
+-- game's own walk or run: a running sprint keeps running (ClientHandler.Run), and WalkSpeed is never touched.
+local Controls
+local function SetControls(On) -- the PlayerModule's controls (move keys, thumbstick)
+	if Controls == nil then
+		local Ok, PM = pcall(function() return require(Player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule", 5)) end)
+		Controls = Ok and PM and PM:GetControls() or false
 	end
-	if No then No.Activated:Connect(CloseCard) end
+	if Controls then pcall(function() if On then Controls:Enable() else Controls:Disable() end end) end
+end
+local function RunModule() -- ClientHandler's sprint (the same module table: one client VM)
+	local PS = Player:FindFirstChild("PlayerScripts")
+	local CH = PS and PS:FindFirstChild("ClientHandler")
+	local M = CH and CH:FindFirstChild("Run")
+	if not M then return nil end
+	local Ok, Run = pcall(require, M)
+	return Ok and type(Run) == "table" and Run or nil
+end
+local function Slow() -- Studio only: Player attribute CrossingSlow stretches the crossing's timings (for screenshots)
+	return RunService:IsStudio() and math.max(tonumber(Player:GetAttribute("CrossingSlow")) or 1, 1) or 1
+end
+local function Smooth(T) T = math.clamp(T, 0, 1) return T * T * (3 - 2 * T) end
+local function Flat(V) V = Vector3.new(V.X, 0, V.Z) return V.Magnitude > 1e-3 and V.Unit or Vector3.new(0, 0, -1) end
+-- the low follow shot: behind the hip and a little to the right, looking down the road
+local function FollowShot(Root, Dir)
+	local Right = Dir:Cross(Vector3.yAxis)
+	local Eye = Root.Position - Dir * 9 + Vector3.new(0, 1.2, 0) + Right * 2.2 -- PROPOSAL
+	return CFrame.lookAt(Eye, Root.Position + Dir * 40 + Vector3.new(0, 1.5, 0))
 end
 
-local Journey, JourneyShown, RoadTeleportGui
-JourneyActive = function() return Journey ~= nil end -- the ticket window won't open over the journey screen
-local function CloseJourney()
-	if Journey then Journey:Destroy() Journey = nil end
-	if RoadTeleportGui then -- the road's teleport screen goes with it (a later teleport sets its own)
+local Cross = nil -- the crossing being shown: {Dir, Zoom, Conn}
+local CrossGui -- the TeleportGui (the same black)
+local BannerQuietUntil = 0 -- no passage banner until then (arriving by road)
+CrossingActive = function() return Cross ~= nil end
+local function Body()
+	local C = Player.Character
+	return C and C:FindFirstChildOfClass("Humanoid"), C and C:FindFirstChild("HumanoidRootPart")
+end
+local function DropCrossGui()
+	if CrossGui then
 		pcall(function() TeleportService:SetTeleportGui(nil) end)
-		RoadTeleportGui:Destroy()
-		RoadTeleportGui = nil
+		CrossGui:Destroy()
+		CrossGui = nil
 	end
 end
-local function JourneyScreen(Data)
-	CloseCard()
-	CloseJourney()
-	local Seconds = math.max(tonumber(Data.Seconds) or 40, 1) -- the route's trip time (the text)
-	local Total = math.max(tonumber(Data.Total) or Seconds, 0.1) -- the whole road in real seconds (the bar)
-	local Ends = tonumber(Data.Ends) or (workspace:GetServerTimeNow() + Total) -- server time the road ends (resumed
-	-- after an ambush, it carries on from where it stopped)
-	local Dest, From = tostring(Data.Dest or "the road's end"), tostring(Data.From or "here")
-	local S = Template("bg") -- the menus' backdrop, full screen
-	if not S then return end
-	S.Name = "Journey"
-	local Line = ("From %s, about %d seconds on the road."):format(Escape(From), Seconds)
-	local Panel = AreaPanel(Dest, Line)
-	if Panel then Panel.Parent = S end
-	local Bar = Template("HUD.BossHealth") -- the road: the party's progress fills it
-	if Bar then
-		Bar.AnchorPoint, Bar.Position = Vector2.new(0.5, 0), UDim2.fromScale(0.5, 0.66)
-		SetText(Bar, "Head", Escape(From))
-		SetText(Bar, "Text", Escape(Dest))
-		Bar.Parent = S
-	end
-	Lift(S, 60) -- over the fade
-	S.Parent = Gui
-	Journey, JourneyShown = S, os.clock()
-	task.spawn(function()
-		while Journey == S do
-			local Rest = math.max(0, Ends - workspace:GetServerTimeNow())
-			local Left = math.ceil(Rest / Total * Seconds) -- in the route's seconds (Studio tests run it faster)
-			if Bar and Bar:FindFirstChild("Bar") then Fill.Set(Bar.Bar, 1 - Rest / Total) end
-			if Bar then SetText(Bar, "HP", ("%d:%02d"):format(Left // 60, Left % 60)) end
-			task.wait(0.1)
-		end
+local function EndCrossing(Lift) -- control back, and the player's own camera
+	local C = Cross
+	Cross = nil
+	if C and C.Conn then C.Conn:Disconnect() end
+	local Hum = Body()
+	if Hum then Hum:Move(Vector3.zero) end
+	local Cam = workspace.CurrentCamera
+	if Cam then Cam.CameraType = Enum.CameraType.Custom end
+	SetControls(true)
+	DropCrossGui()
+	if Lift then FadeTo(1, 0.4) end
+end
+Player.CharacterAdded:Connect(function() if Cross then EndCrossing(true) end end)
+
+-- "Crossing": walk on into the threshold, the camera into the follow shot, the road's darkness over the teleport
+local function Crossing(Data)
+	CloseTickets()
+	if Cross then EndCrossing(false) end
+	local Hum, Root = Body()
+	local Cam = workspace.CurrentCamera
+	if not (Hum and Root and Cam) then return end
+	local Dir = Flat(typeof(Data.Dir) == "Vector3" and Data.Dir or Root.CFrame.LookVector)
+	local K = Slow()
+	local Mine = {Dir = Dir, Zoom = math.clamp((Cam.CFrame.Position - Cam.Focus.Position).Magnitude, 4, 30)}
+	Cross = Mine
+	SetControls(false)
+	local From = Cam.CFrame
+	Cam.CameraType = Enum.CameraType.Scriptable
+	local T0 = os.clock()
+	Mine.Conn = RunService.RenderStepped:Connect(function()
+		if Cross ~= Mine then return end
+		local H, R = Body()
+		if not (H and R) then return end
+		H:Move(Dir, false) -- on down the road, in whatever gait they had
+		Cam.CFrame = From:Lerp(FollowShot(R, Dir), Smooth((os.clock() - T0) / (0.8 * K))) -- PROPOSAL: 0.8 s ease
 	end)
-	-- what shows while the teleport runs (the TeleportGui carries over until the next place loads)
+	-- the road darkening under the trees, done by the time the server sends them (CrossDelay 1.2 s)
+	task.delay(0.3 * K, function() if Cross == Mine then FadeTo(0, 0.85 * K) end end)
+	DropCrossGui()
 	local G = Instance.new("ScreenGui")
-	G.IgnoreGuiInset = true
-	local B = Template("bg")
-	if B then
-		local P = AreaPanel(Dest, Line)
-		if P then P.Parent = B end
-		B.Parent = G
-		TeleportService:SetTeleportGui(G)
-		RoadTeleportGui = G
+	G.Name, G.IgnoreGuiInset, G.DisplayOrder = "RoadDark", true, 100
+	local Black = Fade:Clone()
+	Black.BackgroundTransparency = 0
+	Black.Parent = G
+	pcall(function() TeleportService:SetTeleportGui(G) end)
+	CrossGui = G
+	task.delay(20 * K, function() if Cross == Mine then EndCrossing(true) end end) -- never stuck in the dark
+end
+
+-- "CrossingIn": arrived at RoadStart. Walk in from the same shot, lift the darkness, ease back to the player's camera.
+local function CrossingIn(Data)
+	local Prev = Cross
+	if Prev and Prev.Conn then Prev.Conn:Disconnect() end
+	Cross = nil
+	DropCrossGui()
+	local C = Player.Character or Player.CharacterAdded:Wait()
+	local Hum, Root = C:WaitForChild("Humanoid", 5), C:WaitForChild("HumanoidRootPart", 5)
+	local Cam = workspace.CurrentCamera
+	BannerQuietUntil = os.clock() + 5 -- already on the passage: no "The North Road" banner for arriving
+	if not (Hum and Root and Cam) then FadeTo(1, 0.5) SetControls(true) return end
+	local Dir = Flat(typeof(Data.Dir) == "Vector3" and Data.Dir or Root.CFrame.LookVector)
+	local K = Slow()
+	local Mine = {Dir = Dir, Zoom = Prev and Prev.Zoom or 12.5}
+	Cross = Mine
+	Fade.BackgroundTransparency = 0 -- (it already is: the crossing out, or a road arrival's load)
+	SetControls(false)
+	local Run = RunModule() -- a live arrival with Shift still held (or the RUN toggle) comes in running
+	if Run and Run.IsActive and Run.Wanted and not Run:IsActive() and Run:Wanted() then pcall(Run.OnStartClient, Run) end
+	Cam.CameraType = Enum.CameraType.Scriptable
+	local Walk, Ease = 1.5 * K, 0.6 * K -- PROPOSAL (brief): walked in for about 1.5 s; the camera eases back in its last 0.6
+	local T0 = os.clock()
+	FadeTo(1, 0.8 * K)
+	Mine.Conn = RunService.RenderStepped:Connect(function()
+		if Cross ~= Mine then return end
+		local H, R = Body()
+		if not (H and R) then return end
+		local T = os.clock() - T0
+		H:Move(Dir, false)
+		local Shot = FollowShot(R, Dir)
+		local Focus = R.Position + Vector3.new(0, 1.5, 0)
+		local Own = CFrame.lookAt(Focus - Dir * Mine.Zoom * 0.94 + Vector3.new(0, Mine.Zoom * 0.34, 0), Focus) -- behind, at their zoom
+		Cam.CFrame = Shot:Lerp(Own, Smooth((T - (Walk - Ease)) / Ease))
+		if T >= Walk then EndCrossing(false) end
+	end)
+	task.delay(Walk + 3, function() if Cross == Mine then EndCrossing(true) end end)
+end
+
+-- a live road arrival loads in the dark (the TeleportGui's black is gone by now): stay dark until CrossingIn
+do
+	local Ok, TD = pcall(function() return TeleportService:GetLocalPlayerTeleportData() end)
+	if Ok and type(TD) == "table" and type(TD.Travel) == "table" and TD.Travel.Arrive == "RoadStart" then
+		Fade.BackgroundTransparency = 0
+		BannerQuietUntil = math.huge
+		task.delay(15, function() -- no CrossingIn (the arrival went elsewhere): light back
+			if BannerQuietUntil == math.huge then BannerQuietUntil = 0 FadeTo(1, 0.5) end
+		end)
 	end
-	task.delay(math.max(0, Ends - workspace:GetServerTimeNow()) + 10, function() -- never stuck behind it if the arrival never comes
-		if Journey == S then CloseJourney() FadeTo(1, 0.3) end
+end
+
+-- the passage's banner: walking onto a passage shows "ON THE ROAD / The North Road / to the Foundry Yard" on the area
+-- panel. Turning back is just walking back.
+local BannerToken
+local function Banner(Part)
+	local Uis = LiveUis()
+	local HUD2 = Uis and Uis:FindFirstChild("HUD2")
+	local F = HUD2 and HUD2:FindFirstChild("NewAreaDiscovered")
+	if not F then return end
+	SetText(F, "Header.Title", "ON THE ROAD")
+	SetText(F, "Header.Head", Escape(Part:GetAttribute("RoadName") or "The Road"))
+	SetText(F, "MainText", "to " .. Escape(RegionName(Part:GetAttribute("To"))))
+	local Mine = {}
+	BannerToken = Mine
+	F.Visible = false
+	F.Visible = true -- UIMotion's HUD2 hook punches it in
+	task.delay(4, function() -- PROPOSAL: shown for 4 s, like the area card
+		if BannerToken ~= Mine then return end
+		local M = Motion()
+		if M and M.Fade then M.Fade(F, false, 0.4) else F.Visible = false end
 	end)
 end
-local function EndJourney()
-	local S = Journey
-	if not S then return end
-	task.delay(math.max(0, 3 - (os.clock() - (JourneyShown or 0))), function() -- PROPOSAL: shown at least 3 s
-		if Journey == S then CloseJourney() end
-	end)
+local function InPart(P, Pos)
+	local L = P.CFrame:PointToObjectSpace(Pos)
+	return math.abs(L.X) <= P.Size.X / 2 and math.abs(L.Y) <= P.Size.Y / 2 and math.abs(L.Z) <= P.Size.Z / 2
 end
+task.spawn(function()
+	local On = nil -- the route of the passage we're on
+	while true do
+		task.wait(0.25)
+		local _, R = Body()
+		local Part
+		if R then
+			for _, P in ipairs(CollectionService:GetTagged("RenseiRoadPassage")) do
+				if P:IsA("BasePart") and P:IsDescendantOf(workspace) and InPart(P, R.Position) then Part = P break end
+			end
+		end
+		local Route = Part and Part:GetAttribute("Route")
+		if Route ~= On then
+			local Was = On
+			On = Route
+			if Route and not Was and not Cross and os.clock() >= BannerQuietUntil then Banner(Part) end
+		end
+	end
+end)
 
 Event.OnClientEvent:Connect(function(Kind, Data)
 	Data = type(Data) == "table" and Data or {}
-	if Kind == "RoadCard" then
-		RoadCard(Data)
-	elseif Kind == "RoadStart" then
-		JourneyScreen(Data)
-	elseif Kind == "RoadEnd" then
-		EndJourney()
-	elseif Kind == "RoadAmbush" then
-		CloseCard()
-		CloseJourney()
-		FadeTo(0, 0.15)
-		task.delay(0.4, function() FadeTo(1, 0.5) end) -- the words come as the game's own toast (RoadService)
-	elseif Kind == "RoadCancel" then
-		CloseJourney()
-		FadeTo(1, 0.3) -- the reason comes as the game's own toast (RoadService)
+	if Kind == "Crossing" then
+		Crossing(Data)
+	elseif Kind == "CrossingIn" then
+		task.spawn(CrossingIn, Data)
+	elseif Kind == "CrossingCancel" then
+		EndCrossing(true) -- the reason comes as the game's own toast (RoadService)
 	elseif Kind == "OpenTickets" then
 		task.spawn(OpenTickets)
 	elseif Kind == "Board" then

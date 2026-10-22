@@ -1,16 +1,20 @@
+-- Play_Road (World plan 1 Task 8b, roads on foot): run in a Studio Play server through ServerStorage.LMRunSuite.
+-- Studio can't teleport: crossing the threshold loops back to this place's own RoadStart (TravelService's loopback).
 local SSS = game.ServerScriptService
+local CS = game:GetService("CollectionService")
 local ROUTE = "RoadLindenmoorFoundry"
--- fix round 1: the road now takes the route's 40 s; Studio tests run it 50x faster (TimeScale does nothing live)
-require(SSS.RoadService).TimeScale = 0.02
+local HELD = {"Knocked", "GrippedBy", "CarriedBy", "Gripping", "Carrying"}
+-- Studio only: no random encounter rolls while the suite walks the passage (a test forces its own with RS.Force)
+require(SSS.RoadService).Calm = true
 
--- off the road and out of any ambush (a resumed trip from the last test may still be running)
-local function Idle(P)
-	local RS = require(SSS.RoadService)
-	local t0 = os.clock()
-	while (RS.OnRoad(P) or RS.InAmbush(P)) and os.clock() - t0 < 6 do task.wait(0.1) end
+local function Tagged(Tag, Name)
+	for _, P in ipairs(CS:GetTagged(Tag)) do
+		if P:IsA("BasePart") and P:IsDescendantOf(workspace) and P:GetAttribute("Route") == ROUTE and (not Name or P.Name == Name) then return P end
+	end
+	return nil
 end
 
--- a living character to test with (a death test respawns it)
+-- a living character to test with
 local function Ready(P)
 	local t0 = os.clock()
 	while os.clock() - t0 < 12 do
@@ -22,301 +26,255 @@ local function Ready(P)
 	return nil
 end
 
-local function ExitOf(Route)
-	for _, E in ipairs(game:GetService("CollectionService"):GetTagged("RenseiRoadExit")) do
-		if E:GetAttribute("Route") == Route and E:IsDescendantOf(workspace) then return E end
-	end
-	return nil
+-- not crossing (a crossing from the last test has ended)
+local function Idle(P)
+	local RS = require(SSS.RoadService)
+	local t0 = os.clock()
+	while RS.OnRoad(P) and os.clock() - t0 < 6 do task.wait(0.1) end
+end
+
+-- the road point under a threshold / encounter marker (they stand 13 / 12 above the road)
+local function RoadUnder(Part, Up)
+	return Part.Position - Vector3.new(0, Up, 0)
+end
+
+-- stand P on the road at Pos facing Dir (root 3 above the road)
+local function Stand(P, Pos, Dir)
+	local C = P.Character
+	C:PivotTo(CFrame.lookAt(Pos + Vector3.new(0, 3, 0), Pos + Vector3.new(0, 3, 0) + Dir))
+	C.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
+end
+
+-- park P on the RoadStart arrival (on the passage, clear of the threshold and of every encounter), facing in
+local function Park(P)
+	local TS = require(SSS.TravelService)
+	local Start = TS.ArrivalPoint("RoadStart")
+	Stand(P, Start.Position - Vector3.new(0, 0.5, 0), Start.CFrame.LookVector)
+end
+
+local function Rig(Name, Pos)
+	local D = Instance.new("HumanoidDescription")
+	local M = game.Players:CreateHumanoidModelFromDescription(D, Enum.HumanoidRigType.R6)
+	M.Name = Name
+	M:PivotTo(CFrame.new(Pos + Vector3.new(0, 3, 0)))
+	M.HumanoidRootPart.Anchored = true
+	M.Parent = workspace
+	return M
 end
 
 return {
-	NoAmbushJourneyArrives = function(T)
+	-- walking into the threshold crosses (Studio: loops back) and arrives at RoadStart, with the Trip written into
+	-- the save first and Arrived fired for the road; a fight is no bar; arriving doesn't chain into leaving again
+	WalkingIntoTheThresholdCrosses = function(T)
 		local RS, TS = require(SSS.RoadService), require(SSS.TravelService)
-		local P = game.Players:GetPlayers()[1]
-		local Got
-		local C = TS.Arrived.Event:Connect(function(Who) if Who == P then Got = true end end)
-		T.Eq(RS.Journey(P, "RoadLindenmoorFoundry", false), "loopback")
-		local t0 = os.clock()
-		while not Got and os.clock() - t0 < 5 do task.wait(0.1) end
-		C:Disconnect()
-		T.True(Got, "arrived")
-	end,
-	AmbushStopsInTheArenaThenContinues = function(T)
-		local RS = require(SSS.RoadService)
-		local P = game.Players:GetPlayers()[1]
-		T.Eq(RS.Journey(P, "RoadLindenmoorFoundry", true), "ambush")
-		local Arena = workspace:FindFirstChild("AmbushArena", true)
-		T.True((P.Character.HumanoidRootPart.Position - Arena.Position).Magnitude < 40, "in the arena")
-		RS.ClearArena(P) -- test hook: count the fight as won
-		task.wait(1)
-		T.True(not RS.InAmbush(P), "journey continued")
-	end,
-	-- fix round 1 (world spec §3): walking out past the clearing's edge is fleeing: the journey goes on, and once
-	-- nobody is left in the arena its enemies are removed (no ArenaCleared for a flee)
-	FleeingPastTheEdgeContinuesTheJourney = function(T)
-		local RS, TS, ES = require(SSS.RoadService), require(SSS.TravelService), require(SSS.EnemyService)
-		local P = game.Players:GetPlayers()[1]
-		Ready(P)
-		Idle(P)
-		local Got, Cleared
-		local C1 = TS.Arrived.Event:Connect(function(Who) if Who == P then Got = true end end)
-		local C2 = RS.ArenaCleared.Event:Connect(function() Cleared = true end)
-		local Ok, Err = pcall(function()
-			T.Eq(RS.Journey(P, ROUTE, true), "ambush")
-			local Arena = workspace:FindFirstChild("AmbushArena", true)
-			local Rigs = RS.EnemiesOf(P)
-			T.True(#Rigs >= 2 and #Rigs <= 3, "2-3 enemies (" .. #Rigs .. ")")
-			for _, Rig in ipairs(Rigs) do
-				T.True(ES.Active[Rig] ~= nil, "a live EnemyService enemy")
-				Rig:SetAttribute("AIPassive", true)
-			end
-			task.wait(1) -- the client owns the character: let the move into the arena land before walking
-			P.Character.Humanoid:MoveTo((Arena.CFrame * CFrame.new(0, 0, Arena.Size.Z / 2 + RS.Margin + 10)).Position) -- walk off
-			local t0 = os.clock()
-			while RS.InAmbush(P) and os.clock() - t0 < 8 do task.wait(0.1) end
-			T.True(not RS.InAmbush(P), "fled: out of the ambush")
-			t0 = os.clock()
-			while not Got and os.clock() - t0 < 5 do task.wait(0.1) end
-			T.True(Got, "the journey went on: arrived")
-			for _, Rig in ipairs(Rigs) do T.True(Rig.Parent == nil and ES.Active[Rig] == nil, "the empty arena's enemies are removed") end
-			T.True(not Cleared, "a flee is not a win")
-		end)
-		C1:Disconnect()
-		C2:Disconnect()
-		RS.ClearArena(P)
-		Idle(P) -- the resumed trip ends before the next test
-		T.True(Ok, tostring(Err))
-	end,
-	-- fix round 2: a dash out (about 100 studs/s, under MaxSpeed) is a flee, not a teleport
-	DashingOutOfTheArenaIsAFlee = function(T)
-		local RS, TS = require(SSS.RoadService), require(SSS.TravelService)
-		local P = game.Players:GetPlayers()[1]
-		Ready(P)
-		Idle(P)
-		local Got
-		local C = TS.Arrived.Event:Connect(function(Who) if Who == P then Got = true end end)
-		local Ok, Err = pcall(function()
-			T.Eq(RS.Journey(P, ROUTE, true), "ambush")
-			for _, Rig in ipairs(RS.EnemiesOf(P)) do Rig:SetAttribute("AIPassive", true) end
-			local Arena = workspace:FindFirstChild("AmbushArena", true)
-			local Half = Arena.Size.Z / 2
-			P.Character:PivotTo(Arena.CFrame * CFrame.new(0, 3, Half)) -- at the edge, inside
-			task.wait(0.6)
-			T.True(RS.InAmbush(P), "still in it at the edge")
-			P.Character:PivotTo(Arena.CFrame * CFrame.new(0, 3, Half + 25)) -- one dash: 25 studs in a 0.25 s check
-			local t0 = os.clock()
-			while RS.InAmbush(P) and os.clock() - t0 < 3 do task.wait(0.1) end
-			T.True(not RS.InAmbush(P), "fled")
-			t0 = os.clock()
-			while not Got and os.clock() - t0 < 5 do task.wait(0.1) end
-			T.True(Got, "the journey went on")
-		end)
-		C:Disconnect()
-		RS.ClearArena(P)
-		Idle(P)
-		T.True(Ok, tostring(Err))
-	end,
-	-- fix round 2: on the road you are held in the sky with the Climbing status (no attacks, skills or alchemy), and
-	-- let go at the end
-	OnTheRoadYouCantFight = function(T)
-		local RS = require(SSS.RoadService)
-		local P = game.Players:GetPlayers()[1]
-		Ready(P)
-		Idle(P)
-		local Ok, Err = pcall(function()
-			local Done
-			task.spawn(function() Done = RS.Journey(P, ROUTE, false) end)
-			task.wait(0.3)
-			local C = P.Character
-			T.True(RS.OnRoad(P), "on the road")
-			T.True(C.HumanoidRootPart.Anchored and C.HumanoidRootPart.Position.Y > 1000, "held out of reach")
-			T.True(RS.Gated(C), "the Climbing status: no fighting")
-			local t0 = os.clock()
-			while not Done and os.clock() - t0 < 5 do task.wait(0.1) end
-			T.Eq(Done, "loopback")
-			T.True(not C.HumanoidRootPart.Anchored, "let go")
-			T.True(not RS.Gated(C), "can fight again")
-		end)
-		Idle(P)
-		T.True(Ok, tostring(Err))
-	end,
-	-- fix round 2: someone gripping when the fight is won gets to finish; someone carrying sets the body down and goes
-	GripAndCarryAtTheWin = function(T)
-		local RS, TS = require(SSS.RoadService), require(SSS.TravelService)
-		local P = game.Players:GetPlayers()[1]
-		Ready(P)
-		Idle(P)
-		local Got
-		local Conn = TS.Arrived.Event:Connect(function(Who) if Who == P then Got = true end end)
-		local C = P.Character
-		local Ok, Err = pcall(function()
-			T.Eq(RS.Journey(P, ROUTE, true), "ambush")
-			local Rigs = RS.EnemiesOf(P)
-			for _, Rig in ipairs(Rigs) do Rig:SetAttribute("AIPassive", true) end
-			C:SetAttribute("Gripping", "Test")
-			for _, Rig in ipairs(Rigs) do Rig.Humanoid.Health = 0 end
-			task.wait(RS.ClearDelay + 1)
-			T.True(RS.InAmbush(P), "waits for the grip to finish")
-			C:SetAttribute("Gripping", nil)
-			C:SetAttribute("Carrying", "Test") -- now carrying a body instead
-			local t0 = os.clock()
-			while not Got and os.clock() - t0 < 4 do task.wait(0.1) end
-			T.True(Got, "went on")
-			T.True(C:GetAttribute("Carrying") == nil, "the body was set down")
-		end)
-		Conn:Disconnect()
-		C:SetAttribute("Gripping", nil)
-		C:SetAttribute("Carrying", nil)
-		RS.ClearArena(P)
-		Idle(P)
-		T.True(Ok, tostring(Err))
-	end,
-	-- fix round 1: a far jump out of the arena (a teleport) is put back, the enemies too; a second party's ambush while
-	-- the arena is in use is refused ("blocked")
-	AFarJumpOutOfTheArenaIsPutBack = function(T)
-		local RS = require(SSS.RoadService)
-		local P = game.Players:GetPlayers()[1]
-		Ready(P)
-		Idle(P)
-		local Ok, Err = pcall(function()
-			T.Eq(RS.Journey(P, ROUTE, true), "ambush")
-			local Arena = workspace:FindFirstChild("AmbushArena", true)
-			local Rigs = RS.EnemiesOf(P)
-			for _, Rig in ipairs(Rigs) do Rig:SetAttribute("AIPassive", true) end
-			P.Character:PivotTo(Arena.CFrame + Vector3.new(0, 3, 120))
-			Rigs[1]:PivotTo(Arena.CFrame + Vector3.new(0, 3, -120))
-			task.wait(1)
-			T.True((P.Character.HumanoidRootPart.Position - Arena.Position).Magnitude < 40, "put back in the arena")
-			T.True(RS.InAmbush(P), "still in the ambush")
-			T.True((Rigs[1].HumanoidRootPart.Position - Arena.Position).Magnitude < 40, "the enemy is put back too")
-			T.Eq(RS.Journey(P, ROUTE, true), "blocked", "the arena is taken")
-		end)
-		RS.ClearArena(P)
-		Idle(P) -- the resumed trip ends before the next test
-		T.True(Ok, tostring(Err))
-	end,
-	-- fix round 1: nobody escapes a knock, a grip, a carry or a fight by road
-	DownHeldOrFightingCantSetOff = function(T)
-		local RS = require(SSS.RoadService)
+		local PS = require(SSS.ProgressionService)
 		local P = game.Players:GetPlayers()[1]
 		local C = Ready(P)
 		Idle(P)
-		local Exit = ExitOf(ROUTE)
-		local Was = {}
-		local Names = {"Knocked", "GrippedBy", "CarriedBy", "Gripping", "Carrying", "InCombat"}
-		for _, N in ipairs(Names) do Was[N] = C:GetAttribute(N) end
-		local Ok, Err = pcall(function()
-			C:PivotTo(Exit.CFrame)
-			task.wait(0.2)
-			for _, Case in ipairs({{"Knocked", true}, {"GrippedBy", "Someone"}, {"CarriedBy", "Someone"}, {"Gripping", "Someone"}, {"Carrying", "Someone"}, {"InCombat", true}}) do
-				C:SetAttribute(Case[1], Case[2])
-				local Go, Why = RS.Request(P, ROUTE)
-				C:SetAttribute(Case[1], Was[Case[1]])
-				T.True(not Go and type(Why) == "string", Case[1] .. " refused (" .. tostring(Why) .. ")")
-				task.wait(0.05)
+		local Th, Start = Tagged("RenseiRoadThreshold"), TS.ArrivalPoint("RoadStart")
+		T.True(Th ~= nil and Start ~= nil, "the threshold and the RoadStart arrival exist")
+		local Got, Count, At = nil, 0, nil
+		local Conn = TS.Arrived.Event:Connect(function(Who, Region, Route)
+			if Who == P then
+				Got, Count = {Region, Route}, Count + 1
+				At = Who.Character and Who.Character.HumanoidRootPart.Position
 			end
 		end)
-		for _, N in ipairs(Names) do C:SetAttribute(N, Was[N]) end
-		T.True(Ok, tostring(Err))
-	end,
-	-- added (task 8): beating every enemy continues the journey (ArenaCleared, then the arrival); the rigs are gone
-	WinningTheFightContinuesTheJourney = function(T)
-		local RS, TS, ES = require(SSS.RoadService), require(SSS.TravelService), require(SSS.EnemyService)
-		local P = game.Players:GetPlayers()[1]
-		Ready(P)
-		Idle(P)
-		local Got, Cleared
-		local C1 = TS.Arrived.Event:Connect(function(Who) if Who == P then Got = true end end)
-		local C2 = RS.ArenaCleared.Event:Connect(function(Route, List) if table.find(List, P) then Cleared = Route end end)
+		local Old, Info = TS.Arrive, nil
+		TS.Arrive = function(Who, I)
+			if Who == P then Info = table.clone(I) end
+			return Old(Who, I)
+		end
 		local Ok, Err = pcall(function()
-			T.Eq(RS.Journey(P, ROUTE, true), "ambush")
-			local Rigs = RS.EnemiesOf(P)
-			for _, Rig in ipairs(Rigs) do Rig:SetAttribute("AIPassive", true) end
-			for _, Rig in ipairs(Rigs) do Rig.Humanoid.Health = 0 end
-			task.wait(0.5)
-			T.True(RS.InAmbush(P), "a moment before the road")
+			C:SetAttribute("InCombat", true) -- fleeing over the threshold is allowed
+			local Dir = Th.CFrame.LookVector
+			Stand(P, RoadUnder(Th, 13) - Dir * 16, Dir)
+			task.wait(1) -- the client owns the character: let the move land before walking
+			C.Humanoid:MoveTo(RoadUnder(Th, 13) + Dir * 3)
 			local t0 = os.clock()
-			while not Got and os.clock() - t0 < RS.ClearDelay + 4 do task.wait(0.1) end
-			T.Eq(Cleared, ROUTE, "ArenaCleared fired")
-			T.True(Got, "arrived")
-			T.True(not RS.InAmbush(P), "journey continued")
-			for _, Rig in ipairs(Rigs) do T.True(Rig.Parent == nil and ES.Active[Rig] == nil, "enemies removed") end
+			while not RS.OnRoad(P) and not Got and os.clock() - t0 < 6 do task.wait(0.05) end
+			T.True(RS.OnRoad(P) or Got ~= nil, "walking in started the crossing")
+			t0 = os.clock()
+			while not Got and os.clock() - t0 < 6 do task.wait(0.1) end
+			T.True(Got ~= nil, "arrived")
+			T.Eq(Got and Got[2], ROUTE, "Arrived fired for the road")
+			T.Eq(Got and Got[1], "Lindenmoor", "in this place (the Studio loopback)")
+			T.True(Info ~= nil and Info.Route == ROUTE and Info.Arrive == "RoadStart" and Info.To == "Foundry", "the saved Trip took them (" .. tostring(Info and Info.Arrive) .. ")")
+			local Flat = At and Vector3.new(At.X - Start.Position.X, 0, At.Z - Start.Position.Z).Magnitude or math.huge
+			T.True(Flat < 3, ("set down at RoadStart (%.1f studs off)"):format(Flat))
+			local D = PS.GetData(P)
+			T.True(D and D.Travel and D.Travel.Trip == nil and D.Travel.Region == "Lindenmoor", "the Trip is used up")
+			task.wait(2.5)
+			T.Eq(Count, 1, "arriving doesn't carry you straight back out")
+			T.True(not RS.OnRoad(P), "not crossing again")
 		end)
-		C1:Disconnect()
-		C2:Disconnect()
-		RS.ClearArena(P)
-		Idle(P) -- the resumed trip ends before the next test
+		TS.Arrive = Old
+		Conn:Disconnect()
+		C:SetAttribute("InCombat", nil)
+		Idle(P)
 		T.True(Ok, tostring(Err))
 	end,
-	-- added (task 8): dying in the arena: respawn in town, off the journey (no travel), the empty arena is cleared
-	DeathInTheArenaDropsYouWithoutTravel = function(T)
-		local RS, TS, ES = require(SSS.RoadService), require(SSS.TravelService), require(SSS.EnemyService)
-		local P = game.Players:GetPlayers()[1]
-		Ready(P)
-		Idle(P)
-		local Got
-		local C = TS.Arrived.Event:Connect(function(Who) if Who == P then Got = true end end)
-		local Ok, Err = pcall(function()
-			T.Eq(RS.Journey(P, ROUTE, true), "ambush")
-			local Arena = workspace:FindFirstChild("AmbushArena", true)
-			local Rigs = RS.EnemiesOf(P)
-			for _, Rig in ipairs(Rigs) do Rig:SetAttribute("AIPassive", true) end
-			local Old = P.Character
-			Old.Humanoid.Health = 0
-			task.wait(0.5)
-			T.True(not RS.InAmbush(P), "off the journey at death")
-			for _, Rig in ipairs(Rigs) do T.True(Rig.Parent == nil and ES.Active[Rig] == nil, "the empty arena's enemies are removed") end
-			local t1 = os.clock()
-			while (P.Character == Old or not Ready(P)) and os.clock() - t1 < 12 do task.wait(0.2) end
-			local New = P.Character
-			T.True(New ~= Old and New:FindFirstChild("HumanoidRootPart"), "respawned")
-			task.wait(1.5)
-			T.True((New.HumanoidRootPart.Position - Arena.Position).Magnitude > 60, "in town, not pulled back into the arena")
-			T.True(not Got, "no travel")
-		end)
-		C:Disconnect()
-		RS.ClearArena(P)
-		Idle(P)
-		Ready(P)
-		T.True(Ok, tostring(Err))
-	end,
-	-- added (task 8): the exit, its distance from the arrival gate, and the server's checks on "Set off"
-	SetOffIsCheckedOnTheServer = function(T)
+
+	-- nobody escapes a knock, a grip or a carry by road
+	DownOrHeldCantCross = function(T)
 		local RS, TS = require(SSS.RoadService), require(SSS.TravelService)
 		local P = game.Players:GetPlayers()[1]
+		local C = Ready(P)
+		Idle(P)
+		local Th = Tagged("RenseiRoadThreshold")
+		local Got
+		local Conn = TS.Arrived.Event:Connect(function(Who) if Who == P then Got = true end end)
+		local Ok, Err = pcall(function()
+			for _, Name in ipairs(HELD) do
+				Park(P)
+				task.wait(0.3)
+				C:SetAttribute(Name, Name == "Knocked" and true or "Someone")
+				Stand(P, RoadUnder(Th, 13), Th.CFrame.LookVector) -- right in the threshold
+				task.wait(0.8)
+				T.True(not RS.OnRoad(P) and not Got, Name .. ": didn't cross")
+				Park(P) -- out first, then let go (else they'd cross from where they stand)
+				task.wait(0.3)
+				C:SetAttribute(Name, nil)
+			end
+		end)
+		Conn:Disconnect()
+		for _, Name in ipairs(HELD) do C:SetAttribute(Name, nil) end
+		Idle(P)
+		T.True(Ok, tostring(Err))
+	end,
+
+	-- who crosses with you: party members on the same passage within 40 studs, fit to go. Studio has one player, so the
+	-- party is three stand-in members with R6 rigs (PartyService.Get is wrapped for the test).
+	PartyWithin40CrossesWithYou = function(T)
+		local RS, PartyService = require(SSS.RoadService), require(SSS.PartyService)
+		local P = game.Players:GetPlayers()[1]
 		Ready(P)
 		Idle(P)
-		local Got
-		local C = TS.Arrived.Event:Connect(function(Who) if Who == P then Got = true end end)
+		local Old = PartyService.Get
+		local Made = {}
 		local Ok, Err = pcall(function()
-			local Exit = ExitOf(ROUTE)
-			T.True(Exit ~= nil, "Lindenmoor's road exit")
-			T.Eq(Exit:GetAttribute("Arrive"), "SouthGate", "arrives at the Foundry's south gate")
-			T.True(Exit:FindFirstChild("RoadPrompt") ~= nil, "a prompt, not a touch")
-			local Gate = TS.ArrivalPoint("NorthGate")
-			T.True((Gate.Position - Exit.Position).Magnitude > RS.PromptReach + 4, "arriving at the gate is out of the exit's reach")
-			local Ray = RaycastParams.new()
-			Ray.RespectCanCollide = true
-			local Hit = workspace:Raycast(Gate.Position + Vector3.new(0, 10, 0), Vector3.new(0, -40, 0), Ray)
-			T.True(Hit and math.abs(Gate.Position.Y - Gate.Size.Y / 2 - Hit.Position.Y) < 1, "the NorthGate arrival sits on the road")
-			P.Character:PivotTo(Gate.CFrame + Vector3.new(0, 3, 0))
-			task.wait(0.2)
-			local Far, Why = RS.Request(P, ROUTE)
-			T.True(not Far and type(Why) == "string", "refused away from the exit")
-			T.True(not RS.Request(P, "LindenmoorFoundry"), "a rail route is not a road")
-			T.True(not RS.Request(P, {}), "junk is refused")
-			P.Character:PivotTo(Exit.CFrame)
-			task.wait(0.2)
-			RS.Force = false
-			local Go, Why2 = RS.Request(P, ROUTE)
-			T.True(Go, "at the exit: " .. tostring(Why2))
-			T.True(not RS.Request(P, ROUTE), "not twice in a row")
-			local t0 = os.clock()
-			while not Got and os.clock() - t0 < 5 do task.wait(0.1) end
-			T.True(Got, "arrived")
+			local Mid = Tagged("RenseiRoadEncounter", "Encounter1")
+			local Road = RoadUnder(Mid, 12)
+			local Dir = Mid.CFrame.LookVector
+			Stand(P, Road, Dir)
+			task.wait(0.3)
+			local function Member(Name, Pos)
+				local M = Rig(Name, Pos)
+				table.insert(Made, M)
+				return {Name = Name, UserId = -9000 - #Made, Parent = game.Players, Character = M}
+			end
+			local Near = Member("Near", Road + Dir * 25)
+			local Far = Member("Far", Road + Dir * 60)
+			local Down = Member("Down", Road - Dir * 15)
+			Down.Character:SetAttribute("Knocked", true)
+			local Off = Member("OffRoad", Road + Vector3.new(0, 0, -30)) -- 30 away, but in the fields south of the passage
+			T.True(RS.PassageAt(Near.Character.HumanoidRootPart.Position) == ROUTE, "Near stands on the passage")
+			T.True(RS.PassageAt(Off.Character.HumanoidRootPart.Position) == nil, "OffRoad is off the passage")
+			local Party = {Leader = P, Members = {P, Near, Far, Down, Off}}
+			PartyService.Get = function(Who) if Who == P or Who == Near or Who == Far or Who == Down or Who == Off then return Party end return Old(Who) end
+			local Group, Left = RS.Gather(P, ROUTE)
+			local In = {}
+			for _, M in ipairs(Group) do In[M] = true end
+			T.True(In[P] and In[Near], "you and the member 25 studs along cross together")
+			T.True(not In[Far], "a member 60 studs back doesn't")
+			T.True(not In[Down], "a knocked member doesn't")
+			T.True(not In[Off], "a member off the passage doesn't")
+			T.Eq(#Left, 3, "three left behind, each told why")
+		end)
+		PartyService.Get = Old
+		for _, M in ipairs(Made) do M:Destroy() end
+		T.True(Ok, tostring(Err))
+	end,
+
+	-- an encounter (forced) brings bandits out ahead; they're leashed to their stretch, the roll is spent for this
+	-- crossing, and they're removed once nobody is near (Studio TimeScale)
+	ForcedEncounterSpawnsAheadAndClears = function(T)
+		local RS, ES = require(SSS.RoadService), require(SSS.EnemyService)
+		local P = game.Players:GetPlayers()[1]
+		Ready(P)
+		Idle(P)
+		local E = Tagged("RenseiRoadEncounter", "Encounter1")
+		local Ok, Err = pcall(function()
+			Park(P)
+			task.wait(0.5)
+			RS.ResetRolls(P)
+			RS.TimeScale = 0.05 -- ClearAfter 30 s -> 1.5 s
+			RS.Force = true
+			local Dir = E.CFrame.LookVector
+			local From = RoadUnder(E, 12) - Dir * (E.Size.Z / 2 - 4) -- in at the town end
+			Stand(P, From, Dir)
+			local Rigs, t0 = {}, os.clock()
+			while #Rigs < 2 and os.clock() - t0 < 3 do
+				task.wait(0.05)
+				Rigs = RS.EnemiesAt(E)
+				for _, R in ipairs(Rigs) do R:SetAttribute("AIPassive", true) end
+			end
+			T.True(#Rigs >= 2 and #Rigs <= 3, "2-3 bandits came out (" .. #Rigs .. ")")
+			T.True(RS.Force == nil, "the forced roll was used")
+			for _, R in ipairs(Rigs) do
+				T.True(ES.Active[R] ~= nil, "a live EnemyService enemy")
+				T.True((R.HumanoidRootPart.Position - From):Dot(Dir) > 20, "ahead of the player, down the road")
+			end
+			-- leashed: one dragged 120 studs off is put back on its stretch
+			local R1 = Rigs[1]
+			R1:PivotTo(E.CFrame + E.CFrame.RightVector * 120)
+			task.wait(0.8)
+			local L = E.CFrame:PointToObjectSpace(R1.HumanoidRootPart.Position)
+			T.True(math.abs(L.X) <= E.Size.X / 2 + RS.Leash and math.abs(L.Z) <= E.Size.Z / 2 + RS.Leash, "a stray bandit is put back")
+			-- the crossing's roll is spent: in and out and in again rolls nothing more
+			RS.Force = true
+			Stand(P, From - Dir * 40, Dir)
+			task.wait(0.5)
+			Stand(P, From, Dir)
+			task.wait(0.5)
+			T.True(RS.Force == true, "no second roll this crossing")
+			RS.Force = nil
+			-- nobody near for ClearAfter: they go (removed, no reward)
+			Park(P) -- 150+ studs away
+			t0 = os.clock()
+			local Gone = false
+			while not Gone and os.clock() - t0 < 5 do
+				task.wait(0.1)
+				Gone = true
+				for _, R in ipairs(Rigs) do if R.Parent or ES.Active[R] then Gone = false end end
+			end
+			T.True(Gone, "cleared after the player left")
+			T.Eq(#RS.EnemiesAt(E), 0, "the encounter is empty")
 		end)
 		RS.Force = nil
-		C:Disconnect()
+		RS.TimeScale = 1
+		RS.ClearEncounter(E)
+		RS.ResetRolls(P)
+		T.True(Ok, tostring(Err))
+	end,
+
+	-- turning back out of the passage does nothing; the old "Set off" request is gone
+	TurningBackDoesNothing = function(T)
+		local RS, TS = require(SSS.RoadService), require(SSS.TravelService)
+		local PS = require(SSS.ProgressionService)
+		local P = game.Players:GetPlayers()[1]
+		local C = Ready(P)
+		Idle(P)
+		local Got
+		local Conn = TS.Arrived.Event:Connect(function(Who) if Who == P then Got = true end end)
+		local Ok, Err = pcall(function()
+			local Gate = Tagged("RenseiRoadPassage")
+			T.True(Gate ~= nil, "the passage exists")
+			Stand(P, Vector3.new(30, 1, -270), Vector3.new(1, 0, 0)) -- on the passage, 22 in from its mouth
+			task.wait(1)
+			T.Eq(RS.PassageAt(C.HumanoidRootPart.Position), ROUTE, "on the passage")
+			C.Humanoid:MoveTo(Vector3.new(-2, 0.1, -268)) -- back out onto the hub road
+			local t0 = os.clock()
+			while RS.PassageAt(C.HumanoidRootPart.Position) and os.clock() - t0 < 5 do task.wait(0.1) end
+			T.True(RS.PassageAt(C.HumanoidRootPart.Position) == nil, "walked back off it")
+			task.wait(1)
+			T.True(not RS.OnRoad(P) and not Got, "nothing happened")
+			local D = PS.GetData(P)
+			T.True(D and D.Travel and D.Travel.Trip == nil, "no Trip written")
+			local Go, Why = RS.Request(P, ROUTE)
+			T.True(not Go and type(Why) == "string", "the old Set off is gone (" .. tostring(Why) .. ")")
+		end)
+		Conn:Disconnect()
 		T.True(Ok, tostring(Err))
 	end,
 }

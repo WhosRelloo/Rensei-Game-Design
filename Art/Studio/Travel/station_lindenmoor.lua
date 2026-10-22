@@ -6,11 +6,10 @@
 --   * TicketBooth: a counter part TicketClerk (tag RenseiTicketClerk, Station = "Lindenmoor") and an R6 clerk in
 --     State blue, beside the station house;
 --   * DepartureBoard (tag RenseiDepartureBoard; TravelClient draws the times on it).
---   * (Task 8) RoadGate: a stone arch over the north road with RoadExit (tag RenseiRoadExit, Route =
---     "RoadLindenmoorFoundry", Arrive = "SouthGate"; RoadService gives it a prompt), and AmbushArena (tag
---     RenseiAmbushArena), an invisible 60 x 1 x 60 marker on the flat ground west of the north road. Both sit
---     directly in World.Map.Lindenmoor, on the ground found by a ray down. (Fix round 1) AmbushRing: the village's
---     fence posts and creek stones around the arena's edge, since walking out past it is fleeing.
+--   * (Task 8b, roads on foot) NorthRoad, in World.Map.Lindenmoor: the north road as a real, walkable passage out of
+--     the region (part ground, kit trees, rocks and fences, a gate arch at its mouth), with its RenseiRoadPassage,
+--     RenseiRoadEncounter and RenseiRoadThreshold markers and the RoadStart arrival (see step 5). It replaces Task 8's
+--     RoadGate / RoadExit, AmbushArena and AmbushRing, which a run retires into the backups.
 -- Server code: StationService. Every number here is a PROPOSAL unless it was measured in Ye (marked "measured").
 assert(game.PlaceId == 106992859583940, "station_lindenmoor.lua is for Ye (106992859583940) only")
 local CS = game:GetService("CollectionService")
@@ -195,91 +194,417 @@ local function board(Parent, Pos, Facing)
 end
 board(St, O + Vector3.new(-254.8, 6.5 + 8, 30), Vector3.new(-1, 0, 0)) -- PROPOSAL: bottom 12.5, clear of heads
 
--- 5. the north road (World Plan 1 Task 8): the road exit under a stone arch, and the ambush arena.
---    The brief's exit (local z 340) was 10 from the NorthGate arrival (z 330), inside the prompt's reach, so the exit
---    moved out along the road to where it leaves the valley; the brief's arena (local (-80, 300)) is under the rim's
---    big oaks, so it moved to the open flat ground beside the road beyond the valley (both measured in Ye).
-local EXIT_Z = 360 -- PROPOSAL: 30 out from the NorthGate arrival (prompt reach 12); the road (12 wide) starts at z 354
-local ARENA_X, ARENA_Z = -50, 420 -- PROPOSAL: x -80..-20, 14 clear of the road's west edge (x -6); flat ground
-local function ground(X, Z) -- the world Y of the walkable surface at local (X, Z), ignoring what a re-run replaces
-	local Ray = RaycastParams.new()
-	Ray.RespectCanCollide = true
-	local Skip = {}
-	for _, N in ipairs({"RoadGate", "AmbushArena", "AmbushRing"}) do
-		for _, C in ipairs(L:GetChildren()) do
-			if C.Name == N then table.insert(Skip, C) end
+-- 5. the north road on foot (World Plan 1 Task 8b, 2026-10-21; world spec §3b; replaces Task 8's exit, arch and arena).
+--    North of the valley the old hub road runs on to the hub (the training ground, the alchemy trainers), so the
+--    passage branches east off it just past the valley's edge (world z -270), runs east, bends north into a cutting
+--    under big oaks, and bends east again into the threshold. All of it stands on the hub's baseplate (top y 0).
+--    Task 8's road gate (with its exit part), the ambush arena and its ring are retired into
+--    RenseiBackups["Pre-RoadsOnFoot_2026-10-21"]; the arch is rebuilt at the passage's mouth as its gate.
+local RB = Backups:FindFirstChild("Pre-RoadsOnFoot_2026-10-21") or Instance.new("Folder")
+RB.Name = "Pre-RoadsOnFoot_2026-10-21"
+RB.Parent = Backups
+for _, N in ipairs({"RoadGate", "AmbushArena", "AmbushRing"}) do
+	local Old = L:FindFirstChild(N)
+	while Old do
+		if not RB:FindFirstChild(N) then -- the first run keeps a copy of Task 8's piece
+			local Copy = Old:Clone()
+			Copy.Parent = RB
 		end
+		Old:Destroy()
+		Old = L:FindFirstChild(N)
 	end
-	Ray.FilterType = Enum.RaycastFilterType.Exclude
-	Ray.FilterDescendantsInstances = Skip
-	local Hit = workspace:Raycast(O + Vector3.new(X, 40, Z), Vector3.new(0, -120, 0), Ray)
-	assert(Hit, ("no ground under local (%d, %d)"):format(X, Z))
-	return Hit.Position.Y
 end
-local function roadGate(Parent, Pos, Out, Route, Arrive) -- Pos: on the road surface; Out: the way the road leaves
-	clear(Parent, "RoadGate")
-	local M = mark(Instance.new("Model"))
-	M.Name = "RoadGate"
-	local CF = CFrame.lookAt(Pos, Pos + Out)
-	local STONE = Color3.fromRGB(141, 133, 119)
-	for _, S in ipairs({-1, 1}) do -- PROPOSAL sizes (the same arch as the Foundry's gate), clear of the 12-wide road
-		part(M, "GatePillar", Vector3.new(3, 12, 3), CF * CFrame.new(S * 8.5, 6, 0), Enum.Material.Cobblestone, STONE)
-	end
-	part(M, "GateLintel", Vector3.new(20, 2.5, 3.5), CF * CFrame.new(0, 13.25, 0), Enum.Material.Cobblestone, STONE)
-	local E = part(M, "RoadExit", Vector3.new(6, 8, 2), CF * CFrame.new(0, 4, 0), Enum.Material.SmoothPlastic, Color3.new(1, 1, 1)) -- brief size
-	E.Transparency, E.CanCollide, E.CanQuery, E.CanTouch, E.CastShadow = 1, false, false, false, false
-	E:SetAttribute("Route", Route)
-	E:SetAttribute("Arrive", Arrive)
-	CS:AddTag(E, "RenseiRoadExit")
-	M.Parent = Parent
-	return E
-end
-local function ambushArena(Parent, Pos) -- Pos: on the ground; the marker's bottom sits on it
-	clear(Parent, "AmbushArena")
-	local A = mark(part(Parent, "AmbushArena", Vector3.new(60, 1, 60), CFrame.new(Pos + Vector3.new(0, 0.5, 0)), Enum.Material.SmoothPlastic, Color3.new(1, 1, 1)))
-	A.Transparency, A.CanCollide, A.CanQuery, A.CanTouch, A.CastShadow = 1, false, false, false, false
-	CS:AddTag(A, "RenseiAmbushArena")
-	return A
-end
--- the clearing's edge, made visible (fix round 1: walking out past it is fleeing): the village's own fence posts
--- (Lindenmoor.Fences.FencePost) every few studs, with gaps to walk through, and its creek-bank stones at the corners
-local POST_GAP = 7.5 -- PROPOSAL: studs between posts (an R6 is 4 wide, so there is always a way out)
-local function arenaRing(Parent, Arena)
-	clear(Parent, "AmbushRing")
-	local Post = L:FindFirstChild("Fences") and L.Fences:FindFirstChild("FencePost")
-	local Stones
-	for _, S in ipairs(L.Scenery.CreekBanks:GetChildren()) do
-		if S:IsA("Model") and S.Name:find("^BankStones") then Stones = S break end
-	end
-	assert(Post and Stones, "the village's FencePost / BankStones kit pieces are missing")
-	local M = mark(Instance.new("Model"))
-	M.Name = "AmbushRing"
-	local Half, Floor = Arena.Size.X / 2, Arena.Position.Y - Arena.Size.Y / 2
-	local N = math.floor(Arena.Size.X / POST_GAP + 0.5)
-	for Side = 0, 3 do
-		for I = 0, N - 1 do
-			local Along = -Half + (I + 0.5) * POST_GAP -- half a gap in from each corner: the middle of each side is open
-			local X, Z = Along, -Half
-			if Side == 1 then X, Z = Half, Along elseif Side == 2 then X, Z = -Along, Half elseif Side == 3 then X, Z = -Half, -Along end
-			local P = Post:Clone()
-			P.Name = "RingPost"
-			P.CFrame = CFrame.new(Arena.Position.X + X, Floor + P.Size.Y / 2, Arena.Position.Z + Z)
-			P.Parent = M
-		end
-	end
-	for _, C in ipairs({{-1, -1}, {1, -1}, {1, 1}, {-1, 1}}) do
-		local S = Stones:Clone()
-		S.Name = "RingStones"
-		local _, Size = S:GetBoundingBox()
-		S:PivotTo(CFrame.new(Arena.Position.X + C[1] * (Half + 3), Floor + Size.Y / 2 - 0.5, Arena.Position.Z + C[2] * (Half + 3)))
-		S.Parent = M
-	end
-	M.Parent = Parent
-	return M
-end
-local Exit = roadGate(L, Vector3.new(O.X, ground(0, EXIT_Z), O.Z + EXIT_Z), Vector3.new(0, 0, 1), "RoadLindenmoorFoundry", "SouthGate")
-local Arena = ambushArena(L, Vector3.new(O.X + ARENA_X, ground(ARENA_X, ARENA_Z), O.Z + ARENA_Z))
-arenaRing(L, Arena)
+clear(L, "NorthRoad")
 
-return "lindenmoor station built: platform z " .. PLAT_S .. ".." .. PLAT_N .. ", trains, booth, board; road exit at "
-	.. tostring(Exit.Position - O) .. ", arena at " .. tostring(Arena.Position - O)
+-- ===== Roads on foot (World Plan 1 Task 8b, 2026-10-21; world spec §3b). The same builder is in station_lindenmoor.lua
+-- and station_foundry.lua. =====
+-- A real, walkable stretch of road that leaves the region, in the part-ground style of Art/Studio/Lindenmoor/ground.lua:
+-- 4-stud cells of flat slabs in 1-stud steps over stone sides, merged into rectangles; a dirt road down the middle; mossy
+-- banks that rise into a cutting towards the far end; kit trees, rocks and fences cloned along it. It carries:
+--   * RenseiRoadPassage parts (Route, To, RoadName) covering it, one per leg;
+--   * RenseiRoadEncounter parts (Route) along it, each with hidden SpawnPoint attachments (Side = "Out" ahead of
+--     someone walking out, "In" ahead of someone walking in) behind cover;
+--   * a RenseiRoadThreshold part (Route, To) at the far end, round a bend whose far side can't be seen;
+--   * the RenseiArrival "RoadStart" (Point) on the road before that bend, facing inward: where travellers from the
+--     other place appear.
+-- Server code: RoadService; client: TravelClient. Every number is a PROPOSAL.
+local PTOP = { -- ground.lua's palette
+	grass = {Enum.Material.Grass, {Color3.fromRGB(74, 98, 50), Color3.fromRGB(82, 106, 54), Color3.fromRGB(68, 92, 48), Color3.fromRGB(90, 112, 58)}},
+	path = {Enum.Material.Ground, {Color3.fromRGB(98, 84, 64), Color3.fromRGB(90, 78, 60)}},
+	stone = {Enum.Material.Slate, {Color3.fromRGB(86, 90, 88), Color3.fromRGB(78, 82, 80), Color3.fromRGB(92, 94, 90)}},
+}
+local PSIDE = {Color3.fromRGB(66, 60, 52), Color3.fromRGB(60, 56, 50), Color3.fromRGB(72, 66, 56)}
+local ROAD_HALF, VERGE = 6, 9 -- PROPOSAL: a 12-wide dirt road (as the hub road), level grass to 9 from the middle
+
+-- C = {Parent, Name, Route, To, RoadName, RoadY, FloorY, Half, Legs, Skip(x, z), Clip {MinX, MaxX, MinZ, MaxZ},
+--      Cut, Threshold, RoadStart, Encounters {s, ...}, Gate, Fence, Kit(Kind, Rng) -> Model, Post, Rail, Seed}
+-- Legs: {"line", x1, z1, x2, z2} or {"arc", cx, cz, r, a1, a2} (degrees), joined end to end. Distances along the road
+-- (s) are in studs from the mouth.
+local function Passage(C)
+	local Rng = Random.new(C.Seed or 8)
+	local M = Instance.new("Model")
+	M.Name = C.Name
+	local function put(Name, Size, CF, Mat, Color, Parent)
+		local P = Instance.new("Part")
+		P.Name, P.Size, P.CFrame, P.Material, P.Color = Name, Size, CF, Mat, Color
+		P.Anchored = true
+		P.TopSurface, P.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
+		P.Parent = Parent or M
+		return P
+	end
+	local function marker(Name, Size, CF, Tag)
+		local P = put(Name, Size, CF, Enum.Material.SmoothPlastic, Color3.new(1, 1, 1))
+		P.Transparency, P.CanCollide, P.CanQuery, P.CanTouch, P.CastShadow = 1, false, false, false, false
+		if Tag then CS:AddTag(P, Tag) end
+		return P
+	end
+
+	-- 1. the road's centre line, sampled every 2 studs: {x, z, s, tx, tz}
+	local S, LegOf, Len = {}, {}, 0
+	for LI, G in ipairs(C.Legs) do
+		local Pts = {}
+		if G[1] == "line" then
+			local L = math.sqrt((G[4] - G[2]) ^ 2 + (G[5] - G[3]) ^ 2)
+			local N = math.max(1, math.ceil(L / 2))
+			for I = 0, N do
+				local F = I / N
+				table.insert(Pts, {G[2] + (G[4] - G[2]) * F, G[3] + (G[5] - G[3]) * F})
+			end
+		else
+			local A1, A2 = math.rad(G[5]), math.rad(G[6])
+			local N = math.max(1, math.ceil(math.abs(A2 - A1) * G[4] / 2))
+			for I = 0, N do
+				local A = A1 + (A2 - A1) * I / N
+				table.insert(Pts, {G[2] + G[4] * math.cos(A), G[3] + G[4] * math.sin(A)})
+			end
+		end
+		for I, P in ipairs(Pts) do
+			if not (LI > 1 and I == 1) then -- a leg starts where the last one ended
+				local Prev = S[#S]
+				if Prev then Len += math.sqrt((P[1] - Prev[1]) ^ 2 + (P[2] - Prev[2]) ^ 2) end
+				table.insert(S, {P[1], P[2], Len})
+				LegOf[#S] = LI
+			end
+		end
+	end
+	for I, P in ipairs(S) do
+		local A, B = S[math.max(1, I - 1)], S[math.min(#S, I + 1)]
+		local DX, DZ = B[1] - A[1], B[2] - A[2]
+		local L = math.max(math.sqrt(DX * DX + DZ * DZ), 1e-6)
+		P[4], P[5] = DX / L, DZ / L
+	end
+	local function at(SS) -- the road point and its outward direction at distance SS
+		SS = math.clamp(SS, 0, Len)
+		for I = 2, #S do
+			if S[I][3] >= SS then
+				local A, B = S[I - 1], S[I]
+				local F = (SS - A[3]) / math.max(B[3] - A[3], 1e-6)
+				return Vector3.new(A[1] + (B[1] - A[1]) * F, 0, A[2] + (B[2] - A[2]) * F), Vector3.new(B[4], 0, B[5]).Unit
+			end
+		end
+		local E = S[#S]
+		return Vector3.new(E[1], 0, E[2]), Vector3.new(E[4], 0, E[5])
+	end
+	local function nearest(X, Z) -- distance to the centre line, s there, and which side (1 = left of the way out)
+		local BD, BP = math.huge, S[1]
+		for _, P in ipairs(S) do
+			local D = (P[1] - X) ^ 2 + (P[2] - Z) ^ 2
+			if D < BD then BD, BP = D, P end
+		end
+		local Left = (X - BP[1]) * -BP[5] + (Z - BP[2]) * BP[4] > 0
+		return math.sqrt(BD), BP[3], Left and 1 or -1
+	end
+	local function side(T) return Vector3.new(-T.Z, 0, T.X) end -- left of the way out
+
+	-- 2. cells: road, verge, then banks stepping up a stud at a time; on the open stretch the left bank (C.High, the side
+	-- away from town) stands higher than the right; from Cut on both rise steeply into a cutting
+	local function height(D, SS, Side)
+		if D <= ROAD_HALF then return C.RoadY, "path" end
+		if D <= VERGE then return C.RoadY, "grass" end
+		local Cut = math.clamp((SS - C.Cut) / 40, 0, 1)
+		local High = Side == (C.High or 1)
+		local K = (High and 0.4 or 0.25) * (1 - Cut) + 1 * Cut -- PROPOSAL: rise per stud away from the road
+		local Cap = (High and 6 or 3) * (1 - Cut) + 12 * Cut -- PROPOSAL: studs above the road (12 in the cutting)
+		local Mouth = math.clamp(SS / 30, 0.34, 1) -- low banks where the passage leaves town
+		local H = math.min(math.floor(Cap + 0.5), math.floor((D - VERGE) * K) + 1)
+		H = math.max(1, math.floor(H * Mouth + 0.5))
+		return C.RoadY + H, (Cut > 0.5 and D > 15) and "stone" or "grass"
+	end
+	local MinX, MaxX, MinZ, MaxZ = math.huge, -math.huge, math.huge, -math.huge
+	for _, P in ipairs(S) do
+		MinX, MaxX = math.min(MinX, P[1]), math.max(MaxX, P[1])
+		MinZ, MaxZ = math.min(MinZ, P[2]), math.max(MaxZ, P[2])
+	end
+	local X0 = math.floor((MinX - C.Half - 4) / 4) * 4
+	local Z0 = math.floor((MinZ - C.Half - 4) / 4) * 4
+	local NX = math.ceil((MaxX + C.Half + 4 - X0) / 4)
+	local NZ = math.ceil((MaxZ + C.Half + 4 - Z0) / 4)
+	local Top, Kind = {}, {}
+	for I = 1, NX do
+		Top[I], Kind[I] = {}, {}
+		for K = 1, NZ do
+			local X, Z = X0 + (I - 0.5) * 4, Z0 + (K - 0.5) * 4
+			if not C.Skip(X, Z) then
+				local D, SS, Side = nearest(X, Z)
+				if D <= C.Half then Top[I][K], Kind[I][K] = height(D, SS, Side) end
+			end
+		end
+	end
+	local function cellTop(X, Z) -- the walkable top at (X, Z) (the floor where there is no cell)
+		local I, K = math.floor((X - X0) / 4) + 1, math.floor((Z - Z0) / 4) + 1
+		return Top[I] and Top[I][K] or C.FloorY
+	end
+	-- merge equal neighbours into rectangles (ground.lua's merge)
+	local Ground = Instance.new("Model")
+	Ground.Name = "Ground"
+	Ground.Parent = M
+	local Used, Slabs = {}, 0
+	for I = 1, NX do Used[I] = {} end
+	for K = 1, NZ do
+		for I = 1, NX do
+			local T = Top[I][K]
+			if T and not Used[I][K] then
+				local KD = Kind[I][K]
+				local function same(II, KK) return Top[II] and Top[II][KK] == T and Kind[II][KK] == KD and not Used[II][KK] end
+				local W = 1
+				while I + W <= NX and same(I + W, K) and W < 40 do W += 1 end
+				local D, Ok = 1, true
+				while Ok and K + D <= NZ and D < 40 do
+					for II = I, I + W - 1 do if not same(II, K + D) then Ok = false break end end
+					if Ok then D += 1 end
+				end
+				for II = I, I + W - 1 do for KK = K, K + D - 1 do Used[II][KK] = true end end
+				local CX, CZ = X0 + (I - 1 + W / 2) * 4, Z0 + (K - 1 + D / 2) * 4
+				local Spec = PTOP[KD]
+				put("Top", Vector3.new(W * 4, 1, D * 4), CFrame.new(CX, T - 0.5, CZ), Spec[1], Spec[2][Rng:NextInteger(1, #Spec[2])], Ground)
+				if T - 1 > C.FloorY + 0.01 then
+					put("Side", Vector3.new(W * 4, T - 1 - C.FloorY, D * 4), CFrame.new(CX, (T - 1 + C.FloorY) / 2, CZ), Enum.Material.Slate, PSIDE[Rng:NextInteger(1, #PSIDE)], Ground)
+				end
+				Slabs += 1
+			end
+		end
+	end
+
+	-- 3. markers
+	local Clip = C.Clip or {}
+	for LI = 1, #C.Legs do -- RenseiRoadPassage: one box per leg
+		local A, B, E, F = math.huge, -math.huge, math.huge, -math.huge
+		for I, P in ipairs(S) do
+			if LegOf[I] == LI or LegOf[I + 1] == LI then
+				A, B = math.min(A, P[1]), math.max(B, P[1])
+				E, F = math.min(E, P[2]), math.max(F, P[2])
+			end
+		end
+		A, B = math.max(A - C.Half - 2, Clip.MinX or -math.huge), math.min(B + C.Half + 2, Clip.MaxX or math.huge)
+		E, F = math.max(E - C.Half - 2, Clip.MinZ or -math.huge), math.min(F + C.Half + 2, Clip.MaxZ or math.huge)
+		if B > A and F > E then
+			local P = marker("Passage", Vector3.new(B - A, 70, F - E), CFrame.new((A + B) / 2, C.RoadY + 25, (E + F) / 2), "RenseiRoadPassage")
+			P:SetAttribute("Route", C.Route)
+			P:SetAttribute("To", C.To)
+			P:SetAttribute("RoadName", C.RoadName)
+		end
+	end
+	local Reserved = {} -- spots kept clear of trees (spawn points, cover, the arrival)
+	local function reserve(Pos, R) table.insert(Reserved, {Pos, R}) end
+	local function clear(Pos, R)
+		for _, V in ipairs(Reserved) do
+			if (Vector3.new(V[1].X, 0, V[1].Z) - Vector3.new(Pos.X, 0, Pos.Z)).Magnitude < V[2] + R then return false end
+		end
+		return true
+	end
+	local function onGround(Pos) return Vector3.new(Pos.X, cellTop(Pos.X, Pos.Z), Pos.Z) end
+	local function kit(Kind, CF)
+		local K = C.Kit(Kind, Rng)
+		if not K then return nil end
+		K:PivotTo(CF)
+		K.Parent = M
+		return K
+	end
+
+	-- the threshold, round the last bend, and the arrival on the road before it, facing back into the region
+	local TP, TT = at(C.Threshold)
+	local Th = marker("Threshold", Vector3.new(C.Half * 2 + 10, 28, 10), CFrame.lookAt(TP + Vector3.new(0, C.RoadY + 13, 0), TP + Vector3.new(0, C.RoadY + 13, 0) + TT), "RenseiRoadThreshold")
+	Th:SetAttribute("Route", C.Route)
+	Th:SetAttribute("To", C.To)
+	local RP, RT = at(C.RoadStart)
+	local Arr = marker("Arrival_RoadStart", Vector3.new(4, 1, 4), CFrame.lookAt(RP + Vector3.new(0, C.RoadY + 0.5, 0), RP + Vector3.new(0, C.RoadY + 0.5, 0) - RT), "RenseiArrival")
+	Arr:SetAttribute("Point", "RoadStart")
+	reserve(RP, 8)
+
+	-- encounters: a box along the road; SpawnPoints 20 ahead and 20 behind its middle, 16 off the road on the banks,
+	-- each behind kit stones (cover) between it and the road
+	local Encounters = {}
+	for EI, ES in ipairs(C.Encounters) do
+		local P, T = at(ES)
+		local E = marker("Encounter" .. EI, Vector3.new(C.Half * 2 + 8, 30, 48), CFrame.lookAt(P + Vector3.new(0, C.RoadY + 12, 0), P + Vector3.new(0, C.RoadY + 12, 0) + T), "RenseiRoadEncounter")
+		E:SetAttribute("Route", C.Route)
+		table.insert(Encounters, E)
+		for _, Way in ipairs({{"Out", 1}, {"In", -1}}) do
+			local Q, QT = at(ES + Way[2] * 20)
+			for _, Lat in ipairs({-1, 1}) do
+				local N = side(QT) * Lat
+				local Spot = onGround(Q + N * 16)
+				local A = Instance.new("Attachment")
+				A.Name = "SpawnPoint"
+				A:SetAttribute("Side", Way[1])
+				A.Parent = E
+				A.WorldCFrame = CFrame.lookAt(Spot, Vector3.new(Q.X, Spot.Y, Q.Z)) -- facing the road
+				reserve(Spot, 4)
+				local Cover = onGround(Q + N * 11.5)
+				kit("BankStones", CFrame.new(Cover) * CFrame.Angles(0, math.atan2(QT.X, QT.Z) + Rng:NextNumber(-0.3, 0.3), 0))
+				reserve(Cover, 4)
+			end
+		end
+	end
+
+	-- the gate at the mouth (Task 8's arch, reused as the passage gate; no exit part now)
+	if C.Gate then
+		local P, T = at(C.Gate)
+		local Base = Vector3.new(P.X, C.RoadY, P.Z)
+		local CF = CFrame.lookAt(Base, Base + T)
+		local STONE = Color3.fromRGB(141, 133, 119)
+		local Gate = Instance.new("Model")
+		Gate.Name = "RoadGate"
+		for _, SG in ipairs({-1, 1}) do
+			put("GatePillar", Vector3.new(3, 12, 3), CF * CFrame.new(SG * 8.5, 6, 0), Enum.Material.Cobblestone, STONE, Gate)
+		end
+		put("GateLintel", Vector3.new(20, 2.5, 3.5), CF * CFrame.new(0, 13.25, 0), Enum.Material.Cobblestone, STONE, Gate)
+		Gate.Parent = M
+		reserve(P, 12)
+	end
+	-- a short fence along both sides where it leaves town: kit posts every 15, two rails between
+	if C.Fence and C.Post and C.Rail then
+		for _, Lat in ipairs({-1, 1}) do
+			local Last
+			for SS = C.Fence[1], C.Fence[2], 15 do
+				local P, T = at(SS)
+				local Pos = P + side(T) * Lat * (VERGE - 1)
+				local Y = cellTop(Pos.X, Pos.Z)
+				local Post = C.Post:Clone()
+				Post.CFrame = CFrame.new(Pos.X, Y + Post.Size.Y / 2, Pos.Z)
+				Post.Parent = M
+				if Last then
+					for _, H in ipairs({0.3, 0.7}) do
+						local R = C.Rail:Clone()
+						local From, To2 = Vector3.new(Last.X, Y + Post.Size.Y * H, Last.Z), Vector3.new(Post.Position.X, Y + Post.Size.Y * H, Post.Position.Z)
+						R.Size = Vector3.new(R.Size.X, R.Size.Y, (To2 - From).Magnitude)
+						R.CFrame = CFrame.lookAt((From + To2) / 2, To2)
+						R.Parent = M
+					end
+				end
+				Last = Post.Position
+			end
+		end
+	end
+
+	-- trees along both banks: cypress and oak on the open stretch; big oaks over the cutting (a tree tunnel); a dense
+	-- wall of cypress round the last bend and past the threshold, so its far side can't be seen
+	local Trees = 0
+	local function tree(Kind, Pos)
+		if C.Skip(Pos.X, Pos.Z) or not clear(Pos, Kind == "OakBig" and 6 or 3) then return end
+		local D = nearest(Pos.X, Pos.Z)
+		if D < (Kind == "OakBig" and 15 or 11) then return end -- off the road, also where the road bends back near
+		if kit(Kind, CFrame.new(onGround(Pos)) * CFrame.Angles(0, Rng:NextNumber(0, math.pi * 2), 0)) then
+			Trees += 1
+			reserve(Pos, Kind == "OakBig" and 8 or 4)
+		end
+	end
+	local SS = 10
+	while SS < C.Threshold - 30 do
+		local P, T = at(SS)
+		for _, Lat in ipairs({-1, 1}) do
+			local Big = SS > C.Cut - 10
+			local Kind = Big and ((math.floor(SS / 22) + (Lat > 0 and 1 or 0)) % 2 == 0 and "OakBig" or "Cypress")
+				or (Rng:NextNumber() < 0.3 and "Oak" or "Cypress")
+			local D = (Kind == "OakBig" and 19 or Kind == "Oak" and 18 or 14) + Rng:NextNumber(0, 3)
+			tree(Kind, P + side(T) * Lat * D + T * Rng:NextNumber(-3, 3))
+		end
+		SS += SS > C.Cut - 10 and 11 or Rng:NextNumber(14, 20)
+	end
+	for SS2 = C.Threshold - 30, Len + 8, 7 do
+		local P, T = at(SS2)
+		for _, Lat in ipairs({-1, 1}) do tree("Cypress", P + side(T) * Lat * (12 + Rng:NextNumber(0, 2))) end
+	end
+	local EP, ET = at(Len)
+	for _, Off in ipairs({{6, 0, "OakBig"}, {14, -10, "Cypress"}, {14, 10, "Cypress"}, {8, -18, "Cypress"}, {8, 18, "Cypress"}, {22, 0, "Cypress"}}) do
+		local Pos = EP + ET * Off[1] + side(ET) * Off[2]
+		local K = kit(Off[3], CFrame.new(onGround(Pos)) * CFrame.Angles(0, Rng:NextNumber(0, math.pi * 2), 0))
+		if K then Trees += 1 end
+	end
+	-- rocks: kit ridge stones on the cutting's high banks, bank stones scattered along the open verges
+	local Rocks = 0
+	for SS2 = C.Cut, Len, 36 do
+		local P, T = at(SS2)
+		for _, Lat in ipairs({-1, 1}) do
+			local Pos = P + side(T) * Lat * (C.Half + 2)
+			if not C.Skip(Pos.X, Pos.Z) and clear(Pos, 6) and kit("RidgeTerrace", CFrame.new(onGround(Pos) - Vector3.new(0, 1, 0)) * CFrame.Angles(0, math.atan2(T.X, T.Z), 0)) then Rocks += 1 end
+		end
+	end
+	local EP2 = EP + ET * 16
+	if kit("RidgeTerrace", CFrame.new(onGround(EP2) - Vector3.new(0, 1, 0)) * CFrame.Angles(0, math.atan2(ET.X, ET.Z) + math.pi / 2, 0)) then Rocks += 1 end
+	for SS2 = 30, C.Cut, 34 do
+		local P, T = at(SS2 + Rng:NextNumber(-6, 6))
+		local Lat = Rng:NextNumber() < 0.5 and -1 or 1
+		local Pos = P + side(T) * Lat * (VERGE + 2)
+		if not C.Skip(Pos.X, Pos.Z) and clear(Pos, 3) and kit("BankStones", CFrame.new(onGround(Pos)) * CFrame.Angles(0, Rng:NextNumber(0, math.pi * 2), 0)) then Rocks += 1 end
+	end
+
+	M.Parent = C.Parent
+	local Parts = 0
+	for _, D in ipairs(M:GetDescendants()) do if D:IsA("BasePart") then Parts += 1 end end
+	return M, {Length = math.floor(Len + 0.5), Threshold = C.Threshold, Slabs = Slabs, Trees = Trees, Rocks = Rocks, Parts = Parts,
+		Encounters = #Encounters, ThresholdAt = Th.Position, RoadStart = Arr.Position}
+end
+
+local KitRoot = SS:FindFirstChild("LindenmoorKit")
+assert(KitRoot, "ServerStorage.LindenmoorKit is missing (the Lindenmoor kit import)")
+local function kitPiece(Kind, Rng)
+	local F = KitRoot:FindFirstChild(Kind)
+	local List = F and F:GetChildren() or {}
+	if #List == 0 then return nil end
+	return List[Rng:NextInteger(1, #List)]:Clone()
+end
+local Fences = L:FindFirstChild("Fences")
+local HubRoad = L:FindFirstChild("HubRoad")
+local Road, Info = Passage({
+	Parent = L, Name = "NorthRoad", Route = "RoadLindenmoorFoundry", To = "Foundry", RoadName = "The North Road",
+	RoadY = 1, FloorY = 0, -- PROPOSAL: the road 1 above the baseplate (the valley's north edge is at y 1)
+	Half = 22, -- PROPOSAL: the passage is 44 wide, bank to bank
+	Legs = {
+		{"line", 8, -270, 178, -270}, -- east, beside the town's north fields
+		{"arc", 178, -225, 45, -90, 0}, -- bending north
+		{"line", 223, -225, 223, -150}, -- the cutting
+		{"arc", 248, -150, 25, 180, 90}, -- bending east, out of sight
+		{"line", 248, -125, 275, -125}, -- into the trees (past the threshold)
+	},
+	Skip = function(X, Z) return X < 8 or Z < -293 end, -- the hub road (x -6..6) and the valley's ground (to z -296)
+	Clip = {MinX = 8, MinZ = -293},
+	Cut = 200, -- PROPOSAL: the banks rise into a cutting from here (round the first bend and up the north straight)
+	High = 1, -- the left bank (the hub's side) stands higher on the open stretch; the right looks over the fields
+	Threshold = 359, -- PROPOSAL: studs from the mouth (about 360, world spec §3b's 300-400)
+	RoadStart = 305, -- PROPOSAL: 54 back from the threshold, before the last bend
+	Encounters = {85, 195, 265}, -- PROPOSAL
+	Gate = 4,
+	Fence = {10, 55},
+	Kit = kitPiece,
+	Post = Fences and Fences:FindFirstChild("FencePost"),
+	Rail = Fences and Fences:FindFirstChild("FenceRail"),
+	Seed = 8,
+})
+mark(Road)
+-- a signpost at the fork, cloned from the hub road's own "LINDENMOOR" sign
+if HubRoad and HubRoad:FindFirstChild("SignPost") and HubRoad:FindFirstChild("SignBoard") then
+	local Post, Board = HubRoad.SignPost:Clone(), HubRoad.SignBoard:Clone()
+	local OldBase = HubRoad.SignPost.Position - Vector3.new(0, HubRoad.SignPost.Size.Y / 2, 0)
+	local Delta = CFrame.new(Vector3.new(7, 0, -286) - OldBase) -- PROPOSAL: on the hub road's east verge, at the fork
+	Post.CFrame = Delta * HubRoad.SignPost.CFrame
+	Board.CFrame = Delta * HubRoad.SignBoard.CFrame
+	for _, D in ipairs(Board:GetDescendants()) do
+		if D:IsA("TextLabel") then D.Text = "FOUNDRY YARD" end
+	end
+	Post.Parent, Board.Parent = Road, Road
+end
+
+return ("lindenmoor station built: platform z %d..%d, trains, booth, board; north road %d studs (threshold at %d), %d slabs, %d trees, %d rocks, %d encounters, %d parts; threshold at %s, RoadStart at %s"):format(
+	PLAT_S, PLAT_N, Info.Length, Info.Threshold, Info.Slabs, Info.Trees, Info.Rocks, Info.Encounters, Info.Parts,
+	tostring(Info.ThresholdAt), tostring(Info.RoadStart))
