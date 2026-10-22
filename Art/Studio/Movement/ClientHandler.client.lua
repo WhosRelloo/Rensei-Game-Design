@@ -389,6 +389,9 @@ local function CharacterAdded(NewCharacter)
 		end
 	end)
 	CharacterState = WCSCharacter.GetCharacterFromInstance(Character)
+	-- a sprint / slide of the previous character must not carry over (fix round 1, 2026-10-22)
+	Run.Reset()
+	Crouch.Reset()
 end
 
 CharacterAdded(Character)

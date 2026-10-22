@@ -26,6 +26,12 @@ local SlideStartTime = 0
 local CrouchStarted = false
 local WalkConn = nil
 local Sliding = false -- a slide (not a crouch) is running
+-- Fix round 1 (2026-10-22): SlideToken = the crouch / slide that owns this module's state now, so an end that is
+-- still waiting out a slide's minimum can't end a newer one. SlideCooldown stops Ctrl-mashing from chaining
+-- slides faster than a sprint (a first slide is unaffected).
+local SlideToken = nil
+local SlideCooldown = 0.8 -- PROPOSAL (controller ruling 2026-10-22): seconds from a slide's end to the next slide
+local LastSlideEnd = -math.huge
 
 local Player = RunService:IsClient() and game.Players.LocalPlayer
 
@@ -39,9 +45,22 @@ local Run = require(script.Parent.Run)
 local FLOW_BLEND = 0.2 -- PROPOSAL: seconds the slide pose blends out into the run (Roblox's default is 0.1)
 
 local function FlowsIntoSprint(Character, Humanoid)
+	local CharacterState = WCSCharacter.GetCharacterFromInstance(Character)
 	return Run:Wanted() and Humanoid.MoveDirection.Magnitude > 0.1 and Humanoid.Health > 0
 		and Character:GetAttribute("Traversal") == nil -- not climbing / wall running / swimming
 		and not Character:GetAttribute("Knocked")
+		and CharacterState ~= nil and not CharacterState:HasStatusEffects({Stun, Climbing}) -- as Run:OnStartClient
+end
+
+-- a new character (ClientHandler's CharacterAdded): forget the old character's crouch / slide
+function Crouch.Reset()
+	SlideToken = nil
+	CrouchStarted = false
+	Sliding = false
+	Crouching = false
+	LastSlideEnd = -math.huge
+	if SlideConn then SlideConn:Disconnect() SlideConn = nil end
+	if WalkConn then WalkConn:Disconnect() WalkConn = nil end
 end
 
 local function IsOnSlope(Character)
@@ -111,8 +130,6 @@ function Crouch:OnStartClient()
 	
 	if not Crouch:ShouldStart() then return end
 	
-	CrouchStarted = true
-	
 	local SlideSpeedMultiplier = 1.5
 	local SlideMinSpeed = 20
 	
@@ -122,7 +139,15 @@ function Crouch:OnStartClient()
 	local ForwardVelocity = math.abs(Velocity.Z)
 	local FirstOnSlope,Angle = IsOnSlope(Character)
 	
-	if (ForwardVelocity >= 20 or FirstOnSlope) and Angle >= 0 and not HitObject(Character) then
+	local WouldSlide = (ForwardVelocity >= 20 or FirstOnSlope) and Angle >= 0 and not HitObject(Character)
+	-- slide cooldown: a press at speed too soon after the last slide does nothing (no crouch at a sprint)
+	if WouldSlide and os.clock() - LastSlideEnd < SlideCooldown then return end
+	
+	CrouchStarted = true
+	local Me = {}
+	SlideToken = Me
+	
+	if WouldSlide then
 		--Humanoid.WalkSpeed = 0
 		Humanoid.JumpHeight = 0
 		
@@ -135,6 +160,7 @@ function Crouch:OnStartClient()
 		Sliding = true
 		SlideStartTime = os.clock()
 		local BodyVelocity = MoverManager.Velocity(Character,{V = StartingVelocity,Max = Vector3.new(4e4,0,4e4)})
+		Me.Mover = BodyVelocity
 		
 		local rayParams = RaycastParams.new()
 		rayParams.FilterDescendantsInstances = {Character}
@@ -144,7 +170,13 @@ function Crouch:OnStartClient()
 		
 		--TweenService:Create(Camera,TweenInfo.new(0.2),{FieldOfView = 85}):Play()
 		
-		SlideConn = RunService.RenderStepped:Connect(function()
+		local Conn; Conn = RunService.RenderStepped:Connect(function()
+			-- died, respawned or superseded: stop driving this slide (never touch the old root again)
+			if SlideToken ~= Me or Humanoid.Health <= 0 or not Root.Parent or Character ~= Player.Character then
+				Conn:Disconnect()
+				if BodyVelocity.Parent then BodyVelocity:Destroy() end
+				return
+			end
 			
 			local Intersection = HitObject(Character)
 			
@@ -155,7 +187,7 @@ function Crouch:OnStartClient()
 			local HandOver = not OnSlope and TimePassed >= MinSlideDuration and FlowsIntoSprint(Character, Humanoid)
 				and BodyVelocity.VectorVelocity.Magnitude <= math.max(Humanoid.WalkSpeed, Run.StartSpeed(Character))
 			if HandOver or (not OnSlope and TimePassed >= SlideDuration) or BodyVelocity.VectorVelocity.Magnitude < 3 or Intersection then
-				SlideConn:Disconnect()
+				Conn:Disconnect()
 				MoverManager.ClearMovers(Character)
 				Crouch:OnEndClient()
 				
@@ -173,6 +205,8 @@ function Crouch:OnStartClient()
 				
 			end
 		end)
+		Me.Conn = Conn
+		SlideConn = Conn
 	else
 		Crouching = true
 		
@@ -212,13 +246,22 @@ function Crouch:OnEndClient()
 	
 	if not CrouchStarted then return end
 	CrouchStarted = false
+	local Mine = SlideToken
 	local WasSlide = Sliding
 	Sliding = false
+	if WasSlide then LastSlideEnd = math.huge end -- no new slide while this one runs out its minimum
 
 	if SlideConn then
 		local TimeUntilDone = MinSlideDuration - (os.clock() - SlideStartTime)
 		if TimeUntilDone > 0 then
 			task.wait(TimeUntilDone)
+		end
+		if SlideToken ~= Mine then
+			-- a newer crouch (or a new character) took over during the wait: end only this slide's own pieces
+			if Mine and Mine.Conn then Mine.Conn:Disconnect() end
+			if Mine and Mine.Mover and Mine.Mover.Parent then Mine.Mover:Destroy() end
+			if WasSlide and SlideToken ~= nil then LastSlideEnd = os.clock() end
+			return
 		end
 		
 		SlideFX.locally(Character,"Destroy")
@@ -227,6 +270,7 @@ function Crouch:OnEndClient()
 		MoverManager.ClearMovers(Character)
 	end
 	
+	if WasSlide then LastSlideEnd = os.clock() end
 	-- decided after the minimum-slide wait, from what the player wants the moment the slide really ends
 	local Flow = WasSlide and FlowsIntoSprint(Character, Humanoid)
 	AnimationManager.Stop(Character,"Slide", Flow and FLOW_BLEND or nil)
