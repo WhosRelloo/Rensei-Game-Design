@@ -1,4 +1,23 @@
 local SSS = game.ServerScriptService
+-- task 6b (owner, 2026-10-21): seats sit you only through their prompt
+local function FreeSeat(Car)
+	for _, S in ipairs(Car:GetDescendants()) do
+		if S:IsA("Seat") and not S.Occupant then return S end
+	end
+	return nil
+end
+local function StandUp(H)
+	local S = H.SeatPart
+	if not S then return end
+	H.Sit = false
+	local W = S:FindFirstChild("SeatWeld")
+	if W then W:Destroy() end
+	local t0 = os.clock()
+	repeat task.wait(0.1) until not H.SeatPart or os.clock() - t0 > 1
+end
+local function Near(Seat) -- standing on the seat, inside the Sit reach
+	return CFrame.new(Seat.Position + Vector3.new(0, 3.5, 0))
+end
 return {
 	BuyChargesAndGivesATicket = function(T)
 		local SS, TS, PS = require(SSS.StationService), require(SSS.TravelService), require(SSS.ProgressionService)
@@ -169,6 +188,168 @@ return {
 		if TS.HasTicket(P, "LindenmoorFoundry") then TS.UseTicket(P, "LindenmoorFoundry") end
 		local t2 = os.clock()
 		while not (P.Character and P.Character:FindFirstChild("HumanoidRootPart")) and os.clock() - t2 < 10 do task.wait(0.2) end
+		T.True(Ok, tostring(Err))
+	end,
+	-- task 6b: dropping onto (or brushing) a seat doesn't sit you; every seat has its Sit prompt
+	BrushingASeatDoesNotSeatYou = function(T)
+		local P = game.Players:GetPlayers()[1]
+		local H = P.Character.Humanoid
+		StandUp(H)
+		local CS = game:GetService("CollectionService")
+		local Bad, Count = 0, 0
+		for _, Tag in ipairs({"RenseiPlatformTrain", "RenseiRideTrain"}) do
+			for _, Train in ipairs(CS:GetTagged(Tag)) do
+				for _, S in ipairs(Train:GetDescendants()) do
+					if S:IsA("Seat") then
+						Count += 1
+						local Pr = S:FindFirstChild("SitPrompt")
+						if S.CanTouch or not Pr or Pr.Style ~= Enum.ProximityPromptStyle.Custom or Pr.ActionText ~= "Sit"
+							or Pr.MaxActivationDistance ~= 5 or Pr.HoldDuration ~= 0 or Pr.RequiresLineOfSight
+							or Pr.Exclusivity ~= Enum.ProximityPromptExclusivity.OnePerButton or Pr.KeyboardKeyCode ~= Enum.KeyCode.E
+							or Pr.Enabled ~= (S.Occupant == nil) then Bad += 1 end
+					end
+				end
+			end
+		end
+		T.Eq(Count, 128, "seats in both trains")
+		T.Eq(Bad, 0, "every seat: no touch, a Custom Sit prompt")
+		local Platform = workspace:FindFirstChild("PlatformTrain", true)
+		T.Eq(FreeSeat(Platform.CabinCar_Main):FindFirstChild("SitPrompt").ObjectText, "Private cabin")
+		T.Eq(FreeSeat(Platform.ThirdClass_Main):FindFirstChild("SitPrompt").ObjectText, "3rd class")
+		-- dropped onto three seats in turn, then walked across one: never seated
+		local Seats = {FreeSeat(Platform.ThirdClass_Main), FreeSeat(Platform.DiningCar_Main), FreeSeat(Platform.SecondClass_Main)}
+		for _, S in ipairs(Seats) do
+			P.Character:PivotTo(CFrame.new(S.Position + Vector3.new(0, 3.2, 0)))
+			task.wait(1)
+			T.True(H.SeatPart == nil, "not seated after dropping onto " .. S:GetFullName())
+		end
+		local S = Seats[1]
+		P.Character:PivotTo(CFrame.new(S.Position + Vector3.new(0, 3.2, 0) - S.CFrame.RightVector * 1.2))
+		task.wait(0.4)
+		H:MoveTo(S.Position + S.CFrame.RightVector * 1.2)
+		task.wait(1.2)
+		T.True(H.SeatPart == nil, "not seated after walking across the seat")
+		-- control: the same drop onto a touchable seat does sit you (so the checks above mean something)
+		S.CanTouch = true
+		P.Character:PivotTo(CFrame.new(S.Position + Vector3.new(0, 3.2, 0)))
+		local t0 = os.clock()
+		while H.SeatPart ~= S and os.clock() - t0 < 2 do task.wait(0.1) end
+		local Control = H.SeatPart == S
+		S.CanTouch = false
+		StandUp(H)
+		T.True(Control, "control: a touchable seat sits you")
+	end,
+	-- task 6b: the prompt's request seats you (with a ticket for that car), hides the prompt, and standing frees it
+	ThePromptSeatsYou = function(T)
+		local SS, TS = require(SSS.StationService), require(SSS.TravelService)
+		local P = game.Players:GetPlayers()[1]
+		local H = P.Character.Humanoid
+		StandUp(H)
+		SS.HoldClock = true -- a scheduled departure would carry the seated tester into the ride train
+		TS.AddTicket(P, "LindenmoorFoundry", "Third")
+		local Ok, Err = pcall(function()
+			local Platform = workspace:FindFirstChild("PlatformTrain", true)
+			local S = FreeSeat(Platform.ThirdClass_Main)
+			P.Character:PivotTo(Near(S))
+			task.wait(0.7)
+			local Sat, Why = SS.TrySit(P, S)
+			T.True(Sat, "request accepted (" .. tostring(Why) .. ")")
+			task.wait(0.5)
+			T.True(H.SeatPart == S, "seated in the chosen seat")
+			T.True(not S.SitPrompt.Enabled, "the prompt hides while the seat is taken")
+			StandUp(H)
+			T.True(H.SeatPart == nil, "stood up")
+			T.True(S.SitPrompt.Enabled, "the prompt is back once the seat is free")
+			-- refused: too far away, and too soon after a request
+			P.Character:PivotTo(CFrame.new(S.Position + Vector3.new(0, 3, 0) + S.CFrame.LookVector * 12))
+			task.wait(0.7)
+			local Far, FarWhy = SS.TrySit(P, S)
+			T.True(not Far and FarWhy == "too far", "too far (" .. tostring(FarWhy) .. ")")
+			local Soon, SoonWhy = SS.TrySit(P, S)
+			T.True(not Soon and SoonWhy == "too soon", "rate limited (" .. tostring(SoonWhy) .. ")")
+			-- refused: knocked down
+			P.Character:PivotTo(Near(S))
+			task.wait(0.7)
+			P.Character:SetAttribute("Knocked", true)
+			local Down, DownWhy = SS.TrySit(P, S)
+			P.Character:SetAttribute("Knocked", nil)
+			T.True(not Down and DownWhy == "down", "not while knocked (" .. tostring(DownWhy) .. ")")
+			T.True(H.SeatPart == nil, "still standing")
+		end)
+		SS.HoldClock = false
+		StandUp(H)
+		if TS.HasTicket(P, "LindenmoorFoundry") then TS.UseTicket(P, "LindenmoorFoundry") end
+		T.True(Ok, tostring(Err))
+	end,
+	-- task 6b: a 3rd-class ticket can't sit in a cabin seat, and the conductor says why
+	ThirdClassCantSitInACabinSeat = function(T)
+		local SS, TS, UI = require(SSS.StationService), require(SSS.TravelService), require(SSS.UIService)
+		local P = game.Players:GetPlayers()[1]
+		local H = P.Character.Humanoid
+		StandUp(H)
+		SS.HoldClock = true
+		TS.AddTicket(P, "LindenmoorFoundry", "Third")
+		local Said = {}
+		local Real = UI.Notify
+		UI.Notify = function(Who, Kind, Data)
+			if Who == P and Kind == "Toast" and type(Data) == "table" then table.insert(Said, tostring(Data.Text)) end
+			return Real(Who, Kind, Data)
+		end
+		local Ok, Err = pcall(function()
+			local Platform = workspace:FindFirstChild("PlatformTrain", true)
+			local S = FreeSeat(Platform.CabinCar_Main)
+			P.Character:PivotTo(Near(S))
+			task.wait(0.7)
+			local Sat, Why = SS.TrySit(P, S)
+			task.wait(0.4)
+			T.True(not Sat and Why == "class", "refused (" .. tostring(Why) .. ")")
+			T.True(H.SeatPart == nil, "not seated")
+			T.Eq(Said[#Said], "Conductor: \"That seat's for Private cabin passengers.\"", "the conductor's line")
+		end)
+		UI.Notify = Real
+		SS.HoldClock = false
+		StandUp(H)
+		if TS.HasTicket(P, "LindenmoorFoundry") then TS.UseTicket(P, "LindenmoorFoundry") end
+		T.True(Ok, tostring(Err))
+	end,
+	-- task 6b: someone who sat down through the prompt rides in the matching ride-train seat (CanTouch off there too)
+	SeatedRiderRidesInTheMatchingSeat = function(T)
+		local SS, TS = require(SSS.StationService), require(SSS.TravelService)
+		local P = game.Players:GetPlayers()[1]
+		local H = P.Character.Humanoid
+		StandUp(H)
+		SS.HoldClock = true
+		TS.AddTicket(P, "LindenmoorFoundry", "Third")
+		local Ok, Err = pcall(function()
+			local Platform = workspace:FindFirstChild("PlatformTrain", true)
+			local Ride = workspace:FindFirstChild("RideTrain", true)
+			local S = FreeSeat(Platform.ThirdClass_Main)
+			local Before = {}
+			for _, R in ipairs(Ride:GetDescendants()) do if R:IsA("Seat") then Before[R] = R.Position end end
+			P.Character:PivotTo(Near(S))
+			task.wait(0.7)
+			T.True(SS.TrySit(P, S), "sat down")
+			task.wait(0.5)
+			T.True(H.SeatPart == S, "seated on the platform train")
+			local t0 = os.clock()
+			SS.DepartNow("LindenmoorFoundry", 4)
+			task.wait(1.5)
+			local Want = (Ride:GetPivot() * Platform:GetPivot():Inverse() * S.CFrame).Position
+			local In = H.SeatPart
+			T.True(In ~= nil and In:IsDescendantOf(Ride.ThirdClass_Main) and (In.Position - Want).Magnitude < 0.2,
+				"seated in the matching ride-train seat (" .. tostring(In and In:GetFullName()) .. ")")
+			T.True(In ~= nil and not In.SitPrompt.Enabled, "its prompt hides")
+			while TS.HasTicket(P, "LindenmoorFoundry") and os.clock() - t0 < 10 do task.wait(0.2) end
+			T.Eq(TS.HasTicket(P, "LindenmoorFoundry"), nil, "arrived and used the ticket")
+			T.True(H.SeatPart == nil, "stood up on arrival")
+			local Moved = 0
+			for R, At in pairs(Before) do if (R.Position - At).Magnitude > 0.01 then Moved += 1 end end
+			T.Eq(Moved, 0, "no ride-train seat moved")
+			T.True(In == nil or In.SitPrompt.Enabled, "the ride-train seat's prompt is back")
+		end)
+		SS.HoldClock = false
+		StandUp(H)
+		if TS.HasTicket(P, "LindenmoorFoundry") then TS.UseTicket(P, "LindenmoorFoundry") end
 		T.True(Ok, tostring(Err))
 	end,
 }

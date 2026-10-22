@@ -12,6 +12,11 @@
 --     TravelService.Depart sends them all together. Anyone who can't go (already teleporting, or dropped by Depart)
 --     is put back on this platform with the ticket kept. A rider who dies aboard (or whose character is replaced)
 --     is off the ride, ticket kept; only the character that boarded is ever moved back into the train.
+--   * Seats (owner, 2026-10-21: "the OPTION to sit on them with a prompt on each seat"): every Seat in a platform or
+--     ride train has CanTouch off, so brushing past doesn't sit you, and a "Sit" ProximityPrompt (Custom style, drawn
+--     by PromptUI; OnePerButton, so only the nearest shows), hidden while the seat is taken. The server checks the
+--     seat is free, the sitter is alive, not down / gripped / carried, within reach, and that their ticket reaches
+--     the seat's car, then Seat:Sit. Standing up is the normal jump.
 -- Every number is a PROPOSAL.
 local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
@@ -40,6 +45,9 @@ StationService.UnseatSettle = 0.3 -- PROPOSAL: seconds after standing a rider up
 StationService.Stale = 5 -- PROPOSAL: a departure slot noticed up to this many seconds late (a server hitch) still departs
 StationService.AskGap = 0.25 -- PROPOSAL: seconds between a player's requests on the Travel remote
 StationService.HoldClock = false -- Studio tests only: true stops scheduled departures (a live server ignores it)
+StationService.SeatReach = 5 -- the Sit prompt's reach (owner brief, 2026-10-21)
+StationService.SitReach = 7 -- PROPOSAL: studs from a seat a Sit request may come from (the prompt reaches 5; lag slack)
+StationService.SitGap = 0.5 -- PROPOSAL: seconds between a player's Sit requests
 
 local Remote, Event
 local Riding = {} -- [Player] = RouteId
@@ -47,7 +55,10 @@ local Boxes = {} -- [car Model] = {CF, Size}; the trains are anchored and never 
 local Kinds = {} -- [car Model] = CarKind (read from its BoardZone / CarDoor parts) or false (locomotive, tender)
 local Zones = {} -- [train Model] = {BoardZone parts}
 local Told = {} -- [Player] = "Route|departure" we last sent "Board" for
-local LastPush, LastAsk = {}, {}
+local LastPush, LastAsk, LastSit = {}, {}, {}
+local SeatTrains = setmetatable({}, {__mode = "k"}) -- [train Model or Seat] = true once set up
+local SEAT_TEXT = {ThirdClass = "3rd class", DiningCar = "Dining car", SecondClass = "2nd class", CabinCar = "Private cabin"}
+local DOWN = {"Knocked", "GrippedBy", "CarriedBy", "Gripping", "Carrying"} -- character attributes: can't sit down
 
 local function Notify(P, Text) UIService.Notify(P, "Toast", {Text = Text}) end
 
@@ -239,6 +250,89 @@ local function RideSeat(Ride, Offset, Seat)
 		if S:IsA("Seat") and (S.Position - At).Magnitude < 0.2 then return S end
 	end
 	return nil
+end
+
+-- seats you choose to sit in (owner, 2026-10-21)
+local function TrainOfSeat(Seat)
+	local X = Seat.Parent
+	while X and X ~= workspace do
+		if CollectionService:HasTag(X, "RenseiPlatformTrain") or CollectionService:HasTag(X, "RenseiRideTrain") then return X end
+		X = X.Parent
+	end
+	return nil
+end
+
+local function CarOf(Train, D) -- the train's car (a direct child Model) holding D
+	local X = D
+	while X and X.Parent ~= Train do X = X.Parent end
+	return X
+end
+
+local function LowestClass(Kind) -- the cheapest class that reaches a car kind, for the conductor's line
+	for _, C in ipairs(Travel.ClassOrder) do
+		if Travel.ClassReaches(C, Kind) then return Travel.Classes[C].Name end
+	end
+	return "ticketed"
+end
+
+-- a Sit request (the seat's prompt): every check on the server, then Seat:Sit. Returns ok, why
+function StationService.TrySit(P, Seat)
+	local Now = os.clock()
+	if LastSit[P] and Now - LastSit[P] < StationService.SitGap then return false, "too soon" end
+	LastSit[P] = Now
+	if typeof(Seat) ~= "Instance" or not Seat:IsA("Seat") or not Seat:IsDescendantOf(workspace) then return false, "no seat" end
+	if Seat.Occupant then return false, "taken" end
+	local C = P.Character
+	local H = C and C:FindFirstChildOfClass("Humanoid")
+	local Root = C and C:FindFirstChild("HumanoidRootPart")
+	if not (H and Root and H.Health > 0) then return false, "not alive" end
+	for _, A in ipairs(DOWN) do
+		if C:GetAttribute(A) then return false, "down" end
+	end
+	if (Root.Position - Seat.Position).Magnitude > StationService.SitReach then return false, "too far" end
+	local Train = TrainOfSeat(Seat)
+	if Train then
+		local Car = CarOf(Train, Seat)
+		local Kind = Car and CarKind(Car)
+		local RouteId = Train:GetAttribute("Route")
+		if not (Kind and RouteId and StationService.CanEnter(P, RouteId, Kind)) then
+			Notify(P, ("Conductor: \"That seat's for %s passengers.\""):format(LowestClass(Kind)))
+			return false, "class"
+		end
+	end
+	if H.SeatPart then Unseat(P) end -- moving to another seat: off the old one first
+	Seat:Sit(H)
+	return true
+end
+
+local function SetUpSeat(Train, Seat)
+	if not Seat:IsA("Seat") or SeatTrains[Seat] then return end
+	SeatTrains[Seat] = true
+	local Old = Seat:FindFirstChild("SitPrompt") -- (a copy of an already set-up train: its prompt has no handler)
+	if Old then Old:Destroy() end
+	Seat.CanTouch = false -- touching no longer sits you; Seat:Sit (the prompt, the ride-train carry-over) still does
+	local Car = CarOf(Train, Seat)
+	local Prompt = Instance.new("ProximityPrompt")
+	Prompt.Name = "SitPrompt"
+	Prompt.ActionText = "Sit"
+	Prompt.ObjectText = SEAT_TEXT[Car and CarKind(Car) or ""] or "Seat"
+	Prompt.KeyboardKeyCode = Enum.KeyCode.E
+	Prompt.HoldDuration = 0
+	Prompt.MaxActivationDistance = StationService.SeatReach
+	Prompt.RequiresLineOfSight = false
+	Prompt.Exclusivity = Enum.ProximityPromptExclusivity.OnePerButton -- 64 seats a train: only the nearest shows
+	Prompt.Style = Enum.ProximityPromptStyle.Custom -- drawn by Modules.UI.PromptUI in the game's own art (owner rule 2026-10-21)
+	Prompt.Enabled = Seat.Occupant == nil
+	Prompt.Parent = Seat
+	Seat:GetPropertyChangedSignal("Occupant"):Connect(function() Prompt.Enabled = Seat.Occupant == nil end)
+	Prompt.Triggered:Connect(function(P) StationService.TrySit(P, Seat) end)
+end
+
+local function SetUpSeats(Train)
+	if not Train:IsA("Model") or SeatTrains[Train] then return end
+	SeatTrains[Train] = true
+	for _, D in ipairs(Train:GetDescendants()) do SetUpSeat(Train, D) end
+	Train.DescendantAdded:Connect(function(D) SetUpSeat(Train, D) end)
 end
 
 local function Depart(RouteId, RideSeconds)
@@ -470,9 +564,11 @@ function StationService.Start()
 				end
 			end
 		end
+		for _, T in ipairs(CollectionService:GetTagged(Tag)) do SetUpSeats(T) end -- seats: sit on request only
+		CollectionService:GetInstanceAddedSignal(Tag):Connect(SetUpSeats) -- trains built (or rebuilt) later
 	end
 	Players.PlayerRemoving:Connect(function(P)
-		Riding[P], Told[P], LastPush[P], LastAsk[P] = nil, nil, nil, nil
+		Riding[P], Told[P], LastPush[P], LastAsk[P], LastSit[P] = nil, nil, nil, nil, nil
 	end)
 	task.spawn(Clock)
 end
