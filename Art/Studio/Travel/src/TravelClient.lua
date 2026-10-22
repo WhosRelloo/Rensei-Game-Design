@@ -101,24 +101,50 @@ local function RegionName(Id)
 	return Id and Places.Regions[Id] and Places.Regions[Id].Name or Id or "?"
 end
 
--- ===== the ticket window: a look-alike of the NPC dialogue box (fix round 1, controller's ruling) =====
+-- ===== the ticket window: a look-alike of the NPC dialogue box (fix rounds 1-2, controller's rulings) =====
 -- Cloned from Uis.Dialogue (not wired into DialogueService): the clerk "says" the line in MainFrame (97950998740350,
 -- speaker "Ticket clerk"), and the answers are its choice plates (Choices.Choice1, 92726496845615, with the
 -- Selected highlight 107749049761613 on hover), in the dialogue's own lettering. Choices: "Ticket for: <name>"
 -- (cycles me -> each other player, sent by UserId), one per class with its price, and "Never mind". A station with
 -- several lines first asks "Where to?" with one choice per line. Placed like the real box (text above the choices,
--- at 66% of the screen), opened with UIMotion; number keys pick a choice, Esc or another menu (Uis.bg) closes it.
--- On a small or touch screen every choice is at least MIN_TOUCH px tall, and the box moves up to stay on screen.
+-- at 66% of the screen); UIMotion opens and settles it. No number keys (they'd also reach the hotbar: HUDUI only
+-- checks the real dialogue). It closes on Esc, another menu (Uis.bg), a real conversation (Uis.Dialogue), death,
+-- respawn, and walking out of the clerk's reach. On a small or touch screen every choice is at least MIN_TOUCH px
+-- tall; the box moves up to stay on screen, never past the top, and past that the choices scroll.
 local Window
 local OpenToken = 0
-local Opening = false -- an open is waiting for the clerk's prices
+local Opening = nil -- the token of an open waiting for the clerk's prices
 local JourneyActive = function() return false end -- set once the journey screen's state exists (below)
 local HiddenHud -- the HUD parts this window hid (the real dialogue hides them too: its choices sit there)
+local Conns = {} -- this window's connections, cut when it closes
 local MIN_TOUCH = 40 -- PROPOSAL: a choice's minimum height in px on a phone
+local CLERK_REACH = 14 -- StationService.ClerkReach: past this from every clerk, the window closes
+local ASK_TIMEOUT = 10 -- as Ask's own busy release
 local function LiveUis() return Player.PlayerGui:FindFirstChild("Uis") end
+local UIMotion
+local function Motion()
+	if not UIMotion then
+		local Ok, M = pcall(require, ReplicatedStorage.Modules.UI.UIMotion)
+		UIMotion = Ok and M or false
+	end
+	return UIMotion or nil
+end
 local function CloseTickets()
 	OpenToken += 1
-	if Window then Window:Destroy() Window = nil end
+	for _, C in ipairs(Conns) do C:Disconnect() end
+	table.clear(Conns)
+	local S = Window
+	Window = nil
+	if S then
+		local Box = S:FindFirstChild("Box")
+		local M = Motion()
+		if M and Box and Box.Visible then
+			M.Close(Box) -- settles out (0.14 s), as the menus do; the choices are already dead (Window ~= S)
+			task.delay(0.2, function() S:Destroy() end)
+		else
+			S:Destroy()
+		end
+	end
 	local Uis = LiveUis()
 	if HiddenHud and Uis then
 		local Talk = Uis:FindFirstChild("Dialogue")
@@ -128,28 +154,31 @@ local function CloseTickets()
 	end
 	HiddenHud = nil
 end
-local UIMotion
-local function Motion()
-	if not UIMotion then
-		local Ok, M = pcall(require, ReplicatedStorage.Modules.UI.UIMotion)
-		UIMotion = Ok and M or false
+Player.CharacterAdded:Connect(function() if Window then CloseTickets() end end) -- respawned: the clerk is gone
+local function NearClerk()
+	local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+	if not Root then return false end
+	for _, C in ipairs(CollectionService:GetTagged("RenseiTicketClerk")) do
+		if C:IsA("BasePart") and C:IsDescendantOf(workspace) and (C.Position - Root.Position).Magnitude <= CLERK_REACH then return true end
 	end
-	return UIMotion or nil
+	return false
 end
 local function OpenTickets()
 	if Opening then return end -- one is already on its way (a double press): let it finish
 	CloseTickets()
 	local Mine = OpenToken
-	Opening = true
+	local Wait = {}
+	Opening = Wait
+	task.delay(ASK_TIMEOUT, function() if Opening == Wait then Opening = nil end end) -- never stuck on a lost answer
 	local Rows = Ask("Prices")
-	Opening = false
+	if Opening == Wait then Opening = nil end
 	-- the clerk answered: still wanted? (closed, reopened, a ride or road fade, or the journey screen meanwhile)
 	if OpenToken ~= Mine or type(Rows) ~= "table" then return end
-	if Fade.BackgroundTransparency < 0.99 or JourneyActive() then return end
+	if Fade.BackgroundTransparency < 0.99 or JourneyActive() or not NearClerk() then return end
 	local Box = Template("Dialogue")
 	local Main = Box and Box:FindFirstChild("MainFrame")
-	local List = Box and Box:FindFirstChild("Choices")
-	local RowArt = List and List:FindFirstChild("Choice1")
+	local Authored = Box and Box:FindFirstChild("Choices")
+	local RowArt = Authored and Authored:FindFirstChild("Choice1")
 	if not (Main and Main:FindFirstChild("maintext") and RowArt and RowArt:FindFirstChild("Head")) then -- no Uis art here
 		if Box then Box:Destroy() end
 		return
@@ -160,21 +189,27 @@ local function OpenTickets()
 	Window = S
 	Box.Name = "Box"
 	RowArt.Parent = nil
-	for _, C in ipairs(List:GetChildren()) do
-		if C:IsA("GuiObject") then C:Destroy() end
-	end
-	local Aspect = List:FindFirstChildOfClass("UIAspectRatioConstraint")
-	if Aspect then Aspect:Destroy() end -- sized below, by the number of choices
-	local Layout = List:FindFirstChildOfClass("UIListLayout")
+	-- the choices sit in a transparent scrolling frame where the authored Choices frame was (layout only: it scrolls
+	-- only when a phone can't fit them all), with the authored list layout
+	local Layout = Authored:FindFirstChildOfClass("UIListLayout")
+	local List = Instance.new("ScrollingFrame")
+	List.Name, List.AnchorPoint, List.Position, List.ZIndex = "Choices", Authored.AnchorPoint, Authored.Position, Authored.ZIndex
+	List.BackgroundTransparency, List.BorderSizePixel, List.ScrollBarThickness = 1, 0, 0
+	List.ScrollingDirection, List.AutomaticCanvasSize, List.ClipsDescendants = Enum.ScrollingDirection.Y, Enum.AutomaticSize.None, true
+	if Layout then Layout.Parent = List end
+	Authored:Destroy()
+	List.Parent = Box
 	SetText(Main, "Title", "Ticket clerk")
 	local function Say(Text) SetText(Main, "maintext", Text) end
 
-	-- the box's size and place: the real dialogue's proportions, with taller choices on a small or touch screen
+	-- the box's size and place: the real dialogue's proportions, with taller choices on a small or touch screen.
+	-- Measured on the box's parent (the ScreenGui), not the box: UIMotion's pop scales the box itself.
 	local Count = 0
-	local Picks = {} -- [n] = what choice n does (number keys, as the real dialogue)
 	local Base = {Row = RowArt.Size, Pad = Layout and Layout.Padding}
 	local function Fit()
-		local VW, VH = Box.AbsoluteSize.X, Box.AbsoluteSize.Y
+		local Host = Box.Parent
+		if not (Host and Host:IsA("GuiBase2d")) then return end
+		local VW, VH = Host.AbsoluteSize.X, Host.AbsoluteSize.Y
 		if VW < 1 or VH < 1 then return end
 		local ListH = 0.178657413 * VH -- the authored Choices height (its width was 4.56x that)
 		local RowH = Base.Row.Y.Scale * ListH
@@ -184,17 +219,23 @@ local function OpenTickets()
 			K = math.min(K, 0.96 * VW / RowW) -- never wider than the screen
 			RowH, RowW = RowH * K, RowW * K
 		end
-		local Pad = (Base.Pad and Base.Pad.Scale or 0.044) * RowH / Base.Row.Y.Scale
-		if Layout then Layout.Padding = UDim.new(0, math.floor(Pad)) end
+		RowH, RowW = math.floor(RowH), math.floor(RowW)
+		local Pad = math.floor((Base.Pad and Base.Pad.Scale or 0.044) * RowH / Base.Row.Y.Scale)
+		if Layout then Layout.Padding = UDim.new(0, Pad) end
 		for _, C in ipairs(List:GetChildren()) do
-			if C:IsA("GuiButton") then C.Size = UDim2.fromOffset(math.floor(RowW), math.floor(RowH)) end
+			if C:IsA("GuiButton") then C.Size = UDim2.fromOffset(RowW, RowH) end
 		end
-		local H = Count * math.floor(RowH) + math.max(Count - 1, 0) * math.floor(Pad)
-		List.Size = UDim2.fromOffset(math.floor(RowW / Base.Row.X.Scale), H)
-		-- the box text ends at 66% and the choices start at 66.5%, as authored; move both up if they'd run off
-		local Lift = math.max(0, 0.665 * VH + H + 8 - VH)
+		local H = Count * RowH + math.max(Count - 1, 0) * Pad
+		local W = math.floor(RowW / Base.Row.X.Scale)
+		-- the box text ends at 66% and the choices start at 66.5%, as authored; both move up if the choices would
+		-- run off the bottom, but the text box never goes past the top: past that the choices scroll
+		local MainH = 0.174722224 * VH -- the authored MainFrame height
+		local Lift = math.clamp(0.665 * VH + H + 8 - VH, 0, math.max(0, 0.66 * VH - MainH - 4))
 		Main.Position = UDim2.new(0.5, 0, 0.66, -Lift)
 		List.Position = UDim2.new(0.5, 0, 0.665, -Lift)
+		local Room = math.max(RowH, VH - (0.665 * VH - Lift) - 8)
+		List.Size = UDim2.fromOffset(W, math.min(H, Room))
+		List.CanvasSize = UDim2.fromOffset(0, H)
 	end
 
 	local For = nil -- nil = me, else a Player
@@ -216,8 +257,7 @@ local function OpenTickets()
 			B.MouseEnter:Connect(function() Sel.Visible = true end)
 			B.MouseLeave:Connect(function() Sel.Visible = false end)
 		end
-		B.Activated:Connect(Fn)
-		Picks[Count] = Fn
+		B.Activated:Connect(function() if Window == S then Fn() end end) -- dead while it settles out
 		B.Parent = List
 		local M = Motion()
 		if M then M.Button(B) end
@@ -225,10 +265,10 @@ local function OpenTickets()
 	end
 	local function Clear()
 		Count = 0
-		table.clear(Picks)
 		for _, C in ipairs(List:GetChildren()) do
 			if C:IsA("GuiButton") then C:Destroy() end
 		end
+		List.CanvasPosition = Vector2.zero
 	end
 	local function ForText()
 		return "Ticket for: " .. (For and Escape(For.DisplayName) or "me")
@@ -275,13 +315,16 @@ local function OpenTickets()
 			end
 			if #Rows > 1 then Choice("Another line", function() Picked = nil Show(nil) end) end
 		end
-		Choice("Never mind", function() if Window == S then CloseTickets() end end)
+		Choice("Never mind", CloseTickets)
 		Fit()
 	end
 	Box.Parent = S
 	S.Parent = Player:WaitForChild("PlayerGui")
 	Show(Picked)
-	Box:GetPropertyChangedSignal("AbsoluteSize"):Connect(Fit)
+	local function On(Signal, Fn) table.insert(Conns, Signal:Connect(Fn)) end
+	local Camera = workspace.CurrentCamera
+	if Camera then On(Camera:GetPropertyChangedSignal("ViewportSize"), function() task.defer(Fit) end) end
+	On(Box.AncestryChanged, function() task.defer(Fit) end) -- (moved into another host)
 	-- the real dialogue hides the vitals and hotbar while it's up; so does this
 	local Uis = LiveUis()
 	local Hud = Uis and Uis:FindFirstChild("HUD")
@@ -290,22 +333,22 @@ local function OpenTickets()
 		local G = Hud and Hud:FindFirstChild(Name)
 		if G and G.Visible then G.Visible = false table.insert(HiddenHud, G) end
 	end
-	-- another menu opening (its backdrop shows) closes this; so does Esc; number keys pick a choice
-	local Backdrop = Uis and Uis:FindFirstChild("bg")
-	if Backdrop then
-		Backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
-			if Backdrop.Visible and Window == S then CloseTickets() end
-		end)
+	-- closes on: another menu (its backdrop shows), a real conversation, Esc, death, and leaving the clerk
+	for _, Name in ipairs({"bg", "Dialogue"}) do
+		local G = Uis and Uis:FindFirstChild(Name)
+		if G then On(G:GetPropertyChangedSignal("Visible"), function() if G.Visible and Window == S then CloseTickets() end end) end
 	end
-	local Keys
-	Keys = UserInputService.InputBegan:Connect(function(Input, Processed)
-		if Window ~= S then Keys:Disconnect() return end
-		if Input.KeyCode == Enum.KeyCode.Escape then CloseTickets() return end
-		if Processed then return end
-		local N = Input.KeyCode.Value - Enum.KeyCode.One.Value + 1
-		if N >= 1 and N <= 9 and Picks[N] then Picks[N]() end
+	On(UserInputService.InputBegan, function(Input)
+		if Input.KeyCode == Enum.KeyCode.Escape and Window == S then CloseTickets() end
 	end)
-	S.Destroying:Connect(function() Keys:Disconnect() end)
+	local Hum = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
+	if Hum then On(Hum.Died, function() if Window == S then CloseTickets() end end) end
+	task.spawn(function()
+		while Window == S do
+			task.wait(0.5)
+			if Window == S and not NearClerk() then CloseTickets() end
+		end
+	end)
 	local M = Motion()
 	if M then M.Open(Box) end
 end
