@@ -2,6 +2,26 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-21 — Train seats you choose, and UI from the game's own art
+
+**Owner:** "for the train seats, I want the players to have the OPTION to sit on them with a prompt on each seat"; "whenever you make any UI, ONLY use existing UI assets to create them. Fix the detection UI, conductor prompt ui, and ticket UI."
+
+- **Seats (Task 6b):**
+  - Brushing past a seat no longer sits you down. Each of the 128 seats (64 per train) has a "Sit" prompt in the game's prompt style.
+  - Only the nearest seat shows its prompt. You have to be inside that car, and your ticket must reach it.
+  - Jump to stand up.
+  - Dying while seated frees the seat.
+  - Seats carry over into the ride train as before.
+  - Tests: Station 16/16.
+- **Ticket window:** rebuilt as the game's dialogue box. The clerk asks "Tickets to the Foundry Yard. Which class?", and the choices are who the ticket is for, each class with its price, and "Never mind". It's animated, has phone-sized buttons, and closes with Esc or when another menu opens.
+- **Prompts:** the clerk and road prompts now use the game's own prompt art (PromptUI).
+- **Detection indicator:** now the hotbar slot plate with the transmutation circle, in place of the drawn eye. Light, crouch and sound still show.
+- **Train messages:** now the game's toasts.
+- **Departure board and train teleport screen:** use existing art.
+- **Screenshots:** `Documents/images/UI/`.
+- **Ruling to confirm:** the full-screen black fade during the train ride stays a plain fade (the intro cutscene does the same). It's a transition, not a panel.
+- **For the owner:** publish `RenseiServer` and `ReplicatedStorage.Modules` (StealthUI). TravelClient is copied into Foundry.
+
 ## 2026-10-21 — World Plan 1, Task 8: road journeys and ambushes
 
 - **Road exits:**
