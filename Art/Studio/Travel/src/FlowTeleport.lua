@@ -18,6 +18,7 @@ local Places = require(ReplicatedStorage.Modules.Data.Rensei.Places)
 local FlowTeleport = {}
 FlowTeleport.Tries = 3 -- teleport attempts before OnFail
 FlowTeleport.Wait = 20 -- seconds Send waits for an outcome before reporting "under way"
+FlowTeleport.Drain = 1 -- seconds a group's failed preferred-server attempt is left to report before the plain one goes
 
 -- results a retry can't fix
 local NoRetry = {
@@ -113,6 +114,9 @@ function GroupFailed(G, Why, Final)
 	if G.Plain then -- the preferred server is full or gone: the normal teleport instead, with all its tries
 		warn(("[FlowTeleport] group -> %d: the preferred server failed (%s); sending them anywhere"):format(G.PlaceId, Why))
 		G.Options, G.Plain, G.Tries = G.Plain, nil, 0
+		-- fix round 1: still Failing for a moment, so the other members' TeleportInitFailed from the same preferred
+		-- attempt drain into the guard above instead of counting against the plain attempt
+		task.wait(FlowTeleport.Drain)
 		G.Failing = false
 		TryGroup(G)
 		return

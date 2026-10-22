@@ -227,7 +227,6 @@ local function roadGate(Pos, Out) -- Pos: on the road surface; Out: the way the 
 	M.Parent = F
 	return M
 end
-roadGate(Vector3.new(150, 4.2, 222), Vector3.new(0, 0, 1))
 
 local KITDATA = { -- measured in Ye (ServerStorage.LindenmoorKit, World.Map.Lindenmoor.Fences): {Name, SizeX, SizeY, SizeZ, CFrame from the pivot, Material, R, G, B, CanCollide, Transparency}
 	Cypress = {
@@ -288,13 +287,22 @@ end
 -- A real, walkable stretch of road that leaves the region, in the part-ground style of Art/Studio/Lindenmoor/ground.lua:
 -- 4-stud cells of flat slabs in 1-stud steps over stone sides, merged into rectangles; a dirt road down the middle; mossy
 -- banks that rise into a cutting towards the far end; kit trees, rocks and fences cloned along it. It carries:
---   * RenseiRoadPassage parts (Route, To, RoadName) covering it, one per leg;
---   * RenseiRoadEncounter parts (Route) along it, each with hidden SpawnPoint attachments (Side = "Out" ahead of
---     someone walking out, "In" ahead of someone walking in) behind cover;
+--   * RenseiRoadPassage parts (Route, To, RoadName, Leg = 1 at the mouth .. n at the threshold) covering it, one per
+--     leg; they carry RoadPoint attachments on the road's centre line every 8 studs, facing the way out (RoadService
+--     walks crossers along the nearest one);
+--   * RenseiRoadEncounter parts (Route, Order = 1 nearest the mouth) along it, each with hidden SpawnPoint attachments
+--     (Side = "Out" ahead of someone walking out, "In" ahead of someone walking in) behind cover;
 --   * a RenseiRoadThreshold part (Route, To) at the far end, round a bend whose far side can't be seen;
 --   * the RenseiArrival "RoadStart" (Point) on the road before that bend, facing inward: where travellers from the
 --     other place appear.
+-- Kit decor (trees, rocks, fences, the gate, the sign) is CanTouch / CanQuery false (fix round 1); the ground isn't.
 -- Server code: RoadService; client: TravelClient. Every number is a PROPOSAL.
+local function Decor(I) -- no touches and no queries on decor
+	for _, D in ipairs(I:IsA("BasePart") and {I} or I:GetDescendants()) do
+		if D:IsA("BasePart") then D.CanTouch, D.CanQuery = false, false end
+	end
+	return I
+end
 local PTOP = { -- ground.lua's palette
 	grass = {Enum.Material.Grass, {Color3.fromRGB(74, 98, 50), Color3.fromRGB(82, 106, 54), Color3.fromRGB(68, 92, 48), Color3.fromRGB(90, 112, 58)}},
 	path = {Enum.Material.Ground, {Color3.fromRGB(98, 84, 64), Color3.fromRGB(90, 78, 60)}},
@@ -454,6 +462,7 @@ local function Passage(C)
 
 	-- 3. markers
 	local Clip = C.Clip or {}
+	local LegParts = {}
 	for LI = 1, #C.Legs do -- RenseiRoadPassage: one box per leg
 		local A, B, E, F = math.huge, -math.huge, math.huge, -math.huge
 		for I, P in ipairs(S) do
@@ -469,6 +478,23 @@ local function Passage(C)
 			P:SetAttribute("Route", C.Route)
 			P:SetAttribute("To", C.To)
 			P:SetAttribute("RoadName", C.RoadName)
+			P:SetAttribute("Leg", LI)
+			LegParts[LI] = P
+		end
+	end
+	-- RoadPoints: the centre line every 8 studs, each under the leg it belongs to, facing the way out
+	for SS = 0, Len, 8 do
+		local P, T = at(SS)
+		local Leg = #C.Legs
+		for I = 2, #S do if S[I][3] >= SS then Leg = LegOf[I] break end end
+		local Box = LegParts[Leg] or LegParts[#C.Legs]
+		if Box then
+			local A = Instance.new("Attachment")
+			A.Name = "RoadPoint"
+			A:SetAttribute("S", SS) -- studs from the mouth
+			A.Parent = Box
+			local Q = Vector3.new(P.X, C.RoadY, P.Z)
+			A.WorldCFrame = CFrame.lookAt(Q, Q + T)
 		end
 	end
 	local Reserved = {} -- spots kept clear of trees (spawn points, cover, the arrival)
@@ -484,6 +510,7 @@ local function Passage(C)
 		local K = C.Kit(Kind, Rng)
 		if not K then return nil end
 		K:PivotTo(CF)
+		Decor(K)
 		K.Parent = M
 		return K
 	end
@@ -505,6 +532,7 @@ local function Passage(C)
 		local P, T = at(ES)
 		local E = marker("Encounter" .. EI, Vector3.new(C.Half * 2 + 8, 30, 48), CFrame.lookAt(P + Vector3.new(0, C.RoadY + 12, 0), P + Vector3.new(0, C.RoadY + 12, 0) + T), "RenseiRoadEncounter")
 		E:SetAttribute("Route", C.Route)
+		E:SetAttribute("Order", EI)
 		table.insert(Encounters, E)
 		for _, Way in ipairs({{"Out", 1}, {"In", -1}}) do
 			local Q, QT = at(ES + Way[2] * 20)
@@ -536,6 +564,7 @@ local function Passage(C)
 			put("GatePillar", Vector3.new(3, 12, 3), CF * CFrame.new(SG * 8.5, 6, 0), Enum.Material.Cobblestone, STONE, Gate)
 		end
 		put("GateLintel", Vector3.new(20, 2.5, 3.5), CF * CFrame.new(0, 13.25, 0), Enum.Material.Cobblestone, STONE, Gate)
+		Decor(Gate)
 		Gate.Parent = M
 		reserve(P, 12)
 	end
@@ -549,6 +578,7 @@ local function Passage(C)
 				local Y = cellTop(Pos.X, Pos.Z)
 				local Post = C.Post:Clone()
 				Post.CFrame = CFrame.new(Pos.X, Y + Post.Size.Y / 2, Pos.Z)
+				Decor(Post)
 				Post.Parent = M
 				if Last then
 					for _, H in ipairs({0.3, 0.7}) do
@@ -556,6 +586,7 @@ local function Passage(C)
 						local From, To2 = Vector3.new(Last.X, Y + Post.Size.Y * H, Last.Z), Vector3.new(Post.Position.X, Y + Post.Size.Y * H, Post.Position.Z)
 						R.Size = Vector3.new(R.Size.X, R.Size.Y, (To2 - From).Magnitude)
 						R.CFrame = CFrame.lookAt((From + To2) / 2, To2)
+						Decor(R)
 						R.Parent = M
 					end
 				end
@@ -622,6 +653,7 @@ local function Passage(C)
 	return M, {Length = math.floor(Len + 0.5), Threshold = C.Threshold, Slabs = Slabs, Trees = Trees, Rocks = Rocks, Parts = Parts,
 		Encounters = #Encounters, ThresholdAt = Th.Position, RoadStart = Arr.Position}
 end
+Decor(roadGate(Vector3.new(150, 4.2, 222), Vector3.new(0, 0, 1))) -- Task 8's arch, the passage's gate
 
 local _, Info = Passage({
 	Parent = F, Name = "SouthRoad", Route = "RoadLindenmoorFoundry", To = "Lindenmoor", RoadName = "The South Road",

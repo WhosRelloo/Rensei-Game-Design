@@ -111,9 +111,12 @@ function TravelService.Arrive(Player, Info)
 end
 
 -- Returns "sent" | "loopback", and the players that actually left (busy or unloaded ones are dropped).
--- Join (optional, Task 8b): a server of the destination place to try first (a road party's stragglers follow their
--- party there); if it's full or gone, FlowTeleport falls back to the normal teleport.
-function TravelService.Depart(List, RouteId, ArriveAt, Join)
+-- Opts (optional, Task 8b): {Join = a server (JobId) of the destination place to try first (a road party's stragglers
+-- follow their party there; if it's full or gone, FlowTeleport falls back to the normal teleport), Nonce = the road
+-- crossing's id, passed on in TeleportData.Travel (the arriving server shares it with the party's stragglers)}.
+function TravelService.Depart(List, RouteId, ArriveAt, Opts)
+	Opts = type(Opts) == "table" and Opts or {}
+	local Join = type(Opts.Join) == "string" and Opts.Join or nil
 	local Here = TravelService.Here()
 	local Dest = Travel.Other(RouteId, Here)
 	assert(Dest, "route " .. tostring(RouteId) .. " doesn't leave " .. Here)
@@ -148,10 +151,10 @@ function TravelService.Depart(List, RouteId, ArriveAt, Join)
 	while Left > 0 and os.clock() < Deadline do task.wait(0.1) end
 	local Name = Places.Regions[Dest].Name
 	-- TeleportData.Travel is informational only (logging); the destination reads the saved Trip
-	FlowTeleport.SendGroup(Going, Places.Regions[Dest].PlaceId, {Travel = {Route = RouteId, Arrive = ArriveAt, From = Here}},
+	FlowTeleport.SendGroup(Going, Places.Regions[Dest].PlaceId, {Travel = {Route = RouteId, Arrive = ArriveAt, From = Here, Nonce = Opts.Nonce}},
 		function(P)
 			P:Kick(("The journey to %s couldn't be completed. Your ticket is still valid; please rejoin."):format(Name))
-		end, type(Join) == "string" and {ServerInstanceId = Join} or nil)
+		end, Join and {ServerInstanceId = Join} or nil)
 	return "sent", Going
 end
 
