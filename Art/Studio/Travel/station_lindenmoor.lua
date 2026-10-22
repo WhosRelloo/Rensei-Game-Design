@@ -229,11 +229,12 @@ clear(L, "NorthRoad")
 --   * a RenseiRoadThreshold part (Route, To) at the far end, round a bend whose far side can't be seen;
 --   * the RenseiArrival "RoadStart" (Point) on the road before that bend, facing inward: where travellers from the
 --     other place appear.
--- Kit decor (trees, rocks, fences, the gate, the sign) is CanTouch / CanQuery false (fix round 1); the ground isn't.
+-- Kit decor (trees, rocks, fences, the gate, the sign) is CanTouch false (fix round 1). CanQuery stays on (controller's
+-- ruling): enemy sight raycasts must still hit the trees and cover stones, or stealth breaks.
 -- Server code: RoadService; client: TravelClient. Every number is a PROPOSAL.
-local function Decor(I) -- no touches and no queries on decor
+local function Decor(I) -- no touches on decor (queries stay on: sight lines)
 	for _, D in ipairs(I:IsA("BasePart") and {I} or I:GetDescendants()) do
-		if D:IsA("BasePart") then D.CanTouch, D.CanQuery = false, false end
+		if D:IsA("BasePart") then D.CanTouch = false end
 	end
 	return I
 end
