@@ -2,6 +2,19 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-22 — The slide flows into a sprint
+
+**Owner:** "if a player is running and slides, they continue running if they are holding the sprint key or has auto run on". The owner tried it: "I like the slide into the sprint".
+
+- **Sprint carries through:** with sprint held, Auto Sprint on, the mobile run toggle on, or sprint pressed during the slide, you come out of a slide already sprinting. There's no walking frame in between; the sampled speed stays at sprint speed the whole way. Otherwise you stand up into a walk, as before.
+- **Slide cooldown:** a new 0.8 s cooldown (PROPOSAL) between slides stops slide-chaining, which had reached about 51 studs/s against a 30.7 sprint. It's now about 36. A single slide feels exactly the same.
+- **Respawn fix:** a sprint or slide no longer survives death, so sprint and Auto Sprint work straight after respawning.
+- **Owner decisions:**
+  - With a weapon owned but holstered, every sprint skips the 24-speed run phase and goes straight to 30. This bug existed before; the fix is one line but changes the feel.
+  - Should a press during the slide cooldown be buffered?
+- **Code:** `Art/Studio/Movement/`. Backups are in `RenseiBackups["Pre-SlideSprint_2026-10-21"]`.
+- **For the owner:** publish the ClientHandler package.
+
 ## 2026-10-21 — Train seats you choose, and UI from the game's own art
 
 **Owner:** "for the train seats, I want the players to have the OPTION to sit on them with a prompt on each seat"; "whenever you make any UI, ONLY use existing UI assets to create them. Fix the detection UI, conductor prompt ui, and ticket UI."
