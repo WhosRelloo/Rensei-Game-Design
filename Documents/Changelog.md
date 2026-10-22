@@ -13,7 +13,7 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
   - Dying while seated frees the seat.
   - Seats carry over into the ride train as before.
   - Tests: Station 16/16.
-- **Ticket window:** rebuilt as the game's dialogue box. The clerk asks "Tickets to the Foundry Yard. Which class?", and the choices are who the ticket is for, each class with its price, and "Never mind". It's animated, has phone-sized buttons, and closes with Esc or when another menu opens.
+- **Ticket window:** rebuilt as the game's dialogue box. The clerk asks "Tickets to the Foundry Yard. Which class?", and the choices are who the ticket is for, each class with its price, and "Never mind". It's animated, has phone-sized buttons, and closes with Esc, when another menu or a real conversation opens, when you walk away from the clerk, or when you die.
 - **Prompts:** the clerk and road prompts now use the game's own prompt art (PromptUI).
 - **Detection indicator:** now the hotbar slot plate with the transmutation circle, in place of the drawn eye. Light, crouch and sound still show.
 - **Train messages:** now the game's toasts.
