@@ -16,7 +16,10 @@
 --     ride train has CanTouch off, so brushing past doesn't sit you, and a "Sit" ProximityPrompt (Custom style, drawn
 --     by PromptUI; OnePerButton, so only the nearest shows), hidden while the seat is taken. The server checks the
 --     seat is free, the sitter is alive, not down / gripped / carried, within reach, and that their ticket reaches
---     the seat's car, then Seat:Sit. Standing up is the normal jump.
+--     the seat's car, then Seat:Sit. Standing up is the normal jump. Fix round 1: the sitter must be inside the
+--     seat's car (no sitting through the wall from the platform) and the prompt needs line of sight; a stale
+--     occupant (dead, or gone) doesn't block the seat; anyone who ends up seated where their ticket doesn't reach
+--     is stood up; nobody sits down while being moved (the departure fade, the end-of-ride stand-up).
 -- Every number is a PROPOSAL.
 local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
@@ -48,6 +51,8 @@ StationService.HoldClock = false -- Studio tests only: true stops scheduled depa
 StationService.SeatReach = 5 -- the Sit prompt's reach (owner brief, 2026-10-21)
 StationService.SitReach = 7 -- PROPOSAL: studs from a seat a Sit request may come from (the prompt reaches 5; lag slack)
 StationService.SitGap = 0.5 -- PROPOSAL: seconds between a player's Sit requests
+StationService.SitPointLift = 1.5 -- PROPOSAL: the prompt sits this far above the cushion, so line of sight isn't
+                                  -- blocked by the seat's own back or a table (dining-car chairs hid it otherwise)
 
 local Remote, Event
 local Riding = {} -- [Player] = RouteId
@@ -56,6 +61,8 @@ local Kinds = {} -- [car Model] = CarKind (read from its BoardZone / CarDoor par
 local Zones = {} -- [train Model] = {BoardZone parts}
 local Told = {} -- [Player] = "Route|departure" we last sent "Board" for
 local LastPush, LastAsk, LastSit = {}, {}, {}
+local NoSit = {} -- [Player] = true while being moved: from the departure fade to the move, and from the end-of-ride
+                 -- stand-up until Riding is cleared
 local SeatTrains = setmetatable({}, {__mode = "k"}) -- [train Model or Seat] = true once set up
 local SEAT_TEXT = {ThirdClass = "3rd class", DiningCar = "Dining car", SecondClass = "2nd class", CabinCar = "Private cabin"}
 local DOWN = {"Knocked", "GrippedBy", "CarriedBy", "Gripping", "Carrying"} -- character attributes: can't sit down
@@ -280,8 +287,14 @@ function StationService.TrySit(P, Seat)
 	local Now = os.clock()
 	if LastSit[P] and Now - LastSit[P] < StationService.SitGap then return false, "too soon" end
 	LastSit[P] = Now
+	if NoSit[P] then return false, "moving" end
 	if typeof(Seat) ~= "Instance" or not Seat:IsA("Seat") or not Seat:IsDescendantOf(workspace) then return false, "no seat" end
-	if Seat.Occupant then return false, "taken" end
+	local O = Seat.Occupant
+	if O then
+		if O.Health > 0 and O:IsDescendantOf(workspace) then return false, "taken" end
+		local W = Seat:FindFirstChild("SeatWeld") -- a stale occupant (dead, or its character gone) doesn't hold the seat
+		if W then W:Destroy() end
+	end
 	local C = P.Character
 	local H = C and C:FindFirstChildOfClass("Humanoid")
 	local Root = C and C:FindFirstChild("HumanoidRootPart")
@@ -293,6 +306,8 @@ function StationService.TrySit(P, Seat)
 	local Train = TrainOfSeat(Seat)
 	if Train then
 		local Car = CarOf(Train, Seat)
+		-- inside the seat's own car: window seats are within reach of the platform edge, through the car wall
+		if InTrain(Train, Root.Position) ~= Car then return false, "outside" end
 		local Kind = Car and CarKind(Car)
 		local RouteId = Train:GetAttribute("Route")
 		if not (Kind and RouteId and StationService.CanEnter(P, RouteId, Kind)) then
@@ -305,11 +320,21 @@ function StationService.TrySit(P, Seat)
 	return true
 end
 
+-- may P sit in this train seat (their ticket reaches its car)?
+local function SeatAllowed(P, Train, Seat)
+	local Car = CarOf(Train, Seat)
+	local Kind = Car and CarKind(Car)
+	local RouteId = Train:GetAttribute("Route")
+	return Kind ~= nil and RouteId ~= nil and StationService.CanEnter(P, RouteId, Kind)
+end
+
 local function SetUpSeat(Train, Seat)
 	if not Seat:IsA("Seat") or SeatTrains[Seat] then return end
 	SeatTrains[Seat] = true
-	local Old = Seat:FindFirstChild("SitPrompt") -- (a copy of an already set-up train: its prompt has no handler)
-	if Old then Old:Destroy() end
+	for _, Name in ipairs({"SitPoint", "SitPrompt"}) do -- (a copy of an already set-up train: no handlers)
+		local Old = Seat:FindFirstChild(Name)
+		if Old then Old:Destroy() end
+	end
 	Seat.CanTouch = false -- touching no longer sits you; Seat:Sit (the prompt, the ride-train carry-over) still does
 	local Car = CarOf(Train, Seat)
 	local Prompt = Instance.new("ProximityPrompt")
@@ -319,12 +344,32 @@ local function SetUpSeat(Train, Seat)
 	Prompt.KeyboardKeyCode = Enum.KeyCode.E
 	Prompt.HoldDuration = 0
 	Prompt.MaxActivationDistance = StationService.SeatReach
-	Prompt.RequiresLineOfSight = false
+	Prompt.RequiresLineOfSight = true -- no prompt through the car wall from the platform
 	Prompt.Exclusivity = Enum.ProximityPromptExclusivity.OnePerButton -- 64 seats a train: only the nearest shows
 	Prompt.Style = Enum.ProximityPromptStyle.Custom -- drawn by Modules.UI.PromptUI in the game's own art (owner rule 2026-10-21)
 	Prompt.Enabled = Seat.Occupant == nil
-	Prompt.Parent = Seat
-	Seat:GetPropertyChangedSignal("Occupant"):Connect(function() Prompt.Enabled = Seat.Occupant == nil end)
+	local Point = Instance.new("Attachment") -- the prompt's spot, above the cushion (PromptUI's billboard sits over it)
+	Point.Name = "SitPoint"
+	Point.Position = Vector3.new(0, Seat.Size.Y / 2 + StationService.SitPointLift, 0)
+	Point.Parent = Seat
+	Prompt.Parent = Point
+	Seat:GetPropertyChangedSignal("Occupant"):Connect(function()
+		local H = Seat.Occupant
+		Prompt.Enabled = H == nil
+		-- hardening: every legitimate way in (TrySit, the ride-train carry-over) passes CanEnter; anything else that
+		-- seats a player where their ticket doesn't reach is undone
+		local P = H and Players:GetPlayerFromCharacter(H.Parent)
+		if P and not SeatAllowed(P, Train, Seat) then
+			-- after a moment: a weld destroyed before it reaches the client leaves the client-owned humanoid
+			-- half-seated (the server's SeatPart never clears); one that has replicated stands them up cleanly
+			task.delay(StationService.UnseatSettle, function()
+				if Seat.Occupant ~= H then return end
+				H.Sit = false
+				local W = Seat:FindFirstChild("SeatWeld")
+				if W then W:Destroy() end
+			end)
+		end
+	end)
 	Prompt.Triggered:Connect(function(P) StationService.TrySit(P, Seat) end)
 end
 
@@ -344,6 +389,7 @@ local function Depart(RouteId, RideSeconds)
 	local Was = {} -- [Player] = the platform-train seat they sat in
 	for _, P in ipairs(List) do
 		Riding[P] = RouteId
+		NoSit[P] = true -- no sitting down from here to the move
 		Was[P] = Unseat(P) -- stood up now, moved after the fade
 		Event:FireClient(P, "RideStart", {Route = RouteId, Seconds = RideSeconds})
 		local C = P.Character
@@ -381,6 +427,7 @@ local function Depart(RouteId, RideSeconds)
 			if P.Parent then Event:FireClient(P, "RideCancel", {Route = RouteId, Text = "The train left without you. Your ticket is still good."}) end
 		end
 	end
+	for _, P in ipairs(List) do NoSit[P] = nil end -- moved (or left behind): seats are open to them again
 	List = Moved
 	if #List == 0 then return end
 	-- death aboard (controller ruling, 2026-10-21): a rider whose humanoid dies or whose character is replaced
@@ -423,7 +470,10 @@ local function Depart(RouteId, RideSeconds)
 	-- who goes: still here, still riding, and not already in another teleport (Depart filters too)
 	local Stood = false
 	for _, P in ipairs(List) do -- the arrival (or the walk back) moves them; the ride-train seats must stay put
-		if Riding[P] == RouteId and Unseat(P) then Stood = true end
+		if Riding[P] == RouteId then
+			NoSit[P] = true -- no sitting down again until Riding is cleared below
+			if Unseat(P) then Stood = true end
+		end
 	end
 	if Stood then task.wait(StationService.UnseatSettle) end
 	local Going, Back = {}, {}
@@ -432,6 +482,7 @@ local function Depart(RouteId, RideSeconds)
 			if FlowTeleport.Busy(P) or FlowTeleport.InGroup(P) then table.insert(Back, P) else table.insert(Going, P) end
 		end
 		Riding[P] = nil -- cleared before Depart, which yields while the saves are released
+		NoSit[P] = nil
 	end
 	local Here = TravelService.Here()
 	local Dest = Travel.Other(RouteId, Here)
@@ -472,6 +523,7 @@ function StationService.DepartNow(RouteId, RideSeconds)
 end
 
 function StationService.Riding(Player) return Riding[Player] end
+function StationService.NoSit(Player) return NoSit[Player] == true end
 
 local function Clock()
 	local Last = {}
@@ -568,7 +620,7 @@ function StationService.Start()
 		CollectionService:GetInstanceAddedSignal(Tag):Connect(SetUpSeats) -- trains built (or rebuilt) later
 	end
 	Players.PlayerRemoving:Connect(function(P)
-		Riding[P], Told[P], LastPush[P], LastAsk[P], LastSit[P] = nil, nil, nil, nil, nil
+		Riding[P], Told[P], LastPush[P], LastAsk[P], LastSit[P], NoSit[P] = nil, nil, nil, nil, nil, nil
 	end)
 	task.spawn(Clock)
 end
