@@ -3,8 +3,7 @@
 -- (Remotes.Travel / Remotes.TravelEvent). Every number is a PROPOSAL.
 -- Owner rule (2026-10-21): every visual here is built ONLY from the game's existing UI art, cloned from the
 -- StarterGui.Uis templates (no new panels, corner blobs or drawn shapes):
---   * ticket window   = the Settings menu (Settings.MainFrame: its panel, header, option rows and Enable buttons),
---                       closed with the kit's round X (HUD2.Infos.Search.DeletButton, as DialogueUI's close);
+--   * ticket window   = a look-alike of the NPC dialogue box (Uis.Dialogue: the box, its choice plates and highlight);
 --   * departure board = the Party Invitation panel (HUD2.Party) on the board's SurfaceGui;
 --   * rail messages   = the game's own toast (HUD2.Notification, through UIState "Toast", as the server's toasts);
 --   * teleport screen = the menus' backdrop (bg) and the area panel (HUD2.NewAreaDiscovered);
@@ -15,6 +14,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local TeleportService = game:GetService("TeleportService")
 local CollectionService = game:GetService("CollectionService")
+local UserInputService = game:GetService("UserInputService")
 local Travel = require(ReplicatedStorage.Modules.Data.Rensei.Travel)
 local Places = require(ReplicatedStorage.Modules.Data.Rensei.Places)
 
@@ -101,123 +101,213 @@ local function RegionName(Id)
 	return Id and Places.Regions[Id] and Places.Regions[Id].Name or Id or "?"
 end
 
--- ===== the ticket window: the Settings menu, relabelled =====
--- One option row ("Ticket for", cycling Me -> each other player by UserId), then per line a heading row ("To X",
--- plus the class you hold) and a row per class with its price on the Settings Enable button. The status line sits
--- at the foot of the panel. Its own ScreenGui with Uis's settings (sibling ZIndex, safe-area insets), so the art
--- keeps its authored layering and fits phones; it sits just under TravelUI's fade.
+-- ===== the ticket window: a look-alike of the NPC dialogue box (fix round 1, controller's ruling) =====
+-- Cloned from Uis.Dialogue (not wired into DialogueService): the clerk "says" the line in MainFrame (97950998740350,
+-- speaker "Ticket clerk"), and the answers are its choice plates (Choices.Choice1, 92726496845615, with the
+-- Selected highlight 107749049761613 on hover), in the dialogue's own lettering. Choices: "Ticket for: <name>"
+-- (cycles me -> each other player, sent by UserId), one per class with its price, and "Never mind". A station with
+-- several lines first asks "Where to?" with one choice per line. Placed like the real box (text above the choices,
+-- at 66% of the screen), opened with UIMotion; number keys pick a choice, Esc or another menu (Uis.bg) closes it.
+-- On a small or touch screen every choice is at least MIN_TOUCH px tall, and the box moves up to stay on screen.
 local Window
-local GOLD_TEXT = Color3.fromRGB(214, 200, 90) -- the Settings Enable button's lettering
+local OpenToken = 0
+local Opening = false -- an open is waiting for the clerk's prices
+local JourneyActive = function() return false end -- set once the journey screen's state exists (below)
+local HiddenHud -- the HUD parts this window hid (the real dialogue hides them too: its choices sit there)
+local MIN_TOUCH = 40 -- PROPOSAL: a choice's minimum height in px on a phone
+local function LiveUis() return Player.PlayerGui:FindFirstChild("Uis") end
 local function CloseTickets()
+	OpenToken += 1
 	if Window then Window:Destroy() Window = nil end
+	local Uis = LiveUis()
+	if HiddenHud and Uis then
+		local Talk = Uis:FindFirstChild("Dialogue")
+		if not (Talk and Talk.Visible) then -- a real conversation keeps them hidden
+			for _, G in ipairs(HiddenHud) do G.Visible = true end
+		end
+	end
+	HiddenHud = nil
+end
+local UIMotion
+local function Motion()
+	if not UIMotion then
+		local Ok, M = pcall(require, ReplicatedStorage.Modules.UI.UIMotion)
+		UIMotion = Ok and M or false
+	end
+	return UIMotion or nil
 end
 local function OpenTickets()
+	if Opening then return end -- one is already on its way (a double press): let it finish
 	CloseTickets()
+	local Mine = OpenToken
+	Opening = true
 	local Rows = Ask("Prices")
-	if type(Rows) ~= "table" then return end
-	local Panel = Template("Settings")
-	local Main = Panel and Panel:FindFirstChild("MainFrame")
-	local List = Main and Main:FindFirstChild("Container")
-	local RowArt = List and List:FindFirstChild("CameraShake")
-	local Controls = RowArt and RowArt:FindFirstChild("Controls")
-	local ButtonArt = Controls and Controls:FindFirstChild("Enable")
-	if not (ButtonArt and RowArt:FindFirstChild("Title")) then -- no Uis art in this place: no window (nothing errors)
-		if Panel then Panel:Destroy() end
+	Opening = false
+	-- the clerk answered: still wanted? (closed, reopened, a ride or road fade, or the journey screen meanwhile)
+	if OpenToken ~= Mine or type(Rows) ~= "table" then return end
+	if Fade.BackgroundTransparency < 0.99 or JourneyActive() then return end
+	local Box = Template("Dialogue")
+	local Main = Box and Box:FindFirstChild("MainFrame")
+	local List = Box and Box:FindFirstChild("Choices")
+	local RowArt = List and List:FindFirstChild("Choice1")
+	if not (Main and Main:FindFirstChild("maintext") and RowArt and RowArt:FindFirstChild("Head")) then -- no Uis art here
+		if Box then Box:Destroy() end
 		return
 	end
 	local S = Instance.new("ScreenGui")
 	S.Name, S.ResetOnSpawn, S.DisplayOrder, S.ZIndexBehavior = "Tickets", false, 49, Enum.ZIndexBehavior.Sibling
-	S.IgnoreGuiInset, S.ScreenInsets = false, Enum.ScreenInsets.CoreUISafeInsets
+	S.IgnoreGuiInset, S.ScreenInsets = false, Enum.ScreenInsets.CoreUISafeInsets -- as Uis
 	Window = S
-	Panel.Name = "Panel"
-	SetText(Main, "Header.Head", "TICKETS")
-	-- the Settings tabs and the original options go; one option row and its Enable button stay as patterns
-	local Tabs = Main:FindFirstChild("Sections")
-	if Tabs then Tabs:Destroy() end
+	Box.Name = "Box"
 	RowArt.Parent = nil
-	ButtonArt.Parent = nil
-	for _, C in ipairs(Controls:GetChildren()) do
-		if C:IsA("GuiObject") then C:Destroy() end
-	end
 	for _, C in ipairs(List:GetChildren()) do
 		if C:IsA("GuiObject") then C:Destroy() end
 	end
-	-- the list stops above the status line and scrolls if a station has many lines
-	List.AnchorPoint, List.Position, List.Size = Vector2.new(0.5, 0), UDim2.fromScale(0.503, 0.095), UDim2.fromScale(0.973, 0.745)
-	List.ClipsDescendants, List.ScrollingDirection = true, Enum.ScrollingDirection.Y -- (its authored canvas and
-	-- hidden scroll bar stay as the Settings menu has them)
-	local Order = 0
-	local function Row(Text, Heading)
-		Order += 1
-		local R = RowArt:Clone()
-		R.Name, R.LayoutOrder = "Row" .. Order, Order
-		local T = R.Title
-		T.Text = Text
-		if Heading then -- a line's heading: gold, across the whole row, no buttons
-			T.TextColor3 = GOLD_TEXT
-			T.Size = UDim2.new(0.92, 0, T.Size.Y.Scale, T.Size.Y.Offset)
+	local Aspect = List:FindFirstChildOfClass("UIAspectRatioConstraint")
+	if Aspect then Aspect:Destroy() end -- sized below, by the number of choices
+	local Layout = List:FindFirstChildOfClass("UIListLayout")
+	SetText(Main, "Title", "Ticket clerk")
+	local function Say(Text) SetText(Main, "maintext", Text) end
+
+	-- the box's size and place: the real dialogue's proportions, with taller choices on a small or touch screen
+	local Count = 0
+	local Picks = {} -- [n] = what choice n does (number keys, as the real dialogue)
+	local Base = {Row = RowArt.Size, Pad = Layout and Layout.Padding}
+	local function Fit()
+		local VW, VH = Box.AbsoluteSize.X, Box.AbsoluteSize.Y
+		if VW < 1 or VH < 1 then return end
+		local ListH = 0.178657413 * VH -- the authored Choices height (its width was 4.56x that)
+		local RowH = Base.Row.Y.Scale * ListH
+		local RowW = Base.Row.X.Scale * ListH * 4.563876628875732
+		if UserInputService.TouchEnabled or VH < 500 then
+			local K = math.max(1, MIN_TOUCH / RowH)
+			K = math.min(K, 0.96 * VW / RowW) -- never wider than the screen
+			RowH, RowW = RowH * K, RowW * K
 		end
-		R.Parent = List
-		return R
+		local Pad = (Base.Pad and Base.Pad.Scale or 0.044) * RowH / Base.Row.Y.Scale
+		if Layout then Layout.Padding = UDim.new(0, math.floor(Pad)) end
+		for _, C in ipairs(List:GetChildren()) do
+			if C:IsA("GuiButton") then C.Size = UDim2.fromOffset(math.floor(RowW), math.floor(RowH)) end
+		end
+		local H = Count * math.floor(RowH) + math.max(Count - 1, 0) * math.floor(Pad)
+		List.Size = UDim2.fromOffset(math.floor(RowW / Base.Row.X.Scale), H)
+		-- the box text ends at 66% and the choices start at 66.5%, as authored; move both up if they'd run off
+		local Lift = math.max(0, 0.665 * VH + H + 8 - VH)
+		Main.Position = UDim2.new(0.5, 0, 0.66, -Lift)
+		List.Position = UDim2.new(0.5, 0, 0.665, -Lift)
 	end
-	local function Button(R, Text)
-		local B = ButtonArt:Clone()
+
+	local For = nil -- nil = me, else a Player
+	local Picked = #Rows == 1 and Rows[1] or nil -- the line being bought for (one line: straight to its classes)
+	local Show
+	local function Choice(Text, Fn)
+		Count += 1
+		local Art = RowArt:Clone()
+		local B = Instance.new("ImageButton") -- the choice plate as a button, so UIMotion's press springs apply to it
+		B.Name, B.LayoutOrder, B.AutoButtonColor, B.BackgroundTransparency = "Choice" .. Count, Count, false, 1
+		B.Image, B.ScaleType, B.ImageColor3, B.ImageTransparency = Art.Image, Art.ScaleType, Art.ImageColor3, Art.ImageTransparency
+		B.AnchorPoint, B.Size, B.ZIndex = Art.AnchorPoint, Art.Size, Art.ZIndex
+		for _, C in ipairs(Art:GetChildren()) do C.Parent = B end
+		Art:Destroy()
 		SetText(B, "Head", Text)
-		B.Parent = R.Controls
+		local Sel = B:FindFirstChild("Selected")
+		if Sel then
+			Sel.Visible = false
+			B.MouseEnter:Connect(function() Sel.Visible = true end)
+			B.MouseLeave:Connect(function() Sel.Visible = false end)
+		end
+		B.Activated:Connect(Fn)
+		Picks[Count] = Fn
+		B.Parent = List
+		local M = Motion()
+		if M then M.Button(B) end
 		return B
 	end
-	-- the status line, in the option rows' lettering, at the foot of the panel
-	local Status = RowArt.Title:Clone()
-	Status.Name, Status.AnchorPoint, Status.Position = "Status", Vector2.new(0.5, 0.5), UDim2.fromScale(0.5, 0.895)
-	Status.Size, Status.TextXAlignment = UDim2.fromScale(0.86, 0.036), Enum.TextXAlignment.Center
-	Status.Text = #Rows == 0 and "No trains run from here yet." or "Pick a line and a class."
-	Status.Parent = Main
-	-- who the ticket is for: you, or another player (the server only allows party members), sent by UserId
-	local For = nil -- nil = me, else a Player
-	local ForButton = Button(Row("Ticket for"), "Me")
-	ForButton.Activated:Connect(function() -- cycles me -> each other player -> me
-		local Others = {}
-		for _, Q in ipairs(Players:GetPlayers()) do
-			if Q ~= Player then table.insert(Others, Q) end
+	local function Clear()
+		Count = 0
+		table.clear(Picks)
+		for _, C in ipairs(List:GetChildren()) do
+			if C:IsA("GuiButton") then C:Destroy() end
 		end
-		local Next = nil
-		if not For then
-			Next = Others[1]
-		else
-			for I, Q in ipairs(Others) do
-				if Q == For then Next = Others[I + 1] break end
+	end
+	local function ForText()
+		return "Ticket for: " .. (For and Escape(For.DisplayName) or "me")
+	end
+	local function ForChoice()
+		local B
+		B = Choice(ForText(), function() -- cycles me -> each other player -> me
+			local Others = {}
+			for _, Q in ipairs(Players:GetPlayers()) do
+				if Q ~= Player then table.insert(Others, Q) end
 			end
-		end
-		For = Next
-		SetText(ForButton, "Head", For and Escape(For.DisplayName) or "Me")
-	end)
-	for _, Line in ipairs(Rows) do
-		local Held = Line.Held and Travel.Classes[Line.Held] and ("  (holding " .. Travel.Classes[Line.Held].Name .. ")") or ""
-		Row("To " .. RegionName(Line.To) .. Held, true)
-		for _, C in ipairs(Travel.ClassOrder) do
-			local B = Button(Row(Travel.Classes[C].Name), ("$%d"):format(Line.Prices[C] or 0))
-			B.Activated:Connect(function()
-				local Ok, Why = Ask("Buy", {Route = Line.Route, Class = C, For = For and For.Parent and For.UserId or nil})
-				Status.Text = Ok and "Bought. Board when the doors open." or (Why or "Couldn't buy that.")
-			end)
-		end
+			local Next = nil
+			if not For then
+				Next = Others[1]
+			else
+				for I, Q in ipairs(Others) do
+					if Q == For then Next = Others[I + 1] break end
+				end
+			end
+			For = Next
+			SetText(B, "Head", ForText())
+		end)
 	end
-	-- close: the kit's round X, on the panel's top right corner
-	local Close = Template("HUD2.Infos.Search.DeletButton")
-	if Close then
-		Close.Name, Close.AnchorPoint, Close.Position = "Close", Vector2.new(0.5, 0.5), UDim2.fromScale(0.955, 0.045)
-		Close.Size = UDim2.fromScale(0.075, 0.075)
-		if not Close:FindFirstChildOfClass("UIAspectRatioConstraint") then
-			local A = Instance.new("UIAspectRatioConstraint")
-			A.AspectRatio = 1
-			A.Parent = Close
+	function Show(Line)
+		Clear()
+		if #Rows == 0 then
+			Say("No trains run from here yet.")
+		elseif not Line then -- several lines: where to?
+			Say("Where to?")
+			ForChoice()
+			for _, L in ipairs(Rows) do
+				Choice("To " .. Escape(RegionName(L.To)), function() Picked = L Show(L) end)
+			end
+		else
+			local Held = Line.Held and Travel.Classes[Line.Held]
+			Say(("Tickets to %s. Which class?%s"):format(Escape(RegionName(Line.To)),
+				Held and (" You're holding a " .. Held.Name .. " ticket for it.") or ""))
+			ForChoice()
+			for _, C in ipairs(Travel.ClassOrder) do
+				Choice(("%s - $%d"):format(Travel.Classes[C].Name, Line.Prices[C] or 0), function()
+					local Ok, Why = Ask("Buy", {Route = Line.Route, Class = C, For = For and For.Parent and For.UserId or nil})
+					if Window == S then Say(Ok and "Bought. Board when the doors open." or Escape(Why or "Couldn't buy that.")) end
+				end)
+			end
+			if #Rows > 1 then Choice("Another line", function() Picked = nil Show(nil) end) end
 		end
-		Close.ZIndex = 5
-		Close.Parent = Main
-		Close.Activated:Connect(function() if Window == S then CloseTickets() end end)
+		Choice("Never mind", function() if Window == S then CloseTickets() end end)
+		Fit()
 	end
-	Panel.Parent = S
+	Box.Parent = S
 	S.Parent = Player:WaitForChild("PlayerGui")
+	Show(Picked)
+	Box:GetPropertyChangedSignal("AbsoluteSize"):Connect(Fit)
+	-- the real dialogue hides the vitals and hotbar while it's up; so does this
+	local Uis = LiveUis()
+	local Hud = Uis and Uis:FindFirstChild("HUD")
+	HiddenHud = {}
+	for _, Name in ipairs({"Stats", "Bottom"}) do
+		local G = Hud and Hud:FindFirstChild(Name)
+		if G and G.Visible then G.Visible = false table.insert(HiddenHud, G) end
+	end
+	-- another menu opening (its backdrop shows) closes this; so does Esc; number keys pick a choice
+	local Backdrop = Uis and Uis:FindFirstChild("bg")
+	if Backdrop then
+		Backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
+			if Backdrop.Visible and Window == S then CloseTickets() end
+		end)
+	end
+	local Keys
+	Keys = UserInputService.InputBegan:Connect(function(Input, Processed)
+		if Window ~= S then Keys:Disconnect() return end
+		if Input.KeyCode == Enum.KeyCode.Escape then CloseTickets() return end
+		if Processed then return end
+		local N = Input.KeyCode.Value - Enum.KeyCode.One.Value + 1
+		if N >= 1 and N <= 9 and Picks[N] then Picks[N]() end
+	end)
+	S.Destroying:Connect(function() Keys:Disconnect() end)
+	local M = Motion()
+	if M then M.Open(Box) end
 end
 
 -- departure boards: parts tagged RenseiDepartureBoard (named DepartureBoard) get a SurfaceGui with the next train on
@@ -381,6 +471,7 @@ local function RoadCard(Data)
 end
 
 local Journey, JourneyShown, RoadTeleportGui
+JourneyActive = function() return Journey ~= nil end -- the ticket window won't open over the journey screen
 local function CloseJourney()
 	if Journey then Journey:Destroy() Journey = nil end
 	if RoadTeleportGui then -- the road's teleport screen goes with it (a later teleport sets its own)
