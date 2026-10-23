@@ -152,11 +152,17 @@ Markers carry the World Plan 1 tags already in use, plus new ones:
   - **Fights:** `PerceptionService.Hear` gives combat noise. On it, a townsperson walks or runs to the nearest `Shelter` post and cowers there, then returns 20 s after the last noise.
   - **Crimes:** they are watchers, so the existing witness, Heat and rumour paths handle what they see.
   - Townsfolk stay unhittable, as today. Making them hittable is still an open owner decision (Plan 2).
-- **Talking:** each townsperson carries a `DialogueId` that points to one shared `Townsfolk` dialogue tree in `Rensei.Dialogues`, which uses conditions:
-  - **Greeting:** depends on the player's standing tier with the townsperson's faction in this region (`MoralityService`).
-  - **"Heard anything?"** gives up to 3 of the latest rumours that reached this region. This needs a new read-only call, `RumourService.HeardIn(Region, N)`.
-  - **"What do you do here?"** gives the townsperson's job line from the data.
-  - **The region's clue hook**, if that townsperson is part of a clue quest (§6).
+- **Talking: speech above their heads** (owner, 2026-10-23: "Make the townsfolk chat appear above their head with a custom font"; answers: font **Special Elite**, **bubbles only, no reply choices**).
+  - **No dialogue box.** A "Talk" prompt makes the townsperson say one line in a speech bubble above their head. Talking again gives the next line. The rotation:
+    - a **greeting**, by the player's standing tier with the townsperson's faction in this region (`MoralityService`);
+    - a **rumour**, one of the latest that reached this region (a new read-only call, `RumourService.HeardIn(Region, N)`), skipped when there is none;
+    - the townsperson's **job line**.
+  - **Clues:** when the player is on a clue quest at the stage that townsperson matters to, the clue line comes first and advances the quest (§6).
+  - **Ambient chatter:** short lines overhead when a player first passes close by (at most once per player every 5 minutes, PROPOSAL), at shift change, when fleeing a fight and when coming back.
+  - **The bubble:**
+    - a BillboardGui over the head, with its background from the game's existing dialogue art (owner UI rule) and the text in the **Special Elite** font;
+    - it fades in and out (UIMotion) and stays for about 3 s plus 0.05 s per character (PROPOSAL);
+    - everyone nearby can see it.
 - **Cost check:** with 25 townsfolk, the update loop must stay under 1 ms average server time (§9).
 
 ## 6. F4: clue quests and trainer exams
