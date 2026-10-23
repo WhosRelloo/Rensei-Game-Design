@@ -18,9 +18,9 @@ The final review of World Plan 1 found problems where two tasks meet. This pass 
   - when a ride ends, anyone in the moving train who isn't riding it (such as a carried non-rider) is put back on the platform.
 
   Before this, the train was a way to escape a grip, and a carried player could be stranded in the moving train.
-- **A stalled train teleport has a watchdog**, as the road has. 25 seconds after the send, a rider still here goes back to the platform if their save is still loaded, or is kicked if it was released. Nobody plays on a released save.
+- **A stalled train teleport has a watchdog** (tested by calling it directly; the live trigger is untested until published), as the road has. 25 seconds after the send, a rider still here goes back to the platform if their save is still loaded, or is kicked if it was released. Nobody plays on a released save.
 - **Ye's hub keeps State law** (owner: "Keep State law"). Outside every named area, Ye counts as the City again, as before Task 10, so unlicensed casting in the hub is a State crime again. This is a one-entry table in `Rensei.Regions` (`HubLaw`: Ye's place id → City). Ye is still Lindenmoor everywhere else: its named areas, the station, rumours by rail and your saved region. Other region places still use their own region.
-- **Players who arrive before the server is ready get their skills.** `CharacterHandler` now also sets up players (and characters) already in the server when it starts. A group teleport opens a fresh server, so this can happen.
+- **Players who arrive before the server is ready get their skills.** `CharacterHandler` now also sets up players (and characters) already in the server when it starts. A group teleport opens a fresh server, so this can happen. (Untested: Studio never starts a player before the handler, so this branch has not run yet.)
 - **Smaller fixes from the review:**
   - the conductor's "Papers first" line comes once per boarding, not every 3 seconds. A Wanted 3+ player hears "Your papers won't pass here." instead of being sent to a guard who would refuse them;
   - a rider who dies just before the train arrives isn't sent on, and a body that died during the fade isn't moved into the train;
@@ -34,7 +34,12 @@ The final review of World Plan 1 found problems where two tasks meet. This pass 
   - New tests: in `Play_Gate`, a ticket holder's inspection and a full ticket-holder stowaway ride; in `Play_Station`, held players don't board, knocked in the fade stays behind, the ride-end sweep, and the stalled-teleport watchdog. `Play_Station` now puts aside any ticket the tester's save holds for each test, as `Play_Gate` does.
   - The owner's save was restored after the Play session, and the test hook was removed.
 - **For the owner:** publish `RenseiServer` and `Modules` from Ye, then update both packages (and `ClientHandler`) in Foundry by hand. Then publish Ye, Foundry Yard, the Main Menu and the Tutorial, and use **Migrate to Latest Update** for Ye. Before testing live, check your own save for leftover test state. `World Travel.md` §10 has the steps.
-- **Not done here:** two small client-side timing fixes (the rail fade lifting early, and the crossing failsafe being shorter than the server's deadline) are left for the next `TravelClient` change. Foundry's copies of the test suites are older than Ye's.
+- **Not done here:** two small client-side timing fixes (the rail fade lifting early, and the crossing failsafe being shorter than the server's deadline) are left for the next `TravelClient` change. Foundry now has the newer test suites, but they have only been run in Ye.
+- **Rulings left for later** (the review's last minor notes, accepted for now):
+  - the train's 25-second watchdog can cut off a slow third teleport try. The ticket is kept, and the road makes the same trade-off;
+  - inside `StationService.Depart`, a local table shares the name of a helper function. It's harmless today; rename it in the next station change;
+  - a failed group teleport's kick message says "Your ticket is still valid" even to a stowaway with no ticket. This was already there before; fix it with the next `TravelService` change;
+  - the "Papers first" and "Your papers won't pass here" lines share one 35-second gap, so the second can be late. Cosmetic.
 
 ## 2026-10-23 — World Plan 1 complete (Task 11: Foundry end to end, the World Travel guide)
 

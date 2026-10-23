@@ -188,7 +188,7 @@ This is the part that keeps saves safe when players move between places.
    - **The trip was going somewhere else** (for example it failed and you rejoined the place you left): the trip is cleared and you **keep your ticket**.
    - **No trip:** you may stay only if your saved region is this place. A new save or an old save with no region counts as Lindenmoor. Anyone else is sent to the place their save says they're in.
 5. **If the teleport still fails after the retries,** the player is kicked. Their save was already handed over, so this is the safe choice, and the ticket isn't lost because it's only used on arrival.
-6. **If the teleport stalls without failing,** a watchdog acts 25 seconds after the send, on the train as on the road. A player still here with their save loaded goes back to the platform (or the road) with the ticket kept; one whose save was released is kicked, so nobody plays on a released save.
+6. **If the teleport stalls without failing** (designed; untested until published: the Studio tests call the watchdog directly), a watchdog acts 25 seconds after the send, on the train as on the road. A player still here with their save loaded goes back to the platform (or the road) with the ticket kept; one whose save was released is kicked, so nobody plays on a released save.
 
 So a rejoin from the menu should put you back where your save says you are.
 
@@ -248,7 +248,7 @@ This is how every travel test runs. **The real hop between places has never run.
 - `Test_Travel` (Edit mode, Ye);
 - the Play suites: `Play_Boot`, `Play_Travel`, `Play_Station`, `Play_Gate`, `Play_RideEvents`, `Play_Road` and `Play_Arrive`.
 
-Every Play suite runs unchanged in **both** places. Play tests write the owner's real save, so they always run with the profile hook: snapshot, test, restore, Stop, remove the hook.
+The same suite files are copied into **both** places. All of them passed in both places on 2026-10-23 (Task 11). The final fix pass then added tests to `Play_Gate`, `Play_Station` and `Test_Regions`; those newer copies are in Foundry but have only been run in Ye so far. Play tests write the owner's real save, so they always run with the profile hook: snapshot, test, restore, Stop, remove the hook.
 
 ---
 
