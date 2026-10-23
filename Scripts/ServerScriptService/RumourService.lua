@@ -72,6 +72,26 @@ local function OnRecorded(Player, DeedId, Def, Info)
 	if M then Core.Spawn(M, DeedId, Info.Region, Info.Strength, Clock()) end
 end
 
+-- HeardIn (region builds spec §5): the latest word that reached Region, across everyone in this server.
+-- Rumour state is per player (Data.Morality.News), so this reads each player's news. Read-only.
+function RumourService.HeardIn(Region, N)
+	local All = {}
+	for _, P in ipairs(Players:GetPlayers()) do
+		local D = ProgressionService.GetData(P)
+		local News = D and D.Morality and D.Morality.News
+		for _, A in ipairs(News or {}) do
+			local Def = Deeds[A.Deed]
+			if A.Place == Region and Def and Def.Text then
+				table.insert(All, {At = A.At, Text = Def.Text, Subject = P})
+			end
+		end
+	end
+	table.sort(All, function(a, b) return a.At > b.At end)
+	local Out = {}
+	for i = 1, math.min(N or 3, #All) do Out[i] = All[i] end
+	return Out
+end
+
 function RumourService.Start()
 	table.insert(require(ServerScriptService.MoralityService).Recorded, OnRecorded)
 	task.spawn(function()

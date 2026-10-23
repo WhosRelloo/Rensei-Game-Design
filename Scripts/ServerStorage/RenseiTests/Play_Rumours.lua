@@ -32,6 +32,34 @@ return {
 		Deeds.__test_rumour = nil
 		if not Ok then error(Err, 0) end
 	end,
+	-- Region Foundation Task 3: HeardIn reads the news that reached a region, newest first, at most N.
+	-- The entries are given out of order on purpose (across players they arrive unsorted).
+	HeardInFiltersAndSorts = function(T)
+		Deeds.__test_heard_a = {Text = "Test: heard deed A", Standing = {}, Scope = "Local"}
+		Deeds.__test_heard_b = {Text = "Test: heard deed B", Standing = {}, Scope = "Local"}
+		local M = PS.GetData(Player).Morality
+		local Saved = M.News
+		local Ok, Err = pcall(function()
+			M.News = {
+				{At = 100, Place = "Foundry", Deed = "__test_heard_a", Heard = {"Townsfolk"}},
+				{At = 300, Place = "Foundry", Deed = "__test_heard_b", Heard = {"Authority"}},
+				{At = 200, Place = "City", Deed = "__test_heard_a", Heard = {"Authority"}},
+			}
+			local Got = RumourService.HeardIn("Foundry", 3)
+			T.Eq(#Got, 2, "only the Foundry news")
+			T.Eq(Got[1].At, 300, "newest first")
+			T.Eq(Got[1].Text, "Test: heard deed B", "deed text")
+			T.Eq(Got[1].Subject, Player, "whose deed")
+			T.Eq(Got[2].At, 100, "then the older one")
+			T.Eq(Got[2].Text, "Test: heard deed A", "deed text")
+			T.Eq(#RumourService.HeardIn("Foundry", 1), 1, "at most N")
+			T.Eq(#RumourService.HeardIn("Ishval"), 0, "nothing reached Ishval")
+		end)
+		M.News = Saved
+		Deeds.__test_heard_a = nil
+		Deeds.__test_heard_b = nil
+		if not Ok then error(Err, 0) end
+	end,
 	ReportNeedsAWitness = function(T)
 		local Ok, Why = RumourService.Report(Player, Player, "reported_lise", "City", "Authority")
 		T.True(not Ok, "no recorded witness")
