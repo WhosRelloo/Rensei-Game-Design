@@ -539,8 +539,8 @@ return {Regions = {}}
 - [ ] **Step 1: Write the failing tests:**
   - **FleesOnCombatNoiseAndReturns:** a townsperson at its post, a Shelter post 30 studs away, and a held hour. Call `NoiseService.Emit(TownspersonPos + Vector3.new(5,0,0), "Hit", nil)`, then `Step()`. Assert `State == "Fleeing"`, then `"Sheltering"` at the shelter within 10 s. Set `TownsfolkService.CalmSeconds = 2` for the test (restore it after). Within 2 + 15 s it is back `AtPost`.
   - **WitnessTagged:** the rig has the `RenseiWatcher` tag, and `PerceptionService` registered it. Check with whatever accessor PerceptionService has, or by whether `PerceptionService.Perceived(Player)` returns it after the player stands in front of it in daylight for 3 s.
-  - **TalkGreetsByStanding:** stub `DialogueService.Ask` to capture `Text` and `Choices`, then trigger the talk handler directly (`TownsfolkService.Talk(Player, Id)`). With the player's region standing for the faction forced to 70 (patch `Reputation.PlaceStanding` for the test), the greeting equals `TownsfolkLogic.Greeting("Honoured", Def)`. Restore all patches.
-  - **RumoursAnswer:** inject one `News` entry for this region, choose "Heard anything lately?" through the captured `OnAnswer(1)`, and assert the `Say` text contains the deed's text.
+  - **TalkGreetsByStanding:** trigger `TownsfolkService.Talk(Player, Id)` with the player's region standing for the faction forced to 70 (patch `Reputation.PlaceStanding` for the test). Assert `TownsfolkService.LastLine(Id)` equals `TownsfolkLogic.Greeting("Honoured", Def)`. Restore all patches.
+  - **RumourIsTheSecondLine:** inject one `News` entry for this region, call `Talk` twice, and assert the second `LastLine` contains the deed's text. A third `Talk` gives the job line.
 - [ ] **Step 2: Run them.** Expected: FAIL.
 - [ ] **Step 3: Implement.**
   - **NoiseService:** keep a `Listeners` list; `Emit` calls each listener in a pcall after its current work.
