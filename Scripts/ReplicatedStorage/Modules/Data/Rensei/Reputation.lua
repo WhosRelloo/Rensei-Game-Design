@@ -98,4 +98,50 @@ function Reputation.Seed(M, Deeds, Now)
 	return true
 end
 
+-- World plan 1 Task 10 (2026-10-23): four region places (Aerugo, Ishval, North, Corrupted) joined the graph, so
+-- GlobalStanding divides by more regions. A save whose deeds were spread everywhere before that would lose
+-- standing; on every join this lands them in the new regions too (idempotent: Land is once per faction per place).
+--   * Birth deeds count everywhere, always: each recorded Birth deed is landed in every region.
+--   * Once per profile (M.SeededRegions, versioned): a deed heard by every faction present in all the regions that
+--     existed before (OldRegions) was "heard everywhere", so it is heard in the new ones as well.
+-- Returns true if anything changed.
+Reputation.OldRegions = {"City", "Foundry", "Lindenmoor", "Adit", "Wilds"} -- the graph before Task 10
+Reputation.RegionsVersion = 9 -- the number of regions this catch-up spreads to; bump it with the next migration
+
+local function HeardIn(M, DeedId, List)
+	for _, Region in ipairs(List) do
+		local P = (M.Places or {})[Region]
+		local Heard = P and P.Known and P.Known[DeedId]
+		if not Heard then return false end
+		for _, F in ipairs(Regions.FactionsAt(Region)) do
+			if Heard[F] == nil then return false end
+		end
+	end
+	return true
+end
+
+local function Everywhere(M, DeedId, Now)
+	local Any = false
+	for Id in pairs(Regions.Regions) do
+		if #Reputation.Land(M, Id, DeedId, Regions.FactionsAt(Id), Now) > 0 then Any = true end
+	end
+	return Any
+end
+
+function Reputation.CatchUpRegions(M, Deeds, Now)
+	local Changed = false
+	for Id, E in pairs(M.Deeds or {}) do
+		local Def = Deeds[Id]
+		if type(Def) == "table" and Def.Birth and Everywhere(M, Id, E.At or Now) then Changed = true end
+	end
+	if (M.SeededRegions or 0) < Reputation.RegionsVersion then
+		for Id, E in pairs(M.Deeds or {}) do
+			if HeardIn(M, Id, Reputation.OldRegions) and Everywhere(M, Id, E.At or Now) then Changed = true end
+		end
+		M.SeededRegions = Reputation.RegionsVersion
+		Changed = true
+	end
+	return Changed
+end
+
 return Reputation

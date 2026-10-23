@@ -266,6 +266,8 @@ function MoralityService.Start()
 				local M = Ensure(Data)
 				Reputation.Seed(M, Deeds, os.time()) -- schema 5: old deeds heard everywhere, once
 				MoralityService.RecordBirth(Player)
+				-- World plan 1 Task 10: birth deeds and old "heard everywhere" deeds reach the new region places too
+				Reputation.CatchUpRegions(M, Deeds, os.time())
 				MoralityService.Rebuild(Data)
 				MoralityService.RecordOutcomes(Player, true)
 				-- word that travelled while they were away (offline catch-up)

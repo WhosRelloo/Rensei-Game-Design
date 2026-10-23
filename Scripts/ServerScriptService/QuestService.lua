@@ -37,6 +37,11 @@ local function AlreadyTrue(Data, O)
 	if O.Kind == "Minigame" then return (S.Minigames or {})[O.Target] ~= nil and S.Minigames[O.Target].Passed ~= nil end
 	-- an area discovered before the quest (discovery only signals the first time)
 	if O.Kind == "Visit" then return (Data.Areas or {})[O.Target] ~= nil end
+	-- World plan 1 Task 10 (ruling): an Arrive objective is already done when the quest starts in that region
+	if O.Kind == "Arrive" then
+		local Ok, Here = pcall(function() return require(ServerScriptService.TravelService).Here() end)
+		return Ok and Here == O.Target
+	end
 	return false
 end
 

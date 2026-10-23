@@ -58,4 +58,43 @@ return {
 		Reputation.Seed(M, Deeds, 0)
 		T.True(Reputation.Landed(M, "d_private"))
 	end,
+	-- World plan 1 Task 10 fix 1: a save from before the four region places joined keeps its standing. Its birth deed
+	-- and its "heard everywhere" deeds were landed in the old 5 regions only; the join step lands them in the new ones.
+	OldSaveKeepsStandingAfterNewRegions = function(T)
+		local Real = require(Rensei.Deeds)
+		local All = {born_Ishvalan = Real.born_Ishvalan, d_local = Deeds.d_local, d_public = Deeds.d_public}
+		local M = Fresh({born_Ishvalan = {At = 1, Count = 1}, d_local = {At = 2, Count = 1}, d_public = {At = 3, Count = 1}})
+		M.Seeded = true
+		for _, Region in ipairs(Reputation.OldRegions) do -- the old LandEverywhere
+			Reputation.Land(M, Region, "born_Ishvalan", Regions.FactionsAt(Region), 1)
+			Reputation.Land(M, Region, "d_local", Regions.FactionsAt(Region), 2)
+		end
+		Reputation.Land(M, "City", "d_public", {"Townsfolk"}, 3) -- heard in one place only: not spread
+		local Full = Real.born_Ishvalan.Standing.IshvalanCommunity
+		T.Eq(Full, 20, "born_Ishvalan is +20 IshvalanCommunity")
+		T.True(Reputation.GlobalStanding(M, All).IshvalanCommunity < Full - 1, "before: diluted by the new regions")
+		T.True(Reputation.CatchUpRegions(M, All, 100))
+		local G = Reputation.GlobalStanding(M, All)
+		T.Near(G.IshvalanCommunity, Full, 1e-9, "birth deed counts in full again")
+		local Born = Real.born_Ishvalan.Standing -- the birth deed also moves other factions
+		T.Near(G.Authority, 12 + (Born.Authority or 0), 1e-9, "an old everywhere deed counts in full again")
+		T.Near(G.Circle, -8 + (Born.Circle or 0), 1e-9)
+		T.Eq(M.Places.Aerugo.Known.d_local.Authority, 2, "stamped with the deed's own time")
+		T.Eq(M.Places.Aerugo.Known.d_public, nil, "a one-place deed isn't spread")
+		T.Eq(M.SeededRegions, Reputation.RegionsVersion)
+		local Before = game:GetService("HttpService"):JSONEncode(M.Places)
+		local Snapshot = Reputation.GlobalStanding(M, All)
+		T.True(not Reputation.CatchUpRegions(M, All, 200), "a second run changes nothing")
+		T.Same(Reputation.GlobalStanding(M, All), Snapshot)
+		T.Eq(game:GetService("HttpService"):JSONEncode(M.Places), Before, "places untouched")
+	end,
+	BirthDeedLandsInNewRegionsEvenAfterTheReseed = function(T)
+		local Real = require(Rensei.Deeds)
+		local All = {born_Ishvalan = Real.born_Ishvalan}
+		local M = Fresh({born_Ishvalan = {At = 1, Count = 1}})
+		M.SeededRegions = Reputation.RegionsVersion
+		Reputation.Land(M, "City", "born_Ishvalan", Regions.FactionsAt("City"), 1)
+		T.True(Reputation.CatchUpRegions(M, All, 5))
+		T.Near(Reputation.GlobalStanding(M, All).IshvalanCommunity, 20, 1e-9)
+	end,
 }

@@ -19,6 +19,8 @@
 --   Talk (dialogue opened, Target = dialogue id) · Visit (area) · Defeat (QuestTarget / DisplayName)
 --   Inspect (inspect id) · Evidence (evidence id) · Deduce (deduction id) · Puzzle (puzzle id)
 --   Minigame (minigame id) · Mechanism ("<id>:<state>") · Flag (flag id) · Signal (any id)
+--   Arrive (region id, Rensei.Places / Regions: TravelService.Arrive signals it; it counts at once when the quest
+--     starts in that region; World plan 1 Task 10)
 -- Ids must be unique across all stages of a quest.
 
 return {

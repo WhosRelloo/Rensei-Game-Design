@@ -144,11 +144,16 @@ function StationService.Buy(Player, RouteId, ClassId, ForUserId)
 		Rider = FindPlayer(Player, ForUserId)
 		if not Rider then return false, "They aren't in your party." end
 	end
+	-- Task 10 fix 1: the rider's save must be loaded before anyone pays (AddTicket can't issue a ticket without it)
+	if not ProgressionService.GetData(Rider) then return false, "The clerk can't issue their ticket right now." end
 	local Ok, Why = Travel.CanTake(Level(Rider), RouteId)
 	if not Ok then return false, Why end
 	local Price = Travel.Price(RouteId, ClassId, StationService.Season())
 	if not ProgressionService.SpendMoney(Player, Price) then return false, ("A ticket costs $%d."):format(Price) end
-	TravelService.AddTicket(Rider, RouteId, ClassId)
+	if not TravelService.AddTicket(Rider, RouteId, ClassId) then -- the save went away meanwhile: give the money back
+		ProgressionService.GrantMoney(Player, Price)
+		return false, "The clerk can't issue that ticket right now."
+	end
 	if Rider ~= Player then Notify(Rider, Player.DisplayName .. " bought you a ticket.") end
 	return true
 end

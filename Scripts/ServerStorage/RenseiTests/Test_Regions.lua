@@ -21,6 +21,7 @@ return {
 		local Own = require(game.ReplicatedStorage.Modules.Data.Rensei.Places).RegionOf(game.PlaceId) or "City"
 		T.Eq(Regions.OfArea(nil), Own)
 		T.Eq(Regions.OfArea("Somewhere New"), Own)
+		if game.PlaceId == 106992859583940 then T.Eq(Regions.Default, "Lindenmoor", "Ye is Lindenmoor") end
 	end,
 	PresenceAndCounts = function(T)
 		T.True(Regions.Present("City", "Authority"))

@@ -100,9 +100,6 @@ function TravelService.Arrive(Player, Info)
 	if T then
 		T.Region = Here
 		T.Trip = nil
-		-- World plan 1 Task 10: arriving somewhere is a quest objective ({Kind = "Arrive", Target = <region id>}).
-		-- After the save is settled (Signal may pay rewards, which can yield).
-		pcall(function() require(ServerScriptService.QuestService).Signal(Player, "Arrive", Here, 1) end)
 	end
 	if Info.Class and Info.Route and Travel.Routes[Info.Route] and Travel.Routes[Info.Route].Kind == "Rail" then
 		TravelService.UseTicket(Player, Info.Route, Info.Class)
@@ -111,6 +108,15 @@ function TravelService.Arrive(Player, Info)
 	local Name = Places.Regions[Here] and Places.Regions[Here].Name or Here
 	UIService.Notify(Player, "Toast", {Text = "You arrive in " .. Name .. "."})
 	TravelService.Arrived:Fire(Player, Here, Info.Route)
+	-- World plan 1 Task 10: arriving somewhere is a quest objective ({Kind = "Arrive", Target = <region id>}), signalled
+	-- once per arrival, after the save is settled and the arrival announced; spawned, so quest banners (and rewards,
+	-- which can yield) never hold up the arrival.
+	if T then
+		task.spawn(function()
+			local Ok, Err = pcall(function() require(ServerScriptService.QuestService).Signal(Player, "Arrive", Here, 1) end)
+			if not Ok then warn("TravelService: Arrive quest signal failed:", Err) end
+		end)
+	end
 end
 
 -- Returns "sent" | "loopback", and the players that actually left (busy or unloaded ones are dropped).
