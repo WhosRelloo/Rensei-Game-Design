@@ -80,7 +80,7 @@ function Mover.WalkTo(Rig, TargetCFrame, Opts)
 	Humanoid:ChangeState(Enum.HumanoidStateType.Running)
 	local Timeout = Opts.WaypointTimeout or Mover.WaypointTimeout
 	local function Live() return H.Status == "walking" and Rig.Parent ~= nil end
-	task.spawn(function()
+	local function Body()
 		local Path = PathfindingService:CreatePath(Opts.Agent or Mover.Agent)
 		local Goal = TargetCFrame.Position - Vector3.new(0, 3, 0) -- the ground under the standing root
 		local Ok = pcall(Path.ComputeAsync, Path, Root.Position, Goal)
@@ -104,6 +104,20 @@ function Mover.WalkTo(Rig, TargetCFrame, Opts)
 		end
 		Put(Rig, TargetCFrame)
 		Finish(H, "arrived")
+	end
+	task.spawn(function()
+		local Ok, Err = pcall(Body)
+		if not Ok then -- any error ends the walk as "failed", with the rig held still where it is
+			warn("Mover: walk failed:", Err)
+			if H.Status == "walking" and Rig.Parent then
+				pcall(function()
+					local Here = Root.CFrame
+					local L = Vector3.new(Here.LookVector.X, 0, Here.LookVector.Z)
+					Put(Rig, CFrame.lookAt(Here.Position, Here.Position + (L.Magnitude > 1e-3 and L or Vector3.new(0, 0, -1))))
+				end)
+			end
+			Finish(H, "failed")
+		end
 	end)
 	return H
 end

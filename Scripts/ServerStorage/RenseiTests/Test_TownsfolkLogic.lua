@@ -24,7 +24,7 @@ return {
 		T.Eq(Ok, false, "half-hour gap")
 		Ok = L.Validate({ {Id = "a", Name = "A", Faction = "Foundry", Look = Look, Schedule = S}, {Id = "a", Name = "B", Faction = "Foundry", Look = Look, Schedule = S} }, Posts)
 		T.Eq(Ok, false, "duplicate id")
-		Ok = L.Validate({ {Id = "a", Name = "A", Faction = "NoSuchFaction", Schedule = S} }, Posts)
+		Ok = L.Validate({ {Id = "a", Name = "A", Faction = "NoSuchFaction", Look = Look, Schedule = S} }, Posts)
 		T.Eq(Ok, false, "unknown faction")
 		Ok = L.Validate({ {Id = "a", Name = "A", Faction = "Foundry", Look = Look} }, Posts)
 		T.Eq(Ok, false, "no schedule")
@@ -34,5 +34,7 @@ return {
 		-- townsfolk wear their own nation's clothes: a missing or unknown nation is refused (owner 2026-10-23)
 		T.Eq(L.Validate({ {Id = "a", Name = "A", Faction = "Foundry", Look = {Nation = "Atlantis"}, Schedule = S} }, Posts), false, "unknown nation")
 		T.Eq(L.Validate({ {Id = "a", Name = "A", Faction = "Foundry", Schedule = S} }, Posts), false, "no look")
+		T.Eq(L.Validate({ {Id = "a", Name = "A", Faction = "Foundry", Look = {Nation = "Amestrian", Gender = "Other"}, Schedule = S} }, Posts), false, "unknown gender")
+		T.Eq(L.Validate({ {Id = "a", Name = "A", Faction = "Foundry", Look = {Nation = "Amestrian", Gender = "Female"}, Schedule = S} }, Posts), true, "a known gender")
 	end,
 }

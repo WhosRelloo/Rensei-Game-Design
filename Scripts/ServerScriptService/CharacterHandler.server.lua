@@ -189,6 +189,7 @@ end)
 for _,Dummy in pairs(workspace.World.Live:GetChildren()) do
 	-- training dummies only: players and EnemyService enemies set themselves up
 	if Dummy:GetAttribute("EnemyType") or Players:GetPlayerFromCharacter(Dummy) then continue end
+	if not Dummy:IsA("Model") then continue end -- e.g. the World.Live.Townsfolk folder (TownsfolkService)
 	local CharacterState = WCSCharacter.new(Dummy)
 
 	local Humanoid = Dummy:WaitForChild("Humanoid")

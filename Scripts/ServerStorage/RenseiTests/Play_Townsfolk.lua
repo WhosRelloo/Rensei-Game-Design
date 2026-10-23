@@ -8,6 +8,7 @@ local TS = require(SSS.TownsfolkService)
 local WorldClock = require(SSS.WorldClock)
 local Customization = require(game.ReplicatedStorage.Modules.Data.Rensei.Customization)
 local Player = game.Players:GetPlayers()[1]
+local Managers = game.ReplicatedStorage.Modules.Managers
 
 local GAP = 40 -- studs between the test posts (the brief)
 
@@ -110,6 +111,34 @@ end
 local function Stand(PostPart) return (PostPart.CFrame * CFrame.new(0, 3, 0)).Position end
 local function Flat(V) return Vector3.new(V.X, 0, V.Z).Unit end
 
+-- fix round 1: a townsperson has no WCS character yet (Task 6b), and DamageManager used to throw on one, aborting the
+-- whole sweep. Puts a townsperson beside the training Dummy in World.Live, runs Body(Rig, Dummy, Attacker) with the
+-- "Parry" training dummy as the attacker (an NPC: no player, so no assault / morality record and no save change), and
+-- puts both dummies back.
+local function BesideDummy(T, Body)
+	Fixture(T, function(_, _, Spawned)
+		local Live = workspace.World.Live
+		local Dummy, Attacker = Live:FindFirstChild("Dummy"), Live:FindFirstChild("Parry")
+		T.True(Dummy and Dummy:FindFirstChild("HumanoidRootPart") and Attacker and Attacker:FindFirstChild("HumanoidRootPart"), "the training dummies")
+		local DRoot = Dummy.HumanoidRootPart
+		local Right = Flat(DRoot.CFrame.RightVector)
+		local At = DRoot.Position + Right * 4 - Vector3.new(0, 3, 0)
+		local Id = "TF_Dummy_" .. math.random(1e6)
+		Post(Id, CFrame.lookAt(At, At + Flat(DRoot.CFrame.LookVector)), "Work")
+		task.wait()
+		local D = Def({{0, 24, Id}})
+		local Rig = TS.Spawn(D, "Test")
+		table.insert(Spawned, D.Id)
+		local Homes = {[Dummy] = Dummy:GetPivot(), [Attacker] = Attacker:GetPivot()}
+		local Ok, Err = pcall(Body, Rig, Dummy, Attacker)
+		task.wait(0.5)
+		for M, CF in pairs(Homes) do
+			pcall(function() M:PivotTo(CF) M.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero end)
+		end
+		if not Ok then error(Err, 0) end
+	end)
+end
+
 return {
 	SpawnsAtCurrentPost = function(T)
 		Fixture(T, function(Posts, Ids, Spawned)
@@ -172,6 +201,48 @@ return {
 		end)
 	end,
 
+	-- fix round 1 (minors 3-5): broken walks end settled. A post removed mid-walk -> held where it stands; a walk
+	-- cancelled behind the service's back -> the Step watchdog settles it; an error inside a walk -> "failed" with the
+	-- rig held still; a townsperson whose Step throws doesn't stop the others.
+	RecoversFromBrokenWalks = function(T)
+		Fixture(T, function(Posts, Ids, Spawned)
+			local Mover = require(SSS.TownsfolkService.Mover)
+			WorldClock.Hold(8)
+			local A, B, Bad = Def({{0, 12, Ids.A}, {12, 24, Ids.C}}), Def({{0, 12, Ids.B}, {12, 24, Ids.A}}), Def({{0, 24, Ids.B}})
+			for _, D in ipairs({A, B, Bad}) do TS.Spawn(D, "Test") table.insert(Spawned, D.Id) end
+			local C = Player.Character
+			C:PivotTo(CFrame.new(Stand(Posts.B) + Posts.B.CFrame.LookVector * 20))
+			task.wait(0.2)
+			Bad.Schedule = "broken" -- its Step throws from now on
+			WorldClock.Hold(14)
+			TS.Step()
+			T.Eq(TS.State(A.Id), "Walking", "A walks despite the broken one")
+			T.Eq(TS.State(B.Id), "Walking", "B walks despite the broken one")
+			-- B: cancelled behind the service's back -> the watchdog settles it at its target
+			Mover.Place(TS.Get(B.Id), TS.Get(B.Id).HumanoidRootPart.CFrame)
+			TS.Step()
+			T.Eq(TS.State(B.Id), "AtPost", "watchdog settled B")
+			T.True((TS.Get(B.Id).HumanoidRootPart.Position - Stand(Posts.A)).Magnitude < 1, "at its post")
+			-- A: its target post is removed mid-walk -> held where it stands, upright, with an idle
+			task.wait(1)
+			Posts.C:Destroy()
+			local T0 = os.clock()
+			while os.clock() - T0 < 15 and TS.State(A.Id) ~= "AtPost" do task.wait(0.25) end
+			local RA = TS.Get(A.Id)
+			T.Eq(TS.State(A.Id), "AtPost", "A settled")
+			T.True(RA.HumanoidRootPart.Anchored and RA:GetAttribute("IdleAnim") ~= nil, "A held still, posed")
+			T.True(math.abs(RA.HumanoidRootPart.CFrame.LookVector.Y) < 0.01, "upright")
+			-- an error inside a walk: "failed", rig held still
+			local Result
+			local H = Mover.WalkTo(RA, RA.HumanoidRootPart.CFrame * CFrame.new(0, 0, -10), {Agent = {AgentRadius = "not a number"}, OnDone = function(R) Result = R end})
+			T0 = os.clock()
+			while os.clock() - T0 < 3 and not Result do task.wait(0.1) end
+			T.Eq(Result, "failed", "an error ends the walk as failed")
+			T.Eq(H.Status, "failed")
+			T.True(RA.HumanoidRootPart.Anchored, "held still after the error")
+		end)
+	end,
+
 	SleepsWithNoPlayerNear = function(T)
 		Fixture(T, function(Posts, Ids, Spawned)
 			WorldClock.Hold(8)
@@ -186,6 +257,27 @@ return {
 			T.Eq(TS.State(D.Id), "Asleep", "asleep with nobody near")
 			T.True((Rig.HumanoidRootPart.Position - Stand(Posts.C)).Magnitude < 1, "placed at the new post at once")
 			T.Eq(Rig:GetAttribute("IdleAnim"), "NPC_Chill", "a Seat post's idle")
+		end)
+	end,
+
+	-- fix round 1: a melee sweep through a townsperson (no WCS character) still lands on the Dummy beside it, without
+	-- errors, and the townsperson's hit is a no-hit with no side effects
+	MeleeSweepThroughTownsperson = function(T)
+		BesideDummy(T, function(Rig, Dummy, Attacker)
+			local HitboxManager = require(Managers.HitboxManager)
+			local SkillData = require(game.ReplicatedStorage.Modules.Data.SkillData)
+			-- the attacker stands 3.5 studs behind the gap between them, facing it: Light1's 6x6x7 box covers both
+			local Mid = (Dummy.HumanoidRootPart.Position + Rig.HumanoidRootPart.Position) / 2
+			local From = Mid - Flat(Dummy.HumanoidRootPart.CFrame.LookVector) * 3.5
+			Attacker:PivotTo(CFrame.lookAt(From, Mid))
+			local Box = HitboxManager.CreateHitbox(Attacker, SkillData.Light1)
+			T.True(table.find(Box, Dummy) ~= nil and table.find(Box, Rig) ~= nil, "the box takes in both")
+			local Results = HitboxManager.Sweep(Attacker, "Light1", 0)
+			local Got = {}
+			for _, R in ipairs(Results) do Got[R.Victim] = R.Result end
+			T.True(Got[Dummy] ~= nil and Got[Dummy] ~= "IFramed", "the Dummy is hit (" .. tostring(Got[Dummy]) .. ")")
+			T.Eq(Got[Rig], "IFramed", "the townsperson: no hit")
+			T.Eq(Rig:GetAttribute("LastHitAt"), nil, "no side effects on the townsperson")
 		end)
 	end,
 

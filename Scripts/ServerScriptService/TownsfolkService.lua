@@ -10,7 +10,10 @@
 --     pool, read at spawn, so outfit variants added to Customization.NationLooks later are worn without changes here
 --     (owner 2026-10-23). An unknown nation is refused, never replaced by a random one.
 --   * Watchers: tagged RenseiWatcher (WatcherType "Witness", Faction, Carrier = false), so PerceptionService registers
---     them as non-combat witnesses. Townsfolk are not hittable or killable here (an open owner decision).
+--     them as non-combat witnesses.
+--   * Combat: attacks can pick townsfolk (owner 2026-10-23: they will be hittable, with heat, standing and morality).
+--     They have no WCS character yet, so DamageManager answers a hit on one with "IFramed" (no damage, no side
+--     effects); HeatService still treats a player's hit on a watcher as assault. Task 6b makes them real targets.
 --   * Idles: the IdleAnim attribute (NpcIdles.server.lua plays it and keeps only the root anchored). At a post the
 --     root is anchored; to walk, IdleAnim is cleared and the root unanchored (NpcIdles only re-anchors while an idle
 --     is playing); on arrival the root is anchored again and the post's idle set.
@@ -99,12 +102,21 @@ end
 
 -- held still at a post with its idle (used on arrival, when placed while asleep, and when a walk fails)
 local function Settle(F, PostId, State)
+	if not F.Rig.Parent then return end
 	local Post = Posts[PostId]
-	if not Post or not F.Rig.Parent then return end
-	Mover.Place(F.Rig, StandAt(Post)) -- (cancels a walk in progress)
+	local At
+	if Post then
+		At = StandAt(Post)
+	else -- the post was removed (mid-walk, say): hold still where it stands, upright
+		WarnOnce("gone " .. F.Id .. ">" .. tostring(PostId), F.Id, "'s post", PostId, "is gone - held where it stands")
+		local L = F.Root.CFrame.LookVector
+		local Flat = Vector3.new(L.X, 0, L.Z)
+		At = CFrame.lookAt(F.Root.Position, F.Root.Position + (Flat.Magnitude > 1e-3 and Flat or Vector3.new(0, 0, -1)))
+	end
+	Mover.Place(F.Rig, At) -- (cancels a walk in progress)
 	F.Post, F.Target, F.Walk = PostId, PostId, nil
 	F.Rig:SetAttribute("PostId", PostId)
-	F.Rig:SetAttribute("IdleAnim", IdleFor(F.Def, Post))
+	F.Rig:SetAttribute("IdleAnim", Post and IdleFor(F.Def, Post) or F.Def.Idle or TownsfolkLogic.KindIdles.Home)
 	SetState(F, State)
 end
 
@@ -261,27 +273,37 @@ function TownsfolkService.Step(Hour)
 		end
 		return false
 	end
-	for Id, F in pairs(Folk) do
+	local function One(Id, F)
 		if not F.Rig.Parent then
 			Folk[Id] = nil
-		elseif F.State ~= "Fleeing" and F.State ~= "Sheltering" then
-			local Want = TownsfolkLogic.PostAt(F.Def.Schedule, Hour)
-			local Here = Near(F.Root.Position)
-			if Want ~= F.Target then
-				local Post = Posts[Want]
-				if not Post then
-					WarnOnce("post " .. tostring(Want), Id, "is due at missing post", Want)
-				elseif Here or Near(Post.Position) then
-					Walk(F, Want)
-				else
-					Settle(F, Want, "Asleep") -- (cancels a walk in progress)
-				end
-			elseif F.State == "Asleep" and Here then
-				SetState(F, "AtPost") -- already at the right post
-			elseif F.State == "AtPost" and not Here then
-				SetState(F, "Asleep")
-			end
+			return
 		end
+		if F.State == "Fleeing" or F.State == "Sheltering" then return end
+		-- watchdog: "Walking" with no live walk (it ended without settling) -> settle at the post it was walking to
+		if F.State == "Walking" and not (F.Walk and F.Walk.Status == "walking") then
+			WarnOnce("watchdog " .. Id, Id, "was Walking with no walk in progress - settled at", F.Target)
+			Settle(F, F.Target, "AtPost")
+		end
+		local Want = TownsfolkLogic.PostAt(F.Def.Schedule, Hour)
+		local Here = Near(F.Root.Position)
+		if Want ~= F.Target then
+			local Post = Posts[Want]
+			if not Post then
+				WarnOnce("post " .. tostring(Want), Id, "is due at missing post", Want)
+			elseif Here or Near(Post.Position) then
+				Walk(F, Want)
+			else
+				Settle(F, Want, "Asleep") -- (cancels a walk in progress)
+			end
+		elseif F.State == "Asleep" and Here then
+			SetState(F, "AtPost") -- already at the right post
+		elseif F.State == "AtPost" and not Here then
+			SetState(F, "Asleep")
+		end
+	end
+	for Id, F in pairs(Folk) do
+		local Ok, Err = pcall(One, Id, F) -- one bad townsperson doesn't stop the others
+		if not Ok then WarnOnce("step " .. Id, Id, "Step failed:", Err) end
 	end
 end
 

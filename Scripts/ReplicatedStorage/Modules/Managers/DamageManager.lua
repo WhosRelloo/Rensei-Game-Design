@@ -110,6 +110,11 @@ return function(Character,Victim,SkillInfo)
 	if DownedManager.IsKnocked(Victim) or DownedManager.IsKnocked(Character) then return "IFramed" end
 	-- admin god mode (AdminService "God")
 	if Victim:GetAttribute("AdminGod") then return "IFramed" end
+	-- a victim with no WCS character (townsfolk until Task 6b gives them one, any other plain Humanoid model in
+	-- World.Live): no hit and no side effects -- before LastHitAt, counters or shields. It used to throw further down
+	-- (VictimState is nil), which aborted the whole sweep, so the victims after it went unhit (Region Foundation
+	-- Task 5 fix round 1)
+	if not WCS.Character.GetCharacterFromInstance(Victim) then return "IFramed" end
 	-- enemies don't hurt each other (their swings used to cut down the enemies beside them)
 	if Character ~= Victim and Character:GetAttribute("EnemyType") and Victim:GetAttribute("EnemyType") then return "IFramed" end
 	-- squads: an enemy without its encounter's attack token can't hurt that player (no hidden second attacker:

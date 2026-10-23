@@ -59,6 +59,8 @@ function L.Validate(Roster, PostIds)
 		-- dressed from their own nation's pool (owner 2026-10-23): never a random nation
 		if type(D.Look) ~= "table" or not Customization.NationLooks[D.Look.Nation] then
 			Err(D.Id, "needs Look.Nation, one of Customization.NationLooks (got " .. tostring(type(D.Look) == "table" and D.Look.Nation or nil) .. ")")
+		elseif D.Look.Gender ~= nil and not table.find(Customization.Genders, D.Look.Gender) then
+			Err(D.Id, "Look.Gender must be one of Customization.Genders (got " .. tostring(D.Look.Gender) .. ")")
 		end
 		local Schedule = D.Schedule
 		local Shaped = type(Schedule) == "table" and #Schedule > 0
