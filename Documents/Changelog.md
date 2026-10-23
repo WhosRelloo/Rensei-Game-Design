@@ -2,6 +2,40 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-23 — World Plan 1 final fix wave: the whole-branch review's fixes
+
+The final review of World Plan 1 found problems where two tasks meet. This pass fixes them in Ye (and, for the teleport copies, in the Main Menu and the Tutorial). Every number is a **PROPOSAL**. Backups are in `ServerStorage.RenseiBackups["Pre-FinalFix_2026-10-23"]` in each place touched.
+
+- **A ticket holder who stows away keeps the ticket** (ledger ruling, now built). A Wanted player without papers who hides in the baggage car still rides as a stowaway, but the inspector catches them for the papers, not the fare:
+  - +5 State Heat and the line "A ticket, but hiding with the baggage? Your papers will be reported.";
+  - no fine, and never thrown off;
+  - the ticket is **not** used on arrival (`TravelService.Depart` has a new `NoTicket` option, so their trip records no class).
+
+  Before this, they paid the $45 fine, could be thrown off, and lost the ticket on arrival too.
+- **Nobody boards held.** The train now works like the road:
+  - anyone knocked down, gripped, carried, gripping or carrying isn't taken aboard. The conductor says why;
+  - the server checks again after the "doors closing" fade, so going down in the fade leaves you on the platform with your ticket;
+  - when a ride ends, anyone in the moving train who isn't riding it (such as a carried non-rider) is put back on the platform.
+
+  Before this, the train was a way to escape a grip, and a carried player could be stranded in the moving train.
+- **A stalled train teleport has a watchdog**, as the road has. 25 seconds after the send, a rider still here goes back to the platform if their save is still loaded, or is kicked if it was released. Nobody plays on a released save.
+- **Ye's hub keeps State law** (owner: "Keep State law"). Outside every named area, Ye counts as the City again, as before Task 10, so unlicensed casting in the hub is a State crime again. This is a one-entry table in `Rensei.Regions` (`HubLaw`: Ye's place id → City). Ye is still Lindenmoor everywhere else: its named areas, the station, rumours by rail and your saved region. Other region places still use their own region.
+- **Players who arrive before the server is ready get their skills.** `CharacterHandler` now also sets up players (and characters) already in the server when it starts. A group teleport opens a fresh server, so this can happen.
+- **Smaller fixes from the review:**
+  - the conductor's "Papers first" line comes once per boarding, not every 3 seconds. A Wanted 3+ player hears "Your papers won't pass here." instead of being sent to a guard who would refuse them;
+  - a rider who dies just before the train arrives isn't sent on, and a body that died during the fade isn't moved into the train;
+  - each travel service starts on its own, so one that fails can't stop the others;
+  - an arrival no longer waits forever for a player who left before spawning.
+- **Menu and Tutorial checked after the Studio crash.** The Menu's "resume where you were" edit, and both places' `Places` and the Tutorial's hair fix, were intact and match Ye and the repo. Both places' own `FlowTeleport` copies were old, so they were updated to the current one; they only use `Send`, which is unchanged.
+- **Docs:** `World Travel.md` corrected: the stowaway ruling, "one server" marked as designed but untested until published, Menu and Tutorial's own teleport copies, the signed gateway, Ye's hub law, and the owner's publish steps.
+- **Tests (Ye):**
+  - Play: Boot 2/2, Travel 7/7, Station 20/20, Road 11/11, Gate 13/13, RideEvents 9/9, Arrive 5/5, Heat 8/8, Morality 3/3, Stealth 9/9, all on the first run;
+  - Test_Regions 6/6, Test_Reputation 10/10, Test_Heat 6/6 and Test_RumourCore 10/10 in a fresh game VM. Test_Regions also passes 6/6 in Edit against fresh modules.
+  - New tests: in `Play_Gate`, a ticket holder's inspection and a full ticket-holder stowaway ride; in `Play_Station`, held players don't board, knocked in the fade stays behind, the ride-end sweep, and the stalled-teleport watchdog. `Play_Station` now puts aside any ticket the tester's save holds for each test, as `Play_Gate` does.
+  - The owner's save was restored after the Play session, and the test hook was removed.
+- **For the owner:** publish `RenseiServer` and `Modules` from Ye, then update both packages (and `ClientHandler`) in Foundry by hand. Then publish Ye, Foundry Yard, the Main Menu and the Tutorial, and use **Migrate to Latest Update** for Ye. Before testing live, check your own save for leftover test state. `World Travel.md` §10 has the steps.
+- **Not done here:** two small client-side timing fixes (the rail fade lifting early, and the crossing failsafe being shorter than the server's deadline) are left for the next `TravelClient` change. Foundry's copies of the test suites are older than Ye's.
+
 ## 2026-10-23 — World Plan 1 complete (Task 11: Foundry end to end, the World Travel guide)
 
 **Owner:** "I want the full map to be so big you have to use the train, etc. to TP to the place. I want it to really feel like a real RPG experience where all the systems connect together with the map to make something super immersive and breathtaking."
@@ -50,7 +84,7 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 - Server scripts keep their old ServerScriptService paths at runtime, because RenseiBoot copies them in from RenseiServer. So hooks that use those paths needed no change.
 - The trains sit on the measured rail top (local Y 5.2 in Ye), not the brief's 4.9.
 - When moving server code into RenseiServer broke three test suites' paths, the suites were fixed and the move was kept.
-- The profile test hook only runs in Studio, so it can never touch live player data even though it ships in a Package.
+- The profile test hook only runs in Studio, so it can never touch live player data. (Corrected 2026-10-23: it no longer ships in a Package. It is put into ServerScriptService for a Studio test session and removed afterwards.)
 - Play suites run in the game's own VM (through `LMRunSuite`), never from the tool's sandbox, which sees no loaded saves.
 - The controller, not a subagent, updated the Menu and Tutorial copies of FlowTeleport.
 - Arrival trusts only a trip record the server writes into the save before the teleport, never the teleport data. A join to the wrong place is sent where the save says (live only).
@@ -106,7 +140,7 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 - **New regions:** Aerugo Borderlands, Ishval, the Northern Wall and the Corrupted Lands are now on the rumour map, with their factions and law (PROPOSAL).
 - **Word rides the rails:** news travels by train between Lindenmoor, the Foundry, the City and Ishval in 3–4 minutes (PROPOSAL). A big rumour can now reach about 11 places.
-- **Each place knows where it is:** a deed done outside every named area counts in the place's own region. In Ye that is now Lindenmoor (Militia law), not the City (State law). So, for example, unlicensed casting in Ye's hub is no longer a State crime.
+- **Each place knows where it is:** a deed done outside every named area counts in the place's own region. In Ye that was now Lindenmoor (Militia law), not the City (State law). So, for example, unlicensed casting in Ye's hub was no longer a State crime. **Undone for Ye's hub in the final fix wave** (owner, 2026-10-23: "Keep State law"): Ye's hub is the City under State law again; the other region places keep their own region.
 - **Arrival quests:** a quest goal can be "arrive in X". It completes when you arrive, or at once if you're already there when the quest or its stage begins.
 - **Party tickets:** the ticket window's "Ticket for" choice cycles through your party (it used to cycle every player, and the server refused non-members). If a party member's save isn't loaded, the clerk refuses before charging; a ticket that still fails is refunded.
 - **Old saves keep their standing:** global standing averages over the regions a faction lives in, and some factions now live in more of them. A one-time step on join spreads old deeds into the new regions wherever a faction had already heard them everywhere it lived, so no player's standing moves. Tested on old-shaped saves (an Ishvalan birth stays Trusted; a City-only Authority deed keeps its full weight).

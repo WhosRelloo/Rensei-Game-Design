@@ -17,11 +17,22 @@ return {
 		T.Eq(Regions.OfArea("Workshop Hill"), "Lindenmoor")
 		T.Eq(Regions.OfArea("Halvard's Adit"), "Adit")
 		T.Eq(Regions.OfArea("Silent Forge"), "Wilds")
-		-- World plan 1 Task 10: outside every area volume is this place's own region (Ye: Lindenmoor)
-		local Own = require(game.ReplicatedStorage.Modules.Data.Rensei.Places).RegionOf(game.PlaceId) or "City"
+		-- World plan 1 Task 10: outside every area volume is this place's own region; final fix wave (owner ruling
+		-- 2026-10-23, "Keep State law"): except Ye's hub, which stays the City (State law), as before Task 10
+		local Places = require(game.ReplicatedStorage.Modules.Data.Rensei.Places)
+		local Own = Regions.HubLaw[game.PlaceId] or Places.RegionOf(game.PlaceId) or "City"
 		T.Eq(Regions.OfArea(nil), Own)
 		T.Eq(Regions.OfArea("Somewhere New"), Own)
-		if game.PlaceId == 106992859583940 then T.Eq(Regions.Default, "Lindenmoor", "Ye is Lindenmoor") end
+		if game.PlaceId == 106992859583940 then
+			T.Eq(Regions.Default, "City", "Ye's hub is the City (State law)")
+			T.Eq(Regions.Regions[Regions.Default].Jurisdiction, "State", "so unlicensed casting there is a State crime")
+			T.Eq(Places.RegionOf(game.PlaceId), "Lindenmoor", "while Ye itself is still Lindenmoor (TravelService.Here)")
+		end
+		-- only Ye has the exception: every other region place's unnamed ground is its own region
+		for Id, R in pairs(Places.Regions) do
+			if Id ~= "Lindenmoor" then T.Eq(Regions.HubLaw[R.PlaceId], nil, Id .. " has no hub exception") end
+		end
+		T.Eq(Regions.HubLaw[Places.Regions.Lindenmoor.PlaceId], "City", "the one exception: Ye")
 	end,
 	PresenceAndCounts = function(T)
 		T.True(Regions.Present("City", "Authority"))

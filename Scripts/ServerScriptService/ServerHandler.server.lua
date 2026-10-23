@@ -81,6 +81,17 @@ ProgressionService.Start()
 require(ReplicatedStorage.Modules.Managers.WeaponManager).Start()
 PartyService.Start()
 require(ServerScriptService.FlowService).Start() -- menu -> tutorial -> cutscene -> here
+-- World plan 1 (final fix wave, review minor 3): each travel service starts on its own, so one that throws can't stop
+-- the others or anything after them
+for _, Name in ipairs({
+	"TravelService", -- arrivals from other regions, tickets, the group teleport
+	"StationService", -- tickets, boarding, the ride
+	"RideEvents", -- ride events (inspection, rumour, pickpocket, holdup)
+	"RoadService", -- road exits, road journeys, ambushes
+}) do
+	local Ok, Err = pcall(function() require(ServerScriptService[Name]).Start() end)
+	if not Ok then warn("[ServerHandler] " .. Name .. ".Start failed: " .. tostring(Err)) end
+end
 
 WorldService.Start()
 DialogueService.Start()

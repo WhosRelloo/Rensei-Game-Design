@@ -43,14 +43,14 @@ The window offers:
 
 The ticket goes into your save and stays there until you ride. If you don't ride, you keep it.
 
-**2. Show your papers.** A State checkpoint stands between the ticket hall and the platform: a gate guard by a turnstile with a "STATE CHECKPOINT" sign. What happens there depends on your Wanted level (section 3).
+**2. Show your papers.** A State checkpoint stands between the ticket hall and the platform: a gate guard at a signed gateway with a "STATE CHECKPOINT" sign. What happens there depends on your Wanted level (section 3).
 
 **3. Wait for the train.** The departure board on the platform shows the next train on each line.
 - A train leaves every **2½ minutes**.
 - The doors open **30 seconds** before it leaves.
 - The times come from the real clock, so every server agrees on them.
 
-**4. Board.** Walk into a car your ticket allows and take a seat (each seat has a "Sit" prompt). A conductor stops you at the door of a car your class doesn't reach.
+**4. Board.** Walk into a car your ticket allows and take a seat (each seat has a "Sit" prompt). A conductor stops you at the door of a car your class doesn't reach. Nobody boards while knocked down, gripped, carried, gripping or carrying someone (section 2).
 
 ![The 3rd-class saloon](images/World%20Travel/third-class-interior.jpg)
 
@@ -113,6 +113,13 @@ One event per ride, about 8 seconds in:
 
 If you die aboard, you drop out of the ride. You come to back in town, and **your ticket is still good**. (Ruling: you aren't pulled back into the train next to live bandits.)
 
+### Nobody boards held
+
+As on the roads, nobody escapes a grip or a carry by train, and nobody drags someone else aboard:
+- anyone knocked down, gripped, carried, gripping or carrying isn't taken. The conductor says: "Not like that. Nobody boards down, held or holding someone."
+- the server checks again when the train leaves, after the "doors closing" fade. Anyone who went down in the fade stays on the platform with their ticket.
+- when the ride ends, anyone in the moving train who isn't riding it is put back on the platform.
+
 ### Seats
 
 You sit only through a seat's prompt. Brushing or dropping onto a seat doesn't sit you. The server also checks that you're:
@@ -134,7 +141,7 @@ You sit only through a seat's prompt. Brushing or dropping onto a seat doesn't s
 | 3+ | Refused. You're pushed back, you gain +10 State Heat (resisting a checkpoint), and the guard says: "Your face is on a poster. Not on my platform." |
 
 - **No arrest yet.** The spec says a Wanted 3 player is arrested at the gate. There's no arrest system yet, so refusal plus Heat stands in for it (ruling).
-- **No way round.** A railing with an invisible wall runs along the platform's back and ends. The server also checks your papers again when the train leaves, so a ticket holder who got onto the platform some other way still isn't taken. The conductor says: "Papers first — see the gate guard."
+- **No way round.** A railing with an invisible wall runs along the platform's back and ends. The server also checks your papers again when the train leaves, so a ticket holder who got onto the platform some other way still isn't taken. The conductor says: "Papers first — see the gate guard." A Wanted 3+ player hears "Your papers won't pass here." instead. Either line comes once per boarding.
 
 ### The stowaway route
 
@@ -145,7 +152,8 @@ Across the tracks from each platform is a **freight yard**. It has stacks of cra
   - If he sees you in the yard, you gain +5 State Heat, once per visit.
   - If he hears you running behind him, he turns to look.
   - Crouch in the shadows and stay quiet, and you get past.
-- **If the inspector catches you aboard,** you pay the fine and gain +5 State Heat. Someone who boarded with a ticket but without papers gets the Heat but not the fine, and keeps the ticket (ruling).
+- **If the inspector catches you aboard,** you pay the fine and gain +5 State Heat.
+- **A ticket holder without papers** who hides in the baggage car rides as a stowaway too, but is caught for the papers, not the fare. The inspector gives them +5 State Heat and says: "A ticket, but hiding with the baggage? Your papers will be reported." They pay no fine, are never thrown off, and **their ticket isn't used** on arrival (ruling; built in the final fix wave, 2026-10-23).
 
 ---
 
@@ -174,12 +182,13 @@ This is the part that keeps saves safe when players move between places.
 
 1. **The trip goes into the save first.** Before anyone leaves, the server writes the trip into each traveller's save: the route, the destination, the arrival point and the class.
 2. **The saves are handed over.** Each traveller's save is released, all at once, the same way the menu hands a save to the game.
-3. **One teleport for everyone.** Everyone aboard (or everyone crossing together) goes in a **single** teleport call with the whole list of players, so they all land on **one server**. If that server is full, Roblox picks a fresh server for the whole group. A failed teleport is tried up to three times.
+3. **One teleport for everyone.** Everyone aboard (or everyone crossing together) goes in a **single** teleport call with the whole list of players, so they all land on **one server** (designed; untested until published). If that server is full, Roblox picks a fresh server for the whole group. A failed teleport is tried up to three times.
 4. **Arrival trusts only the save.** The destination ignores what the player's own computer says. It reads the trip from the save:
    - **The trip ends here:** you appear at the right point, the exact ticket class you rode is used up, your saved region becomes this place, and the trip is cleared.
    - **The trip was going somewhere else** (for example it failed and you rejoined the place you left): the trip is cleared and you **keep your ticket**.
    - **No trip:** you may stay only if your saved region is this place. A new save or an old save with no region counts as Lindenmoor. Anyone else is sent to the place their save says they're in.
 5. **If the teleport still fails after the retries,** the player is kicked. Their save was already handed over, so this is the safe choice, and the ticket isn't lost because it's only used on arrival.
+6. **If the teleport stalls without failing,** a watchdog acts 25 seconds after the send, on the train as on the road. A player still here with their save loaded goes back to the platform (or the road) with the ticket kept; one whose save was released is kicked, so nobody plays on a released save.
 
 So a rejoin from the menu should put you back where your save says you are.
 
@@ -200,9 +209,9 @@ This is how every travel test runs. **The real hop between places has never run.
 - **Money:** tickets, fines, bribes and pickpockets.
 - **Heat and Wanted:** the gate, the yard watchman and the inspector all add State Heat.
 - **Rumours:** word of a deed now rides the trains too. Lindenmoor, the Foundry, the City and Ishval are linked by rail (about 3–4 minutes a hop), so a rumour can arrive before you do. The overheard-rumour ride event reads real rumours.
-- **Regions:** Aerugo, Ishval, the Northern Wall and the Corrupted Lands are on the rumour map, with their factions and law. A deed done in a place counts in that place's region, so in Ye that is Lindenmoor (Militia law).
+- **Regions:** Aerugo, Ishval, the Northern Wall and the Corrupted Lands are on the rumour map, with their factions and law. A deed done outside every named area counts in that place's own region, **except in Ye's hub**, which stays the City under State law, as before (owner ruling, 2026-10-23: "Keep State law"). So unlicensed casting in the hub is still a State crime. Ye's named Lindenmoor areas count as Lindenmoor (Militia law), and Ye is still Lindenmoor for the station, rumours by rail and your saved region.
 - **Quests:** a quest goal can be "arrive in X". It completes when you arrive there, or at once if you're already there when the quest (or its stage) begins.
-- **Parties:** you can buy a ticket for a party member at the clerk, as long as their save is loaded. A party that boards together lands on one server. A road takes the party members walking with you.
+- **Parties:** you can buy a ticket for a party member at the clerk, as long as their save is loaded. A party that boards together lands on one server (designed; untested until published). A road takes the party members walking with you.
 
 ---
 
@@ -216,7 +225,7 @@ This is how every travel test runs. **The real hop between places has never run.
 | `StationService` | `RenseiServer` | Tickets, the departure clock, boarding and seats, the gate, stowaways, the yard watch, the ride |
 | `RideEvents` | `RenseiServer` | The one event per ride |
 | `RoadService` | `RenseiServer` | Walking the road, the crossing, parties, ambushes |
-| `FlowTeleport` | `RenseiServer` | The teleport with retries; `SendGroup` sends a group in one call (also used by Menu and Tutorial) |
+| `FlowTeleport` | `RenseiServer` | The teleport with retries; `SendGroup` sends a group in one call. Menu and Tutorial have **their own copies** in `ServerScriptService` (not the package); keep all three the same (synced 2026-10-23) |
 | `Rensei.Travel` | `ReplicatedStorage.Modules` package, `Data.Rensei.Travel` | Routes, prices, classes, timetable, ride events, ambush chance |
 | `Rensei.Places` | `Modules`, `Data.Rensei.Places` | Every region's place id; where a save should go |
 | `Rensei.Regions` | `Modules`, `Data.Rensei.Regions` | The rumour map, including the rail links |
@@ -257,8 +266,13 @@ Every Play suite runs unchanged in **both** places. Play tests write the owner's
 
 ## 10. Owner's next steps
 
-1. **Publish.** Publish the game (Ye and Foundry Yard, plus the `RenseiServer` and `Modules` packages if there are unpublished changes), so the real cross-place train can be tested on a live server. We never publish; this is yours.
-2. **Ride Lindenmoor to the Foundry with 2+ players.** Buy tickets, pass the gate, board together, and check that **everyone lands on one server** in Foundry Yard. Then try the North Road together (stay within 40 studs) and check the same.
-3. **Check a rejoin.** After arriving in the Foundry, leave and join the game again from the menu. It should return you to the **Foundry**, not Lindenmoor.
+1. **Publish.** We never publish; this is yours. In this order:
+   1. **Packages:** publish `RenseiServer` and `Modules` from Ye (the final fix wave changed both), and make sure the `ClientHandler` package is the version with the slide fix.
+   2. **Update the packages in Foundry by hand.** Foundry never updates a package on its own: update `RenseiServer`, `Modules` and `ClientHandler` there, then check they match Ye.
+   3. **Places:** publish **Ye**, **Foundry Yard**, the **Main Menu** and the **Tutorial**. Menu and Tutorial carry their own copies of `FlowTeleport` and `Places`, which were synced on 2026-10-23.
+   4. **Shut down old servers.** Use **Migrate to Latest Update** (or shut down all servers) for Ye, so no old server runs pre-travel code against the new saves.
+2. **Check your own save first.** Studio Play tests write your real save, and two test sessions ended outside the test hook's control (one stopped by someone else, one in the Studio crash). Before you test live, check your save for leftover test state: a `Travel.Trip` (should be empty), `Travel.Region` (should be where you really are), any travel tickets you didn't buy yourself (a Private-cabin ticket was bought while testing), and `SeededRegions` (set by the one-time region migration; check it matches a migration your save really went through). A Claude session can read these from Studio for you without changing anything.
+3. **Ride Lindenmoor to the Foundry with 2+ players.** Buy tickets, pass the gate, board together, and check that **everyone lands on one server** in Foundry Yard. Then try the North Road together (stay within 40 studs) and check the same.
+4. **Check a rejoin.** After arriving in the Foundry, leave and join the game again from the menu. It should return you to the **Foundry**, not Lindenmoor.
 
 If anything goes wrong in those checks, note who was in the group, which way they travelled, and what each player saw. The servers' output (F9) will show any teleport errors.

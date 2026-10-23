@@ -1,4 +1,5 @@
 -- Play_Gate (World Plan 1 Task 9, 2026-10-23): the papers check at the station gate (and, fix round 1, at boarding),
+-- (final fix wave, 2026-10-23: a ticket holder who stows away keeps the ticket and pays no fine; the refusal lines)
 -- the stowaway route, ThrownOff and the freight yard's watchman (sight and, fix round 1, footsteps). Runs in the game VM (LMRunSuite). Controller ruling: any ticket the tester holds for the
 -- test route is put aside first and given back afterwards, so a saved ticket can't turn the stowaway into a passenger.
 local SSS = game.ServerScriptService
@@ -49,7 +50,11 @@ local function StowRide(P, Event, Money)
 	local Out = {Sent = false, Arrived = false}
 	local OldDepart = TS.Depart
 	TS.Depart = function(List, ...)
-		if table.find(List, P) then Out.Sent = true end
+		if table.find(List, P) then
+			Out.Sent = true
+			local Opts = select(3, ...) -- (final fix wave) Opts.NoTicket: the ride uses no ticket of theirs
+			Out.NoTicket = type(Opts) == "table" and type(Opts.NoTicket) == "table" and Opts.NoTicket[P] == true
+		end
 		return OldDepart(List, ...)
 	end
 	local C = TS.Arrived.Event:Connect(function(Who) if Who == P then Out.Arrived = true end end)
@@ -226,6 +231,61 @@ return {
 		T.Near(Caught, 5, 0.1, "+5 State Heat for the stowaway")
 		T.Near(Ticketed, 0, 0.01, "a ticket holder gains nothing")
 	end,
+	-- final fix wave (ledger ruling :241): the inspection catches a ticket holder hiding from the papers check: Heat
+	-- and a papers line, no fine, and never thrown off, even with no money at all
+	InspectionOfATicketHolderWithoutPapers = function(T)
+		local RE, HS, PS = require(SSS.RideEvents), require(SSS.HeatService), require(SSS.ProgressionService)
+		local P = game.Players:GetPlayers()[1]
+		local D = PS.GetData(P)
+		local Money = D.Money
+		local R = {}
+		HS.Clear(P, "State")
+		P:SetAttribute("ThrownOff", nil)
+		local Ok, Err = pcall(function()
+			D.Money = 100
+			R.Toasts = Toasts(function() RE.Run("Inspection", ROUTE, {P}, {[P] = false}, {[P] = true}) end)
+			R.Money, R.Heat = D.Money, HS.Value(P, "State")
+			D.Money = 0
+			RE.Run("Inspection", ROUTE, {P}, {[P] = false}, {[P] = true})
+			R.Broke, R.Thrown = D.Money, P:GetAttribute("ThrownOff")
+		end)
+		D.Money = Money
+		HS.Clear(P, "State")
+		P:SetAttribute("ThrownOff", nil)
+		T.True(Ok, tostring(Err))
+		T.Eq(R.Money, 100, "no fine")
+		T.Near(R.Heat, 5, 0.1, "+5 State Heat")
+		T.True(table.find(R.Toasts, "Conductor: \"A ticket, but hiding with the baggage? Your papers will be reported.\"") ~= nil, "the papers line")
+		T.Eq(R.Broke, 0, "nothing taken from an empty purse")
+		T.Eq(R.Thrown, nil, "never thrown off for the fare")
+	end,
+	-- final fix wave (I1, ledger ruling :241): the whole ride of a Wanted 1 ticket holder who hid in the StowZone:
+	-- a stowaway in law (baggage car, Heat at the inspection) who pays no fine, arrives, and still holds the ticket
+	TicketHolderStowawayKeepsTheTicket = function(T)
+		local TS, HS = require(SSS.TravelService), require(SSS.HeatService)
+		local P = game.Players:GetPlayers()[1]
+		local R, Ticket, Heat
+		HS.Clear(P, "State")
+		P:SetAttribute("GateCleared", nil)
+		local Ok, Err = pcall(NoTickets, P, function()
+			TS.AddTicket(P, ROUTE, "Third")
+			HS.Add(P, "State", 25, "Lindenmoor") -- Wanted 1, not cleared: no papers
+			R = StowRide(P, "Inspection", 100)
+			Ticket = TS.HasTicket(P, ROUTE)
+			Heat = HS.Value(P, "State")
+		end)
+		HS.Clear(P, "State")
+		P:SetAttribute("GateCleared", nil)
+		P:SetAttribute("ThrownOff", nil)
+		T.True(Ok, tostring(Err))
+		T.Eq(R.Riding, ROUTE, "riding")
+		T.True(R.MidY > 300, "carried in the ride train (y " .. R.MidY .. ")")
+		T.Eq(R.Money, 100, "no fine")
+		T.Near(Heat, 30, 0.5, "caught: +5 State Heat on top of 25")
+		T.True(R.Sent and R.Arrived, "arrived")
+		T.Eq(R.NoTicket, true, "Depart was told the ride uses no ticket")
+		T.Eq(Ticket, "Third", "the ticket wasn't used")
+	end,
 	-- the full stowaway ride: hidden in the baggage car, carried in it, fined (and Heat) at the inspection, arrives
 	StowawayRidesAndArrives = function(T)
 		local HS = require(SSS.HeatService)
@@ -240,6 +300,7 @@ return {
 		T.Eq(R.Money, 55, "fined $45 at the inspection")
 		T.Near(Heat, 5, 0.1, "caught: +5 State Heat")
 		T.True(R.Sent and R.Arrived, "arrived like everyone else")
+		T.Eq(R.NoTicket, true, "no ticket to use")
 	end,
 	-- the controller's ruling: ThrownOff (no ticket, no money) is put back on this platform instead of arriving
 	ThrownOffRiderIsPutBackOnThePlatform = function(T)
@@ -490,6 +551,19 @@ return {
 			R.Cleared = table.find(A, P) ~= nil and not Stow[P]
 			-- Wanted 3 with a ticket, hidden in the StowZone: a stowaway
 			HS.Add(P, "State", 100, "Lindenmoor")
+			-- (final fix wave, review minor 1) Wanted 3 inside a car: refused, and not sent to a guard who'd refuse too;
+			-- the line comes once per boarding, not on every check
+			local Zone3
+			for _, d in ipairs(workspace:GetDescendants()) do
+				if d.Name:find("BoardZone") and d:GetAttribute("CarKind") == "ThirdClass" and d:FindFirstAncestor("PlatformTrain") then Zone3 = d break end
+			end
+			P.Character:PivotTo(Zone3.CFrame)
+			task.wait(0.3)
+			SS.ResetGate(P)
+			R.Refused = Toasts(function()
+				SS.Aboard(ROUTE)
+				SS.Aboard(ROUTE)
+			end)
 			P.Character:PivotTo(StowZone().CFrame)
 			task.wait(0.5)
 			A, Stow = SS.Aboard(ROUTE)
@@ -505,6 +579,9 @@ return {
 		T.True(table.find(R.Toasts, "Conductor: \"Papers first — see the gate guard.\"") ~= nil, "told to see the gate guard")
 		T.Eq(R.Paid, true, "paid the guard")
 		T.Eq(R.Cleared, true, "then aboard, as a passenger")
+		local Won = 0
+		for _, L in ipairs(R.Refused) do if L == "Conductor: \"Your papers won't pass here.\"" then Won += 1 end end
+		T.Eq(Won, 1, "Wanted 3 hears their papers won't pass, once")
 		T.Eq(R.Stowed, true, "Wanted 3 with a ticket in the StowZone: aboard as a stowaway")
 	end,
 }

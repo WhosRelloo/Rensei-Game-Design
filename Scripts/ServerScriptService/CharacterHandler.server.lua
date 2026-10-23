@@ -32,14 +32,22 @@ end
 
 DataManager:Initiate()
 
-Players.PlayerAdded:Connect(function(Player)
+-- (World plan 1 final fix wave, I7) a player who joined before this script connected (a group teleport opens a
+-- fresh server; RenseiBoot's copy adds a step before this runs) is set up too, and so is a character they already
+-- have: the handler is a function run for PlayerAdded and for everyone already here, once per player.
+local SetUp = setmetatable({}, {__mode = "k"}) -- [Player or Character] = true once handled
+local function OnPlayer(Player)
+	if SetUp[Player] then return end
+	SetUp[Player] = true
 	local Combo = Instance.new("NumberValue")
 	Combo.Name = "Combo"
 	Combo.Parent = Player
 	
 	Player.CharacterRemoving:Connect(function(Character)
 	end)
-	Player.CharacterAdded:Connect(function(Character)
+	local function OnCharacter(Character)
+		if SetUp[Character] then return end -- (I7: the catch-up and a deferred CharacterAdded can both see one character)
+		SetUp[Character] = true
 		repeat Character.Parent = workspace.World.Live task.wait(0.1) until Character.Parent == workspace.World.Live
 		
 		local CharacterState = WCSCharacter.new(Character)
@@ -91,12 +99,16 @@ Players.PlayerAdded:Connect(function(Player)
 		end)()
 		
 		
-	end)
+	end
+	Player.CharacterAdded:Connect(OnCharacter)
+	if Player.Character then task.spawn(OnCharacter, Player.Character) end -- (I7) spawned before we connected
 	
 	Player.ChildRemoved:Connect(function(Character)
 		Character:Destroy()
 	end)
-end)
+end
+Players.PlayerAdded:Connect(OnPlayer)
+for _, Player in ipairs(Players:GetPlayers()) do task.spawn(OnPlayer, Player) end -- (I7) joined before we connected
 
 Players.PlayerRemoving:Connect(function(Player)
 	Player:Destroy()

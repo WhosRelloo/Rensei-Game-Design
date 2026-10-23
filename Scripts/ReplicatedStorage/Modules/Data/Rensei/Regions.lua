@@ -76,7 +76,13 @@ Regions.Regions = {
 	Corrupted = {Name = "the Corrupted Lands", Factions = {"Circle"}, Hidden = {Circle = true}, Jurisdiction = "None", Safe = false,
 		Links = {{To = "City", Carrier = "Whisper", Minutes = 5}, {To = "North", Carrier = "Gossip", Minutes = 45}, {To = "Aerugo", Carrier = "Gossip", Minutes = 45}}},
 }
-Regions.Default = require(script.Parent.Places).RegionOf(game.PlaceId) or "City" -- outside every area volume = this place's region
+-- Outside every area volume: this place's own region (World plan 1 Task 10), except in Ye. Owner ruling 2026-10-23
+-- ("Keep State law"): Ye's hub stays the City, State law, exactly as before Task 10, so unlicensed casting there is
+-- still a State crime and hub deeds still land in the City. Ye's named Lindenmoor areas (Regions.Areas) and
+-- TravelService.Here() (Lindenmoor: the station, rumours by rail, the save's region) are unchanged.
+local Places = require(script.Parent.Places)
+Regions.HubLaw = {[Places.Regions.Lindenmoor.PlaceId] = "City"} -- [PlaceId] = the region its unnamed ground counts as
+Regions.Default = Regions.HubLaw[game.PlaceId] or Places.RegionOf(game.PlaceId) or "City"
 
 -- WorldService area names (AreaName attribute) -> region
 Regions.Areas = {

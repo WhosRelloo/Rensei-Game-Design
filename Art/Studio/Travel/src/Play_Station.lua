@@ -1,4 +1,5 @@
 local SSS = game.ServerScriptService
+-- (final fix wave 2026-10-23: held players, the ride-end sweep, the stalled-teleport watchdog; held tickets put aside)
 -- task 6b (owner, 2026-10-21): seats sit you only through their prompt
 local function SitPrompt(Seat) return Seat:FindFirstChild("SitPrompt", true) end -- (on its SitPoint attachment)
 local function FreeSeat(Car)
@@ -19,7 +20,32 @@ end
 local function Near(Seat) -- standing on the seat, inside the Sit reach
 	return CFrame.new(Seat.Position + Vector3.new(0, 3.5, 0))
 end
-return {
+-- final fix wave (2026-10-23)
+local ROUTE = "LindenmoorFoundry"
+local HELD = {"Knocked", "GrippedBy", "CarriedBy", "Gripping", "Carrying"}
+local function Zone(TrainName, Kind) -- a BoardZone of that car kind in the platform or ride train
+	for _, d in ipairs(workspace:GetDescendants()) do
+		if d.Name:find("BoardZone") and d:GetAttribute("CarKind") == Kind and d:FindFirstAncestor(TrainName) then return d end
+	end
+end
+local function Toasts(Body) -- the toasts sent while Body runs
+	local US = require(SSS.UIService)
+	local Old = US.Notify
+	local Got = {}
+	US.Notify = function(P, Kind, Data)
+		if Kind == "Toast" and type(Data) == "table" then table.insert(Got, Data.Text) end
+		return Old(P, Kind, Data)
+	end
+	local Ok, Err = pcall(Body)
+	US.Notify = Old
+	if not Ok then error(Err, 0) end
+	return Got
+end
+local function PlatformDist(P)
+	local At = require(SSS.TravelService).ArrivalPoint("Platform")
+	return (P.Character.HumanoidRootPart.Position - At.Position).Magnitude
+end
+local Suite = {
 	BuyChargesAndGivesATicket = function(T)
 		local SS, TS, PS = require(SSS.StationService), require(SSS.TravelService), require(SSS.ProgressionService)
 		local P = game.Players:GetPlayers()[1]
@@ -490,4 +516,131 @@ return {
 		if TS.HasTicket(P, "LindenmoorFoundry") then TS.UseTicket(P, "LindenmoorFoundry") end
 		T.True(Ok, tostring(Err))
 	end,
+
+	-- final fix wave (I2): nobody down, gripped, carried, gripping or carrying boards; the conductor says why
+	HeldPlayersDontBoard = function(T)
+		local SS, TS = require(SSS.StationService), require(SSS.TravelService)
+		local P = game.Players:GetPlayers()[1]
+		local C = P.Character
+		local R = {}
+		SS.HoldClock = true
+		local Ok, Err = pcall(function()
+			TS.AddTicket(P, ROUTE, "Third")
+			C:PivotTo(Zone("PlatformTrain", "ThirdClass").CFrame)
+			task.wait(0.5)
+			R.Free = table.find((SS.Aboard(ROUTE)), P) ~= nil
+			for _, Name in ipairs(HELD) do
+				C:SetAttribute(Name, Name == "Knocked" and true or "Someone")
+				SS.ResetGate(P)
+				local Got = Toasts(function() R[Name] = table.find((SS.Aboard(ROUTE)), P) ~= nil end)
+				R[Name .. "Told"] = table.find(Got, "Conductor: \"Not like that. Nobody boards down, held or holding someone.\"") ~= nil
+				C:SetAttribute(Name, nil)
+			end
+		end)
+		for _, Name in ipairs(HELD) do C:SetAttribute(Name, nil) end
+		SS.HoldClock = false
+		SS.ResetGate(P)
+		T.True(Ok, tostring(Err))
+		T.Eq(R.Free, true, "aboard when nothing holds them")
+		for _, Name in ipairs(HELD) do
+			T.Eq(R[Name], false, Name .. ": not aboard")
+			T.Eq(R[Name .. "Told"], true, Name .. ": told why")
+		end
+	end,
+	-- final fix wave (I2): knocked during the "doors closing" fade: left behind on the platform, the ticket kept
+	KnockedDuringTheFadeStaysBehind = function(T)
+		local SS, TS = require(SSS.StationService), require(SSS.TravelService)
+		local P = game.Players:GetPlayers()[1]
+		local C = P.Character
+		local R = {}
+		SS.HoldClock = true
+		local Ok, Err = pcall(function()
+			TS.AddTicket(P, ROUTE, "Third")
+			C:PivotTo(Zone("PlatformTrain", "ThirdClass").CFrame)
+			task.wait(0.5)
+			SS.DepartNow(ROUTE, 3)
+			R.Riding = SS.Riding(P)
+			C:SetAttribute("Knocked", true) -- (in the fade: the move hasn't happened yet)
+			task.wait(SS.FadeTime + 0.6)
+			R.After = SS.Riding(P)
+			R.Y = C.HumanoidRootPart.Position.Y
+			C:SetAttribute("Knocked", nil)
+			task.wait(3)
+			R.Ticket = TS.HasTicket(P, ROUTE)
+		end)
+		C:SetAttribute("Knocked", nil)
+		SS.HoldClock = false
+		T.True(Ok, tostring(Err))
+		T.Eq(R.Riding, ROUTE, "boarded before the fade")
+		T.Eq(R.After, nil, "off the ride")
+		T.True(R.Y < 300, "not moved into the ride train (y " .. math.floor(R.Y) .. ")")
+		T.Eq(R.Ticket, "Third", "the ticket is kept")
+	end,
+	-- final fix wave (I2): someone in the ride train who isn't riding it (a carried non-rider) is put on the platform;
+	-- riders still waiting for their teleport are left alone
+	NonRiderInTheRideTrainIsPutBack = function(T)
+		local SS = require(SSS.StationService)
+		local P = game.Players:GetPlayers()[1]
+		local R = {}
+		local Ok, Err = pcall(function()
+			P.Character:PivotTo(Zone("RideTrain", "ThirdClass").CFrame)
+			task.wait(0.5)
+			R.Kept = SS.Sweep(ROUTE, {[P] = true})
+			R.Y = P.Character.HumanoidRootPart.Position.Y
+			R.Swept = SS.Sweep(ROUTE)
+			task.wait(0.3)
+			R.D = PlatformDist(P)
+		end)
+		T.True(Ok, tostring(Err))
+		T.Eq(R.Kept, 0, "a rider waiting for the teleport stays")
+		T.True(R.Y > 300, "(was in the ride train, y " .. math.floor(R.Y) .. ")")
+		T.Eq(R.Swept, 1, "the non-rider is swept out")
+		T.True(R.D < 8, "back on the platform (" .. math.floor(R.D) .. ")")
+	end,
+	-- final fix wave (I6): live, a rider still here after HoldDeadline goes back to the platform if their save is
+	-- loaded, and is kicked if it was released. (Watch runs only after a live "sent"; called directly here.)
+	StalledTeleportWatchdog = function(T)
+		local SS, PS = require(SSS.StationService), require(SSS.ProgressionService)
+		local P = game.Players:GetPlayers()[1]
+		local R = {}
+		local OldGet, OldKick = PS.GetData, SS.Kick
+		local Ok, Err = pcall(function()
+			P.Character:PivotTo(Zone("RideTrain", "ThirdClass").CFrame)
+			task.wait(0.3)
+			SS.Watch({[P] = true}, "the Foundry Yard", 0.2, {[P] = true})
+			task.wait(0.8)
+			R.D = PlatformDist(P)
+			SS.Kick = function(Q, Text) if Q == P then R.Kicked = Text end end
+			PS.GetData = function(Q, ...) if Q == P then return nil end return OldGet(Q, ...) end -- a released save
+			SS.Watch({[P] = true}, "the Foundry Yard", 0.05, {[P] = true})
+			task.wait(0.3)
+			PS.GetData = OldGet
+		end)
+		PS.GetData, SS.Kick = OldGet, OldKick
+		T.True(Ok, tostring(Err))
+		T.True(R.D < 8, "save loaded: back on the platform (" .. math.floor(R.D or -1) .. ")")
+		T.True(type(R.Kicked) == "string" and R.Kicked:find("couldn't be completed") ~= nil, "save released: kicked (" .. tostring(R.Kicked) .. ")")
+	end,
 }
+
+-- final fix wave (ledger note :188, as Play_Gate does): any ticket the tester's real save holds for the test route
+-- is put aside for each test and given back afterwards, so a held (say, Private cabin) ticket can't change a result
+local function Mine(K) return K:sub(1, #ROUTE + 1) == ROUTE .. "|" end
+for Name, Fn in pairs(Suite) do
+	Suite[Name] = function(T)
+		local P = game.Players:GetPlayers()[1]
+		local Tk = require(SSS.TravelService).Tickets(P)
+		local Saved = {}
+		for K, V in pairs(Tk) do
+			if Mine(K) then Saved[K] = V end
+		end
+		for K in pairs(Saved) do Tk[K] = nil end
+		local Ok, Err = pcall(Fn, T)
+		for K in pairs(Tk) do
+			if Mine(K) then Tk[K] = nil end
+		end
+		for K, V in pairs(Saved) do Tk[K] = V end
+		if not Ok then error(Err, 0) end
+	end
+end
+return Suite

@@ -4,6 +4,9 @@
 --               ProgressionService.SpendMoney, which takes all of it or nothing. (Only the ThrownOff attribute is set
 --               here; StationService puts a ThrownOff rider back on the platform at the ride's end, Task 9.) A caught
 --               stowaway also gains State Heat (+5, Task 9: "getting caught raises Heat"), fined or not.
+--               Final fix wave (ledger ruling :241): a stowaway who HOLDS a ticket (hid in the baggage car because their
+--               papers weren't in order) is caught for the papers, not the fare: the same Heat and a papers line, no
+--               fine and never thrown off; StationService makes sure their ticket isn't used on arrival either.
 --   Rumour:     a passenger mentions a real rumour about a rider (preferring one already heard in the destination),
 --               else a lore line. Read-only on Data.Morality.Rumours.
 --   Pickpocket: $5-15 lifted from one rider (never more than they carry). The chase (a PROPOSAL: a 6 s prompt to
@@ -31,6 +34,7 @@ RideEvents.BanditGap = 6 -- PROPOSAL: studs between the bandits, along the aisle
 RideEvents.FallCatch = 20 -- PROPOSAL: a bandit this far below the ride train is put back (as StationService does for riders)
 RideEvents.Force = nil -- Studio tests only: the next ride's event (used once; a live server ignores it)
 RideEvents.CaughtHeat = 5 -- PROPOSAL (controller ruling, Task 9): State Heat for a stowaway the inspection catches
+local PAPERS_CAUGHT = "Conductor: \"A ticket, but hiding with the baggage? Your papers will be reported.\"" -- final fix wave
 
 local Bandits = {} -- [RouteId] = {{Rig = Model, Home = CFrame}}
 local LORE = {
@@ -119,8 +123,10 @@ local function Contain(RouteId, Ride, List)
 	end
 end
 
-function RideEvents.Run(EventId, RouteId, List, HasTicket)
+-- NoPapers (final fix wave): {[Player] = true} for the stowaways who hold a ticket (the papers, not the fare)
+function RideEvents.Run(EventId, RouteId, List, HasTicket, NoPapers)
 	HasTicket = HasTicket or {}
+	NoPapers = type(NoPapers) == "table" and NoPapers or {}
 	if EventId == "Inspection" then
 		for _, P in ipairs(List) do
 			if HasTicket[P] == false then
@@ -130,7 +136,9 @@ function RideEvents.Run(EventId, RouteId, List, HasTicket)
 				end)
 				if not Ok then warn("[RideEvents] stowaway Heat failed: " .. tostring(Err)) end
 				local Fine = Travel.Fine(RouteId)
-				if ProgressionService.SpendMoney(P, Fine) then
+				if NoPapers[P] then -- ruling :241: a ticket holder hiding from the papers check: Heat only, no fine
+					Say(P, PAPERS_CAUGHT)
+				elseif ProgressionService.SpendMoney(P, Fine) then
 					Say(P, ("Conductor: \"No ticket? That's a $%d fine.\""):format(Fine))
 				else
 					P:SetAttribute("ThrownOff", true)
@@ -229,15 +237,19 @@ function RideEvents.Start()
 		end
 		return Out
 	end
-	-- Stow (Task 9, StationService): the list of riders who boarded without a ticket (stowaways). A list, not a set:
-	-- a BindableEvent drops a table's Instance keys.
-	StationService.Departing.Event:Connect(function(RouteId, List, Seconds, Stow)
+	-- Stow (Task 9, StationService): the list of riders who boarded as stowaways. A list, not a set: a BindableEvent
+	-- drops a table's Instance keys. Ticketed (final fix wave): the stowaways among them who hold a ticket (no papers).
+	StationService.Departing.Event:Connect(function(RouteId, List, Seconds, Stow, Ticketed)
 		local Ends = os.clock() + Seconds
 		local Has = {}
 		local Stowed = nil
 		if type(Stow) == "table" then
 			Stowed = {}
 			for _, P in ipairs(Stow) do Stowed[P] = true end
+		end
+		local NoPapers = {}
+		if type(Ticketed) == "table" then
+			for _, P in ipairs(Ticketed) do NoPapers[P] = true end
 		end
 		for _, P in ipairs(List) do
 			if Stowed then Has[P] = not Stowed[P] else Has[P] = TravelService.HasTicket(P, RouteId) ~= nil end
@@ -248,7 +260,7 @@ function RideEvents.Start()
 		local Id = Travel.PickRideEvent(math.random())
 		if RideEvents.Force and RunService:IsStudio() then Id = RideEvents.Force end
 		RideEvents.Force = nil
-		local Ok, Err = pcall(RideEvents.Run, Id, RouteId, List, Has)
+		local Ok, Err = pcall(RideEvents.Run, Id, RouteId, List, Has, NoPapers)
 		if not Ok then warn("[RideEvents] " .. tostring(Id) .. " on " .. RouteId .. " failed: " .. tostring(Err)) end
 		if Id == "Holdup" then
 			-- the bandits go at arrival (StationService clears Riding when the ride ends) or once nobody is aboard

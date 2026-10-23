@@ -87,7 +87,10 @@ function TravelService.UseTicket(Player, RouteId, ClassId)
 end
 
 local function Spawn(Player, Point)
-	local Character = Player.Character or Player.CharacterAdded:Wait()
+	-- (final fix wave, review minor 4: bounded; CharacterAdded:Wait() never returned for a player who left first)
+	while not Player.Character and Player.Parent do task.wait(0.1) end
+	local Character = Player.Character
+	if not Character then return end
 	local Root = Character:WaitForChild("HumanoidRootPart", 10)
 	local At = TravelService.ArrivalPoint(Point) or TravelService.ArrivalPoint("Platform")
 	if Root and At then Character:PivotTo(At.CFrame + Vector3.new(0, TravelService.SpawnLift, 0)) end
@@ -106,7 +109,7 @@ function TravelService.Arrive(Player, Info)
 	end
 	Spawn(Player, Info.Arrive or "Platform")
 	local Name = Places.Regions[Here] and Places.Regions[Here].Name or Here
-	UIService.Notify(Player, "Toast", {Text = "You arrive in " .. Name .. "."})
+	if Player.Parent then UIService.Notify(Player, "Toast", {Text = "You arrive in " .. Name .. "."}) end
 	TravelService.Arrived:Fire(Player, Here, Info.Route)
 	-- World plan 1 Task 10: arriving somewhere is a quest objective ({Kind = "Arrive", Target = <region id>}), signalled
 	-- once per arrival, after the save is settled and the arrival announced; spawned, so quest banners (and rewards,
@@ -122,10 +125,14 @@ end
 -- Returns "sent" | "loopback", and the players that actually left (busy or unloaded ones are dropped).
 -- Opts (optional, Task 8b): {Join = a server (JobId) of the destination place to try first (a road party's stragglers
 -- follow their party there; if it's full or gone, FlowTeleport falls back to the normal teleport), Nonce = the road
--- crossing's id, passed on in TeleportData.Travel (the arriving server shares it with the party's stragglers)}.
+-- crossing's id, passed on in TeleportData.Travel (the arriving server shares it with the party's stragglers),
+-- NoTicket = {[Player] = true} (final fix wave, ledger ruling :241): these ride without using a ticket, so their Trip
+-- records no class and arrival burns nothing (a ticket holder without papers who stowed away; a direct call, so the
+-- Instance keys survive)}.
 function TravelService.Depart(List, RouteId, ArriveAt, Opts)
 	Opts = type(Opts) == "table" and Opts or {}
 	local Join = type(Opts.Join) == "string" and Opts.Join or nil
+	local NoTicket = type(Opts.NoTicket) == "table" and Opts.NoTicket or {}
 	local Here = TravelService.Here()
 	local Dest = Travel.Other(RouteId, Here)
 	assert(Dest, "route " .. tostring(RouteId) .. " doesn't leave " .. Here)
@@ -134,7 +141,8 @@ function TravelService.Depart(List, RouteId, ArriveAt, Opts)
 	for _, P in ipairs(List) do
 		local T = P.Parent and not FlowTeleport.Busy(P) and not FlowTeleport.InGroup(P) and TravelData(P)
 		if T then
-			T.Trip = {Route = RouteId, To = Dest, Arrive = ArriveAt or "Platform", Class = Rail and TravelService.HasTicket(P, RouteId) or nil}
+			T.Trip = {Route = RouteId, To = Dest, Arrive = ArriveAt or "Platform",
+				Class = Rail and not NoTicket[P] and TravelService.HasTicket(P, RouteId) or nil}
 			table.insert(Going, P)
 		end
 	end

@@ -35,6 +35,17 @@
 --     turns him on the spot towards it (fix round 1), so a noisy player behind him gets seen.
 --   * Fix round 1: the papers check is also enforced at boarding (Aboard): a ticket holder without papers in order is
 --     not boarded ("Papers first"), unless hidden in the StowZone, where they ride as a stowaway.
+--   * Final fix wave (2026-10-23, whole-branch review):
+--       - I1 (ledger ruling :241): a ticket holder who rides as a stowaway (no papers) is told apart from a ticketless
+--         one: Departing's 5th argument lists them (the inspection gives them Heat and a papers line, no fine, never
+--         thrown off) and TravelService.Depart gets Opts.NoTicket, so their Trip records no class and the ticket stays.
+--       - I2: nobody down, gripped, carrying or dead boards (as on the roads, Task 8): Aboard skips them, the move
+--         after the fade re-checks (they stay behind like someone who stepped off), and at the ride's end anyone in
+--         the ride train who isn't riding (a carried non-rider, say) is put back on this platform (Sweep).
+--       - I6: live, a rider still here HoldDeadline seconds after Depart sent them is put back on the platform if
+--         their save is still loaded, else kicked (the road's watchdog): nobody plays on a released save.
+--       - review minors: the "papers first" line once per boarding (not every 3 s), and Wanted 3+ hears that their
+--         papers won't pass; a rider who died just before the send isn't sent.
 -- Every number is a PROPOSAL.
 local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
@@ -80,7 +91,11 @@ StationService.YardHeatGap = 60 -- PROPOSAL: and at most once a minute, even ove
 StationService.YardTick = 0.25 -- PROPOSAL: seconds between freight-yard checks
 StationService.StowNagGap = 3 -- PROPOSAL: seconds between "stay with the baggage" lines to a stowaway
 StationService.WatchTurn = 45 -- PROPOSAL: degrees a yard watchman turns per yard check (180 a second) towards a sound
+StationService.HoldDeadline = 25 -- PROPOSAL (as RoadService): live, seconds after Depart a sent rider may still be here
+StationService.BoardNagGap = Travel.BoardingWindow + 5 -- PROPOSAL: the conductor's boarding refusals, once per boarding
 local PAPERS_FIRST = "Conductor: \"Papers first — see the gate guard.\"" -- fix round 1 ruling
+local PAPERS_REFUSED = "Conductor: \"Your papers won't pass here.\"" -- final fix wave (review minor 1): Wanted 3+
+local HELD_REFUSED = "Conductor: \"Not like that. Nobody boards down, held or holding someone.\"" -- final fix wave (I2)
 local GATE_REFUSED = "Guard: \"Your face is on a poster. Not on my platform.\"" -- brief
 
 local Remote, Event
@@ -96,12 +111,33 @@ local LastGate, LastRefuseHeat = {}, {} -- [Player] = os.clock() of the guard's 
 local YardVisit, LastYardHeat = {}, {} -- [Player] = the yard part they're in (false once seen there) / os.clock()
 local Stows = setmetatable({}, {__mode = "k"}) -- [train Model] = {StowZone parts}
 local LastPapers = {} -- [Player] = os.clock() of the conductor's last "papers first"
+local LastHeld = {} -- [Player] = os.clock() of the conductor's last "nobody boards down or held" (final fix wave)
 local YardHome = setmetatable({}, {__mode = "k"}) -- [watchman Model] = the CFrame he was placed at (his post)
 local SeatTrains = setmetatable({}, {__mode = "k"}) -- [train Model or Seat] = true once set up
 local SEAT_TEXT = {ThirdClass = "3rd class", DiningCar = "Dining car", SecondClass = "2nd class", CabinCar = "Private cabin"}
 local DOWN = {"Knocked", "GrippedBy", "CarriedBy", "Gripping", "Carrying"} -- character attributes: can't sit down
 
 local function Notify(P, Text) UIService.Notify(P, "Toast", {Text = Text}) end
+
+-- (final fix wave, I2) down, gripped, carried, gripping or carrying (DownedManager's attributes, read as RoadService
+-- reads them), or dead: nobody escapes those by train, and nobody drags a non-rider aboard
+local function Held(C)
+	local H = C and C:FindFirstChildOfClass("Humanoid")
+	if not (H and H.Health > 0) then return true end
+	for _, Name in ipairs(DOWN) do
+		local V = C:GetAttribute(Name)
+		if V ~= nil and V ~= false then return true end
+	end
+	return false
+end
+StationService.Held = Held
+
+local function Nag(Last, P, Text) -- a conductor's line, once per boarding window
+	local Now = os.clock()
+	if Last[P] and Now - Last[P] < StationService.BoardNagGap then return end
+	Last[P] = Now
+	Notify(P, Text)
+end
 
 local function Level(P)
 	local D = ProgressionService.GetData(P)
@@ -272,7 +308,8 @@ end
 -- who departs: ticket holders inside a car whose papers are in order, and (Task 9) anyone hidden in the baggage car's
 -- StowZone without a ticket, or (fix round 1) with a ticket but without papers. Returns the list and the stowaway set
 -- {[Player] = true}. A ticket holder aboard without papers is left out and told to see the gate guard: the papers
--- check is enforced here, at boarding, as well as at the gate.
+-- check is enforced here, at boarding, as well as at the gate. (Final fix wave, I2) nobody down, held, holding
+-- someone or dead is aboard at all, stowaway or not.
 function StationService.Aboard(RouteId)
 	local Train = TrainOf("RenseiPlatformTrain", RouteId)
 	local Out, Stow = {}, {}
@@ -282,18 +319,18 @@ function StationService.Aboard(RouteId)
 		if Root and not Riding[P] then
 			local Has = TravelService.HasTicket(P, RouteId)
 			local Papers = Has and PapersOk(P)
-			if not Papers and InStowZone(P, Train) then
+			local Hidden = not Papers and InStowZone(P, Train)
+			local Inside = Hidden or (Has and InTrain(Train, Root.Position) ~= nil)
+			if Inside and Held(P.Character) then
+				if not Hidden then Nag(LastHeld, P, HELD_REFUSED) end -- (a stowaway hides: nobody calls out to them)
+			elseif Hidden then
 				table.insert(Out, P)
 				Stow[P] = true
-			elseif Has and InTrain(Train, Root.Position) ~= nil then
+			elseif Inside then
 				if Papers then
 					table.insert(Out, P)
 				else
-					local Now = os.clock()
-					if not LastPapers[P] or Now - LastPapers[P] >= StationService.GateAskGap then
-						LastPapers[P] = Now
-						Notify(P, PAPERS_FIRST)
-					end
+					Nag(LastPapers, P, StationService.Gate(P) == "Refuse" and PAPERS_REFUSED or PAPERS_FIRST)
 				end
 			end
 		end
@@ -478,7 +515,7 @@ function StationService.YardCheck()
 	end
 end
 function StationService.ResetYard(P) YardVisit[P], LastYardHeat[P] = nil, nil end -- tests
-function StationService.ResetGate(P) LastGate[P], LastRefuseHeat[P], LastPapers[P] = nil, nil, nil end -- tests
+function StationService.ResetGate(P) LastGate[P], LastRefuseHeat[P], LastPapers[P], LastHeld[P] = nil, nil, nil, nil end -- tests
 
 -- conductor: a CarDoor touched by someone whose class doesn't reach that car pushes them back the way they came
 local function Guard(Door)
@@ -649,6 +686,61 @@ local function SetUpSeats(Train)
 	Train.DescendantAdded:Connect(function(D) SetUpSeat(Train, D) end)
 end
 
+local function ToPlatform(P)
+	local At = TravelService.ArrivalPoint("Platform")
+	if At and P.Character then P.Character:PivotTo(At.CFrame + Vector3.new(0, TravelService.SpawnLift or 3, 0)) end
+end
+
+-- (final fix wave, I2) at a ride's end: anyone in the ride train who isn't riding it (a carried non-rider, someone who
+-- got in some other way) is put back on this platform. Keep = {[Player] = true}: riders still waiting for their
+-- teleport (live), left where they are. Returns how many were put back.
+function StationService.Sweep(RouteId, Keep)
+	Keep = Keep or {}
+	local Ride = TrainOf("RenseiRideTrain", RouteId)
+	if not Ride then return 0 end
+	local Out = {}
+	for _, P in ipairs(Players:GetPlayers()) do
+		local Root = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+		if Root and not Keep[P] and not Riding[P] and InTrain(Ride, Root.Position) then table.insert(Out, P) end
+	end
+	if #Out == 0 then return 0 end
+	local Stood = false
+	for _, P in ipairs(Out) do
+		if Unseat(P) then Stood = true end -- (moving a seated character would drag the ride-train seat along)
+	end
+	if Stood then task.wait(StationService.UnseatSettle) end
+	for _, P in ipairs(Out) do
+		if P.Parent and not Riding[P] then
+			ToPlatform(P)
+			Notify(P, "The conductor put you off at the platform.")
+		end
+	end
+	return #Out
+end
+
+StationService.Kick = function(P, Text) P:Kick(Text) end -- (tests replace it)
+
+-- (final fix wave, I6; RoadService's HoldDeadline watchdog) live: a rider TravelService.Depart sent who is still here
+-- Deadline seconds later had a teleport that stalled without failing. With the save still loaded they go back to the
+-- platform (ticket kept: the ticket is only used on arrival); with it released they can't stay, so they're kicked.
+function StationService.Watch(Sent, DestName, Deadline, Tickets)
+	task.delay(Deadline or StationService.HoldDeadline, function()
+		for P in pairs(Sent) do
+			if P.Parent and not Riding[P] then
+				if ProgressionService.GetData(P) then
+					ToPlatform(P)
+					local Line = (Tickets and Tickets[P]) and "The train couldn't take you this time. Your ticket is still good." or "The train couldn't take you this time."
+					if Event then Event:FireClient(P, "Message", {Text = Line}) end
+					Notify(P, Line)
+				else
+					local Line = (Tickets and Tickets[P]) and "The journey to %s couldn't be completed. Your ticket is still valid; please rejoin." or "The journey to %s couldn't be completed. Please rejoin."
+					StationService.Kick(P, Line:format(tostring(DestName)))
+				end
+			end
+		end
+	end)
+end
+
 local function Depart(RouteId, RideSeconds)
 	local Platform, Ride = TrainOf("RenseiPlatformTrain", RouteId), TrainOf("RenseiRideTrain", RouteId)
 	if not (Platform and Ride) then return end
@@ -656,6 +748,10 @@ local function Depart(RouteId, RideSeconds)
 	if #List == 0 then return end
 	local Offset = Ride:GetPivot() * Platform:GetPivot():Inverse()
 	local Was = {} -- [Player] = the platform-train seat they sat in
+	-- (final fix wave, I1) who holds a ticket for this line: a stowaway who does (no papers) keeps it, and is told so
+	local Ticket = {}
+	for _, P in ipairs(List) do Ticket[P] = TravelService.HasTicket(P, RouteId) ~= nil end
+	local function Kept(P, Text) return Ticket[P] and Text .. " Your ticket is still good." or Text end
 	for _, P in ipairs(List) do
 		Riding[P] = RouteId
 		P:SetAttribute("ThrownOff", nil) -- (a stale mark from an earlier ride)
@@ -676,8 +772,10 @@ local function Depart(RouteId, RideSeconds)
 		local C = P.Character
 		local H = C and C:FindFirstChildOfClass("Humanoid")
 		local Root = C and C.Parent and C:FindFirstChild("HumanoidRootPart")
-		-- re-check after the fade: anyone who stepped off (or reset) stays behind with the ticket
-		local Car = Root and Riding[P] == RouteId and InTrain(Platform, Root.Position)
+		-- re-check after the fade: anyone who stepped off (or reset) stays behind with the ticket; so does anyone who
+		-- went down, was gripped or grabbed someone, or died during the fade (final fix wave, I2: a dead body isn't
+		-- moved, and a carrier never drags a carried non-rider into the ride train)
+		local Car = Root and Riding[P] == RouteId and not Held(C) and InTrain(Platform, Root.Position)
 		-- the class barrier, checked on the server: someone in a car their class doesn't reach (a teleported client
 		-- never touches a CarDoor), or in the locomotive / tender, rides in the nearest car they may use; if no car on
 		-- this train takes their ticket, they stay behind like someone who stepped off
@@ -700,8 +798,7 @@ local function Depart(RouteId, RideSeconds)
 			table.insert(Moved, P)
 		elseif Riding[P] == RouteId then
 			Riding[P] = nil
-			local Text = Stow[P] and "The train left without you." or "The train left without you. Your ticket is still good."
-			if P.Parent then Event:FireClient(P, "RideCancel", {Route = RouteId, Text = Text}) end
+			if P.Parent then Event:FireClient(P, "RideCancel", {Route = RouteId, Text = Kept(P, "The train left without you.")}) end
 		end
 	end
 	for _, P in ipairs(List) do NoSit[P] = nil end -- moved (or left behind): seats are open to them again
@@ -714,8 +811,7 @@ local function Depart(RouteId, RideSeconds)
 		if Riding[P] ~= RouteId or not Body[P] then return end
 		Riding[P], Spot[P], Was[P], Body[P] = nil, nil, nil, nil
 		P:SetAttribute("ThrownOff", nil) -- (off the ride already: nothing left to throw them off)
-		local Text = Stow[P] and "You came to back in town." or "You came to back in town. Your ticket is still good."
-		if P.Parent then Event:FireClient(P, "RideCancel", {Route = RouteId, Text = Text}) end
+		if P.Parent then Event:FireClient(P, "RideCancel", {Route = RouteId, Text = Kept(P, "You came to back in town.")}) end
 	end
 	for _, P in ipairs(List) do
 		local H = Body[P]:FindFirstChildOfClass("Humanoid")
@@ -723,12 +819,15 @@ local function Depart(RouteId, RideSeconds)
 		table.insert(Conns, P.CharacterAdded:Connect(function() Off(P) end))
 	end
 	-- the stowaways who actually ride, as a list: a BindableEvent drops a table's Instance keys, so a {[Player] = true}
-	-- set would arrive empty
-	local Stowing = {}
+	-- set would arrive empty. (Final fix wave, I1) the ticket holders among them, as a second list.
+	local Stowing, Ticketed = {}, {}
 	for _, P in ipairs(List) do
-		if Stow[P] then table.insert(Stowing, P) end
+		if Stow[P] then
+			table.insert(Stowing, P)
+			if Ticket[P] then table.insert(Ticketed, P) end
+		end
 	end
-	StationService.Departing:Fire(RouteId, List, RideSeconds, Stowing)
+	StationService.Departing:Fire(RouteId, List, RideSeconds, Stowing, Ticketed)
 	local Nag = {}
 	local Ends = os.clock() + RideSeconds
 	local Floor = Ride:GetPivot().Position.Y - StationService.FallCatch
@@ -763,6 +862,13 @@ local function Depart(RouteId, RideSeconds)
 		end
 	end
 	for _, Conn in ipairs(Conns) do Conn:Disconnect() end
+	-- (final fix wave, review minor :136) a rider who died (or respawned) after the ride's watch ended is off the
+	-- ride like any death aboard, not sent on
+	for _, P in ipairs(List) do
+		local C = Body[P]
+		local H = C and C:FindFirstChildOfClass("Humanoid")
+		if Riding[P] == RouteId and not (C and P.Character == C and H and H.Health > 0) then Off(P) end
+	end
 	-- who goes: still here, still riding, and not already in another teleport (Depart filters too)
 	local Stood = false
 	for _, P in ipairs(List) do -- the arrival (or the walk back) moves them; the ride-train seats must stay put
@@ -784,8 +890,7 @@ local function Depart(RouteId, RideSeconds)
 	end
 	for _, P in ipairs(Thrown) do -- thrown off (controller ruling, Task 9): back on this platform, not arriving
 		P:SetAttribute("ThrownOff", nil)
-		local At = TravelService.ArrivalPoint("Platform")
-		if At and P.Character then P.Character:PivotTo(At.CFrame + Vector3.new(0, TravelService.SpawnLift or 3, 0)) end
+		ToPlatform(P)
 		Event:FireClient(P, "RideCancel", {Route = RouteId, Text = "The conductor put you off at the platform."})
 	end
 	local Here = TravelService.Here()
@@ -794,15 +899,17 @@ local function Depart(RouteId, RideSeconds)
 	for _, P in ipairs(Going) do Event:FireClient(P, "RideEnd", {Route = RouteId, Dest = DestName}) end
 	local Sent = {}
 	if #Going > 0 then
-		local Ok, Mode, Went = pcall(TravelService.Depart, Going, RouteId, "Platform")
+		-- (final fix wave, I1) a stowaway rides without using a ticket, even one they hold: no class on their Trip
+		local Ok, Mode, Went = pcall(TravelService.Depart, Going, RouteId, "Platform", {NoTicket = Stow})
 		if Ok then
 			for _, P in ipairs(Went or {}) do Sent[P] = true end
+			if Mode == "sent" then StationService.Watch(Sent, DestName, StationService.HoldDeadline, Ticket) end -- (I6)
 		else
 			warn("[StationService] Depart failed on " .. RouteId .. ": " .. tostring(Mode))
 			if not RunService:IsStudio() then -- live: their saves may already be released, so they can't stay here
 				for _, P in ipairs(Going) do
-					local Line = Stow[P] and "The journey to %s couldn't be completed. Please rejoin." or "The journey to %s couldn't be completed. Your ticket is still valid; please rejoin."
-					if P.Parent then P:Kick(Line:format(tostring(DestName))) end
+					local Line = Ticket[P] and "The journey to %s couldn't be completed. Your ticket is still valid; please rejoin." or "The journey to %s couldn't be completed. Please rejoin."
+					if P.Parent then StationService.Kick(P, Line:format(tostring(DestName))) end
 				end
 				Going = {} -- kicked; the Back players below still go back to the platform
 			end
@@ -813,13 +920,13 @@ local function Depart(RouteId, RideSeconds)
 	end
 	for _, P in ipairs(Back) do -- couldn't travel: back to this platform, the ticket kept
 		if P.Parent then
-			local At = TravelService.ArrivalPoint("Platform")
-			if At and P.Character then P.Character:PivotTo(At.CFrame + Vector3.new(0, TravelService.SpawnLift or 3, 0)) end
-			local Line = Stow[P] and "The train couldn't take you this time." or "The train couldn't take you this time. Your ticket is still good."
+			ToPlatform(P)
+			local Line = Kept(P, "The train couldn't take you this time.")
 			Event:FireClient(P, "Message", {Text = Line})
 			Notify(P, Line)
 		end
 	end
+	StationService.Sweep(RouteId, Sent) -- (I2) nobody who isn't riding is left in the ride train
 end
 
 -- test hook: depart now with a short ride (Studio only; does nothing on a live server)
@@ -939,7 +1046,7 @@ function StationService.Start()
 	CollectionService:GetInstanceAddedSignal("RenseiStationGate"):Connect(GuardGate)
 	Players.PlayerRemoving:Connect(function(P)
 		Riding[P], Told[P], LastPush[P], LastAsk[P], LastSit[P], NoSit[P] = nil, nil, nil, nil, nil, nil
-		LastGate[P], LastRefuseHeat[P], YardVisit[P], LastYardHeat[P], LastPapers[P] = nil, nil, nil, nil, nil
+		LastGate[P], LastRefuseHeat[P], YardVisit[P], LastYardHeat[P], LastPapers[P], LastHeld[P] = nil, nil, nil, nil, nil, nil
 	end)
 	task.spawn(Clock)
 	task.spawn(function() -- the freight yard (Task 9)
