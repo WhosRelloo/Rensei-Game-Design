@@ -169,8 +169,8 @@ function TravelService.Depart(List, RouteId, ArriveAt, Opts)
 	local Name = Places.Regions[Dest].Name
 	-- TeleportData.Travel is informational only (logging); the destination reads the saved Trip
 	FlowTeleport.SendGroup(Going, Places.Regions[Dest].PlaceId, {Travel = {Route = RouteId, Arrive = ArriveAt, From = Here, Nonce = Opts.Nonce}},
-		function(P)
-			P:Kick(("The journey to %s couldn't be completed. Your ticket is still valid; please rejoin."):format(Name))
+		function(P, Why)
+			P:Kick(("The journey to %s couldn't be completed. Your ticket is still valid; please rejoin. (%s)"):format(Name, string.sub(tostring(Why or "unknown"), 1, 120)))
 		end, Join and {ServerInstanceId = Join} or nil)
 	return "sent", Going
 end
