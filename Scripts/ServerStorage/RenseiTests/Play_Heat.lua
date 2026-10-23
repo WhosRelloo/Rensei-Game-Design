@@ -41,7 +41,7 @@ local function Guard(T, Body)
 	if not Ok then error(Err, 0) end
 end
 
-return {
+local Suite = {
 	-- unlicensed casting seen by an agent raises State Heat at once; 3 casts hit the cap; Wanted 1 on the HUD
 	A_CastSeenByAgent = function(T)
 		Guard(T, function()
@@ -167,3 +167,20 @@ return {
 		end)
 	end,
 }
+
+-- Region Foundation Task 2 (fix round 1): the world clock moves, and at night LightService gives the player the
+-- shadow floor, so these sight tests would pass or fail with the real time of day. Each test runs in full light
+-- (Exposure 1, LightService's refresh paused), as Play_Stealth does, and the old value is put back after it.
+local LightService = require(game.ServerScriptService.LightService)
+for Name, Test in pairs(Suite) do
+	Suite[Name] = function(T)
+		local Was = C:GetAttribute("Exposure")
+		LightService.SetAuto(false)
+		C:SetAttribute("Exposure", 1)
+		local Ok, Err = pcall(Test, T)
+		C:SetAttribute("Exposure", Was)
+		LightService.SetAuto(true)
+		if not Ok then error(Err, 0) end
+	end
+end
+return Suite

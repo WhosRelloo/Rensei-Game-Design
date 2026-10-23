@@ -12,23 +12,33 @@ return {
 	end,
 	HoldAndRelease = function(T)
 		local C = require(SSS.WorldClock)
-		C.Hold(3)
-		task.wait(1.2)
-		T.Near(Lighting.ClockTime, 3, 0.01, "held")
-		C.Release()
-		task.wait(1.2)
-		T.Near(Lighting.ClockTime, C.Hour(), 0.05, "released follows real time")
+		local Ok, Err = pcall(function()
+			C.Hold(3)
+			task.wait(1.2)
+			T.Near(Lighting.ClockTime, 3, 0.01, "held")
+			C.Release()
+			task.wait(1.2)
+			T.Near(Lighting.ClockTime, C.Hour(), 0.05, "released follows real time")
+		end)
+		C.Release() -- never leave the clock held after a failure
+		if not Ok then error(Err, 0) end
 	end,
 	NightLamps = function(T)
 		local C = require(SSS.WorldClock)
-		local P = Instance.new("Part") P.Anchored = true P.Position = Vector3.new(0, -400, 0) P.Parent = workspace
+		local P = Instance.new("Part") P.Anchored = true P.Position = Vector3.new(0, -400, 0)
+		P.Material = Enum.Material.Neon P.Parent = workspace
 		P:SetAttribute("NightOnly", true)
 		local L = Instance.new("PointLight", P)
-		C.Hold(13) task.wait(1.2)
-		T.Eq(L.Enabled, false, "off by day")
-		C.Hold(23) task.wait(1.2)
-		T.Eq(L.Enabled, true, "on at night")
+		local Ok, Err = pcall(function()
+			C.Hold(13) task.wait(1.2)
+			T.Eq(L.Enabled, false, "off by day")
+			T.True(P.Material ~= Enum.Material.Neon, "no Neon glow by day")
+			C.Hold(23) task.wait(1.2)
+			T.Eq(L.Enabled, true, "on at night")
+			T.Eq(P.Material, Enum.Material.Neon, "its own Neon at night")
+		end)
 		C.Release() P:Destroy()
+		if not Ok then error(Err, 0) end
 	end,
 	IsNight = function(T)
 		local C = require(SSS.WorldClock)
@@ -40,7 +50,7 @@ return {
 		local C = require(SSS.WorldClock)
 		C.Hold(7.25)
 		T.True(C.IsHeld(), "held")
-		T.Near(C.Now(), 7.25, 1e-3, "held: the held hour")
+		T.Eq(C.Now(), 7.25, "held: the held hour")
 		C.Release()
 		T.True(not C.IsHeld(), "released")
 		T.Near(C.Now(), C.Hour(), 1e-6, "running: real time")

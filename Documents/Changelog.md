@@ -6,16 +6,24 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 The time of day now moves. One real minute is one game hour, so a full day takes 24 real minutes (**PROPOSAL**). The hour comes from the real clock, so every place and every server shows the same time: if it is evening in Lindenmoor it is evening in Foundry Yard too. Built in Ye. Backups are in `ServerStorage.RenseiBackups["Pre-RegionFoundation_2026-10-23"]`.
 
-- **Night is from 18:00 to 06:00** (**PROPOSAL**). Lindenmoor's 17 street lamps now light only at night; the house door lanterns and the camp fire stay lit all the time.
-- **What else notices the time.** Nothing else was changed, but two things already read the hour and now see it move: how lit you are (daylight in the open counts toward being seen) and the road's night ambushes.
-- **The admin panel's Time box** now holds the clock at the hour you type (it stays there until released). Type `run` in the same box to let it follow real time again.
-- **For later tasks:** `WorldClock.Now()` gives the hour the world shows, and `WorldClock.Changed` fires each new hour. The townsfolk schedules will use them.
+- **Night is from 18:00 to 06:00** (**PROPOSAL**). Lindenmoor's 17 street lamps now light only at night; the house door lanterns and the camp fire stay lit all the time. By day each lamp head also loses its glow (it turns to plain SmoothPlastic, **PROPOSAL**: you may pick another material) and gets its own glowing material back at night.
+- **What else notices the time.** Nothing else was changed, but three things already read the hour and now see it move:
+  - how lit you are, so at night enemies **and the crime-watching agents** (the ones who report casting and assault for Heat) see you much less;
+  - the road's night ambushes.
+
+  "Night" is not one hour for all of them yet: the lamps come on at 18:00, the road's ambush bonus starts after 19:00, and stealth is darkest from 20:00 (daylight fades from 17:00 and is gone by 20:00, back from 06:00 to 09:00).
+- **The admin panel's Time box** (its hint now reads "0 - 24 or run") holds the clock at the hour you type until released. Type `run` in the same box to let it follow real time again.
+- **For later tasks:** `WorldClock.Now()` gives the hour the world shows, and `WorldClock.Changed` fires each new hour. The townsfolk schedules will use them. The night lamps are kept in a list, so switching them never searches the whole map (0.2-0.3 ms in Ye).
 - **Tests (Ye):**
-  - new `Play_Clock`: the hour follows real time, holding and releasing, NightOnly lamps off by day and on at night, what counts as night, and `Now()` while held and running. It failed before `WorldClock` existed and passes 5/5 now;
-  - Play_Road 11/11 still passes. Play_Stealth passes 8/9: `GunshotPullsTheCamp` fails, as it sometimes does (a known flaky test); the old version of the test fails the same way;
-  - by hand: held at 23:00, the sky is dark and the square's lamps are lit (`Documents/images/World Clock/Lindenmoor at 23h.jpg`); held at 13:00, all 17 lamps are off (`Lindenmoor at 13h.jpg`).
-  - The owner's save was restored after the Play session, and the test hook was removed.
-- **For the owner:** publish `RenseiServer` from Ye, then update it in Foundry by hand. The other places only get the clock once their copy of `RenseiServer` is updated. Their street lamps need `NightOnly` set on the lamp part to go dark by day.
+  - new `Play_Clock`: the hour follows real time, holding and releasing, NightOnly lamps off by day and on at night (and not glowing by day), what counts as night, and `Now()` while held and running. It failed before `WorldClock` existed and passes 5/5 now;
+  - `Play_Perception` and `Play_Heat` assumed it was always daytime. With the old version held at 23:00, Play_Perception failed 2 of 6 (the Grunt barely noticed the tester). Each of their tests now runs in full light, as Play_Stealth already did. In a fresh Play session they pass 6/6 and 8/8 at 23:00, at 13:00 and at 23:00 again;
+  - Play_Stealth 9/9 and Play_Road 11/11 pass;
+  - by hand: held at 23:00, the sky is dark and the square's lamps are lit (`Documents/images/World Clock/Lindenmoor at 23h.jpg`); held at 13:00, all 17 lamps are off and none of their heads glow (`Lindenmoor at 13h.jpg`).
+  - The owner's save was restored after each Play session, and the test hook was removed.
+- **For the owner:**
+  - publish `RenseiServer` and the `Modules` package from Ye, then update them in Foundry by hand;
+  - the other places only get the clock once their copy of `RenseiServer` is updated;
+  - to go dark by day, their street lamps need `NightOnly` set on the lamp part.
 
 ## 2026-10-23 — Region Foundation Task 1: the trainers' exams open
 

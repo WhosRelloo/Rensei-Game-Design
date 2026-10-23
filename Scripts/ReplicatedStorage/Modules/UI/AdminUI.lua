@@ -323,7 +323,7 @@ function Draw.World()
 	Button(Clear, "Kill All", function() Run("KillEnemies") end, true)
 
 	local _, Time = Row("Time Of Day")
-	local Hour = Box(Time, "Time", "0 - 24")
+	local Hour = Box(Time, "Time", "0 - 24 or run")
 	Button(Time, "Set", function() Run("Time", Hour.Text) end)
 
 	local _, Say = Row("Announce")
