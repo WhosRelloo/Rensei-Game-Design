@@ -247,7 +247,11 @@ local function GripStyle(Gripper)
 	local Armed = Gripper:GetAttribute("Weapon") and (Gripper:GetAttribute("WeaponDrawn") or Gripper:GetAttribute("EnemyType"))
 	-- the weapon's own grip pair from the sheet (TuningConfig.Downed.Grips), else its heavy as an execution
 	if Armed then return Tuning.Downed.Grips[Gripper:GetAttribute("Weapon")] and "Weapon" or "Execution" end
-	return math.random() < 0.5 and "Classic" or "Stomp"
+	-- Hotfix 2026-10-23 (owner: "grip animations sometimes not activating"): unarmed grips used to roll Classic
+	-- or Stomp 50/50, and the Stomp plays no grip animation (two fist downslams over a body that stays
+	-- slumped), so about half the grips looked like the grip animation never started. Unarmed is now always
+	-- the paired Classic grip; the Stomp stays available through the GripStyle attribute.
+	return "Classic"
 end
 
 -- stand the gripper beside the body, facing it (the unpaired grips)
@@ -261,6 +265,10 @@ local function StandOver(Gripper, Target, Distance)
 end
 
 function DownedManager.Grip(Gripper, Target)
+	-- Hotfix 2026-10-23: B pressed during the recovery of the hit that knocked the target was refused outright
+	-- (the grip silently never started). A short attack recovery is waited out first (PROPOSAL 0.6s).
+	local WaitUntil = os.clock() + 0.6
+	while select(4, Mods()).IsRunning(Gripper) and os.clock() < WaitUntil do RunService.Heartbeat:Wait() end
 	Target = Target or DownedManager.Nearest(Gripper, Cfg.GripRange)
 	if not Target or not Free(Gripper) then return false end
 	local WCS, AnimationManager, Stun = Mods()
