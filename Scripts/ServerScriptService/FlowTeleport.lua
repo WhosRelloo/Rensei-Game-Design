@@ -5,7 +5,8 @@
 -- The caller releases the player's profile BEFORE Send, so the next place's ForceLoad gets it at once.
 -- Studio can't teleport: callers skip Send there (TeleportAsync errors, which counts as a failure).
 -- World plan 1 (2026-10-21): SendGroup sends a whole group (a train, a party) in ONE TeleportAsync, so they land
--- on one server (TravelService.Depart).
+-- on one server (TravelService.Depart). Task 8b: SendGroup's optional Opts.ServerInstanceId sends them to that server
+-- (a road party's stragglers follow their party); if it's full or gone, the group falls back to the normal teleport.
 -- KEEP THIS FILE THE SAME IN EVERY PLACE.
 
 local Players = game:GetService("Players")
@@ -17,6 +18,7 @@ local Places = require(ReplicatedStorage.Modules.Data.Rensei.Places)
 local FlowTeleport = {}
 FlowTeleport.Tries = 3 -- teleport attempts before OnFail
 FlowTeleport.Wait = 20 -- seconds Send waits for an outcome before reporting "under way"
+FlowTeleport.Drain = 1 -- seconds a group's failed preferred-server attempt is left to report before the plain one goes
 
 -- results a retry can't fix
 local NoRetry = {
@@ -109,6 +111,16 @@ end
 function GroupFailed(G, Why, Final)
 	if G.Failing then return end
 	G.Failing = true
+	if G.Plain then -- the preferred server is full or gone: the normal teleport instead, with all its tries
+		warn(("[FlowTeleport] group -> %d: the preferred server failed (%s); sending them anywhere"):format(G.PlaceId, Why))
+		G.Options, G.Plain, G.Tries = G.Plain, nil, 0
+		-- fix round 1: still Failing for a moment, so the other members' TeleportInitFailed from the same preferred
+		-- attempt drain into the guard above instead of counting against the plain attempt
+		task.wait(FlowTeleport.Drain)
+		G.Failing = false
+		TryGroup(G)
+		return
+	end
 	warn(("[FlowTeleport] group -> %d failed (try %d of %d): %s"):format(G.PlaceId, G.Tries, FlowTeleport.Tries, Why))
 	if Final or G.Tries >= FlowTeleport.Tries then
 		for P in pairs(G.Members) do
@@ -128,12 +140,19 @@ function FlowTeleport.InGroup(Player)
 end
 
 -- Send every player in List to PlaceId together (does not yield). Same TeleportData rules as Send.
-function FlowTeleport.SendGroup(List, PlaceId, Data, OnFail)
-	local Options = Instance.new("TeleportOptions")
-	local TeleportData = table.clone(Data or {})
-	TeleportData.Flow = Places.FlowTag
-	Options:SetTeleportData(TeleportData)
-	local G = {PlaceId = PlaceId, Options = Options, Tries = 0, OnFail = OnFail, Members = {}}
+-- Opts (optional): {ServerInstanceId = a JobId of PlaceId} tries that server first.
+function FlowTeleport.SendGroup(List, PlaceId, Data, OnFail, Opts)
+	local function Make(Instance_)
+		local O = Instance.new("TeleportOptions")
+		local TeleportData = table.clone(Data or {})
+		TeleportData.Flow = Places.FlowTag
+		O:SetTeleportData(TeleportData)
+		if Instance_ then O.ServerInstanceId = Instance_ end
+		return O
+	end
+	local Join = type(Opts) == "table" and type(Opts.ServerInstanceId) == "string" and Opts.ServerInstanceId ~= "" and Opts.ServerInstanceId or nil
+	local Options = Make(Join)
+	local G = {PlaceId = PlaceId, Options = Options, Plain = Join and Make(nil) or nil, Tries = 0, OnFail = OnFail, Members = {}}
 	for _, P in ipairs(List) do
 		if not Pending[P] and not Groups[P] then G.Members[P] = true Groups[P] = G end
 	end

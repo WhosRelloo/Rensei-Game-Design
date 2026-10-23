@@ -2,6 +2,8 @@
 -- Studio can't teleport: crossing the threshold loops back to this place's own RoadStart (TravelService's loopback).
 -- Fix round 1: only walking the road crosses, so the tests walk it: the character is stepped along the passage's
 -- RoadPoints (8 studs every 0.1 s, well under RoadService.MaxSpeed) from the mouth.
+-- Fix round 2: a walk can't start where the leg boxes overlap at a bend; a stalled watch allows no bigger jump; party
+-- members must be on the last legs; a bandit chased off its stretch gives up and walks home.
 local SSS = game.ServerScriptService
 local CS = game:GetService("CollectionService")
 local ROUTE = "RoadLindenmoorFoundry"
@@ -90,6 +92,53 @@ local function OffRoad(P)
 	Stand(P, Vector3.new(-1, 0.1, -262), Vector3.new(0, 0, 1))
 	task.wait(0.3)
 end
+
+-- the passage's leg boxes by Leg, and its last leg
+local function Legs()
+	local Out, N = {}, 0
+	for _, P in ipairs(CS:GetTagged("RenseiRoadPassage")) do
+		if P:IsDescendantOf(workspace) and P:GetAttribute("Route") == ROUTE then
+			Out[P:GetAttribute("Leg")] = P
+			N = math.max(N, P:GetAttribute("Leg"))
+		end
+	end
+	return Out, N
+end
+local function InBox(B, Pos)
+	local L = B.CFrame:PointToObjectSpace(Pos)
+	return math.abs(L.X) <= B.Size.X / 2 and math.abs(L.Y) <= B.Size.Y / 2 and math.abs(L.Z) <= B.Size.Z / 2
+end
+-- which legs Pos is in, e.g. "1+2+3"
+local function LegsAt(Pos)
+	local Out = {}
+	for L, B in pairs((Legs())) do if InBox(B, Pos) then table.insert(Out, L) end end
+	table.sort(Out)
+	return table.concat(Out, "+")
+end
+-- the first RoadPoint S under leg L
+local function FirstS(L)
+	local Best = math.huge
+	for _, A in ipairs((Legs())[L]:GetChildren()) do
+		if A.Name == "RoadPoint" then Best = math.min(Best, A:GetAttribute("S")) end
+	end
+	return Best
+end
+-- the ground at (X, Z): the first solid, collidable, visible surface down from above the banks and trees
+local function Ground(X, Z, C)
+	local Params = RaycastParams.new()
+	Params.FilterType = Enum.RaycastFilterType.Exclude
+	local Skip = {C}
+	for _ = 1, 16 do
+		Params.FilterDescendantsInstances = Skip
+		local Hit = workspace:Raycast(Vector3.new(X, 90, Z), Vector3.new(0, -180, 0), Params)
+		if not Hit then break end
+		local I = Hit.Instance
+		if I.CanCollide and I.CanTouch and I.Transparency < 1 and Hit.Position.Y < 20 then return Hit.Position end -- (not a canopy)
+		table.insert(Skip, I)
+	end
+	return Vector3.new(X, 4, Z)
+end
+local function Flat(V) return Vector3.new(V.X, 0, V.Z).Magnitude end
 
 local function Rig(Name, Pos)
 	local D = Instance.new("HumanoidDescription")
@@ -277,12 +326,15 @@ return {
 			local Dir = Mid.CFrame.LookVector
 			Stand(P, Road, Dir)
 			task.wait(0.3)
-			local function Member(Name, Pos, Walks)
+			-- fix round 2: a member must also have walked to the last legs (LastLeg - 1 or on); the stand-ins' walks are
+			-- set by the test hook (leg Last unless given)
+			local _, Last = Legs()
+			local function Member(Name, Pos, Walks, Leg)
 				local M = Rig(Name, Pos)
 				table.insert(Made, M)
 				local F = {Name = Name, UserId = -9000 - #Made, Parent = game.Players, Character = M}
 				table.insert(Fakes, F)
-				if Walks then RS.SetTrack(F, ROUTE, 1, M.HumanoidRootPart.Position) end
+				if Walks then RS.SetTrack(F, ROUTE, Leg or Last, M.HumanoidRootPart.Position) end
 				return F
 			end
 			local Near = Member("Near", Road + Dir * 25, true)
@@ -291,9 +343,11 @@ return {
 			Down.Character:SetAttribute("Knocked", true)
 			local Off = Member("OffRoad", Road + Vector3.new(0, 0, -30), true) -- 30 away, in the fields south of the passage
 			local Dropped = Member("Teleported", Road - Dir * 20, false) -- on the passage and near, but not walking it
+			local LegBack = Member("OneLegBack", Road + Dir * 10, true, Last - 1) -- a leg behind, near: goes
+			local Lagging = Member("Lagging", Road - Dir * 8, true, Last - 2) -- near by distance, but two legs back
 			T.True(RS.PassageAt(Near.Character.HumanoidRootPart.Position) == ROUTE, "Near stands on the passage")
 			T.True(RS.PassageAt(Off.Character.HumanoidRootPart.Position) == nil, "OffRoad is off the passage")
-			local Party = {Leader = P, Members = {P, Near, Far, Down, Off, Dropped}}
+			local Party = {Leader = P, Members = {P, Near, Far, Down, Off, Dropped, LegBack, Lagging}}
 			PartyService.Get = function(Who)
 				if Who == P or table.find(Fakes, Who) then return Party end
 				return Old(Who)
@@ -306,7 +360,9 @@ return {
 			T.True(not In[Down], "a knocked member doesn't")
 			T.True(not In[Off], "a member off the passage doesn't")
 			T.True(not In[Dropped], "a member who didn't walk the road doesn't")
-			T.Eq(#Left, 4, "four left behind, each told why")
+			T.True(In[LegBack], "a member one leg back (LastLeg - 1) does")
+			T.True(not In[Lagging], "a member near by distance but two legs back doesn't")
+			T.Eq(#Left, 5, "five left behind, each told why")
 		end)
 		PartyService.Get = Old
 		for _, F in ipairs(Fakes) do RS.SetTrack(F, nil) end
@@ -422,6 +478,206 @@ return {
 		RS.TimeScale = 1
 		RS.ClearEncounter(E1)
 		RS.ClearEncounter(E3)
+		RS.ResetRolls(P)
+		OffRoad(P)
+		T.True(Ok, tostring(Err))
+	end,
+
+	-- fix round 2: the leg boxes overlap at the first bend (legs 1+2, and 1+2+3 on its inner bank). Coming down into
+	-- it from off the road (the hub baseplate, the fields) starts no walk, so walking on from there doesn't cross. A
+	-- walk from the mouth steps through the legs one at a time and crosses.
+	EnteringAtTheBendDoesntStartAWalk = function(T)
+		local RS, TS = require(SSS.RoadService), require(SSS.TravelService)
+		local P = game.Players:GetPlayers()[1]
+		local C = Ready(P)
+		Idle(P)
+		local Th = Tagged("RenseiRoadThreshold")
+		local ThS = ThresholdS(Th)
+		local Got
+		local Conn = TS.Arrived.Event:Connect(function(Who) if Who == P then Got = true end end)
+		local function Root() return C.HumanoidRootPart.Position end
+		-- walk on from S0 to the threshold's edge, then a real MoveTo into it: did it get there?
+		local function OnAndIn(S0)
+			WalkRoad(P, S0, ThS - 16)
+			task.wait(0.7) -- the client owns the character: let the last step land before walking
+			C.Humanoid:MoveTo(RoadUnder(Th, 13) + Th.CFrame.LookVector * (Th.Size.Z / 2 + 2))
+			local t0, Was = os.clock(), false
+			while os.clock() - t0 < 4 and not RS.OnRoad(P) and not Got do
+				task.wait(0.05)
+				if InBox(Th, Root()) then Was = true end
+			end
+			task.wait(1)
+			return Was
+		end
+		local Ok, Err = pcall(function()
+			local B = Legs()
+			local Lo = function(L) return B[L].Position - B[L].Size / 2 end
+			local Hi = function(L) return B[L].Position + B[L].Size / 2 end
+			-- 1. the inner corner of the bend, where boxes 1, 2 and 3 meet: hop down into it off the bank above
+			local CX = (math.max(Lo(1).X, Lo(2).X, Lo(3).X) + math.min(Hi(1).X, Hi(2).X, Hi(3).X)) / 2
+			local CZ = (math.max(Lo(1).Z, Lo(2).Z, Lo(3).Z) + math.min(Hi(1).Z, Hi(2).Z, Hi(3).Z)) / 2
+			OffRoad(P)
+			Stand(P, Ground(CX + 12, CZ + 12, C), Vector3.new(-1, 0, -1)) -- up beside it, in box 2 or 3 but not 1
+			task.wait(0.5)
+			T.True(not LegsAt(Root()):find("1"), "up on the bank: off leg 1 (" .. LegsAt(Root()) .. ")")
+			T.True(RS.Walking(P, ROUTE) == nil, "and not walking")
+			Stand(P, Ground(CX, CZ, C), Vector3.new(-1, 0, -1))
+			task.wait(0.6)
+			T.Eq(LegsAt(Root()), "1+2+3", "down in the corner, in legs 1, 2 and 3")
+			T.True(RS.Walking(P, ROUTE) == nil, "no walk starts there (was leg " .. tostring(RS.Walking(P, ROUTE)) .. ")")
+			local Was = OnAndIn(FirstS(3))
+			T.True(Was, "walked on into the threshold")
+			T.True(not RS.OnRoad(P) and not Got, "from the corner: no crossing")
+			T.True(RS.Walking(P, ROUTE) == nil, "and still no walk")
+			-- 2. legs 1 and 2 overlap before the bend: walk into it from the fields
+			local FX = (math.max(Lo(1).X, Lo(2).X) + Lo(3).X) / 2
+			local FZ = math.max(Lo(1).Z, Lo(2).Z) + 8
+			OffRoad(P)
+			Stand(P, Ground(FX, FZ - 10, C), Vector3.new(0, 0, 1)) -- in the fields, just off the passage
+			task.wait(0.5)
+			T.Eq(LegsAt(Root()), "", "in the fields: off the passage")
+			Stand(P, Ground(FX, FZ, C), Vector3.new(0, 0, 1))
+			task.wait(0.6)
+			T.Eq(LegsAt(Root()), "1+2", "in legs 1 and 2")
+			T.True(RS.Walking(P, ROUTE) == nil, "no walk starts there (was leg " .. tostring(RS.Walking(P, ROUTE)) .. ")")
+			Was = OnAndIn(FirstS(2))
+			T.True(Was, "walked on into the threshold")
+			T.True(not RS.OnRoad(P) and not Got, "from the fields: no crossing")
+			-- 3. a walk from the mouth: the legs in order, one at a time, then it crosses
+			OffRoad(P)
+			local Seen = {}
+			for _, Pt in ipairs(RoadPoints()) do
+				if Pt[1] <= ThS - 16 then
+					Stand(P, Pt[2].Position, Pt[2].LookVector)
+					task.wait(0.1)
+					local L = RS.Walking(P, ROUTE)
+					if L and L ~= Seen[#Seen] then table.insert(Seen, L) end
+				end
+			end
+			task.wait(0.3)
+			local L = RS.Walking(P, ROUTE)
+			if L and L ~= Seen[#Seen] then table.insert(Seen, L) end
+			local Steps = true -- 1, 2, 3 ... with none skipped (the threshold's edge is in legs 4 and 5)
+			for I, L in ipairs(Seen) do if L ~= I then Steps = false end end
+			T.True(Steps and #Seen >= 4, "from the mouth: the legs one by one (" .. table.concat(Seen, ",") .. ")")
+			task.wait(0.7)
+			C.Humanoid:MoveTo(RoadUnder(Th, 13) + Th.CFrame.LookVector * (Th.Size.Z / 2 + 2))
+			local t0 = os.clock()
+			while not Got and os.clock() - t0 < 8 do task.wait(0.1) end
+			T.True(Got ~= nil, "a walk from the mouth crosses")
+		end)
+		Conn:Disconnect()
+		Idle(P)
+		OffRoad(P)
+		T.True(Ok, tostring(Err))
+	end,
+
+	-- fix round 2 (minor 3): a stalled watch doesn't allow a bigger jump: the time since the last check counts as at
+	-- most DtCap ticks
+	AStalledWatchAllowsNoBiggerJump = function(T)
+		local RS = require(SSS.RoadService)
+		local P = game.Players:GetPlayers()[1]
+		local C = Ready(P)
+		Idle(P)
+		local Ok, Err = pcall(function()
+			local Pts = {}
+			for _, Pt in ipairs(RoadPoints()) do Pts[Pt[1]] = Pt[2] end
+			OffRoad(P)
+			local Here = Pts[136] -- on leg 1 alone, before the bend
+			Stand(P, Here.Position, Here.LookVector)
+			task.wait(0.5)
+			T.Eq(LegsAt(C.HumanoidRootPart.Position), "1", "on leg 1 alone")
+			T.Eq(RS.Walking(P, ROUTE), 1, "walking, in leg 1")
+			local Limit = RS.MaxSpeed * RS.Tick * RS.DtCap * 2
+			T.True(Limit > 48 and Limit < 120, ("the most a stalled check allows: %.0f studs"):format(Limit))
+			-- the last check was 3 s ago (a stall) and 48 studs back: kept (the walk is set to leg 2 to tell)
+			RS.SetTrack(P, ROUTE, 2, Pts[88].Position + Vector3.new(0, 3, 0), os.clock() - 3)
+			task.wait(0.5)
+			T.Eq(RS.Walking(P, ROUTE), 2, "48 studs over a 3 s stall: the walk is kept")
+			-- ... and 120 studs back: once allowed (130 x 3 x 2), now a jump: dropped, and a new walk starts in leg 1
+			RS.SetTrack(P, ROUTE, 2, Pts[16].Position + Vector3.new(0, 3, 0), os.clock() - 3)
+			task.wait(0.5)
+			T.Eq(RS.Walking(P, ROUTE), 1, "120 studs over a 3 s stall: dropped (a new walk in leg 1)")
+		end)
+		OffRoad(P)
+		T.True(Ok, tostring(Err))
+	end,
+
+	-- fix round 2 (minor 2): a bandit that chases someone off its stretch gives up (PerceptionService.Lose) and walks
+	-- home by itself, without being pivoted home at Overshoot. The chaser attacks for real (AIPassive only if all
+	-- rolled guns); the player waits 70 studs down the road, out of its reach, and it is alarmed on them until it's
+	-- out past its leash.
+	AStrayBanditGivesUpTheChase = function(T)
+		local RS, ES, PS = require(SSS.RoadService), require(SSS.EnemyService), require(SSS.PerceptionService)
+		local P = game.Players:GetPlayers()[1]
+		local C = Ready(P)
+		Idle(P)
+		local E = Encounter(1)
+		local Ok, Err = pcall(function()
+			OffRoad(P)
+			RS.ResetRolls(P)
+			RS.Force, RS.ForceAt = true, E
+			local Dir = E.CFrame.LookVector
+			Stand(P, RoadUnder(E, 12) - Dir * (E.Size.Z / 2 - 4), Dir) -- in at the town end
+			local Rigs, t0 = {}, os.clock()
+			local R1
+			while #Rigs < 2 and os.clock() - t0 < 3 do
+				task.wait(0.05)
+				Rigs = RS.EnemiesAt(E)
+				for _, R in ipairs(Rigs) do
+					if not R1 and ES.Active[R] and ES.Active[R].Range == nil then R1 = R end -- a melee bandit chases
+					if R ~= R1 then R:SetAttribute("AIPassive", true) end -- the rest stay out of it
+				end
+			end
+			T.True(#Rigs >= 2, "the ambush came out (" .. #Rigs .. ")")
+			local Gun = R1 == nil
+			R1 = R1 or Rigs[1]
+			if Gun then R1:SetAttribute("AIPassive", true) end -- all rolled guns: it still chases, it just never fires
+			local Home = ES.Active[R1].Home.Position
+			-- the player waits 70 studs down the road on its side: inside its own 90-stud LeashRange (so EnemyService
+			-- itself doesn't give up), out of its reach once it is past RoadService's leash
+			local Side = (Home - E.Position):Dot(Dir) >= 0 and 1 or -1
+			local Want, Best, BD = Home + Dir * Side * 70, nil, math.huge
+			for _, Pt in ipairs(RoadPoints()) do
+				local D = Flat(Pt[2].Position - Want)
+				if D < BD then Best, BD = Pt[2], D end
+			end
+			Stand(P, Best.Position, -Dir * Side)
+			C.HumanoidRootPart.Anchored = true
+			local Away = Flat(C.HumanoidRootPart.Position - Home)
+			T.True(Away > 55 and Away < 88, ("the player waits %.0f studs from its home"):format(Away))
+			local Hp = C.Humanoid.Health
+			local function Past()
+				local L = E.CFrame:PointToObjectSpace(R1.HumanoidRootPart.Position)
+				local H = E.Size / 2
+				return math.max(math.abs(L.X) - H.X, math.abs(L.Y) - H.Y, math.abs(L.Z) - H.Z)
+			end
+			local MaxPast, FarPos, Jump, Out, GaveUp, LastAlarm = -math.huge, nil, 0, false, false, -1
+			local Last = R1.HumanoidRootPart.Position
+			t0 = os.clock()
+			while os.clock() - t0 < 9 and R1.Parent do
+				if not Out and os.clock() - LastAlarm > 0.5 then PS.Alarm(R1, P) LastAlarm = os.clock() end
+				task.wait(0.1)
+				local Pos = R1.HumanoidRootPart.Position
+				Jump = math.max(Jump, (Pos - Last).Magnitude)
+				Last = Pos
+				local X = Past()
+				if X > MaxPast then MaxPast, FarPos = X, Pos end
+				if X > RS.Leash then Out = true end
+				if Out and PS.PhaseOf(R1) == "Cautious" then GaveUp = true end
+			end
+			T.True(MaxPast > RS.Leash, ("it chased out past its leash (%.1f studs past its stretch)"):format(MaxPast))
+			T.True(MaxPast < RS.Overshoot and Jump < 6, ("never put home by force (furthest %.1f past, biggest step %.1f)"):format(MaxPast, Jump))
+			T.True(GaveUp, "it gave up the chase (Cautious)")
+			local Now = R1.HumanoidRootPart.Position
+			T.True(FarPos ~= nil and Flat(Now - Home) < Flat(FarPos - Home) - 5,
+				("it walked home by itself (%.0f -> %.0f studs from home)"):format(FarPos and Flat(FarPos - Home) or -1, Flat(Now - Home)))
+			T.True(ES.Active[R1] ~= nil and ES.Active[R1].Target == nil, "and has no target")
+			T.True(C.Humanoid.Health >= Hp, "the player was never reached" .. (Gun and " (all rolled guns: it ran AIPassive)" or ""))
+		end)
+		if C:FindFirstChild("HumanoidRootPart") then C.HumanoidRootPart.Anchored = false end
+		RS.Force, RS.ForceAt = nil, nil
+		RS.ClearEncounter(E)
 		RS.ResetRolls(P)
 		OffRoad(P)
 		T.True(Ok, tostring(Err))

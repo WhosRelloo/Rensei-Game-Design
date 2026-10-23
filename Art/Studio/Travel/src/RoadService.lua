@@ -8,7 +8,9 @@
 --     walking back: nothing happens until the threshold.
 --   * Walking it (fix round 1): every Tick the server keeps a track per player: the passage they're on and the furthest
 --     leg reached in order from the mouth (leg 1). The track is dropped when they leave the passage, or move further in
---     one tick than MaxSpeed allows (a teleport, a respawn). A track starts only in leg 1, or by arriving at RoadStart.
+--     one tick than MaxSpeed allows (a teleport, a respawn). A track starts only in leg 1 and in no other leg (fix
+--     round 2: the boxes overlap at the bends, so a start in an overlap would skip legs), or by arriving at RoadStart;
+--     it advances at most one leg per tick, and not on the tick it starts.
 --     Only a player whose track has reached the last leg through the earlier ones can cross: a teleport into the
 --     threshold box (to escape a fight or an arrest) doesn't cross.
 --   * The crossing (server-led, client-presented): when a walker's root is in the threshold, the server checks they
@@ -33,8 +35,9 @@
 --     On a hit the ambush is set at a random encounter still ahead of them (this one included): when they reach it,
 --     bandits come out from its SpawnPoints ahead of them (Grunts; an Elite Bandit Duelist leads if anyone is Wanted):
 --     real EnemyService enemies from an unparented spawn mark (Task 7: they never respawn), held to the encounter's
---     stretch (EnemyService's own leash and a walk home; a pivot home only for a big overshoot), and removed (not
---     killed: no reward) once nobody has been within ClearRadius for ClearAfter s. Kills give the normal rewards.
+--     stretch (past Leash, PerceptionService.Lose: the AI gives up the chase and walks home itself; a pivot home only
+--     for a big overshoot), and removed (not killed: no reward) once nobody has been within ClearRadius for ClearAfter
+--     s. Kills give the normal rewards.
 --     Running past them is fine: the threshold crosses as normal.
 -- Every number is a PROPOSAL.
 local Players = game:GetService("Players")
@@ -58,6 +61,8 @@ RoadService.Season = function() return "Summer" end -- the seasons plan replaces
 RoadService.Tick = 0.2 -- PROPOSAL: seconds between the server's passage / threshold / encounter checks
 RoadService.MaxSpeed = 130 -- PROPOSAL: studs/s a walk, sprint or dash can reach (TuningConfig.Dash peaks at 110); a move
                            -- of more than MaxSpeed x the tick's time x 2 is a teleport and drops the track
+RoadService.DtCap = 2 -- PROPOSAL (fix round 2): the tick's time counts as at most this many Ticks, so a stalled watch
+                      -- doesn't allow a proportionally bigger jump
 RoadService.CrossDelay = 1.2 -- PROPOSAL (brief): the client's walk-in before Depart
 RoadService.GatherRadius = 40 -- PROPOSAL (brief): party members walking the same passage this close cross together
 RoadService.ArriveGuard = 3 -- PROPOSAL: seconds after an arrival before the threshold can take you again
@@ -192,14 +197,19 @@ local function Walk(P, Pos, Now, Passages)
 	local Route, In = LegsAt(Pos, Passages)
 	local T = Track[P]
 	if T then
-		local Dt = math.max(Now - T.LastT, RoadService.Tick)
+		local Dt = math.clamp(Now - T.LastT, RoadService.Tick, RoadService.Tick * RoadService.DtCap)
 		if Route ~= T.Route or (Pos - T.LastPos).Magnitude > RoadService.MaxSpeed * Dt * 2 then T = nil end
 	end
-	if not T and Route and In[1] then T = {Route = Route, Leg = 1} end -- a walk starts at the mouth
-	if T then
-		while In[T.Leg + 1] do T.Leg += 1 end -- the legs overlap at the bends: on into the next only from the last
-		T.LastPos, T.LastT = Pos, Now
+	if not T then
+		-- a walk starts at the mouth: in leg 1 and in no other leg (fix round 2: the boxes overlap at the bends, so a
+		-- start in leg 1's overlap with leg 2 or 3, e.g. down off the bank into the first bend, would skip legs)
+		local Only1 = Route ~= nil and In[1] == true
+		for L in pairs(In) do if L ~= 1 then Only1 = false end end
+		if Only1 then T = {Route = Route, Leg = 1} end -- (no step on: it starts in leg 1 alone)
+	elseif In[T.Leg + 1] then
+		T.Leg += 1 -- the legs overlap at the bends: on into the next only from the last, one leg per tick
 	end
+	if T then T.LastPos, T.LastT = Pos, Now end
 	Track[P] = T
 	return Route
 end
@@ -209,9 +219,9 @@ local function Walking(P, RouteId)
 	return T and T.Route == RouteId and T.Leg or nil
 end
 RoadService.Walking = Walking
--- test hook (stand-in party members aren't players, so the watch doesn't track them)
-function RoadService.SetTrack(P, RouteId, Leg, Pos)
-	Track[P] = RouteId and {Route = RouteId, Leg = Leg or 1, LastPos = Pos or Vector3.zero, LastT = os.clock()} or nil
+-- test hook (stand-in party members aren't players, so the watch doesn't track them; At: the time of the last check)
+function RoadService.SetTrack(P, RouteId, Leg, Pos, At)
+	Track[P] = RouteId and {Route = RouteId, Leg = Leg or 1, LastPos = Pos or Vector3.zero, LastT = At or os.clock()} or nil
 end
 
 -- why P can't cross right now, or nil (a fight is no reason: fleeing over the threshold is allowed)
@@ -238,7 +248,9 @@ function RoadService.Gather(P, RouteId)
 		if M ~= P and M.Parent then
 			local R = RootOf(M.Character)
 			local Why = Unfit(M, RouteId)
-			if not Why and not (Me and R and Walking(M, RouteId) and PassageAt(R.Position) == RouteId
+			-- fix round 2: walking this passage and on its last legs too, so it doesn't rest on the boxes' shape
+			local Leg = Walking(M, RouteId)
+			if not Why and not (Me and R and Leg and Leg >= LastLeg(RouteId) - 1 and PassageAt(R.Position) == RouteId
 				and (R.Position - Me.Position).Magnitude <= RoadService.GatherRadius) then
 				Why = "You were too far back."
 			end
@@ -466,7 +478,17 @@ local function Ambush(E, Pos, Size, MaxWanted)
 		Mark:SetAttribute("EnemyType", Kind)
 		local Ok, Rig = pcall(EnemyService.Spawn, Mark)
 		if Ok and typeof(Rig) == "Instance" then
-			table.insert(Mine.Enemies, {Rig = Rig, Home = Rig:GetPivot()})
+			local Home = Rig:GetPivot()
+			-- fix round 2: the encounter's range from this home (to its box's furthest corner, plus Leash), for
+			-- PerceptionService.Lose
+			local Range = 0
+			for _, SX in ipairs({-1, 1}) do
+				for _, SZ in ipairs({-1, 1}) do
+					local Corner = E.CFrame:PointToWorldSpace(Vector3.new(SX * E.Size.X / 2, 0, SZ * E.Size.Z / 2))
+					Range = math.max(Range, Vector3.new(Corner.X - Home.X, 0, Corner.Z - Home.Z).Magnitude)
+				end
+			end
+			table.insert(Mine.Enemies, {Rig = Rig, Home = Home, Range = Range + RoadService.Leash})
 		else
 			warn("[RoadService] road bandit " .. I .. " failed to spawn: " .. tostring(Rig))
 		end
@@ -544,12 +566,21 @@ local function WatchEncounters(Roots)
 					local L = E.CFrame:PointToObjectSpace(R.Position)
 					local H = E.Size / 2
 					local Past = math.max(math.abs(L.X) - H.X, math.abs(L.Y) - H.Y, math.abs(L.Z) - H.Z)
-					if Past > RoadService.Overshoot or not E.Parent then -- flung or fallen far: home at once
+					local PerceptionService = require(ServerScriptService.PerceptionService)
+					if Past > RoadService.Overshoot or not E.Parent then -- flung or fallen far: home at once (the backstop)
 						R.AssemblyLinearVelocity = Vector3.zero
 						En.Rig:PivotTo(En.Home)
-					elseif Past > RoadService.Leash then -- strayed: walk home (EnemyService's own leash drops a target out there)
-						local Hum = En.Rig:FindFirstChildOfClass("Humanoid")
-						if Hum then Hum:MoveTo(En.Home.Position) end
+						if PerceptionService.Tracks(En.Rig) then PerceptionService.Lose(En.Rig, En.Home.Position, En.Range) end
+					elseif Past > RoadService.Leash then
+						-- strayed (fix round 2): its AI gives up the chase and walks home by itself (a MoveTo home
+						-- from here lost to the chase AI's own MoveTo every 0.1 s); an enemy the perception doesn't
+						-- track (none on the road today) is still walked home from here
+						if PerceptionService.Tracks(En.Rig) then
+							PerceptionService.Lose(En.Rig, En.Home.Position, En.Range)
+						else
+							local Hum = En.Rig:FindFirstChildOfClass("Humanoid")
+							if Hum then Hum:MoveTo(En.Home.Position) end
+						end
 					end
 				end
 			end
