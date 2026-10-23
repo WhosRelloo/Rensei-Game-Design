@@ -636,6 +636,54 @@ Roblox's `PathfindingService` plans only around static geometry. It knows nothin
 
 ---
 
+### Task 6b: Townsfolk can be hurt (Heat, standing, morality, witnesses, rumours)
+
+**Owner (2026-10-23):** "The townsfolk should be hittable and integrate the heat, rep system, morality, etc." The answer to "when their health runs out" was "Knocked, can be finished": they're knocked like enemies, get up and flee if left, die if executed, and a newcomer takes the job at the next 06:00.
+
+**Files:**
+- Modify:
+  - `Scripts/ServerScriptService/TownsfolkService.lua`: a WCS character per rig; health; hurt, knocked and death handling; newcomers.
+  - `Scripts/ReplicatedStorage/Modules/Data/Rensei/Deeds.lua`: a new `murder_townsfolk` deed.
+  - `Scripts/ReplicatedStorage/Modules/Data/Rensei/TownsfolkLogic.lua`: `Chatter.Hurt`, `Chatter.Help`, newcomer names per nation.
+  - `Scripts/ServerScriptService/WorldService.lua`: no defeat rewards for townsfolk.
+  - The DownedManager hooks where needed.
+- Test: `Scripts/ServerStorage/RenseiTests/Play_TownsfolkHurt.lua`
+
+**Interfaces:**
+- **Consumes:**
+  - **Combat:** `DamageManager` (needs the victim's WCS character state; Task 5's fix made a missing state a safe "no hit"). Give each townsperson a WCS character the way EnemyService or CharacterHandler's training dummies do (`WCSCharacter.new(Rig)`); find the exact pattern there.
+  - **Assault already exists:** `ProgressionService.HitListeners` calls `HeatService`'s `OnHit` (`HeatService.lua:176-185`). Townsfolk are tagged `RenseiWatcher`, so every hit by a player records `assault_townsfolk` (`Deeds.lua:102-106`, "Struck a townsperson", `Standing {Townsfolk = -2}`), witnessed, at most once per victim per `AssaultCooldown`.
+  - **Knocked and execution:** `DownedManager` (knocked state, grip B, carry V, execution). Use the same attributes and flow as enemies.
+  - **Deeds:** `MoralityService.Record(Player, DeedId, Private, {Witness = true, Region = ...})` and `MoralityService.Recorded`. HeatService turns crimes into Heat by jurisdiction (`OnRecorded`). Make `murder_townsfolk` a crime the same way the existing crime deeds are; read how they're marked.
+  - **Defeat credit:** `WorldService` credits EXP, money, codex and quest progress on any non-player Humanoid death in `World.Live` (`WorldService.lua:1-10`, `:89`).
+  - **Flee:** Task 6's flee (to the nearest shelter), the chatter, and `PerceptionService` (`Alarm` on a hit).
+- **Produces** (every number is a PROPOSAL):
+  - **Health:** townsfolk have 100 MaxHealth and no regeneration while sheltering.
+  - **Hurt reaction:** a townsperson hit by a player says a `Hurt` line, then flees to the shelter post that's farthest from the attacker among the 3 nearest shelters. Every other townsperson within 30 studs says a `Help` line (50 % of them) and flees too. Sheltering lasts until 20 s after the last hit or combat noise, as in Task 6.
+  - **Knocked:** at 0 health a townsperson is knocked through `DownedManager`, as enemies are. They can be gripped and carried. Left alone for 30 s, they get up with 30 % health and flee to a shelter.
+  - **Death:** executed, or killed outright by anything that kills enemies:
+    - the killer (the last player to hit, grip or execute within 10 s) records `murder_townsfolk`, witnessed, in this region;
+    - the body stays 60 s, then is removed;
+    - nobody gets EXP, money, codex entries, quest "Defeat" progress or drops (WorldService skips any victim with a `TownsfolkId`).
+  - **The `murder_townsfolk` deed:** `Text = "Killed a townsperson"`, `Standing = {Townsfolk = -15, Authority = -5}`, a Mercy conduct loss like the harshest existing deed, and a crime (Heat) in every jurisdiction. Follow the shape and fields of the existing deeds exactly; the numbers are PROPOSALs.
+  - **Newcomers:** at the next 06:00 game time (`WorldClock.Changed` with hour 6), every dead townsperson's slot respawns with the same `Id`, job, faction, nation and schedule, but a new `Name` from `TownsfolkLogic.NewcomerNames[Nation]` (PROPOSAL lists, 8 names per nation, not reused while that name is alive in the region) and a new look seed. The new person greets people as Neutral, the same as everyone. The killer's deed stands.
+  - **Gossip:** Task 6's rumour line already includes local deeds (Task 3 ruling), so townsfolk will talk about the killing. Check that `"They say <killer> killed a townsperson."` comes out.
+
+- [ ] **Step 1: Write the failing tests** `Play_TownsfolkHurt.lua`. Use test rosters and fixtures as in `Play_Townsfolk`, with every timer shortened for tests and restored afterwards.
+  - **HitIsAssault:** a melee hit from the test player on a townsperson lowers their health and records `assault_townsfolk` once. A second hit within the cooldown doesn't record it again.
+  - **HurtFleesAndOthersFlee:** the hit townsperson's state becomes `Fleeing`, toward a shelter away from the attacker, and a second townsperson 15 studs away flees too.
+  - **KnockedThenRecovers:** taking the health to 0 makes them knocked (the Downed attributes are set). After the shortened recovery they're up with 30 % health and fleeing.
+  - **ExecuteIsMurder:** knock, grip and execute through the real DownedManager path. `murder_townsfolk` is recorded for the test player with witnesses when one is placed, Heat rises in a State region, and there's no EXP or money gain (compare before and after).
+  - **NewcomerAtSix:** after a death, hold the clock at 05:59, then at 06:00. The slot respawns with a different `Name` and the same `Id` and job.
+  - **Gossip:** after the murder, `Talk` on another townsperson eventually yields a line containing "killed a townsperson".
+  - **SweepStillHitsEnemies:** one melee sweep through a townsperson and an enemy damages both, with no errors.
+- [ ] **Step 2: Run them.** Expected: FAIL.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run** Play_TownsfolkHurt, Play_Townsfolk, Play_TownsfolkCrowd, Play_Heat, Play_Morality, Play_Rumours (first), Play_Stealth and a melee combat suite.
+- [ ] **Step 5: Commit, with a Changelog entry** for the owner: townsfolk can be hurt; what each act costs (assault, murder); newcomers.
+
+---
+
 ### Task 7: Clue points start quests
 
 **Files:**

@@ -155,7 +155,12 @@ Markers carry the World Plan 1 tags already in use, plus new ones:
 - **Reactions:**
   - **Fights:** `PerceptionService.Hear` gives combat noise. On it, a townsperson walks or runs to the nearest `Shelter` post and cowers there, then returns 20 s after the last noise.
   - **Crimes:** they are watchers, so the existing witness, Heat and rumour paths handle what they see.
-  - Townsfolk stay unhittable, as today. Making them hittable is still an open owner decision (Plan 2).
+  - **Townsfolk can be hurt** (owner, 2026-10-23: "The townsfolk should be hittable and integrate the heat, rep system, morality, etc."; answer: "Knocked, can be finished"). This settles the open Plan 2 question.
+    - **Taking hits:** they take hits like enemies do, through the same combat code. Each hit is assault: the existing `assault_townsfolk` deed, at most once per townsperson every 30 s, witnessed, with Heat and Townsfolk standing.
+    - **Reactions:** a townsperson who is hit shouts and flees away from the attacker, and townsfolk nearby flee too.
+    - **Knocked:** at 0 health they go down, knocked as enemies are. Left alone, they get up after about 30 s and flee. Gripped and executed, they die.
+    - **Death is murder:** a new deed, `murder_townsfolk`. It is a big Heat and standing loss, witnessed and spread by rumour, like any deed. Killing townsfolk gives no EXP, money or drops.
+    - **Replacement:** the dead townsperson's job is taken by a newcomer (a new name from their nation, the same posts) at the next 06:00 game time.
 - **Talking: speech above their heads** (owner, 2026-10-23: "Make the townsfolk chat appear above their head with a custom font"; answers: font **Special Elite**, **bubbles only, no reply choices**).
   - **No dialogue box.** A "Talk" prompt makes the townsperson say one line in a speech bubble above their head. Talking again gives the next line. The rotation:
     - a **greeting**, by the player's standing tier with the townsperson's faction in this region (`MoralityService`);
