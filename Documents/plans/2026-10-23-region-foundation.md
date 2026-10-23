@@ -506,6 +506,60 @@ return {Regions = {}}
 
 ---
 
+### Task 5b: Crowd-quality movement (no walking through each other)
+
+**Owner (2026-10-23):** "I want the townsfolk pathfinding to be the best you can make it x1000, I don't want them to walk through each other."
+
+Roblox's `PathfindingService` plans only around static geometry. It knows nothing about other moving characters. This task adds a crowd layer on top of it. It replaces Task 5's walking unit (`TownsfolkService.Mover`) without changing spawning or schedules.
+
+**Files:**
+- Modify: `Scripts/ServerScriptService/TownsfolkService/Mover.lua` (the movement unit Task 5 created), `TownsfolkService.lua` (only where it calls the mover)
+- Modify: `Scripts/ReplicatedStorage/Modules/Data/Rensei/TownsfolkLogic.lua`: `Validate` rejects two townsfolk at the same post at the same hour
+- Test: `Scripts/ServerStorage/RenseiTests/Play_TownsfolkCrowd.lua`
+
+**Interfaces:**
+- **Consumes:** Task 5's `Mover.WalkTo(Rig, TargetCFrame, Opts) -> handle` (`handle:Cancel()`, done with "arrived" | "failed" | "cancelled"), `Mover.Place(Rig, TargetCFrame)`, and the `Townsfolk` collision group.
+- **Produces:** the same `Mover` API with these behaviours, plus `Mover.Stats() -> {Walkers, StepMs}` for the performance check.
+
+**The movement rules** (every number is a PROPOSAL):
+1. **Path planning:**
+   - `PathfindingService:CreatePath` with `AgentRadius 2.5`, `AgentHeight 5.5`, `AgentCanJump false`, `AgentCanClimb false`, `WaypointSpacing 4`.
+   - Material costs prefer streets: Cobblestone, Brick, Concrete and Pavement 1; Ground and WoodPlanks 1.5; Grass and LeafyGrass 3; Water and Mud 20.
+   - Respect any `PathfindingModifier` labels the builder adds later.
+2. **Path smoothing:** after computing a path, drop each intermediate waypoint that the walker can skip safely. "Safely" means a 1.5-radius `Spherecast` at waist height between the earlier and later point is clear, and a ground ray every 2 studs finds walkable ground within 3 studs of the line's height. The result is direct lines across open squares and corners taken naturally.
+3. **Local avoidance (steering):**
+   - Only walking townsfolk are updated, at 10 Hz on Heartbeat.
+   - Desired velocity = toward the next waypoint at WalkSpeed, slowing over the last 4 studs.
+   - **Avoidance** of other townsfolk and players within 10 studs: predict each pair's closest approach over the next 1.5 s from current velocities. If it's under 3 studs, add a sideways correction that **passes on the right** by convention, so two walkers never both dodge into each other. Add a separation push when already closer than 3 studs.
+   - **Moving onto the path:** the result goes to `Humanoid:Move(direction)` (not `MoveTo`), so steering is continuous.
+4. **Narrow spots:** when two walkers are both blocked head-on in a gap (both slower than 1 stud/s for 0.75 s and facing each other within 4 studs), the one with the lower priority yields. Priority is the one closer to its own goal, then the lower `Id`. The yielder steps back and right about 2.5 studs and waits until the other has passed (their distance is growing), then resumes.
+5. **Re-planning:**
+   - On `Path.Blocked` for a waypoint ahead, compute a new path from the current position.
+   - **Stuck detection:** less than 0.5 studs of progress in 1.5 s. Step sideways once, then re-plan. After 3 re-plans, mark the walk "failed".
+   - TownsfolkService then places the townsperson at the post with `Mover.Place`, but only when no player is within 60 studs. Otherwise it keeps trying every 5 s, so nobody sees a teleport.
+6. **Posts:** a walker arriving at an occupied post (another rig within 2 studs) waits up to 5 s nearby (1.5 studs to the side), then re-checks. `Validate` already makes shared posts impossible within one roster.
+7. **Looks:**
+   - The walk animation plays at a speed matched to the actual velocity, using the game's Animate / locomotion setup as enemies do.
+   - Facing turns smoothly. At arrival, the rig turns to the post's facing over 0.3 s, not instantly.
+8. **Bodies:** collisions stay on, so rigs physically can't overlap. Use the `Townsfolk` collision group (it collides with Default and itself). The server owns the physics (`SetNetworkOwner(nil)`).
+9. **Cost:** with 20 walkers steering, the average steering time is at most 1.5 ms per Heartbeat. Townsfolk that are asleep or at their post cost nothing per frame.
+
+- [ ] **Step 1: Write the failing tests** `Play_TownsfolkCrowd.lua`. Fixtures are built from parts on clear flat ground in Ye, using test-only rosters, and are cleaned up in pcall-guarded cleanup. Sample root positions at 10 Hz throughout.
+  - **CorridorPassing:** a corridor 8 studs wide and 60 long. Two walkers start at opposite ends and swap. The closest their roots ever get is at least 2.5 studs, and both arrive within 20 s.
+  - **Doorway:** a wall with a door 5 studs wide. Two walkers cross through it in opposite directions. Both arrive within 25 s, their roots never get closer than 2.2 studs, and exactly one of them yields (from the mover's debug stats).
+  - **Converging:** 8 walkers start on a 30-stud ring and walk to 8 posts 3 studs apart near the centre. No pair is closer than 2.2 studs for more than 0.2 s in total, and all arrive within 30 s.
+  - **PlayerInTheWay:** a stationary R6 dummy (standing in for a player) sits on the straight line between start and post. The walker passes it at 2.5 studs or more and arrives.
+  - **BlockedRepath:** after the path is computed, a wall drops across it. The walker re-plans and arrives within 30 s, and its state never becomes "failed".
+  - **Smoothing:** in a 60 × 60 open plaza, a diagonal walk keeps at most 3 waypoints after smoothing.
+  - **Performance:** 20 walkers crossing a plaza, average `Mover.Stats().StepMs` ≤ 1.5.
+  - **Validate (Edit, in `Test_TownsfolkLogic`):** two townsfolk sharing a post at overlapping hours is an error.
+- [ ] **Step 2: Run them.** Expected: most FAIL with Task 5's basic mover.
+- [ ] **Step 3: Implement** the movement rules in `Mover.lua`. Keep the public API unchanged.
+- [ ] **Step 4: Run** Play_TownsfolkCrowd (all pass) and Play_Townsfolk (still passes). Record a short **video-like proof**: 6 screenshots, 1 s apart, of the Doorway test from above. Save them to `Documents/images/Townsfolk/`.
+- [ ] **Step 5: Commit.**
+
+---
+
 ### Task 6: Townsfolk reactions and talk (speech above their heads)
 
 **Owner (2026-10-23):** "Make the townsfolk chat appear above their head with a custom font". The chosen font is **Special Elite**, with **bubbles only, no reply choices**. This replaces the dialogue-box talk described in the interfaces below wherever they differ. The bubble rules are in "Talk, as built" at the end of this task.
