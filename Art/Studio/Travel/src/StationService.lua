@@ -20,6 +20,18 @@
 --     seat's car (no sitting through the wall from the platform) and the prompt needs line of sight; a stale
 --     occupant (dead, or gone) doesn't block the seat; anyone who ends up seated where their ticket doesn't reach
 --     is stood up; nobody sits down while being moved (the departure fade, the end-of-ride stand-up).
+--   * Papers check (Task 9, world spec §4): the State gate (a part tagged RenseiStationGate, between the ticket hall
+--     and the platform, beside its guard) reads the State Wanted level (Travel.Gate). Wanted 0 walks through. Wanted
+--     1-2 is pushed back and offered a bribe (2x the 3rd-class price) or a search (no contraband exists yet, so it
+--     only clears you); either clears the gate for 10 minutes. Wanted 3+ is pushed back, refused with the guard's line
+--     and +10 State Heat ("resisting a checkpoint"; no arrest system yet). Walking off the platform is never stopped.
+--   * Stowaways (Task 9): someone without a ticket hidden in the baggage car's StowZone is aboard as a stowaway
+--     (Aboard's second result, a set; Departing's 4th argument, a list). They ride in the baggage car (the conductor's barrier keeps
+--     them out of the coaches) and arrive with nothing to use up. A rider the ticket inspection marks ThrownOff (no
+--     ticket, no money for the fine) is put back on this platform at the ride's end instead of arriving.
+--   * The freight yard (Task 9): a part tagged RenseiFreightYard covers it; the RenseiWatcher watchmen in the same model
+--     watch it with PerceptionService's sight (cones, light, crouching, noise). A watchman noticing a player there
+--     (awareness >= Perception.Suspicious) raises State Heat +5, once per visit.
 -- Every number is a PROPOSAL.
 local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
@@ -36,7 +48,7 @@ local PartyService = require(ServerScriptService.PartyService)
 local FlowTeleport = require(ServerScriptService.FlowTeleport)
 
 local StationService = {}
-StationService.Departing = Instance.new("BindableEvent") -- (RouteId, {Player}, RideSeconds)
+StationService.Departing = Instance.new("BindableEvent") -- (RouteId, {Player}, RideSeconds, {stowaway Player})
 StationService.Season = function() return "Summer" end -- the seasons plan replaces this
 StationService.FadeTime = 0.6 -- PROPOSAL: the client's "doors closing" fade before everyone moves
 StationService.ClerkReach = 14 -- PROPOSAL: studs from a ticket clerk a Buy request may come from (the prompt reaches 10)
@@ -53,6 +65,18 @@ StationService.SitReach = 7 -- PROPOSAL: studs from a seat a Sit request may com
 StationService.SitGap = 0.5 -- PROPOSAL: seconds between a player's Sit requests
 StationService.SitPointLift = 1.5 -- PROPOSAL: the prompt sits this far above the cushion, so line of sight isn't
                                   -- blocked by the seat's own back or a table (dining-car chairs hid it otherwise)
+-- Task 9: the papers check, stowaways and the freight yard
+StationService.GateClearFor = 600 -- brief: a paid bribe or a search clears the gate for 10 minutes
+StationService.GateReach = 16 -- PROPOSAL: studs from a gate a Bribe / Search request may come from
+StationService.GatePush = 4 -- PROPOSAL: studs the guard pushes someone back from the gate (as the conductor's DoorPush)
+StationService.GateAskGap = 3 -- PROPOSAL: seconds between the guard's offers / refusals to one player (touches repeat)
+StationService.RefuseHeat = 10 -- brief ruling: Wanted 3+ at the gate, "resisting a checkpoint"
+StationService.RefuseHeatGap = 30 -- PROPOSAL: a refusal raises Heat at most once per 30 s per player
+StationService.YardHeat = 5 -- PROPOSAL (controller ruling): a yard watchman notices you in the freight yard
+StationService.YardHeatGap = 60 -- PROPOSAL: and at most once a minute, even over several short visits
+StationService.YardTick = 0.25 -- PROPOSAL: seconds between freight-yard checks
+StationService.StowNagGap = 3 -- PROPOSAL: seconds between "stay with the baggage" lines to a stowaway
+local GATE_REFUSED = "Guard: \"Your face is on a poster. Not on my platform.\"" -- brief
 
 local Remote, Event
 local Riding = {} -- [Player] = RouteId
@@ -63,6 +87,9 @@ local Told = {} -- [Player] = "Route|departure" we last sent "Board" for
 local LastPush, LastAsk, LastSit = {}, {}, {}
 local NoSit = {} -- [Player] = true while being moved: from the departure fade to the move, and from the end-of-ride
                  -- stand-up until Riding is cleared
+local LastGate, LastRefuseHeat = {}, {} -- [Player] = os.clock() of the guard's last offer / refusal Heat
+local YardVisit, LastYardHeat = {}, {} -- [Player] = the yard part they're in (false once seen there) / os.clock()
+local Stows = {} -- [train Model] = {StowZone parts}
 local SeatTrains = setmetatable({}, {__mode = "k"}) -- [train Model or Seat] = true once set up
 local SEAT_TEXT = {ThirdClass = "3rd class", DiningCar = "Dining car", SecondClass = "2nd class", CabinCar = "Private cabin"}
 local DOWN = {"Knocked", "GrippedBy", "CarriedBy", "Gripping", "Carrying"} -- character attributes: can't sit down
@@ -200,16 +227,189 @@ local function AllowedSpot(P, RouteId, Train, Car, Pos)
 	return Best or NOWHERE
 end
 
+-- the baggage car's StowZones of a train (Task 9)
+local function StowsOf(Train)
+	local Z = Stows[Train]
+	if not Z then
+		Z = {}
+		for _, D in ipairs(Train:GetDescendants()) do
+			if D:IsA("BasePart") and D.Name:find("StowZone") then table.insert(Z, D) end
+		end
+		Stows[Train] = Z
+	end
+	return Z
+end
+
+-- hidden in a StowZone of this platform train (2 studs of slack on Y: a crouch or a jump still counts)
+local function InStowZone(P, Train)
+	local Root = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+	if not (Root and Train) then return false end
+	for _, Z in ipairs(StowsOf(Train)) do
+		local L = Z.CFrame:PointToObjectSpace(Root.Position)
+		if math.abs(L.X) <= Z.Size.X / 2 and math.abs(L.Y) <= Z.Size.Y / 2 + 2 and math.abs(L.Z) <= Z.Size.Z / 2 then return true end
+	end
+	return false
+end
+
+-- who departs: ticket holders inside a car, and (Task 9) anyone without a ticket hidden in the baggage car's
+-- StowZone. Returns the list and the stowaway set {[Player] = true}.
 function StationService.Aboard(RouteId)
 	local Train = TrainOf("RenseiPlatformTrain", RouteId)
-	local Out = {}
-	if not Train then return Out end
+	local Out, Stow = {}, {}
+	if not Train then return Out, Stow end
 	for _, P in ipairs(Players:GetPlayers()) do
 		local Root = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
-		if Root and not Riding[P] and TravelService.HasTicket(P, RouteId) and InTrain(Train, Root.Position) ~= nil then table.insert(Out, P) end
+		if Root and not Riding[P] then
+			local Has = TravelService.HasTicket(P, RouteId)
+			if not Has and InStowZone(P, Train) then
+				table.insert(Out, P)
+				Stow[P] = true
+			elseif Has and InTrain(Train, Root.Position) ~= nil then
+				table.insert(Out, P)
+			end
+		end
+	end
+	return Out, Stow
+end
+
+-- ===== the papers check (Task 9) =====
+local function StateWanted(P)
+	local Ok, W = pcall(function() return require(ServerScriptService.HeatService).Wanted(P, "State") end)
+	return Ok and type(W) == "number" and W or 0
+end
+
+function StationService.Gate(Player)
+	return Travel.Gate(StateWanted(Player))
+end
+
+-- the line a gate's bribe is priced on: the gate's Route attribute if it runs from here, else the cheapest line here
+local function GateRoute(Gate)
+	local Here = Lines()
+	local Want = Gate and Gate:GetAttribute("Route")
+	if Want and table.find(Here, Want) then return Want end
+	local Best, BestP
+	for _, RouteId in ipairs(Here) do
+		local P = Travel.Price(RouteId, "Third", StationService.Season())
+		if not BestP or P < BestP then Best, BestP = RouteId, P end
+	end
+	return Best
+end
+
+local function Cleared(P)
+	local At = P:GetAttribute("GateCleared")
+	return type(At) == "number" and os.time() - At < StationService.GateClearFor
+end
+StationService.Cleared = Cleared
+
+-- 2x the 3rd-class price of a line that runs from here; false if it's no such line or they can't pay
+function StationService.PayBribe(Player, RouteId)
+	if type(RouteId) ~= "string" or not table.find(Lines(), RouteId) then return false end
+	local Cost = Travel.Bribe(RouteId, "Third", StationService.Season())
+	if Cost <= 0 or not ProgressionService.SpendMoney(Player, Cost) then return false end
+	Player:SetAttribute("GateCleared", os.time())
+	return true
+end
+
+-- the search: there's no contraband yet, so it only clears the gate (a later plan takes illegal items here)
+function StationService.Search(Player)
+	Player:SetAttribute("GateCleared", os.time())
+	return true
+end
+
+local function NearGate(P)
+	local Root = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+	if not Root then return nil end
+	for _, G in ipairs(CollectionService:GetTagged("RenseiStationGate")) do
+		if G:IsA("BasePart") and G:IsDescendantOf(workspace) and (G.Position - Root.Position).Magnitude <= StationService.GateReach then return G end
+	end
+	return nil
+end
+
+-- someone touched the gate (the part's LookVector points onto the platform). Returns the verdict it acted on.
+function StationService.GateTouch(P, Gate)
+	local Root = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+	if not Root then return nil end
+	local Verdict = StationService.Gate(P)
+	if Verdict == "Pass" or (Verdict == "Bribe" and Cleared(P)) then return "Pass" end
+	local N = Gate.CFrame.LookVector
+	if Root.AssemblyLinearVelocity:Dot(N) < -1 then return "Leaving" end -- walking off the platform: never stopped
+	-- back to the hall side, GatePush clear of the gate
+	local Side = (Root.Position - Gate.Position):Dot(N)
+	Root.CFrame += N * -(Side + Gate.Size.Z / 2 + StationService.GatePush)
+	Root.AssemblyLinearVelocity = Vector3.zero
+	local Now = os.clock()
+	if LastGate[P] and Now - LastGate[P] < StationService.GateAskGap then return Verdict end
+	LastGate[P] = Now
+	if Verdict == "Bribe" then
+		local RouteId = GateRoute(Gate)
+		local Cost = RouteId and Travel.Bribe(RouteId, "Third", StationService.Season()) or 0
+		if Event then Event:FireClient(P, "GateBribe", {Route = RouteId, Cost = Cost}) end
+	else
+		if not LastRefuseHeat[P] or Now - LastRefuseHeat[P] >= StationService.RefuseHeatGap then
+			LastRefuseHeat[P] = Now
+			local Ok, Err = pcall(function() require(ServerScriptService.HeatService).Add(P, "State", StationService.RefuseHeat, TravelService.Here()) end)
+			if not Ok then warn("[StationService] gate Heat failed: " .. tostring(Err)) end
+		end
+		Notify(P, GATE_REFUSED)
+	end
+	return Verdict
+end
+
+local function GuardGate(Gate)
+	if not Gate:IsA("BasePart") or Gate:GetAttribute("GateWired") then return end
+	Gate:SetAttribute("GateWired", true)
+	Gate.Touched:Connect(function(Hit)
+		local P = Hit.Parent and Players:GetPlayerFromCharacter(Hit.Parent)
+		if P then StationService.GateTouch(P, Gate) end
+	end)
+end
+
+-- ===== the freight yard (Task 9): a yard watchman who notices you there raises State Heat =====
+local function YardWatchers(Yard)
+	local Out = {}
+	local Home = Yard.Parent
+	for _, M in ipairs(CollectionService:GetTagged("RenseiWatcher")) do
+		if M:IsA("Model") and Home and M:IsDescendantOf(Home) then table.insert(Out, M) end
 	end
 	return Out
 end
+
+-- one pass over every player (the loop runs it every YardTick; the tests call it directly)
+function StationService.YardCheck()
+	local Yards = CollectionService:GetTagged("RenseiFreightYard")
+	if #Yards == 0 then return end
+	local OkP, PS = pcall(function() return require(ServerScriptService.PerceptionService) end)
+	local Notice = require(ReplicatedStorage.Modules.Data.Rensei.Perception).Suspicious
+	for _, P in ipairs(Players:GetPlayers()) do
+		local Root = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+		local In = nil
+		if Root and not Riding[P] then
+			for _, Y in ipairs(Yards) do
+				if Y:IsA("BasePart") and Y:IsDescendantOf(workspace) and InPart(Y, Root.Position) then In = Y break end
+			end
+		end
+		if not In then
+			YardVisit[P] = nil -- the visit is over
+		elseif YardVisit[P] ~= false and OkP then
+			YardVisit[P] = In
+			for _, W in ipairs(YardWatchers(In)) do
+				if PS.Awareness(W, P) >= Notice then
+					YardVisit[P] = false -- seen: once per visit
+					local Now = os.clock()
+					if not LastYardHeat[P] or Now - LastYardHeat[P] >= StationService.YardHeatGap then
+						LastYardHeat[P] = Now
+						local Ok, Err = pcall(function() require(ServerScriptService.HeatService).Add(P, "State", StationService.YardHeat, TravelService.Here()) end)
+						if not Ok then warn("[StationService] yard Heat failed: " .. tostring(Err)) end
+						Notify(P, "Yard watchman: \"Oi! You there! Off the tracks!\"")
+					end
+					break
+				end
+			end
+		end
+	end
+end
+function StationService.ResetYard(P) YardVisit[P], LastYardHeat[P] = nil, nil end -- tests
+function StationService.ResetGate(P) LastGate[P], LastRefuseHeat[P] = nil, nil end -- tests
 
 -- conductor: a CarDoor touched by someone whose class doesn't reach that car pushes them back the way they came
 local function Guard(Door)
@@ -383,12 +583,13 @@ end
 local function Depart(RouteId, RideSeconds)
 	local Platform, Ride = TrainOf("RenseiPlatformTrain", RouteId), TrainOf("RenseiRideTrain", RouteId)
 	if not (Platform and Ride) then return end
-	local List = StationService.Aboard(RouteId)
+	local List, Stow = StationService.Aboard(RouteId)
 	if #List == 0 then return end
 	local Offset = Ride:GetPivot() * Platform:GetPivot():Inverse()
 	local Was = {} -- [Player] = the platform-train seat they sat in
 	for _, P in ipairs(List) do
 		Riding[P] = RouteId
+		P:SetAttribute("ThrownOff", nil) -- (a stale mark from an earlier ride)
 		NoSit[P] = true -- no sitting down from here to the move
 		Was[P] = Unseat(P) -- stood up now, moved after the fade
 		Event:FireClient(P, "RideStart", {Route = RouteId, Seconds = RideSeconds})
@@ -411,8 +612,14 @@ local function Depart(RouteId, RideSeconds)
 		-- the class barrier, checked on the server: someone in a car their class doesn't reach (a teleported client
 		-- never touches a CarDoor), or in the locomotive / tender, rides in the nearest car they may use; if no car on
 		-- this train takes their ticket, they stay behind like someone who stepped off
-		local Zone = Car and AllowedSpot(P, RouteId, Platform, Car, Root.Position)
-		if Zone == NOWHERE then Car = nil end
+		local Zone = nil
+		if Stow[P] then
+			-- a stowaway rides only if still hidden in the baggage car (no ticket reaches any other car)
+			if not (Car and InStowZone(P, Platform)) then Car = nil end
+		else
+			Zone = Car and AllowedSpot(P, RouteId, Platform, Car, Root.Position)
+			if Zone == NOWHERE then Car = nil end
+		end
 		if Car then
 			local Seat = Unseat(P) or Was[P] -- (sat down again during the fade?)
 			-- only a seat in the car that was just checked (Was[P] is from before the fade, maybe another car)
@@ -424,7 +631,8 @@ local function Depart(RouteId, RideSeconds)
 			table.insert(Moved, P)
 		elseif Riding[P] == RouteId then
 			Riding[P] = nil
-			if P.Parent then Event:FireClient(P, "RideCancel", {Route = RouteId, Text = "The train left without you. Your ticket is still good."}) end
+			local Text = Stow[P] and "The train left without you." or "The train left without you. Your ticket is still good."
+			if P.Parent then Event:FireClient(P, "RideCancel", {Route = RouteId, Text = Text}) end
 		end
 	end
 	for _, P in ipairs(List) do NoSit[P] = nil end -- moved (or left behind): seats are open to them again
@@ -443,7 +651,14 @@ local function Depart(RouteId, RideSeconds)
 		if H then table.insert(Conns, H.Died:Connect(function() Off(P) end)) end
 		table.insert(Conns, P.CharacterAdded:Connect(function() Off(P) end))
 	end
-	StationService.Departing:Fire(RouteId, List, RideSeconds)
+	-- the stowaways who actually ride, as a list: a BindableEvent drops a table's Instance keys, so a {[Player] = true}
+	-- set would arrive empty
+	local Stowing = {}
+	for _, P in ipairs(List) do
+		if Stow[P] then table.insert(Stowing, P) end
+	end
+	StationService.Departing:Fire(RouteId, List, RideSeconds, Stowing)
+	local Nag = {}
 	local Ends = os.clock() + RideSeconds
 	local Floor = Ride:GetPivot().Position.Y - StationService.FallCatch
 	while os.clock() < Ends do
@@ -454,6 +669,16 @@ local function Depart(RouteId, RideSeconds)
 			if Root and Root.Position.Y < Floor then -- got out of the ride train: back to their spot
 				Unseat(P)
 				C:PivotTo(Spot[P])
+			elseif Root and Stow[P] then -- a stowaway stays with the baggage: out in the coaches they'd be seen
+				local Car = InTrain(Ride, Root.Position)
+				if Car and CarKind(Car) ~= "BaggageCar" then
+					Unseat(P)
+					C:PivotTo(Spot[P])
+					if not Nag[P] or os.clock() - Nag[P] >= StationService.StowNagGap then
+						Nag[P] = os.clock()
+						Notify(P, "You'd be seen out there. Better stay with the baggage.")
+					end
+				end
 			elseif Root then -- walked (or teleported) into a car their class doesn't reach: the conductor sends them back
 				local Car = InTrain(Ride, Root.Position)
 				local Zone = Car and AllowedSpot(P, RouteId, Ride, Car, Root.Position)
@@ -476,13 +701,21 @@ local function Depart(RouteId, RideSeconds)
 		end
 	end
 	if Stood then task.wait(StationService.UnseatSettle) end
-	local Going, Back = {}, {}
+	local Going, Back, Thrown = {}, {}, {}
 	for _, P in ipairs(List) do
 		if P.Parent and Riding[P] == RouteId then
-			if FlowTeleport.Busy(P) or FlowTeleport.InGroup(P) then table.insert(Back, P) else table.insert(Going, P) end
+			if P:GetAttribute("ThrownOff") then -- the inspection: no ticket and no money for the fine
+				table.insert(Thrown, P)
+			elseif FlowTeleport.Busy(P) or FlowTeleport.InGroup(P) then table.insert(Back, P) else table.insert(Going, P) end
 		end
 		Riding[P] = nil -- cleared before Depart, which yields while the saves are released
 		NoSit[P] = nil
+	end
+	for _, P in ipairs(Thrown) do -- thrown off (controller ruling, Task 9): back on this platform, not arriving
+		P:SetAttribute("ThrownOff", nil)
+		local At = TravelService.ArrivalPoint("Platform")
+		if At and P.Character then P.Character:PivotTo(At.CFrame + Vector3.new(0, TravelService.SpawnLift or 3, 0)) end
+		Event:FireClient(P, "RideCancel", {Route = RouteId, Text = "The conductor put you off at the platform."})
 	end
 	local Here = TravelService.Here()
 	local Dest = Travel.Other(RouteId, Here)
@@ -542,8 +775,9 @@ local function Clock()
 			elseif Travel.BoardingOpen(RouteId, Now) then
 				local Next = Travel.NextDeparture(RouteId, Now)
 				local Key = RouteId .. "|" .. Next
-				for _, P in ipairs(StationService.Aboard(RouteId)) do
-					if Told[P] ~= Key then
+				local Aboard, Stow = StationService.Aboard(RouteId)
+				for _, P in ipairs(Aboard) do
+					if Told[P] ~= Key and not Stow[P] then -- (a stowaway hides; nobody calls "all aboard" to them)
 						Told[P] = Key
 						Event:FireClient(P, "Board", {Route = RouteId, Departs = Next})
 					end
@@ -589,6 +823,18 @@ function StationService.Start()
 		if Op == "Buy" then
 			if not NearClerk(Player) then return false, "Buy tickets at the station's ticket clerk." end
 			return StationService.Buy(Player, Args.Route, Args.Class, type(Args.For) == "number" and Args.For or nil)
+		elseif Op == "Bribe" then -- the papers check: pay the guard (Task 9)
+			local Gate = NearGate(Player)
+			if not Gate then return false, "Talk to the guard at the gate." end
+			if StationService.Gate(Player) ~= "Bribe" then return false, "Move along." end
+			if Cleared(Player) then return true end
+			local RouteId = GateRoute(Gate)
+			if StationService.PayBribe(Player, RouteId) then return true end
+			return false, ("That's not $%d."):format(RouteId and Travel.Bribe(RouteId, "Third", StationService.Season()) or 0)
+		elseif Op == "Search" then
+			if not NearGate(Player) then return false, "Talk to the guard at the gate." end
+			if StationService.Gate(Player) ~= "Bribe" then return false, "Move along." end
+			return StationService.Search(Player)
 		elseif Op == "Prices" then
 			local Out = {}
 			for _, RouteId in ipairs(Lines()) do
@@ -616,10 +862,20 @@ function StationService.Start()
 		for _, T in ipairs(CollectionService:GetTagged(Tag)) do SetUpSeats(T) end -- seats: sit on request only
 		CollectionService:GetInstanceAddedSignal(Tag):Connect(SetUpSeats) -- trains built (or rebuilt) later
 	end
+	for _, G in ipairs(CollectionService:GetTagged("RenseiStationGate")) do GuardGate(G) end -- the papers check (Task 9)
+	CollectionService:GetInstanceAddedSignal("RenseiStationGate"):Connect(GuardGate)
 	Players.PlayerRemoving:Connect(function(P)
 		Riding[P], Told[P], LastPush[P], LastAsk[P], LastSit[P], NoSit[P] = nil, nil, nil, nil, nil, nil
+		LastGate[P], LastRefuseHeat[P], YardVisit[P], LastYardHeat[P] = nil, nil, nil, nil
 	end)
 	task.spawn(Clock)
+	task.spawn(function() -- the freight yard (Task 9)
+		while true do
+			task.wait(StationService.YardTick)
+			local Ok, Err = pcall(StationService.YardCheck)
+			if not Ok then warn("[StationService] yard check: " .. tostring(Err)) end
+		end
+	end)
 end
 
 return StationService

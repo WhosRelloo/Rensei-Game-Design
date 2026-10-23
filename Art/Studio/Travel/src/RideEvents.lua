@@ -2,7 +2,8 @@
 --   Inspection: the conductor checks tickets; anyone aboard without one (a stowaway) pays a fine (3x base) or is
 --               thrown off at the next fade (sent back to this station's platform). Never below $0: the fine is
 --               ProgressionService.SpendMoney, which takes all of it or nothing. (Only the ThrownOff attribute is set
---               here; the stowaway task makes StationService act on it. Today every rider has a ticket.)
+--               here; StationService puts a ThrownOff rider back on the platform at the ride's end, Task 9.) A caught
+--               stowaway also gains State Heat (+5, Task 9: "getting caught raises Heat"), fined or not.
 --   Rumour:     a passenger mentions a real rumour about a rider (preferring one already heard in the destination),
 --               else a lore line. Read-only on Data.Morality.Rumours.
 --   Pickpocket: $5-15 lifted from one rider (never more than they carry). The chase (a PROPOSAL: a 6 s prompt to
@@ -29,6 +30,7 @@ RideEvents.BanditType = "Grunt" -- TuningConfig.Enemies.Grunt is the "Bandit"
 RideEvents.BanditGap = 6 -- PROPOSAL: studs between the bandits, along the aisle
 RideEvents.FallCatch = 20 -- PROPOSAL: a bandit this far below the ride train is put back (as StationService does for riders)
 RideEvents.Force = nil -- Studio tests only: the next ride's event (used once; a live server ignores it)
+RideEvents.CaughtHeat = 5 -- PROPOSAL (controller ruling, Task 9): State Heat for a stowaway the inspection catches
 
 local Bandits = {} -- [RouteId] = {{Rig = Model, Home = CFrame}}
 local LORE = {
@@ -122,6 +124,11 @@ function RideEvents.Run(EventId, RouteId, List, HasTicket)
 	if EventId == "Inspection" then
 		for _, P in ipairs(List) do
 			if HasTicket[P] == false then
+				local Ok, Err = pcall(function()
+					local Here = require(ServerScriptService.TravelService).Here()
+					require(ServerScriptService.HeatService).Add(P, "State", RideEvents.CaughtHeat, Here)
+				end)
+				if not Ok then warn("[RideEvents] stowaway Heat failed: " .. tostring(Err)) end
 				local Fine = Travel.Fine(RouteId)
 				if ProgressionService.SpendMoney(P, Fine) then
 					Say(P, ("Conductor: \"No ticket? That's a $%d fine.\""):format(Fine))
@@ -222,12 +229,18 @@ function RideEvents.Start()
 		end
 		return Out
 	end
-	-- Stow (from the stowaway task, when it lands): [Player] = true for riders who boarded without a ticket
+	-- Stow (Task 9, StationService): the list of riders who boarded without a ticket (stowaways). A list, not a set:
+	-- a BindableEvent drops a table's Instance keys.
 	StationService.Departing.Event:Connect(function(RouteId, List, Seconds, Stow)
 		local Ends = os.clock() + Seconds
 		local Has = {}
+		local Stowed = nil
+		if type(Stow) == "table" then
+			Stowed = {}
+			for _, P in ipairs(Stow) do Stowed[P] = true end
+		end
 		for _, P in ipairs(List) do
-			if type(Stow) == "table" then Has[P] = not Stow[P] else Has[P] = TravelService.HasTicket(P, RouteId) ~= nil end
+			if Stowed then Has[P] = not Stowed[P] else Has[P] = TravelService.HasTicket(P, RouteId) ~= nil end
 		end
 		task.wait(math.min(RideEvents.MaxDelay, Seconds * RideEvents.DelayShare))
 		List = StillAboard(RouteId, List)

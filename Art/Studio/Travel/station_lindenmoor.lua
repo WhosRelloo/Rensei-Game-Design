@@ -10,6 +10,10 @@
 --     the region (part ground, kit trees, rocks and fences, a gate arch at its mouth), with its RenseiRoadPassage,
 --     RenseiRoadEncounter and RenseiRoadThreshold markers and the RoadStart arrival (see step 5). It replaces Task 8's
 --     RoadGate / RoadExit, AmbushArena and AmbushRing, which a run retires into the backups.
+--   * (Task 9, the papers check and the stowaway route; step 6) StationGate: the papers check (tag RenseiStationGate)
+--     across the top of the platform ramp, under the LINDENMOOR sign, with the gate guard; FreightYard: crates, a fence
+--     and a lamp on the far side of the tracks by the baggage car's open side door, a yard watchman (RenseiWatcher) and
+--     the yard's zone (RenseiFreightYard). The ride train's baggage car side door gets a RideBlock.
 -- Server code: StationService. Every number here is a PROPOSAL unless it was measured in Ye (marked "measured").
 assert(game.PlaceId == 106992859583940, "station_lindenmoor.lua is for Ye (106992859583940) only")
 local CS = game:GetService("CollectionService")
@@ -82,6 +86,15 @@ local function blockRide(T)
 			local W = part(T, "RideBlock", Vector3.new(0.4, 10, 7), Car:GetPivot() * CFrame.new(E[2] * 33.3, 8.5, 0), Enum.Material.SmoothPlastic, Color3.new(1, 1, 1)) -- PROPOSAL
 			W.Transparency, W.CanQuery, W.CanTouch, W.CastShadow = 1, false, false, false
 		end
+	end
+	-- (Task 9) the baggage car's open side door: the stowaway's way in at the station, shut on the ride
+	local Bag = T:FindFirstChild("BaggageCar_Main")
+	local Stow = Bag and Bag:FindFirstChild("StowZone", true)
+	if Stow then
+		local CF = Bag:GetPivot()
+		local L = CF:PointToObjectSpace(Stow.Position)
+		local W = part(T, "RideBlock", Vector3.new(6.2, 8, 0.4), CF * CFrame.new(L.X, L.Y + 0.5, (L.Z >= 0 and 1 or -1) * 5.95), Enum.Material.SmoothPlastic, Color3.new(1, 1, 1)) -- PROPOSAL: in the door (frames at Along +-2.7)
+		W.Transparency, W.CanQuery, W.CanTouch, W.CastShadow = 1, false, false, false
 	end
 end
 
@@ -640,6 +653,209 @@ if HubRoad and HubRoad:FindFirstChild("SignPost") and HubRoad:FindFirstChild("Si
 	Post.Parent, Board.Parent = Road, Road
 end
 
-return ("lindenmoor station built: platform z %d..%d, trains, booth, board; north road %d studs (threshold at %d), %d slabs, %d trees, %d rocks, %d encounters, %d parts; threshold at %s, RoadStart at %s"):format(
+-- ===== The papers check and the freight yard (World Plan 1 Task 9, 2026-10-23; world spec §4). The same builder is in
+-- station_lindenmoor.lua and station_foundry.lua. =====
+--   * StationGate: an invisible 8 x 8 x 1 part (tag RenseiStationGate; its LookVector points onto the platform) across the
+--     way from the ticket hall onto the platform, between two posts, and the gate guard beside it (R6 in State blue,
+--     anchored, IdleAnim NPC_CrossArms for NpcIdles). StationService runs the papers check on its Touched.
+--   * FreightYard, on the far side of the tracks by the baggage car's open side door (the stowaway route): crates, a
+--     fence along the tracks with one gap at the door (crate steps up to it), the kit lamp over the door, a yard
+--     watchman (a RenseiWatcher: Witness sight, Authority, Carrier; IdleAnim NPC_HandInPocket) looking at the gap, and
+--     the yard's zone (tag RenseiFreightYard; StationService raises State Heat when the watchman notices someone in it).
+--     Cover crates stand between him and the gap; the yard behind him is his blind side.
+--     Positions are measured from the platform train's baggage car: Along = towards the locomotive, Out = away from the
+--     platform (the side the StowZone is on; the side door opens at Out 5.7, Along -2.7..2.7).
+-- Every number is a PROPOSAL unless marked measured.
+local T9_SKIN, T9_COAT, T9_TROUSERS = Color3.fromRGB(234, 190, 152), Color3.fromRGB(44, 62, 104), Color3.fromRGB(30, 36, 54) -- the clerk's State blue
+local T9_CRATE = Color3.fromRGB(90, 58, 38) -- measured: the baggage car's crates (Wood)
+local T9_LAMP = { -- measured: ServerStorage.LindenmoorKit.LampPost.LampPost_0, from its foot; the lamp hangs towards +Z
+	{"Post", 0.8, 12, 0.8, 0, 6, 0, "Wood", 90, 64, 48},
+	{"Base", 1.6, 1.2, 1.6, 0, 0.6, 0, "Cobblestone", 141, 133, 119},
+	{"Arm", 0.4, 0.4, 2.7, 0, 11.6, 1.15, "Metal", 46, 44, 41},
+	{"Cap", 1.5, 0.3, 1.5, 0, 11.3, 2.3, "Metal", 46, 44, 41},
+	{"Glow", 0.9, 1.2, 0.9, 0, 10.4, 2.3, "Neon", 255, 179, 92},
+	{"Bar0", 0.15, 1.6, 0.15, -0.6, 10.4, 1.7, "Metal", 46, 44, 41},
+	{"Bar1", 0.15, 1.6, 0.15, 0.6, 10.4, 1.7, "Metal", 46, 44, 41},
+	{"Bar2", 0.15, 1.6, 0.15, -0.6, 10.4, 2.9, "Metal", 46, 44, 41},
+	{"Bar3", 0.15, 1.6, 0.15, 0.6, 10.4, 2.9, "Metal", 46, 44, 41},
+}
+
+local function T9Part(Parent, Name, Size, CF, Mat, Color)
+	local P = Instance.new("Part")
+	P.Name, P.Size, P.CFrame, P.Material, P.Color = Name, Size, CF, Mat, Color
+	P.Anchored = true
+	P.TopSurface, P.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
+	P.Parent = Parent
+	return P
+end
+
+-- an R6 in the State's uniform (as the ticket clerk), anchored, standing with its feet at Feet
+local function T9Npc(Parent, Name, Display, Feet, Attrs)
+	local D = Instance.new("HumanoidDescription")
+	D.HeadColor, D.TorsoColor, D.LeftArmColor, D.RightArmColor = T9_SKIN, T9_COAT, T9_COAT, T9_COAT
+	D.LeftLegColor, D.RightLegColor = T9_TROUSERS, T9_TROUSERS
+	local N = game:GetService("Players"):CreateHumanoidModelFromDescription(D, Enum.HumanoidRigType.R6)
+	N.Name = Name
+	local A = N:FindFirstChild("Animate")
+	if A then A:Destroy() end
+	for _, P in ipairs(N:GetDescendants()) do
+		if P:IsA("BasePart") then P.Anchored = true end
+	end
+	N.PrimaryPart = N:FindFirstChild("HumanoidRootPart")
+	N.Humanoid.DisplayName = Display
+	N.Humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+	for K, V in pairs(Attrs or {}) do N:SetAttribute(K, V) end
+	N:PivotTo(Feet * CFrame.new(0, 3, 0)) -- an R6's root is 3 above its feet
+	N.Parent = Parent
+	return N
+end
+
+-- C = {Parent, Gate = CFrame (the gate's centre, LookVector onto the platform), PostFloor, PostTop (y of the posts' foot
+--      and top), Guard = CFrame (the guard's feet, facing), Sign = text over the posts or nil, Route = the line the bribe
+--      is priced on (optional; StationService defaults to the cheapest line from here)}
+local function PapersGate(C)
+	local M = Instance.new("Model")
+	M.Name = "StationGate"
+	local G = T9Part(M, "StationGate", Vector3.new(8, 8, 1), C.Gate, Enum.Material.SmoothPlastic, Color3.new(1, 1, 1)) -- brief: 8 x 8 x 1
+	G.Transparency, G.CanCollide, G.CanQuery, G.CanTouch, G.CastShadow = 1, false, false, true, false
+	if C.Route then G:SetAttribute("Route", C.Route) end
+	CS:AddTag(G, "RenseiStationGate")
+	for _, S in ipairs({-1, 1}) do
+		local At = (C.Gate * CFrame.new(S * 4.4, 0, 0)).Position
+		Decor(T9Part(M, "GatePost", Vector3.new(0.6, C.PostTop - C.PostFloor, 0.6), CFrame.new(At.X, (C.PostTop + C.PostFloor) / 2, At.Z), Enum.Material.Metal, Color3.fromRGB(58, 56, 53)))
+	end
+	if C.Sign then -- a board across the post tops, lettered like the booth's sign, on both faces
+		local Pos = Vector3.new(C.Gate.Position.X, C.PostTop + 0.6, C.Gate.Position.Z)
+		local B = Decor(T9Part(M, "GateSign", Vector3.new(9.4, 1.2, 0.3), CFrame.lookAt(Pos, Pos - C.Gate.LookVector), Enum.Material.Wood, Color3.fromRGB(40, 34, 30)))
+		for _, Face in ipairs({Enum.NormalId.Front, Enum.NormalId.Back}) do
+			local SG = Instance.new("SurfaceGui")
+			SG.Face, SG.PixelsPerStud, SG.SizingMode = Face, 50, Enum.SurfaceGuiSizingMode.PixelsPerStud
+			SG.Parent = B
+			local Tx = Instance.new("TextLabel")
+			Tx.Size, Tx.BackgroundTransparency, Tx.Text, Tx.TextScaled = UDim2.fromScale(1, 1), 1, C.Sign, true
+			Tx.Font, Tx.TextColor3 = Enum.Font.Antique, Color3.fromRGB(214, 176, 92)
+			Tx.Parent = SG
+		end
+	end
+	T9Npc(M, "GateGuard", "Gate guard", C.Guard, {IdleAnim = "NPC_CrossArms"})
+	M.Parent = C.Parent
+	return M, G
+end
+
+-- C = {Parent, Car = the platform train's BaggageCar_Main, Ground(X, Z) -> the ground's top y there, Post, Rail (fence kit
+--      pieces, cloned)}
+local function FreightYard(C)
+	local M = Instance.new("Model")
+	M.Name = "FreightYard"
+	local Base = C.Car:GetPivot() -- measured: X along the car (towards the locomotive), Z across it
+	local Stow = C.Car:FindFirstChild("StowZone", true)
+	assert(Stow, "the baggage car has no StowZone")
+	local Side = Base:PointToObjectSpace(Stow.Position).Z >= 0 and 1 or -1 -- the side door's side
+	local function At(Along, Out)
+		local P = (Base * CFrame.new(Along, 0, Side * Out)).Position
+		return Vector3.new(P.X, C.Ground(P.X, P.Z), P.Z)
+	end
+	local OutDir = (Base:VectorToWorldSpace(Vector3.new(0, 0, Side)) * Vector3.new(1, 0, 1)).Unit
+	local Turn = CFrame.new(Vector3.zero, Base:VectorToWorldSpace(Vector3.new(1, 0, 0)) * Vector3.new(1, 0, 1)) -- level, along the car
+	local function Crate(Along, Out, Size, Lift)
+		local G = At(Along, Out)
+		return T9Part(M, "Crate", Vector3.new(Size, Size, Size), CFrame.new(G + Vector3.new(0, (Lift or 0) + Size / 2, 0)) * Turn, Enum.Material.Wood, T9_CRATE)
+	end
+	-- the fence along the tracks (Out 8.4: clear of the car's side, its door rail at 6.15), kit posts every 7.5 at most,
+	-- two rails between; one gap at the door (Along -3.5..3.5)
+	local function Fence(A, B)
+		local N = math.max(1, math.ceil(math.abs(B - A) / 7.5))
+		local Last
+		for I = 0, N do
+			local G = At(A + (B - A) * I / N, 8.4)
+			local Post = C.Post:Clone()
+			Post.CFrame = CFrame.new(G + Vector3.new(0, Post.Size.Y / 2, 0))
+			Post.Parent = M
+			if Last then
+				for _, H in ipairs({0.3, 0.7}) do
+					local R = C.Rail:Clone()
+					local From, To = Last + Vector3.new(0, Post.Size.Y * H, 0), G + Vector3.new(0, Post.Size.Y * H, 0)
+					R.Size = Vector3.new(R.Size.X, R.Size.Y, (To - From).Magnitude)
+					R.CFrame = CFrame.lookAt((From + To) / 2, To)
+					R.Parent = M
+				end
+			end
+			Last = G
+		end
+	end
+	Fence(3.5, 63) -- towards the locomotive
+	Fence(-3.5, -25) -- the other way
+	-- crate steps up to the door (its sill is about 5.4 above the ground: measured, Ye), in the gap
+	Crate(0, 9.6, 3)
+	Crate(0.4, 12.2, 2.2)
+	-- cover between the watchman and the gap, a hiding place by the fence, and stacks along the yard
+	Crate(7.5, 12, 3)
+	Crate(10.5, 12.2, 3)
+	Crate(9, 12.1, 2.6, 3)
+	Crate(14, 10, 2.6)
+	Crate(26, 12, 3)
+	Crate(27.6, 15.2, 2.4)
+	Crate(38, 10, 3)
+	Crate(38.2, 10.1, 2.4, 3)
+	Crate(50, 13, 3)
+	Crate(58, 10, 2.8)
+	-- the lamp over the door (the kit's LampPost, hanging towards the tracks): at night the door is lit
+	local Foot = At(1, 15)
+	local LampCF = CFrame.lookAt(Foot, Foot + OutDir) -- +Z (where the lamp hangs) points back at the door
+	local Lamp = Instance.new("Model")
+	Lamp.Name = "YardLamp"
+	for _, D in ipairs(T9_LAMP) do
+		local P = T9Part(Lamp, D[1], Vector3.new(D[2], D[3], D[4]), LampCF * CFrame.new(D[5], D[6], D[7]), Enum.Material[D[8]], Color3.fromRGB(D[9], D[10], D[11]))
+		if D[1] == "Glow" then
+			local L = Instance.new("PointLight") -- measured: the kit lamp's light
+			L.Range, L.Brightness, L.Color = 22, 1.2, Color3.fromRGB(255, 179, 92)
+			L.Parent = P
+		end
+	end
+	Decor(Lamp)
+	Lamp.Parent = M
+	-- the yard watchman, looking at the gap
+	local Stand, Look = At(18, 17), At(0, 8)
+	local W = T9Npc(M, "YardWatchman", "Yard watchman", CFrame.lookAt(Stand, Vector3.new(Look.X, Stand.Y, Look.Z)), {
+		IdleAnim = "NPC_HandInPocket", WatcherType = "Witness", Faction = "Authority", Carrier = true,
+	})
+	CS:AddTag(W, "RenseiWatcher")
+	-- the yard: Along -22..65, Out 6..23, from 7 below to 13 above the rail top
+	local Zone = T9Part(M, "FreightYardZone", Vector3.new(87, 20, 17), Base * CFrame.new(21.5, 3, Side * 14.5), Enum.Material.SmoothPlastic, Color3.new(1, 1, 1))
+	Zone.Transparency, Zone.CanCollide, Zone.CanQuery, Zone.CanTouch, Zone.CastShadow = 1, false, false, false, false
+	CS:AddTag(Zone, "RenseiFreightYard")
+	for _, D in ipairs(M:GetDescendants()) do -- decor: no touches (queries stay on, so the crates block sight)
+		if D:IsA("BasePart") and D ~= Zone and not D:IsDescendantOf(W) then D.CanTouch = false end
+	end
+	M.Parent = C.Parent
+	return M
+end
+
+-- 6. the papers check across the top of the platform ramp (the ramp rises west from x -245 to the platform edge at
+--    x -254, z -654..-646, measured), its posts under the LINDENMOOR sign (its bottom at y 16.2, measured), and the guard
+--    on the grass south of the ramp, facing it; the freight yard west of the tracks by the baggage car (world z -537..-450)
+clear(St, "StationGate")
+mark((PapersGate({
+	Parent = St,
+	Gate = CFrame.lookAt(Vector3.new(-254.5, 14, -650), Vector3.new(-255.5, 14, -650)), -- world; LookVector -X: onto the platform
+	PostFloor = 8, PostTop = 16.2, -- the grass beside the ramp (measured) up to the sign
+	Guard = CFrame.lookAt(Vector3.new(-252.5, 8, -657.5), Vector3.new(-252.5, 8, -650)),
+})))
+clear(St, "FreightYard")
+local YardRays = RaycastParams.new()
+YardRays.FilterType, YardRays.IgnoreWater = Enum.RaycastFilterType.Exclude, true
+YardRays.FilterDescendantsInstances = {St:FindFirstChild("PlatformTrain"), St:FindFirstChild("RideTrain"), workspace.World:FindFirstChild("Live")}
+local Yard = mark(FreightYard({
+	Parent = St,
+	Car = St.PlatformTrain.BaggageCar_Main,
+	Ground = function(X, Z) -- from under the tree canopies (they start at about y 70 here) down to the part ground / creek bed
+		local H = workspace:Raycast(Vector3.new(X, 40, Z), Vector3.new(0, -60, 0), YardRays)
+		return H and H.Position.Y or 8
+	end,
+	Post = Fences and Fences:FindFirstChild("FencePost"),
+	Rail = Fences and Fences:FindFirstChild("FenceRail"),
+}))
+
+return ("lindenmoor station built: platform z %d..%d, trains, booth, board; north road %d studs (threshold at %d), %d slabs, %d trees, %d rocks, %d encounters, %d parts; threshold at %s, RoadStart at %s; gate + guard; freight yard %d parts"):format(
 	PLAT_S, PLAT_N, Info.Length, Info.Threshold, Info.Slabs, Info.Trees, Info.Rocks, Info.Encounters, Info.Parts,
-	tostring(Info.ThresholdAt), tostring(Info.RoadStart))
+	tostring(Info.ThresholdAt), tostring(Info.RoadStart), #Yard:GetDescendants())

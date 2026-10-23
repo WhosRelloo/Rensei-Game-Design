@@ -4,6 +4,7 @@
 -- Owner rule (2026-10-21): every visual here is built ONLY from the game's existing UI art, cloned from the
 -- StarterGui.Uis templates (no new panels, corner blobs or drawn shapes):
 --   * ticket window   = a look-alike of the NPC dialogue box (Uis.Dialogue: the box, its choice plates and highlight);
+--   * papers check    = the same dialogue look-alike, the gate guard speaking: "Pay $X" / "Get searched" (Task 9);
 --   * departure board = the Party Invitation panel (HUD2.Party) on the board's SurfaceGui;
 --   * rail messages   = the game's own toast (HUD2.Notification, through UIState "Toast", as the server's toasts);
 --   * teleport screen = the menus' backdrop (bg) and the area panel (HUD2.NewAreaDiscovered);
@@ -163,18 +164,10 @@ local function NearClerk()
 	end
 	return false
 end
-local function OpenTickets()
-	if Opening then return end -- one is already on its way (a double press): let it finish
-	CloseTickets()
-	local Mine = OpenToken
-	local Wait = {}
-	Opening = Wait
-	task.delay(ASK_TIMEOUT, function() if Opening == Wait then Opening = nil end end) -- never stuck on a lost answer
-	local Rows = Ask("Prices")
-	if Opening == Wait then Opening = nil end
-	-- the clerk answered: still wanted? (closed, reopened, a ride or road fade, or a road crossing meanwhile)
-	if OpenToken ~= Mine or type(Rows) ~= "table" then return end
-	if Fade.BackgroundTransparency < 0.99 or CrossingActive() or not NearClerk() then return end
+-- the dialogue look-alike (Task 9: shared by the ticket window and the papers check). Speaker: the name over the line;
+-- Near(): false once the player has walked away (it closes); Fill(W) puts the first line and choices in, with
+-- W = {S = the ScreenGui, Say(Text), Choice(Text, Fn) -> button, Clear(), Fit()}. Returns W, or nil without the Uis art.
+local function DialogueWindow(Name, Speaker, Near, Fill)
 	local Box = Template("Dialogue")
 	local Main = Box and Box:FindFirstChild("MainFrame")
 	local Authored = Box and Box:FindFirstChild("Choices")
@@ -184,7 +177,7 @@ local function OpenTickets()
 		return
 	end
 	local S = Instance.new("ScreenGui")
-	S.Name, S.ResetOnSpawn, S.DisplayOrder, S.ZIndexBehavior = "Tickets", false, 49, Enum.ZIndexBehavior.Sibling
+	S.Name, S.ResetOnSpawn, S.DisplayOrder, S.ZIndexBehavior = Name, false, 49, Enum.ZIndexBehavior.Sibling
 	S.IgnoreGuiInset, S.ScreenInsets = false, Enum.ScreenInsets.CoreUISafeInsets -- as Uis
 	Window = S
 	Box.Name = "Box"
@@ -199,7 +192,7 @@ local function OpenTickets()
 	if Layout then Layout.Parent = List end
 	Authored:Destroy()
 	List.Parent = Box
-	SetText(Main, "Title", "Ticket clerk")
+	SetText(Main, "Title", Speaker)
 	local function Say(Text) SetText(Main, "maintext", Text) end
 
 	-- the box's size and place: the real dialogue's proportions, with taller choices on a small or touch screen.
@@ -238,9 +231,6 @@ local function OpenTickets()
 		List.CanvasSize = UDim2.fromOffset(0, H)
 	end
 
-	local For = nil -- nil = me, else a Player
-	local Picked = #Rows == 1 and Rows[1] or nil -- the line being bought for (one line: straight to its classes)
-	local Show
 	local function Choice(Text, Fn)
 		Count += 1
 		local Art = RowArt:Clone()
@@ -270,57 +260,10 @@ local function OpenTickets()
 		end
 		List.CanvasPosition = Vector2.zero
 	end
-	local function ForText()
-		return "Ticket for: " .. (For and Escape(For.DisplayName) or "me")
-	end
-	local function ForChoice()
-		local B
-		B = Choice(ForText(), function() -- cycles me -> each other player -> me
-			local Others = {}
-			for _, Q in ipairs(Players:GetPlayers()) do
-				if Q ~= Player then table.insert(Others, Q) end
-			end
-			local Next = nil
-			if not For then
-				Next = Others[1]
-			else
-				for I, Q in ipairs(Others) do
-					if Q == For then Next = Others[I + 1] break end
-				end
-			end
-			For = Next
-			SetText(B, "Head", ForText())
-		end)
-	end
-	function Show(Line)
-		Clear()
-		if #Rows == 0 then
-			Say("No trains run from here yet.")
-		elseif not Line then -- several lines: where to?
-			Say("Where to?")
-			ForChoice()
-			for _, L in ipairs(Rows) do
-				Choice("To " .. Escape(RegionName(L.To)), function() Picked = L Show(L) end)
-			end
-		else
-			local Held = Line.Held and Travel.Classes[Line.Held]
-			Say(("Tickets to %s. Which class?%s"):format(Escape(RegionName(Line.To)),
-				Held and (" You're holding a " .. Held.Name .. " ticket for it.") or ""))
-			ForChoice()
-			for _, C in ipairs(Travel.ClassOrder) do
-				Choice(("%s - $%d"):format(Travel.Classes[C].Name, Line.Prices[C] or 0), function()
-					local Ok, Why = Ask("Buy", {Route = Line.Route, Class = C, For = For and For.Parent and For.UserId or nil})
-					if Window == S then Say(Ok and "Bought. Board when the doors open." or Escape(Why or "Couldn't buy that.")) end
-				end)
-			end
-			if #Rows > 1 then Choice("Another line", function() Picked = nil Show(nil) end) end
-		end
-		Choice("Never mind", CloseTickets)
-		Fit()
-	end
 	Box.Parent = S
 	S.Parent = Player:WaitForChild("PlayerGui")
-	Show(Picked)
+	local W = {S = S, Say = Say, Choice = Choice, Clear = Clear, Fit = Fit}
+	Fill(W)
 	local function On(Signal, Fn) table.insert(Conns, Signal:Connect(Fn)) end
 	local Camera = workspace.CurrentCamera
 	if Camera then On(Camera:GetPropertyChangedSignal("ViewportSize"), function() task.defer(Fit) end) end
@@ -333,7 +276,7 @@ local function OpenTickets()
 		local G = Hud and Hud:FindFirstChild(Name)
 		if G and G.Visible then G.Visible = false table.insert(HiddenHud, G) end
 	end
-	-- closes on: another menu (its backdrop shows), a real conversation, Esc, death, and leaving the clerk
+	-- closes on: another menu (its backdrop shows), a real conversation, Esc, death, and walking away
 	for _, Name in ipairs({"bg", "Dialogue"}) do
 		local G = Uis and Uis:FindFirstChild(Name)
 		if G then On(G:GetPropertyChangedSignal("Visible"), function() if G.Visible and Window == S then CloseTickets() end end) end
@@ -346,11 +289,125 @@ local function OpenTickets()
 	task.spawn(function()
 		while Window == S do
 			task.wait(0.5)
-			if Window == S and not NearClerk() then CloseTickets() end
+			if Window == S and not Near() then CloseTickets() end
 		end
 	end)
 	local M = Motion()
 	if M then M.Open(Box) end
+	return W
+end
+
+local function OpenTickets()
+	if Opening then return end -- one is already on its way (a double press): let it finish
+	CloseTickets()
+	local Mine = OpenToken
+	local Wait = {}
+	Opening = Wait
+	task.delay(ASK_TIMEOUT, function() if Opening == Wait then Opening = nil end end) -- never stuck on a lost answer
+	local Rows = Ask("Prices")
+	if Opening == Wait then Opening = nil end
+	-- the clerk answered: still wanted? (closed, reopened, a ride or road fade, or a road crossing meanwhile)
+	if OpenToken ~= Mine or type(Rows) ~= "table" then return end
+	if Fade.BackgroundTransparency < 0.99 or CrossingActive() or not NearClerk() then return end
+	DialogueWindow("Tickets", "Ticket clerk", NearClerk, function(W)
+		local S, Say, Choice, Clear, Fit = W.S, W.Say, W.Choice, W.Clear, W.Fit
+		local For = nil -- nil = me, else a Player
+		local Picked = #Rows == 1 and Rows[1] or nil -- the line being bought for (one line: straight to its classes)
+		local Show
+		local function ForText()
+			return "Ticket for: " .. (For and Escape(For.DisplayName) or "me")
+		end
+		local function ForChoice()
+			local B
+			B = Choice(ForText(), function() -- cycles me -> each other player -> me
+				local Others = {}
+				for _, Q in ipairs(Players:GetPlayers()) do
+					if Q ~= Player then table.insert(Others, Q) end
+				end
+				local Next = nil
+				if not For then
+					Next = Others[1]
+				else
+					for I, Q in ipairs(Others) do
+						if Q == For then Next = Others[I + 1] break end
+					end
+				end
+				For = Next
+				SetText(B, "Head", ForText())
+			end)
+		end
+		function Show(Line)
+			Clear()
+			if #Rows == 0 then
+				Say("No trains run from here yet.")
+			elseif not Line then -- several lines: where to?
+				Say("Where to?")
+				ForChoice()
+				for _, L in ipairs(Rows) do
+					Choice("To " .. Escape(RegionName(L.To)), function() Picked = L Show(L) end)
+				end
+			else
+				local Held = Line.Held and Travel.Classes[Line.Held]
+				Say(("Tickets to %s. Which class?%s"):format(Escape(RegionName(Line.To)),
+					Held and (" You're holding a " .. Held.Name .. " ticket for it.") or ""))
+				ForChoice()
+				for _, C in ipairs(Travel.ClassOrder) do
+					Choice(("%s - $%d"):format(Travel.Classes[C].Name, Line.Prices[C] or 0), function()
+						local Ok, Why = Ask("Buy", {Route = Line.Route, Class = C, For = For and For.Parent and For.UserId or nil})
+						if Window == S then Say(Ok and "Bought. Board when the doors open." or Escape(Why or "Couldn't buy that.")) end
+					end)
+				end
+				if #Rows > 1 then Choice("Another line", function() Picked = nil Show(nil) end) end
+			end
+			Choice("Never mind", CloseTickets)
+			Fit()
+		end
+		Show(Picked)
+	end)
+end
+
+-- ===== the papers check (Task 9): the gate guard asks a Wanted 1-2 player for a bribe, or to be searched =====
+-- StationService pushes them back off the gate and sends "GateBribe" {Route, Cost}. "Pay $X" asks the server ("Bribe");
+-- "Get searched" asks "Search". Either clears the gate for 10 minutes; then they walk on through. A refusal (Wanted 3+)
+-- is only the guard's line, as the game's own toast (the server's UIService.Notify).
+local GATE_REACH = 16 -- StationService.GateReach
+local function NearGate()
+	local Root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+	if not Root then return false end
+	for _, G in ipairs(CollectionService:GetTagged("RenseiStationGate")) do
+		if G:IsA("BasePart") and G:IsDescendantOf(workspace) and (G.Position - Root.Position).Magnitude <= GATE_REACH then return true end
+	end
+	return false
+end
+local function OpenBribe(Data)
+	if Window and Window.Name == "GateBribe" then return end -- already asking (the guard pushes on every touch)
+	if Opening or Fade.BackgroundTransparency < 0.99 or CrossingActive() or not NearGate() then return end
+	CloseTickets()
+	local Cost = math.floor(tonumber(Data.Cost) or 0)
+	DialogueWindow("GateBribe", "Gate guard", NearGate, function(W)
+		local Done = false
+		local function After(Line) -- the answer, then the window settles out
+			Done = true
+			W.Clear()
+			W.Say(Line)
+			W.Fit()
+			task.delay(1.6, function() if Window == W.S then CloseTickets() end end)
+		end
+		W.Say(("Papers... Hm. Your face is familiar. $%d and I never saw you. Or I search you."):format(Cost))
+		W.Choice(("Pay $%d"):format(Cost), function()
+			if Done then return end
+			local Ok, Why = Ask("Bribe", {Route = Data.Route})
+			if Window ~= W.S then return end
+			if Ok then After("Go on, then. Quickly.") else W.Say(Escape(Why or "Guard: \"No.\"")) end
+		end)
+		W.Choice("Get searched", function()
+			if Done then return end
+			local Ok, Why = Ask("Search")
+			if Window ~= W.S then return end
+			if Ok then After("Clean. Go on through.") else W.Say(Escape(Why or "Guard: \"No.\"")) end
+		end)
+		W.Fit()
+	end)
 end
 
 -- departure boards: parts tagged RenseiDepartureBoard (named DepartureBoard) get a SurfaceGui with the next train on
@@ -675,6 +732,8 @@ Event.OnClientEvent:Connect(function(Kind, Data)
 		EndCrossing(true) -- the reason comes as the game's own toast (RoadService)
 	elseif Kind == "OpenTickets" then
 		task.spawn(OpenTickets)
+	elseif Kind == "GateBribe" then
+		task.spawn(OpenBribe, Data)
 	elseif Kind == "Board" then
 		local Left = math.max(0, math.floor((Data.Departs or 0) - workspace:GetServerTimeNow()))
 		Toast(("All aboard. Departs in %d:%02d."):format(Left // 60, Left % 60))
