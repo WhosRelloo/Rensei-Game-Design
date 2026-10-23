@@ -694,7 +694,9 @@ local _, Info = Passage({
 -- station_lindenmoor.lua and station_foundry.lua. =====
 --   * StationGate: an invisible 8 x 8 x 1 part (tag RenseiStationGate; its LookVector points onto the platform) across the
 --     way from the ticket hall onto the platform, between two posts, and the gate guard beside it (R6 in State blue,
---     anchored, IdleAnim NPC_CrossArms for NpcIdles). StationService runs the papers check on its Touched.
+--     anchored, IdleAnim NPC_CrossArms for NpcIdles; a non-combat Authority watcher). StationService runs the papers
+--     check on its Touched (and again at boarding). PlatformRailing (fix round 1): a kit-fence railing round the
+--     platform's back edge and ends, with an invisible wall over it, so the gate is the way on.
 --   * FreightYard, on the far side of the tracks by the baggage car's open side door (the stowaway route): crates, a
 --     fence along the tracks with one gap at the door (crate steps up to it), the kit lamp over the door, a yard
 --     watchman (a RenseiWatcher: Witness sight, Authority, Carrier; IdleAnim NPC_HandInPocket) looking at the gap, and
@@ -774,7 +776,10 @@ local function PapersGate(C)
 			Tx.Parent = SG
 		end
 	end
-	T9Npc(M, "GateGuard", "Gate guard", C.Guard, {IdleAnim = "NPC_CrossArms"})
+	local Guard = T9Npc(M, "GateGuard", "Gate guard", C.Guard, { -- a non-combat Authority watcher (fix round 1 ruling)
+		IdleAnim = "NPC_CrossArms", WatcherType = "Witness", Faction = "Authority", Carrier = true,
+	})
+	CS:AddTag(Guard, "RenseiWatcher")
 	M.Parent = C.Parent
 	return M, G
 end
@@ -857,12 +862,54 @@ local function FreightYard(C)
 		IdleAnim = "NPC_HandInPocket", WatcherType = "Witness", Faction = "Authority", Carrier = true,
 	})
 	CS:AddTag(W, "RenseiWatcher")
-	-- the yard: Along -22..65, Out 6..23, from 7 below to 13 above the rail top
-	local Zone = T9Part(M, "FreightYardZone", Vector3.new(87, 20, 17), Base * CFrame.new(21.5, 3, Side * 14.5), Enum.Material.SmoothPlastic, Color3.new(1, 1, 1))
+	-- the yard: Along -22..65, Out 6..20 (the flat strip by the tracks, not the hillside behind it: Ye's ground starts to
+	-- climb at about Out 19, measured), from 7 below to 13 above the rail top
+	local Zone = T9Part(M, "FreightYardZone", Vector3.new(87, 20, 14), Base * CFrame.new(21.5, 3, Side * 13), Enum.Material.SmoothPlastic, Color3.new(1, 1, 1))
 	Zone.Transparency, Zone.CanCollide, Zone.CanQuery, Zone.CanTouch, Zone.CastShadow = 1, false, false, false, false
 	CS:AddTag(Zone, "RenseiFreightYard")
 	for _, D in ipairs(M:GetDescendants()) do -- decor: no touches (queries stay on, so the crates block sight)
 		if D:IsA("BasePart") and D ~= Zone and not D:IsDescendantOf(W) then D.CanTouch = false end
+	end
+	M.Parent = C.Parent
+	return M
+end
+
+-- (fix round 1) the platform's railing: kit fence posts and rails along the back edge and across the ends, with an
+-- invisible wall over each run (to WallTop) so it can't be jumped; it leaves the gate's opening free. The track side of
+-- the platform (the train doors) is never fenced. C = {Parent, Runs = {{From, To}, ...} (Vector3s, y ignored),
+-- Ground(X, Z), Post, Rail, WallTop}
+local function Railing(C)
+	local M = Instance.new("Model")
+	M.Name = "PlatformRailing"
+	for _, Run in ipairs(C.Runs) do
+		local A, B = Run[1], Run[2]
+		local N = math.max(1, math.ceil((B - A).Magnitude / 7.5))
+		local Last
+		for I = 0, N do
+			local X = A:Lerp(B, I / N)
+			local G = Vector3.new(X.X, C.Ground(X.X, X.Z), X.Z)
+			local Post = C.Post:Clone()
+			Post.CFrame = CFrame.new(G + Vector3.new(0, Post.Size.Y / 2, 0))
+			Post.CanTouch = false
+			Post.Parent = M
+			if Last then
+				for _, H in ipairs({0.3, 0.7}) do
+					local R = C.Rail:Clone()
+					local From, To = Last + Vector3.new(0, Post.Size.Y * H, 0), G + Vector3.new(0, Post.Size.Y * H, 0)
+					R.Size = Vector3.new(R.Size.X, R.Size.Y, (To - From).Magnitude)
+					R.CFrame = CFrame.lookAt((From + To) / 2, To)
+					R.CanTouch = false
+					R.Parent = M
+				end
+			end
+			Last = G
+		end
+		local Low = math.min(C.Ground(A.X, A.Z), C.Ground(B.X, B.Z))
+		local Mid = (A + B) / 2
+		local W = T9Part(M, "RailingWall", Vector3.new(0.4, C.WallTop - Low, (B - A).Magnitude),
+			CFrame.lookAt(Vector3.new(Mid.X, (C.WallTop + Low) / 2, Mid.Z), Vector3.new(B.X, (C.WallTop + Low) / 2, B.Z)),
+			Enum.Material.SmoothPlastic, Color3.new(1, 1, 1))
+		W.Transparency, W.CanQuery, W.CanTouch, W.CastShadow = 1, false, false, false -- sight passes the railing
 	end
 	M.Parent = C.Parent
 	return M
@@ -882,6 +929,18 @@ PapersGate({
 	Gate = CFrame.lookAt(Vector3.new(5.5, 10.4, GateZ), Vector3.new(4.5, 10.4, GateZ)), -- LookVector -X: onto the platform
 	PostFloor = 4, PostTop = 13, Sign = "STATE CHECKPOINT",
 	Guard = CFrame.lookAt(Vector3.new(9.5, 4, GateZ - 6.5), Vector3.new(9.5, 4, GateZ)),
+})
+Railing({
+	Parent = St,
+	Runs = {
+		{Vector3.new(6.6, 4, -204.7), Vector3.new(6.6, 4, GateZ - 4.6)}, -- south of the gate
+		{Vector3.new(6.6, 4, GateZ + 4.6), Vector3.new(6.6, 4, 134.7)}, -- north of the gate
+		{Vector3.new(6.6, 4, -204.7), Vector3.new(-5.5, 4, -204.7)}, -- across the south end (on the platform)
+		{Vector3.new(6.6, 4, 134.7), Vector3.new(-5.5, 4, 134.7)}, -- across the north end
+	},
+	Ground = function(X) return X < 6 and 6.4 or 4 end, -- the platform's top, else the ground's (no raycasts: not in the workspace yet)
+	Post = kitPart(KITDATA.FencePost), Rail = kitPart(KITDATA.FenceRail),
+	WallTop = 14, -- PROPOSAL: 7.6 above the platform top (6.4)
 })
 FreightYard({
 	Parent = St,

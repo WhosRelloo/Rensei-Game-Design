@@ -1,5 +1,5 @@
--- Play_Gate (World Plan 1 Task 9, 2026-10-23): the papers check at the station gate, the stowaway route, ThrownOff and
--- the freight yard's watchman. Runs in the game VM (LMRunSuite). Controller ruling: any ticket the tester holds for the
+-- Play_Gate (World Plan 1 Task 9, 2026-10-23): the papers check at the station gate (and, fix round 1, at boarding),
+-- the stowaway route, ThrownOff and the freight yard's watchman (sight and, fix round 1, footsteps). Runs in the game VM (LMRunSuite). Controller ruling: any ticket the tester holds for the
 -- test route is put aside first and given back afterwards, so a saved ticket can't turn the stowaway into a passenger.
 local SSS = game.ServerScriptService
 local ROUTE = "LindenmoorFoundry"
@@ -294,10 +294,13 @@ return {
 
 	-- the controller's ruling: the yard watchman uses the game's perception (sight cone, light, crouching): a player
 	-- he notices in the freight yard gains State Heat +5 once per visit; one behind him, or crouched in deep shadow,
-	-- doesn't. Perception and light are stepped by hand, as Play_Stealth does.
+	-- doesn't. Perception and light are stepped by hand, as Play_Stealth does. Fix round 1 (footsteps count): a loud
+	-- player behind him turns him round (he's anchored: he turns on the spot) and, once seen, gains the Heat; a crouched,
+	-- quiet one doesn't.
 	YardWatchmanSightingRaisesHeat = function(T)
 		local SS, HS = require(SSS.StationService), require(SSS.HeatService)
-		local PS, LS = require(SSS.PerceptionService), require(SSS.LightService)
+		local PS, LS, NS = require(SSS.PerceptionService), require(SSS.LightService), require(SSS.NoiseService)
+		local Rules = require(game.ReplicatedStorage.Modules.Data.Rensei.Perception)
 		local P = game.Players:GetPlayers()[1]
 		local C = P.Character
 		local W, Zone
@@ -349,18 +352,34 @@ return {
 		local function Watch(Seconds) for _ = 1, math.floor(Seconds / 0.2 + 0.5) do PS.Step(0.2) end end
 		local function Fresh()
 			PS.Reset(W)
+			SS.ResetWatch(W)
 			SS.ResetYard(P)
 			HS.Clear(P, "State")
+			C:SetAttribute("Crouching", nil)
+		end
+		local function Facing(Pos) -- how squarely he faces Pos (1 = straight at it)
+			local To = (Pos - Root.Position) * Vector3.new(1, 0, 1)
+			return (Root.CFrame.LookVector * Vector3.new(1, 0, 1)).Unit:Dot(To.Unit)
+		end
+		local function Steps(Move) -- one footstep of this player as NoiseService makes it (no sound when crouching)
+			local Floor = C.Humanoid.FloorMaterial
+			local Radius = Rules.StepNoise(Floor ~= Enum.Material.Air and Floor.Name or "Grass", Move, C:GetAttribute("Crouching"))
+			if Radius > 0 then NS.Emit(C.HumanoidRootPart.Position - Vector3.new(0, 3, 0), Radius, C) end
+			return Radius
 		end
 		local Home = C:GetPivot()
 		PS.SetAuto(false)
 		LS.SetAuto(false)
+		NS.SetAuto(false)
+		SS.ResetWatch(W)
 		local R = {}
 		local Ok, Err = pcall(function()
 			-- 1. standing in plain view, lit, 12 studs in front of him
 			local Front = Spot({0, 20, -20, 35, -35, 50, -50}, {10, 12, 8, 14, 6})
-			local Back = Spot({180, 160, -160}, {7, 9, 5})
-			assert(Front and Back, "no clear spot in front of / behind the watchman")
+			local Back = Spot({180, 155, -155, 130, -130, 110, -110}, {7, 9, 5, 11}) -- (more than 80 off his look: unseen)
+			-- running footsteps on the yard's grass carry 8 studs (Perception.Steps, measured from his head to the feet): close
+			local Near = Spot({180, 155, -155, 130, -130, 110, -110}, {4.5, 5.5, 6, 3.5})
+			assert(Front and Back and Near, "no clear spot in front of / behind the watchman")
 			Fresh()
 			C:SetAttribute("Exposure", 1)
 			R.FrontIn = InYard(Stand(Front))
@@ -386,10 +405,37 @@ return {
 			R.SneakAware = PS.Awareness(W, P)
 			SS.YardCheck()
 			R.Sneak = HS.Value(P, "State")
+			-- 4. close behind him, lit, running footsteps: he turns round, then sees
+			Fresh()
+			C:SetAttribute("Exposure", 1)
+			local At = Stand(Near)
+			R.NearDist = (W.Head.Position - (At - Vector3.new(0, 3, 0))).Magnitude
+			Watch(1)
+			R.LoudBefore = PS.Awareness(W, P)
+			R.LoudRadius = Steps(1.5)
+			R.LoudPhase = PS.PhaseOf(W)
+			for _ = 1, 6 do SS.YardCheck() end -- 45 degrees a check
+			R.LoudFacing = Facing(At)
+			Watch(2)
+			SS.YardCheck()
+			R.Loud = HS.Value(P, "State")
+			-- 5. the same spot, crouched (a crouch makes no footstep sound)
+			Fresh()
+			C:SetAttribute("Crouching", true)
+			At = Stand(Near)
+			local Before = Facing(At)
+			R.QuietRadius = Steps(1)
+			for _ = 1, 6 do SS.YardCheck() end
+			R.QuietTurn = Facing(At) - Before
+			Watch(2)
+			SS.YardCheck()
+			R.Quiet = HS.Value(P, "State")
 		end)
 		C:SetAttribute("Crouching", nil)
 		C:SetAttribute("Exposure", nil)
+		NS.SetAuto(true)
 		PS.Reset(W)
+		SS.ResetWatch(W)
 		SS.ResetYard(P)
 		HS.Clear(P, "State")
 		PS.SetAuto(true)
@@ -403,5 +449,62 @@ return {
 		T.Near(R.Behind, 0, 0.01, "behind him: unseen")
 		T.True(R.SneakAware < 0.35, "crouched in shadow stays under his notice (" .. R.SneakAware .. ")")
 		T.Near(R.Sneak, 0, 0.01, "stealth beats him")
+		T.True(R.LoudBefore < 0.01, "behind him, unheard: unseen")
+		T.True(R.LoudRadius > 0 and R.LoudPhase == "Suspicious", ("heard the footsteps (radius %s at %.1f: %s)"):format(tostring(R.LoudRadius), R.NearDist or -1, tostring(R.LoudPhase)))
+		T.True(R.LoudFacing > 0.95, "turned to face the sound (" .. R.LoudFacing .. ")")
+		T.Near(R.Loud, 5, 0.1, "then seen: +5 State Heat")
+		T.Eq(R.QuietRadius, 0, "a crouch makes no footstep")
+		T.True(math.abs(R.QuietTurn) < 0.01, "didn't turn (" .. R.QuietTurn .. ")")
+		T.Near(R.Quiet, 0, 0.01, "crouched and quiet behind him: no Heat")
+	end,
+
+	-- fix round 1 (the papers check is binding): a ticket holder whose papers aren't in order isn't boarded, wherever
+	-- they got on; once cleared they are. Hidden in the StowZone, they ride as a stowaway.
+	PapersAreCheckedAtBoarding = function(T)
+		local SS, HS, TS, PS = require(SSS.StationService), require(SSS.HeatService), require(SSS.TravelService), require(SSS.ProgressionService)
+		local P = game.Players:GetPlayers()[1]
+		local D = PS.GetData(P)
+		local Money = D.Money
+		local R = {}
+		SS.HoldClock = true
+		local Ok, Err = pcall(NoTickets, P, function()
+			TS.AddTicket(P, ROUTE, "Third")
+			HS.Clear(P, "State")
+			HS.Add(P, "State", 25, "Lindenmoor") -- Wanted 1, not cleared
+			P:SetAttribute("GateCleared", nil)
+			SS.ResetGate(P)
+			local Zone
+			for _, d in ipairs(workspace:GetDescendants()) do
+				if d.Name:find("BoardZone") and d:GetAttribute("CarKind") == "ThirdClass" and d:FindFirstAncestor("PlatformTrain") then Zone = d break end
+			end
+			P.Character:PivotTo(Zone.CFrame)
+			task.wait(0.5)
+			SS.ResetGate(P) -- (the departure clock's own Aboard may have just told them: its line is rate-limited)
+			R.Toasts = Toasts(function()
+				local A = SS.Aboard(ROUTE)
+				R.Uncleared = table.find(A, P) ~= nil
+			end)
+			D.Money = 100
+			R.Paid = SS.PayBribe(P, ROUTE)
+			local A, Stow = SS.Aboard(ROUTE)
+			R.Cleared = table.find(A, P) ~= nil and not Stow[P]
+			-- Wanted 3 with a ticket, hidden in the StowZone: a stowaway
+			HS.Add(P, "State", 100, "Lindenmoor")
+			P.Character:PivotTo(StowZone().CFrame)
+			task.wait(0.5)
+			A, Stow = SS.Aboard(ROUTE)
+			R.Stowed = table.find(A, P) ~= nil and Stow[P] == true
+		end)
+		SS.HoldClock = false
+		D.Money = Money
+		HS.Clear(P, "State")
+		P:SetAttribute("GateCleared", nil)
+		SS.ResetGate(P)
+		T.True(Ok, tostring(Err))
+		T.Eq(R.Uncleared, false, "Wanted 1, uncleared, inside the train: not aboard")
+		T.True(table.find(R.Toasts, "Conductor: \"Papers first — see the gate guard.\"") ~= nil, "told to see the gate guard")
+		T.Eq(R.Paid, true, "paid the guard")
+		T.Eq(R.Cleared, true, "then aboard, as a passenger")
+		T.Eq(R.Stowed, true, "Wanted 3 with a ticket in the StowZone: aboard as a stowaway")
 	end,
 }
