@@ -100,6 +100,9 @@ function TravelService.Arrive(Player, Info)
 	if T then
 		T.Region = Here
 		T.Trip = nil
+		-- World plan 1 Task 10: arriving somewhere is a quest objective ({Kind = "Arrive", Target = <region id>}).
+		-- After the save is settled (Signal may pay rewards, which can yield).
+		pcall(function() require(ServerScriptService.QuestService).Signal(Player, "Arrive", Here, 1) end)
 	end
 	if Info.Class and Info.Route and Travel.Routes[Info.Route] and Travel.Routes[Info.Route].Kind == "Rail" then
 		TravelService.UseTicket(Player, Info.Route, Info.Class)

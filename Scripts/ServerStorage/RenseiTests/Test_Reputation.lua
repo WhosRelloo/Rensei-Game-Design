@@ -28,8 +28,10 @@ return {
 		T.Near(Reputation.GlobalStanding(M, Deeds).Foundry, -12, 1e-9, "Foundry is only in the Foundry")
 		Reputation.Land(M, "City", "d_local", {"Authority", "Circle"}, 2)
 		local G = Reputation.GlobalStanding(M, Deeds)
-		T.Near(G.Authority, 24, 1e-9, "Authority: only the City")
-		T.Near(G.Circle, -8, 1e-9, "Circle: heard in 1 of its 2 regions -> half of -16")
+		-- World plan 1 Task 10: the Authority is now in 3 regions (City, Aerugo, North) and the Circle in 3 (City,
+		-- Lindenmoor, Corrupted), so a deed heard only in the City is a third of its full weight for both
+		T.Near(G.Authority, 8, 1e-9, "Authority: heard in 1 of its 3 regions -> a third of 24")
+		T.Near(G.Circle, -16 / 3, 1e-9, "Circle: heard in 1 of its 3 regions -> a third of -16")
 	end,
 	EverywhereIsFull = function(T)
 		local M = Fresh({d_local = {At = 0, Count = 1}})

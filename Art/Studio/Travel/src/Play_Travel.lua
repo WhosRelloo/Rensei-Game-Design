@@ -83,8 +83,11 @@ return {
 		local Before = TS.HasTicket(P, "LindenmoorFoundry")
 		TS.AddTicket(P, "LindenmoorFoundry", "Cabin")
 		local Other = TS.Here() == "Foundry" and "Lindenmoor" or "Foundry"
+		local OldRegion = D.Travel.Region
+		D.Travel.Region = TS.Here() -- the save says "here" (Task 10: without it, Foundry's _Join would refuse)
 		D.Travel.Trip = {Route = "LindenmoorFoundry", To = Other, Arrive = "Platform", Class = "Cabin"}
 		local Res = TS._Join(P, nil)
+		D.Travel.Region = OldRegion
 		local Trip, Held = D.Travel.Trip, TS.HasTicket(P, "LindenmoorFoundry")
 		TS.UseTicket(P, "LindenmoorFoundry", "Cabin")
 		T.Eq(Res, "kept")

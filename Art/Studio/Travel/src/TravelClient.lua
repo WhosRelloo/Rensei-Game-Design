@@ -83,6 +83,17 @@ local function Toast(Text)
 	end
 	UIState.Emit("Toast", {Text = Escape(Text)})
 end
+-- the party roster (World plan 1 Task 10): PartyService sends it through UIService "Party" ({Members = {{Name,
+-- UserId, Leader}}}, an empty list when the party ends). The ticket window's "Ticket for" choice offers these members,
+-- the riders StationService.Buy accepts (For = a party member's UserId).
+local Roster = {}
+task.spawn(function() -- UIState waits for PlayerGui.Uis: don't hold the rest of this script up
+	local Ok, M = pcall(require, ReplicatedStorage.Modules.UI.UIState)
+	if not Ok then return end
+	M.On("Party", function(P)
+		Roster = (type(P) == "table" and type(P.Members) == "table") and P.Members or {}
+	end)
+end)
 
 local Busy = false
 local function Ask(Op, Args)
@@ -106,7 +117,7 @@ end
 -- Cloned from Uis.Dialogue (not wired into DialogueService): the clerk "says" the line in MainFrame (97950998740350,
 -- speaker "Ticket clerk"), and the answers are its choice plates (Choices.Choice1, 92726496845615, with the
 -- Selected highlight 107749049761613 on hover), in the dialogue's own lettering. Choices: "Ticket for: <name>"
--- (cycles me -> each other player, sent by UserId), one per class with its price, and "Never mind". A station with
+-- (cycles me -> each party member, sent by UserId; Task 10), one per class with its price, and "Never mind". A station with
 -- several lines first asks "Where to?" with one choice per line. Placed like the real box (text above the choices,
 -- at 66% of the screen); UIMotion opens and settles it. No number keys (they'd also reach the hotbar: HUDUI only
 -- checks the real dialogue). It closes on Esc, another menu (Uis.bg), a real conversation (Uis.Dialogue), death,
@@ -311,25 +322,26 @@ local function OpenTickets()
 	if Fade.BackgroundTransparency < 0.99 or CrossingActive() or not NearClerk() then return end
 	DialogueWindow("Tickets", "Ticket clerk", NearClerk, function(W)
 		local S, Say, Choice, Clear, Fit = W.S, W.Say, W.Choice, W.Clear, W.Fit
-		local For = nil -- nil = me, else a Player
+		local For = nil -- nil = me, else a party roster entry {Name, UserId}
 		local Picked = #Rows == 1 and Rows[1] or nil -- the line being bought for (one line: straight to its classes)
 		local Show
 		local function ForText()
-			return "Ticket for: " .. (For and Escape(For.DisplayName) or "me")
+			local Q = For and Players:GetPlayerByUserId(For.UserId)
+			return "Ticket for: " .. (For and Escape(Q and Q.DisplayName or tostring(For.Name)) or "me")
 		end
 		local function ForChoice()
 			local B
-			B = Choice(ForText(), function() -- cycles me -> each other player -> me
+			B = Choice(ForText(), function() -- cycles me -> each party member -> me (Task 10: the party, not everyone)
 				local Others = {}
-				for _, Q in ipairs(Players:GetPlayers()) do
-					if Q ~= Player then table.insert(Others, Q) end
+				for _, M in ipairs(Roster) do
+					if type(M) == "table" and type(M.UserId) == "number" and M.UserId ~= Player.UserId then table.insert(Others, M) end
 				end
 				local Next = nil
 				if not For then
 					Next = Others[1]
 				else
-					for I, Q in ipairs(Others) do
-						if Q == For then Next = Others[I + 1] break end
+					for I, M in ipairs(Others) do
+						if M.UserId == For.UserId then Next = Others[I + 1] break end
 					end
 				end
 				For = Next
@@ -353,7 +365,7 @@ local function OpenTickets()
 				ForChoice()
 				for _, C in ipairs(Travel.ClassOrder) do
 					Choice(("%s - $%d"):format(Travel.Classes[C].Name, Line.Prices[C] or 0), function()
-						local Ok, Why = Ask("Buy", {Route = Line.Route, Class = C, For = For and For.Parent and For.UserId or nil})
+						local Ok, Why = Ask("Buy", {Route = Line.Route, Class = C, For = For and For.UserId or nil})
 						if Window == S then Say(Ok and "Bought. Board when the doors open." or Escape(Why or "Couldn't buy that.")) end
 					end)
 				end

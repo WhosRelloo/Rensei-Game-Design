@@ -20,9 +20,11 @@ return {
 			local Before = M.Standing.Authority or 0
 			RumourService.SetClock(function() return Base + 121 end)
 			T.Eq(RumourService.Tick(Player), 1, "dispatch reached the City")
-			T.Near((M.Standing.Authority or 0) - Before, 12, 1e-6, "Authority: City is its only region -> full")
+			-- World plan 1 Task 10: the Authority is now in 3 regions (City, Aerugo, North): heard in one, a third of 12
+			T.Near((M.Standing.Authority or 0) - Before, 4, 1e-6, "Authority: the City is 1 of its 3 regions -> a third")
+			-- Task 10: the train carries word to Lindenmoor and the City at 3 min; the 10 min gossip finds no one new
 			RumourService.SetClock(function() return Base + 601 end)
-			T.Eq(RumourService.Tick(Player), 1, "gossip reached the City")
+			T.Eq(RumourService.Tick(Player), 2, "the train reached Lindenmoor and the City")
 			RumourService.SetClock(function() return Base + 601 end)
 			T.Eq(RumourService.Tick(Player), 0, "idempotent")
 		end)

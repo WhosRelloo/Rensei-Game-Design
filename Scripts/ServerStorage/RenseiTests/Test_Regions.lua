@@ -17,16 +17,25 @@ return {
 		T.Eq(Regions.OfArea("Workshop Hill"), "Lindenmoor")
 		T.Eq(Regions.OfArea("Halvard's Adit"), "Adit")
 		T.Eq(Regions.OfArea("Silent Forge"), "Wilds")
-		T.Eq(Regions.OfArea(nil), "City")
-		T.Eq(Regions.OfArea("Somewhere New"), "City")
+		-- World plan 1 Task 10: outside every area volume is this place's own region (Ye: Lindenmoor)
+		local Own = require(game.ReplicatedStorage.Modules.Data.Rensei.Places).RegionOf(game.PlaceId) or "City"
+		T.Eq(Regions.OfArea(nil), Own)
+		T.Eq(Regions.OfArea("Somewhere New"), Own)
 	end,
 	PresenceAndCounts = function(T)
 		T.True(Regions.Present("City", "Authority"))
 		T.True(not Regions.Present("Foundry", "Authority"))
 		T.True(Regions.Present("Lindenmoor", "Circle"))
-		T.Eq(Regions.Count("Circle"), 2)
+		T.Eq(Regions.Count("Circle"), 3) -- City, Lindenmoor and (World plan 1 Task 10) the Corrupted Lands
 		T.True(Regions.Present("Adit", "IshvalanCommunity"), "communities live everywhere")
-		T.Eq(Regions.Count("IshvalanCommunity"), 5)
+		T.Eq(Regions.Count("IshvalanCommunity"), 9) -- 5 regions plus Aerugo, Ishval, North and Corrupted (Task 10)
+	end,
+	NewRegionsAndRail = function(T)
+		for _, Id in ipairs({"Aerugo", "Ishval", "North", "Corrupted"}) do T.True(Regions.Regions[Id] ~= nil, Id) end
+		T.True(Regions.Carriers.Rail ~= nil and Regions.Carriers.Rail.Reaches == nil, "rail reaches everyone")
+		local Rail = false
+		for _, L in ipairs(Regions.Regions.Lindenmoor.Links) do if L.To == "Foundry" and L.Carrier == "Rail" then Rail = true end end
+		T.True(Rail, "Lindenmoor -> Foundry by rail")
 	end,
 	CarriersReachTheirFactions = function(T)
 		T.Same(Regions.Reach("City", "Dispatch"), {"Authority"})

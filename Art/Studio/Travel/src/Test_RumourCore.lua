@@ -13,31 +13,50 @@ local function Heard(M, Region, F)
 	return P ~= nil and P.Known.d ~= nil and P.Known.d[F] ~= nil
 end
 return {
-	DispatchThenGossip = function(T)
+	-- World plan 1 Task 10: the railway carries word too. From the Foundry the train reaches the City and Lindenmoor
+	-- in 3 min, everyone present, so the old "gossip at 10 min" now finds the City already knows.
+	DispatchThenRail = function(T)
 		local M = Fresh()
 		T.True(Core.Spawn(M, "d", "Foundry", 2, 0) ~= nil)
 		T.Eq(#Core.Advance(M, 119), 0, "nothing before 2 min")
 		local A = Core.Advance(M, 120)
 		T.Eq(#A, 1); T.Eq(A[1].Place, "City"); T.Same(A[1].Heard, {"Authority"}, "dispatch: only the Authority")
 		T.True(not Heard(M, "City", "Townsfolk"))
-		T.Eq(#Core.Advance(M, 599), 0)
-		local B = Core.Advance(M, 600)
-		T.Eq(#B, 1, "gossip at 10 min")
+		T.Eq(#Core.Advance(M, 179), 0)
+		local B = Core.Advance(M, 180)
+		T.Eq(#B, 2, "the train at 3 min: Lindenmoor and the City")
+		local City = B[1].Place == "City" and B[1] or B[2]
+		T.Eq(City.Place, "City"); T.Eq(City.Carrier, "Rail")
+		T.True(table.find(City.Heard, "Circle") and table.find(City.Heard, "Townsfolk"), "rail reaches the Circle and Townsfolk")
+		T.True(table.find(City.Heard, "IshvalanCommunity") ~= nil, "and the communities (present everywhere)")
+		T.True(not table.find(City.Heard, "Authority"), "the Authority heard already, by dispatch")
+		T.True(Heard(M, "Lindenmoor", "Townsfolk"), "the train took it to Lindenmoor too")
+		T.Eq(#Core.Advance(M, 100000), 0, "strength 2: one hop, no further (the 10 min gossip finds no one new)")
+		T.True(not M.Places.Ishval, "never reached Ishval (two hops)")
+		T.Eq(#M.News, 3)
+	end,
+	-- the old DispatchThenGossip, from a place no train serves (Aerugo: dispatch 6 min, gossip 25 min to the City)
+	DispatchThenGossipOffTheRails = function(T)
+		local M = Fresh()
+		T.True(Core.Spawn(M, "d", "Aerugo", 2, 0) ~= nil)
+		T.Eq(#Core.Advance(M, 359), 0, "nothing before 6 min")
+		local A = Core.Advance(M, 360)
+		T.Eq(#A, 1); T.Eq(A[1].Place, "City"); T.Same(A[1].Heard, {"Authority"}, "dispatch: only the Authority")
+		T.Eq(#Core.Advance(M, 1499), 0)
+		local B = Core.Advance(M, 1500)
+		T.Eq(#B, 1, "gossip at 25 min")
 		T.True(table.find(B[1].Heard, "Circle") and table.find(B[1].Heard, "Townsfolk"), "gossip reaches the Circle and Townsfolk")
 		T.True(table.find(B[1].Heard, "IshvalanCommunity") ~= nil, "and the communities (present everywhere)")
 		T.True(not table.find(B[1].Heard, "Authority"), "the Authority heard already, by dispatch")
-		T.Eq(#Core.Advance(M, 100000), 0, "strength 2: one hop, no further")
-		T.True(not M.Places.Lindenmoor, "never reached Lindenmoor")
-		T.Eq(#M.News, 2)
 	end,
 	OncePerPlace = function(T)
 		local M = Fresh()
 		Core.Spawn(M, "d", "Foundry", 5, 0)
-		Core.Advance(M, 100000)
+		-- counted from Advance's arrivals: with the new regions strength 5 lands 11 times, more than News keeps (10)
 		local Count = 0
-		for _, N in ipairs(M.News) do if N.Place == "City" then Count += 1 end end
-		T.Eq(Count, 2, "City: dispatch once + gossip once, never repeated")
-		T.True(Heard(M, "Lindenmoor", "Townsfolk"), "strength 5 goes further")
+		for _, N in ipairs(Core.Advance(M, 100000)) do if N.Place == "City" then Count += 1 end end
+		T.Eq(Count, 2, "City: dispatch once + rail once (the gossip finds no one new), never repeated")
+		T.True(Heard(M, "Ishval", "Townsfolk"), "strength 5 goes further (Foundry -> City -> Ishval by rail)")
 	end,
 	OfflineCatchUpMatchesOnline = function(T)
 		local A, B = Fresh(), Fresh()
