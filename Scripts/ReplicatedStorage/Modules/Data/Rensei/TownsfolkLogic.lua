@@ -2,6 +2,7 @@
 -- The roster format lives in Rensei.Townsfolk; a townsperson's Schedule is a list of {From, To, PostId} in
 -- world-clock hours (0-24). A slot covers From <= h < To, wrapping past midnight when From > To.
 local Factions = require(script.Parent.Factions)
+local Customization = require(script.Parent.Customization)
 
 local L = {}
 
@@ -48,11 +49,17 @@ L.KindIdles = {Seat = "NPC_Chill", Counter = "NPC_CrossArms", Home = "NPC_Chill"
 function L.Validate(Roster, PostIds)
 	local Errs, Seen = {}, {}
 	local function Err(Id, Text) table.insert(Errs, tostring(Id) .. ": " .. Text) end
-	for _, D in ipairs(Roster) do
+	for I, D in ipairs(Roster) do
+		-- a non-table entry is reported, not thrown on (TownsfolkService.LoadRegion runs at Start, unguarded)
+		if type(D) ~= "table" then Err("entry " .. I, "is a " .. type(D) .. ", not a townsperson") continue end
 		if type(D.Id) ~= "string" then Err(D.Name, "needs a string Id")
 		elseif Seen[D.Id] then Err(D.Id, "duplicate id")
 		else Seen[D.Id] = true end
 		if not Factions.Factions[D.Faction] then Err(D.Id, "unknown faction " .. tostring(D.Faction)) end
+		-- dressed from their own nation's pool (owner 2026-10-23): never a random nation
+		if type(D.Look) ~= "table" or not Customization.NationLooks[D.Look.Nation] then
+			Err(D.Id, "needs Look.Nation, one of Customization.NationLooks (got " .. tostring(type(D.Look) == "table" and D.Look.Nation or nil) .. ")")
+		end
 		local Schedule = D.Schedule
 		local Shaped = type(Schedule) == "table" and #Schedule > 0
 		if not Shaped then Err(D.Id, "no schedule") end

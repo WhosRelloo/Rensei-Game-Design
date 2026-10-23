@@ -111,6 +111,10 @@ do -- Region Foundation Task 2: the world clock (time of day from real time, Nig
 end
 require(ServerScriptService.LightService).Start() -- lamps, daylight and shadow -> Exposure (S2)
 require(ServerScriptService.NoiseService).Start() -- footsteps, landings, hits, casts, shots as sound events (S2)
+do -- Region Foundation Task 5: townsfolk (posts, day schedules, walking), after Perception, Noise and Dialogue
+	local Ok, Err = pcall(function() require(ServerScriptService.TownsfolkService).Start() end)
+	if not Ok then warn("[ServerHandler] TownsfolkService.Start failed: " .. tostring(Err)) end
+end
 require(ServerScriptService.TrialService).Start() -- alchemy trials (RenseiTrial arenas)
 require(ServerScriptService.TrainingService).Start() -- trainer lessons / exercises (mastery training)
 require(ServerScriptService.RankService).Start() -- public rank / title / clan for the leaderboard
