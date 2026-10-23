@@ -2,6 +2,20 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-23 — Region Foundation Task 1: the trainers' exams open
+
+Choosing "I'm ready for the examination." with any of the five alchemy trainers (Calda, Veyra, Holt, Ansel, Brannoc) did nothing: the exam panel never appeared, so nobody could finish an acquisition questline at Act V. Fixed in Ye. Backups are in `ServerStorage.RenseiBackups["Pre-RegionFoundation_2026-10-23"]`.
+
+- **Why it broke.** The exam opened while the conversation was still on screen. The game never opens a menu over a conversation (a rule from 2026-10-18), so the exam panel shut at once and the server quietly cancelled the exam. Checked in a real Play client before the fix: the client got the exam while the dialogue box was showing, sent "Close" straight back, and the exam ended.
+- **The fix.** The exam choice now closes the conversation first and then opens the exam, as the trainers' Lesson and Exercise choices already did. The two Combat Read drill choices go the same way, which changes nothing you can see.
+- **For tests:** two small read-only helpers, `DialogueService.IsOpen(Player)` and `MinigameService.Current(Player)`.
+- **Tests (Ye):**
+  - new `Play_Exams`: for each of the five exams it puts the quest at stage 5, opens the trainer's conversation, takes the exam choice the way the game does, and checks that the conversation was closed before the exam opened and that the exam is still running 1.5 seconds later. It failed 0/5 before the fix and passes 5/5 after it, twice;
+  - Play_Boot 2/2, Play_Arrive 5/5 and Play_Morality 3/3 still pass;
+  - by hand: talked to Calda at the exam stage and pressed 1. The exam panel ("The Unburned Lesson") opens (screenshot: `Documents/images/Fixes/Trainer exam opens.jpg`).
+  - The owner's save was restored after each Play session, and the test hook was removed.
+- **For the owner:** publish `RenseiServer` from Ye, then update it in Foundry by hand.
+
 ## 2026-10-23 — World Plan 1 final fix wave: the whole-branch review's fixes
 
 The final review of World Plan 1 found problems where two tasks meet. This pass fixes them in Ye (and, for the teleport copies, in the Main Menu and the Tutorial). Every number is a **PROPOSAL**. Backups are in `ServerStorage.RenseiBackups["Pre-FinalFix_2026-10-23"]` in each place touched.

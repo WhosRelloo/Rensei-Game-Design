@@ -444,4 +444,10 @@ function MinigameService.Solve(Player)
 	end
 end
 
+-- tests (Region Foundation Task 1): the id of the player's open minigame, or nil
+function MinigameService.Current(Player)
+	local S = Sessions[Player]
+	return S and S.Id
+end
+
 return MinigameService

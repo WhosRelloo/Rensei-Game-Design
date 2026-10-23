@@ -137,6 +137,11 @@ function DialogueService.Close(Player)
 	UIService.Notify(Player, "DialogueEnd", {})
 end
 
+-- tests (Region Foundation Task 1): whether this player has a conversation open on the server
+function DialogueService.IsOpen(Player)
+	return Sessions[Player] ~= nil
+end
+
 local Actions = {
 	StartQuest = function(Player, Action, Session)
 		if QuestService.Start(Player, Action.Quest) then
@@ -153,6 +158,7 @@ local Actions = {
 		require(ServerScriptService.ItemService).Give(Player, Action.Item, Action.Amount or 1)
 	end,
 	StartMinigame = function(Player, Action)
+		DialogueService.Close(Player) -- the minigame panel can't open over a conversation (UIState); the exams never showed
 		require(ServerScriptService.MinigameService).Open(Player, Action.Minigame, Action.Context)
 	end,
 	-- morality: records a deed (Rensei.Deeds) once; repeatables follow their daily cap
