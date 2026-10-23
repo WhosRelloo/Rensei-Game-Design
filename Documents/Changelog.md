@@ -10,7 +10,7 @@ Choosing "I'm ready for the examination." with any of the five alchemy trainers 
 - **The fix.** The exam choice now closes the conversation first and then opens the exam, as the trainers' Lesson and Exercise choices already did. The two Combat Read drill choices go the same way, which changes nothing you can see.
 - **For tests:** two small read-only helpers, `DialogueService.IsOpen(Player)` and `MinigameService.Current(Player)`.
 - **Tests (Ye):**
-  - new `Play_Exams`: for each of the five exams it puts the quest at stage 5, opens the trainer's conversation, takes the exam choice the way the game does, and checks that the conversation was closed before the exam opened and that the exam is still running 1.5 seconds later. It failed 0/5 before the fix and passes 5/5 after it, twice;
+  - new `Play_Exams`: for each of the five exams it puts the quest at stage 5, opens the trainer's conversation, takes the exam choice the way the game does, and checks that the conversation was closed before the exam opened and that the exam is still running 1.5 seconds later. It passed none of the five before the fix and all five after it, twice;
   - Play_Boot 2/2, Play_Arrive 5/5 and Play_Morality 3/3 still pass;
   - by hand: talked to Calda at the exam stage and pressed 1. The exam panel ("The Unburned Lesson") opens (screenshot: `Documents/images/Fixes/Trainer exam opens.jpg`).
   - The owner's save was restored after each Play session, and the test hook was removed.
