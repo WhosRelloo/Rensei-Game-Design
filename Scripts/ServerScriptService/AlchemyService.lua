@@ -85,6 +85,50 @@ local UIService = require(ServerScriptService.UIService)
 local ProgressionService = require(ServerScriptService.ProgressionService)
 
 local Cfg = Tuning.Alchemy
+
+-- Hotfix 2026-10-23 (owner: "Increase range on all alchemy"): every move's reach is scaled by
+-- RANGE_MULT when it is cast -- projectile / cone / thrust / tracker Range, the ground-target spot
+-- (Phoenix, traps, tornado, thorn), the cleave / fault line Length and the anvil's SeekRange.
+-- NOT scaled (no "range" to stretch): self-centred areas (Gale Burst, Absolute Zero, Tectonic Shift),
+-- melee hitboxes, the lunge, the counter, the shield, the wall, MinRange, blast radii.
+local RANGE_MULT = Cfg.RangeMult or 1.5 -- PROPOSAL: +50% (set TuningConfig.Alchemy.RangeMult to tune)
+local RANGE_KEYS = {"Range", "Length", "SeekRange"}
+local Ranged = {}
+local function WithRange(Impl)
+	if not Impl or RANGE_MULT == 1 then return Impl end
+	if Ranged[Impl] then return Ranged[Impl] end
+	local Out = table.clone(Impl)
+	for _, K in ipairs(RANGE_KEYS) do
+		if type(Out[K]) == "number" then Out[K] = Out[K] * RANGE_MULT end
+	end
+	Ranged[Impl] = Out
+	return Out
+end
+
+-- Hotfix 2026-10-23 (lock-on aim): the enemy the release aim points at -- its centre within AIM_SNAP
+-- studs of the aim line, in front, within the move's range. Projectile / Thrust moves re-aim at that
+-- enemy's CURRENT centre when they fire (the windup runs after the key is let go, so a target that
+-- moved meanwhile was missed), leading a projectile by the target's ground velocity.
+local AIM_SNAP = 4 -- PROPOSAL: studs off the aim line that still count as aimed at someone
+local AIM_HEIGHT = Vector3.new(0, 0.5, 0) -- aim from just above the root (the client aims from here too)
+local function AimedEnemy(Caster, Origin, Dir, Range)
+	local Live = workspace:FindFirstChild("World") and workspace.World:FindFirstChild("Live")
+	if not Live then return nil end
+	local Best, BestOff = nil, AIM_SNAP
+	for _, M in ipairs(Live:GetChildren()) do
+		local H = M ~= Caster and M:FindFirstChildOfClass("Humanoid")
+		local R = H and H.Health > 0 and M:FindFirstChild("HumanoidRootPart")
+		if R then
+			local Rel = R.Position - Origin
+			local Along = Rel:Dot(Dir)
+			if Along > 0 and Along <= Range + 6 then
+				local Off = (Rel - Dir * Along).Magnitude
+				if Off < BestOff then Best, BestOff = M, Off end
+			end
+		end
+	end
+	return Best
+end
 local Slots = {Z = true, X = true, C = true, V = true}
 
 local AlchemyService = {}
@@ -1050,7 +1094,14 @@ function AlchemyService.Release(Player, Slot, Aim)
 	local State = Player.Character and Casts[Player.Character]
 	if not State or State.Slot ~= Slot then return end
 	State.Released = true
-	if typeof(Aim) == "Vector3" then State.Aim = Aim end
+	if typeof(Aim) == "Vector3" then
+		State.Aim = Aim
+		-- Hotfix 2026-10-23 (lock-on aim): who the aim points at NOW (the windup only starts after the
+		-- clap's release animation, by when a moving target has left the aim line)
+		local Root = Player.Character:FindFirstChild("HumanoidRootPart")
+		State.AimTarget = Root and Aim == Aim and Aim.Magnitude > 0.5
+			and AimedEnemy(Player.Character, Root.Position + AIM_HEIGHT, Aim.Unit, 250) or nil
+	end
 end
 
 -- Waits D seconds (or until the key is released, with UntilReleased), keeping the cast walk speed;
@@ -1195,6 +1246,18 @@ local function RunCast(Player, Character, Root, WC, Affinity, Slot, Def, Impl, A
 			-- the move's windup: face where the caster aimed when they let go of the key
 			Direction = AimDirection(Root, State.Aim)
 			Ctx.Direction = Direction
+			Ctx.AimTarget = nil
+			if Player and (Impl.Kind == "Projectile" or Impl.Kind == "Thrust") and Impl.Range then -- players only (NPC aim unchanged)
+				local T = State.AimTarget
+				local TR = T and T.Parent and T:FindFirstChild("HumanoidRootPart")
+				if TR and (TR.Position - Root.Position).Magnitude <= Impl.Range + 6 then
+					Ctx.AimTarget = T
+					local To = TR.Position - (Root.Position + AIM_HEIGHT)
+					if To.Magnitude > 1 then Direction = AimDirection(Root, To.Unit); Ctx.Direction = Direction end
+				else
+					Ctx.AimTarget = AimedEnemy(Character, Root.Position + AIM_HEIGHT, Direction, Impl.Range)
+				end
+			end
 			local FlatDir = Vector3.new(Direction.X, 0, Direction.Z)
 			if FlatDir.Magnitude > 1e-3 then
 				MoverManager.CreateMover(Character, "LookAt", {C = CFrame.lookAt(Vector3.zero, FlatDir.Unit), D = Windup})
@@ -1209,6 +1272,18 @@ local function RunCast(Player, Character, Root, WC, Affinity, Slot, Def, Impl, A
 		end,
 		-- moves without their own Strike (the lunge) use the attack's server hitbox sweep
 		Strike = Kind.Strike and function()
+			local T = Ctx.AimTarget
+			local TR = T and T.Parent and T:FindFirstChild("HumanoidRootPart")
+			local TH = T and T:FindFirstChildOfClass("Humanoid")
+			if TR and TH and TH.Health > 0 and Root.Parent then
+				local From = Root.Position + AIM_HEIGHT
+				local At = TR.Position
+				if Impl.Speed and Impl.Speed > 0 then -- lead a projectile by the target's ground velocity
+					local V = TR.AssemblyLinearVelocity
+					At += Vector3.new(V.X, 0, V.Z) * math.min((At - From).Magnitude / Impl.Speed, 0.8)
+				end
+				if (At - From).Magnitude > 1 then Ctx.Direction = AimDirection(Root, (At - From).Unit) end
+			end
 			local Results = Kind.Strike(Ctx)
 			return type(Results) == "table" and Results or {}
 		end or nil,
@@ -1244,7 +1319,7 @@ function AlchemyService.Cast(Player, Slot, Aim)
 		return
 	end
 	local Def = AbilityFor(Affinity, Slot)
-	local Impl = Def and Cfg.Abilities[Def.Id]
+	local Impl = WithRange(Def and Cfg.Abilities[Def.Id])
 	if not Impl then
 		Tell(Player, Def and (Def.Name .. " isn't available yet.") or ("No " .. Affinity .. " alchemy on " .. Slot .. " yet."))
 		return
@@ -1288,7 +1363,7 @@ function AlchemyService.CastAs(Character, Affinity, Slot, Aim, Opts)
 	local WC = WCS.Character.GetCharacterFromInstance(Character)
 	if not Root or not WC or not CanAct(Character, WC) then return end
 	local Def = AbilityFor(Affinity, Slot)
-	local Impl = Def and Cfg.Abilities[Def.Id]
+	local Impl = WithRange(Def and Cfg.Abilities[Def.Id])
 	if not Impl then return end
 	return RunCast(nil, Character, Root, WC, Affinity, Slot, Def, Impl, Aim, (Opts and Opts.HoldFor) or 0)
 end

@@ -397,9 +397,15 @@ TuningConfig.Weapons = {
 			Hit{Anim = "Sword_Light3", AnimPeak = 0.32, Startup = 0.22, Active = 0.08, Recovery = 0.10, Damage = 20, Posture = 9, Stun = 0.45, Velocity = "Pull", Hitbox = Vector3.new(7, 6, 8), Reach = 4}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.24 -> 0.22, Recovery 0.18 -> 0.10
 			Hit{Anim = "Sword_Light4", AnimPeak = 0.30, Startup = 0.30, Active = 0.10, Recovery = 0.46, Damage = 27, Posture = 16, Stun = 0.9, Velocity = "Knockback", Hitbox = Vector3.new(8, 6, 9), Reach = 4}, -- PROPOSAL (2026-10-19 M1 pass): Recovery 0.50 -> 0.46 (string 2.40 -> 2.06 s)
 		}},
-		Heavy = {Anim = "Sword_Heavy", AnimPeak = 0.38, Startup = 0.42, Active = 0.12, Recovery = 0.5, Damage = 36, Posture = 40, Stun = 0.9, Velocity = "Knockback", Hitbox = Vector3.new(8, 7, 9), Reach = 4.5, Step = 18, Cooldown = 1.3},
+		-- hotfix 2026-10-23 (owner: a crit more suited to the katana): the published katana "Quick Draw" (skill sheet) -- one
+		-- iaido draw-cut; its cut lands at 0.88 s at 1x, here 1.25x -> 0.70 s, inside Startup 0.66 + Active 0.1. Was Sword_Heavy,
+		-- an unpublished Studio save ("sword crit", plays nothing live). PROPOSAL: AnimSpeed 1.25, Startup 0.42 -> 0.66.
+		Heavy = {Anim = "Sword_QuickDraw", AnimSpeed = 1.25, Startup = 0.66, Active = 0.1, Recovery = 0.5, Damage = 36, Posture = 40, Stun = 0.9, Velocity = "Knockback", Hitbox = Vector3.new(8, 7, 9), Reach = 4.5, Step = 18, Cooldown = 1.3},
 		-- Dragonflash: a lunging slash.
-		Skill = {Name = "Dragonflash", Anim = "Sword_Skill", AnimPeak = 0.97, Startup = 0.34, Active = 0.2, Recovery = 0.45, Damage = 30, Posture = 22, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(8, 6, 10), Reach = 4.5, Lunge = 75, LungeTime = 0.3, Stamina = 20, Cooldown = 7},
+		-- hotfix 2026-10-23: Sword_Skill is an unpublished Studio save (empty id: plays nothing in a live server, and in Studio it
+		-- ran clamped at 2.2x). Now the published katana "Iaido Barrage" (skill sheet), its 4 cuts on its own markers at 1x.
+		-- PROPOSAL: 8 dmg x 4 (was 30 x 1), Pull so the cuts connect; the opening lunge kept. Also the Sword class skill's anim.
+		Skill = {Name = "Dragonflash", Anim = "Sword_IaidoBarrage", AnimSpeed = 1, Startup = 0.42, Active = 0.87, HitTimes = {0.47, 0.72, 0.99, 1.23}, Recovery = 0.45, Damage = 8, Posture = 6, Stun = 0.5, Velocity = "Pull", Hitbox = Vector3.new(8, 6, 10), Reach = 4.5, Lunge = 75, LungeTime = 0.3, Stamina = 20, Cooldown = 7},
 		-- Keen Edge: blocked hits deal +30% posture damage.
 		Passive = {Name = "Keen Edge", BlockedPostureMult = 1.3},
 	},
@@ -426,7 +432,7 @@ TuningConfig.Weapons = {
 		-- same way as the M1s (blade-tip speed peak at the 0.717 s keyframe; was 0.43 on the old id).
 		Heavy = {Anim = "Rapier_Heavy", AnimPeak = 0.72, Startup = 0.47, Active = 0.1, Recovery = 0.4, Damage = 30, Posture = 30, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(4, 5, 12), Reach = 6, Step = 22, Cooldown = 1.1}, -- PROPOSAL (2026-10-19 M1 pass): Startup 0.34 -> 0.47: the new CRIT played at 1.85x, now 1.38x (a longer windup on the punish)
 		-- Flurry: five fast thrusts.
-		Skill = {Name = "Flurry", Anim = "Rapier_Skill", AnimSpeed = 0.9, Startup = 0.18, Active = 0.45, MultiHit = 5, Recovery = 0.35, Damage = 6, Posture = 4, Stun = 0.35, Velocity = "Pull", Hitbox = Vector3.new(5, 5, 10), Reach = 5, Stamina = 18, Cooldown = 6},
+		Skill = {Name = "Flurry", Anim = "Rapier_Skill", AnimSpeed = 1, Startup = 0.43, Active = 0.96, HitTimes = {0.43, 0.64, 0.85, 1.05, 1.35}, Recovery = 0.4, Damage = 6, Posture = 4, Stun = 0.4, Velocity = "Pull", Hitbox = Vector3.new(5, 5, 10), Reach = 5, Stamina = 18, Cooldown = 6}, -- hotfix 2026-10-23: the 5 hits sit on the clip's markers at 1x (Barrage 0.43 .. BarrageEnd 1.05, FinalStab 1.35; was 0.9x with all 5 hits in 0.18-0.63 s, before the thrusts). PROPOSAL: Recovery 0.4, Stun 0.35 -> 0.4 (covers the 0.30 s gap before the final stab)
 		-- Precision: +25% damage against a target that is winding up or recovering (counter-hit).
 		Passive = {Name = "Precision", CounterHitMult = 1.25},
 	},

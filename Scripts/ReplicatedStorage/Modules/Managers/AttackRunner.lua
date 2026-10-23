@@ -260,8 +260,11 @@ function RunBody(WCSCharacter, Def, SkillName, Opts)
 		local Start = Def.Startup
 		local Final = SkillName .. "Final"
 		local Stopped = false
+		local ActiveAt = os.clock()
 		for I, At in ipairs(Def.HitTimes) do
-			local Wait = math.max(0, At - Start)
+			-- on the attack's own clock (hotfix 2026-10-23): each 0.06 s strike plus a frame of overshoot used to push every
+			-- later hit ~0.075 s late (the Rapier Flurry's final stab landed 0.3 s after its marker)
+			local Wait = math.max(0, At - Def.Startup - (os.clock() - ActiveAt))
 			if Wait > 0 and not Hold(WCSCharacter, Token, Wait, false) then return Finish("Interrupted", Results) end
 			Start = math.max(Start, At)
 			local Name = (I == #Def.HitTimes and require(ReplicatedStorage.Modules.Data.SkillData)[Final]) and Final or SkillName

@@ -176,13 +176,29 @@ end
 
 -- Alchemy Z / X / C: press = clap (hold to keep clapping), release = slam into the move, aimed where
 -- the camera looks at that moment. V is the Ultimate behind Carry (CarryInput).
+-- Hotfix 2026-10-23 (lock-on aim): while locked on, alchemy aims from the character at the locked
+-- target's centre. The lock camera sits over the right shoulder and above the player, so its look
+-- line (the old aim) ran beside and below the target and casts missed.
+local LockOnModule = ReplicatedStorage.Modules.UI:FindFirstChild("LockOn")
+local function AlchemyAim()
+	local Ok, LockOn = pcall(function() return LockOnModule and require(LockOnModule) end)
+	local T = Ok and LockOn and LockOn.Target
+	local TRoot = T and T.Parent and T:FindFirstChild("HumanoidRootPart")
+	local Root = Character and Character:FindFirstChild("HumanoidRootPart")
+	if TRoot and Root then
+		local To = TRoot.Position - (Root.Position + Vector3.new(0, 0.5, 0)) -- same height the server aims from
+		if To.Magnitude > 1 then return To.Unit end
+	end
+	return Camera.CFrame.LookVector
+end
+
 local function AlchemyInput(Key, Began)
 	if not Began then
-		RequestRemote:FireServer("Alchemy", Key, Camera.CFrame.LookVector, "End")
+		RequestRemote:FireServer("Alchemy", Key, AlchemyAim(), "End")
 		return false
 	end
 	if Knocked() or not InCombatMode() then return false end
-	RequestRemote:FireServer("Alchemy", Key, Camera.CFrame.LookVector)
+	RequestRemote:FireServer("Alchemy", Key, AlchemyAim())
 	return true
 end
 
@@ -192,7 +208,7 @@ local function CarryInput(Began)
 		if not Knocked() then RequestRemote:FireServer("Downed", "Carry", Camera.CFrame.LookVector) end
 	else
 		-- letting go of V ends a held clap if V started the Ultimate
-		RequestRemote:FireServer("Alchemy", "V", Camera.CFrame.LookVector, "End")
+		RequestRemote:FireServer("Alchemy", "V", AlchemyAim(), "End")
 	end
 end
 
@@ -238,7 +254,7 @@ ClientActions.Register("Jump", function(Began)
 		JumpHandler:OnStartClient()
 	end
 end)
-ClientActions.Register("Sprint", function(Began) if Began then Run:OnStartClient() else Run:OnEndClient() end end)
+ClientActions.Register("Sprint", function(Began) Run.Toggled = Began == true if Began then Run:OnStartClient() else Run:OnEndClient() end end)
 ClientActions.Register("Slide", function(Began)
 	if Began and InCombatMode() then return end
 	if Began then Crouch:OnStartClient() else Crouch:OnEndClient() end
@@ -389,6 +405,9 @@ local function CharacterAdded(NewCharacter)
 		end
 	end)
 	CharacterState = WCSCharacter.GetCharacterFromInstance(Character)
+	-- a sprint / slide of the previous character must not carry over (fix round 1, 2026-10-22)
+	Run.Reset()
+	Crouch.Reset()
 end
 
 CharacterAdded(Character)

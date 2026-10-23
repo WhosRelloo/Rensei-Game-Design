@@ -572,6 +572,19 @@ end
 -- ----- rows -----
 local function MarkDirty() Dirty = true end
 
+-- Hotfix 2026-10-23 (leaderboard audit): one line at the label's own height, cut with "..." -- long names
+-- used to wrap into two unreadable lines (TextScaled + TextWrapped) and the text ran onto the bar's end cap
+local function FitRowText(L)
+	L.TextScaled = false
+	L.TextWrapped = false
+	L.TextTruncate = Enum.TextTruncate.AtEnd
+	L.Position = UDim2.new(0.925, 0, L.Position.Y.Scale, L.Position.Y.Offset) -- clear of the right end cap
+	L.Size = UDim2.new(L.Size.X.Scale - 0.03, 0, L.Size.Y.Scale, L.Size.Y.Offset)
+	local function Fit() L.TextSize = math.max(8, math.floor(L.AbsoluteSize.Y)) end
+	Fit()
+	L:GetPropertyChangedSignal("AbsoluteSize"):Connect(Fit)
+end
+
 local function AddRow(P)
 	if Rows[P] then return end
 	local Frame = HUD.Parent.Templates.LeaderEntry:Clone()
@@ -589,6 +602,8 @@ local function AddRow(P)
 	Hit.ZIndex = 5
 	Hit.Parent = Frame
 	local Cells = {Name = Frame:WaitForChild("PlayerName"), Title = Frame:WaitForChild("Rank"), Hit = Hit}
+	FitRowText(Cells.Name)
+	FitRowText(Cells.Title)
 	Hit.MouseEnter:Connect(function() Card.OverName = true if not Card.Pinned or Card.Target ~= P then ShowCard(P) end end)
 	Hit.MouseLeave:Connect(function() Card.OverName = false MaybeHide() end)
 	Hit.Activated:Connect(function()
@@ -695,6 +710,51 @@ local function BuildLeaderboard()
 	Card.Frame, Card.Body, Card.Banner, Card.Scale = CardFrame, Body, CardBanner, CScale
 
 	Board = {Root = Root, List = List, Scale = Scale}
+
+	-- Hotfix 2026-10-23 (Backlog: "the scroll doesn't work"): the Scroll art's Bar never moved, so the board
+	-- looked stuck. Now the Bar follows the list, and dragging the Bar / clicking the track scrolls it (the
+	-- wheel and touch-drag scroll the list itself). The card closes when its row scrolls out of view.
+	local Track = Root:FindFirstChild("Scroll")
+	local Thumb = Track and Track:FindFirstChild("Bar")
+	if Thumb then
+		local H = Thumb.Size.Y.Scale
+		local MinY = Thumb.Position.Y.Scale -- the Bar's place in the art = the top of the list
+		local Top = MinY - Thumb.AnchorPoint.Y * H
+		local Range = math.max(0, 1 - H - 2 * Top)
+		local function Overflow() return math.max(0, List.AbsoluteCanvasSize.Y - List.AbsoluteWindowSize.Y) end
+		local function SyncThumb()
+			local Max = Overflow()
+			local Frac = Max > 0 and math.clamp(List.CanvasPosition.Y / Max, 0, 1) or 0
+			Thumb.Position = UDim2.new(Thumb.Position.X.Scale, Thumb.Position.X.Offset, MinY + Frac * Range, 0)
+		end
+		List:GetPropertyChangedSignal("CanvasPosition"):Connect(SyncThumb)
+		List:GetPropertyChangedSignal("AbsoluteCanvasSize"):Connect(SyncThumb)
+		List:GetPropertyChangedSignal("AbsoluteWindowSize"):Connect(SyncThumb)
+		SyncThumb()
+		local Dragging = false
+		local function ScrollTo(Y)
+			local A, SY = Track.AbsolutePosition.Y, Track.AbsoluteSize.Y
+			local Frac = math.clamp((Y - A - (Top + H / 2) * SY) / math.max(1, Range * SY), 0, 1)
+			List.CanvasPosition = Vector2.new(0, Frac * Overflow())
+		end
+		local function IsPress(T) return T == Enum.UserInputType.MouseButton1 or T == Enum.UserInputType.Touch end
+		Track.Active = true
+		Track.InputBegan:Connect(function(Input)
+			if IsPress(Input.UserInputType) and Overflow() > 0 then Dragging = true ScrollTo(Input.Position.Y) end
+		end)
+		UserInputService.InputChanged:Connect(function(Input)
+			if Dragging and (Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch) then
+				ScrollTo(Input.Position.Y)
+			end
+		end)
+		UserInputService.InputEnded:Connect(function(Input) if IsPress(Input.UserInputType) then Dragging = false end end)
+	end
+	List:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+		local Row = Card.Target and Rows[Card.Target]
+		if not (Row and Card.Frame.Visible) then return end
+		local Mid = Row.Frame.AbsolutePosition.Y + Row.Frame.AbsoluteSize.Y / 2
+		if Mid < List.AbsolutePosition.Y or Mid > List.AbsolutePosition.Y + List.AbsoluteSize.Y then HideCard() else PlaceCard() end
+	end)
 
 	-- readable on a phone, not huge on a monitor
 	local function Rescale()

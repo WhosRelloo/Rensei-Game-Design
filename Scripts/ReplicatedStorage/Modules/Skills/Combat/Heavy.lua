@@ -84,6 +84,33 @@ local function GroundHeavy(Character)
 	})
 end
 
+-- The air heavy (R in the air): FistHeavyDown, then the slam. Hotfix 2026-10-23 ("downslam on uptilt does nothing"):
+-- inside an air juggle (after the Uppercut / uptilt) the target is up here next to you, but the slam's hitbox was
+-- only ever placed on the GROUND below (and an R pressed during an air light was dropped: TakeQueued needed the
+-- ground). In a juggle the hit is now a box in front of you, mid-air, using the Downslam hit (SkillData.Downslam:
+-- spikes the target down). Outside a juggle it's the old ground Smash.
+local function AirSlam(Character, HitDelay)
+	local Inst = Character.Instance
+	local Humanoid = Character.Humanoid
+	for _,Anim in pairs(Humanoid.Animator:GetPlayingAnimationTracks()) do
+		if Anim.Priority ~= Enum.AnimationPriority.Core then Anim:Stop() end
+	end
+	AnimationManger.Play(Inst,"FistHeavyDown")
+	Attacking.new(Character):Start(1)
+	local InJuggle = Character:HasStatusEffects({AirCombo})
+	local Result = GroundRaycast(Inst,100)
+	task.delay(HitDelay,function()
+		MoverManager.Movement(Inst,{JH = 0,WS = 5,D = 0.5})
+		local Root = Inst:FindFirstChild("HumanoidRootPart")
+		if InJuggle and Root then
+			HitboxManager.Hitbox(Inst,"Downslam",Root.CFrame * CFrame.new(0,-1,-3),false,true)
+			MoverManager.CreateMover(Inst,"Velocity",{V = Vector3.new(0,-60,0),D = 0.15}) -- PROPOSAL: follow the slam down
+		elseif Result then
+			HitboxManager.Hitbox(Inst,"Smash",CFrame.new(Result.Position),false)
+		end
+	end)
+end
+
 -- R pressed during an M1 swing: the heavy is queued and comes out the moment that swing ends (the
 -- swing itself plays out in full), so a heavy can be mixed into the combo at any hit. FistSwing
 -- calls this after each light; a press older than the swing that just ended doesn't count.
@@ -93,7 +120,12 @@ function Heavy.TakeQueued(Character, SwingStartedAt)
 	Inst:SetAttribute("HeavyQueuedAt", nil)
 	if not Queued or Queued < SwingStartedAt then return false end
 	if Character:HasStatusEffects({Stun, Blocking, Climbing, Attacking}) then return false end
-	if not Inst:GetAttribute("CombatMode") or Inst:GetAttribute("Knocked") or not GroundRaycast(Inst) then return false end
+	if not Inst:GetAttribute("CombatMode") or Inst:GetAttribute("Knocked") then return false end
+	-- airborne in an air juggle (after the uptilt): the downslam (hotfix 2026-10-23); otherwise only on the ground
+	if not GroundRaycast(Inst) then
+		if Character:HasStatusEffects({AirCombo}) then AirSlam(Character, 0.1) return true end
+		return false
+	end
 	GroundHeavy(Character)
 	return true
 end
@@ -123,22 +155,7 @@ function Heavy:OnStartServer()
 		end
 	end
 	if InAir and workspace:GetServerTimeNow() - LastWallJump > 1 then
-		AnimationManger.Play(Character.Instance,"FistHeavyDown")
-
-		Attacking.new(Character):Start(1)
-		
-		
-		local Result = GroundRaycast(Character.Instance,100)
-		
-		if Result then
-			task.delay(.45,function()
-				MoverManager.Movement(Character.Instance,{JH = 0,WS = 5,D = 0.5})
-				HitboxManager.Hitbox(Character.Instance,"Smash",CFrame.new(Result.Position),false)
-			end)
-			
-		end
-
-		
+		AirSlam(Character, 0.45)
 	end
 end
 
