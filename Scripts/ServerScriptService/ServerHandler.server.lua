@@ -105,6 +105,10 @@ require(ServerScriptService.MoralityService).Start() -- deeds ledger: conduct, s
 require(ServerScriptService.PerceptionService).Start() -- what NPCs notice: sight, alert phases (S1)
 require(ServerScriptService.RumourService).Start() -- word of deeds travelling between regions (R2)
 require(ServerScriptService.HeatService).Start() -- crimes -> Heat and Wanted per jurisdiction, fines (R3)
+do -- Region Foundation Task 2: the world clock (time of day from real time, NightOnly lamps), before LightService
+	local Ok, Err = pcall(function() require(ServerScriptService.WorldClock).Start() end)
+	if not Ok then warn("[ServerHandler] WorldClock.Start failed: " .. tostring(Err)) end
+end
 require(ServerScriptService.LightService).Start() -- lamps, daylight and shadow -> Exposure (S2)
 require(ServerScriptService.NoiseService).Start() -- footsteps, landings, hits, casts, shots as sound events (S2)
 require(ServerScriptService.TrialService).Start() -- alchemy trials (RenseiTrial arenas)

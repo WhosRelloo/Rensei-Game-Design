@@ -242,11 +242,17 @@ Commands.ClearSpawns = {Run = function()
 	return true, ("Cleared %d admin spawns"):format(N)
 end}
 
+-- Region Foundation Task 2: an hour holds the world clock there; "run" lets it follow real time again
 Commands.Time = {Run = function(_, _, Arg)
+	local WorldClock = require(ServerScriptService.WorldClock)
+	if type(Arg) == "string" and Arg:lower():match("^%s*run%s*$") then
+		WorldClock.Release()
+		return true, "Time runs again"
+	end
 	local N = Number(Arg, 0, 24)
-	if not N then return false, "Enter an hour (0-24)" end
-	Lighting.ClockTime = N
-	return true, ("Time set to %.1f"):format(N)
+	if not N then return false, "Enter an hour (0-24), or run" end
+	WorldClock.Hold(N)
+	return true, ("Time held at %.1f (\"run\" lets it run)"):format(N)
 end}
 
 Commands.Announce = {Run = function(A, _, Arg)

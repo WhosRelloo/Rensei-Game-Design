@@ -2,6 +2,21 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-23 — Region Foundation Task 2: a day and night: 24 minutes, the same time in every place
+
+The time of day now moves. One real minute is one game hour, so a full day takes 24 real minutes (**PROPOSAL**). The hour comes from the real clock, so every place and every server shows the same time: if it is evening in Lindenmoor it is evening in Foundry Yard too. Built in Ye. Backups are in `ServerStorage.RenseiBackups["Pre-RegionFoundation_2026-10-23"]`.
+
+- **Night is from 18:00 to 06:00** (**PROPOSAL**). Lindenmoor's 17 street lamps now light only at night; the house door lanterns and the camp fire stay lit all the time.
+- **What else notices the time.** Nothing else was changed, but two things already read the hour and now see it move: how lit you are (daylight in the open counts toward being seen) and the road's night ambushes.
+- **The admin panel's Time box** now holds the clock at the hour you type (it stays there until released). Type `run` in the same box to let it follow real time again.
+- **For later tasks:** `WorldClock.Now()` gives the hour the world shows, and `WorldClock.Changed` fires each new hour. The townsfolk schedules will use them.
+- **Tests (Ye):**
+  - new `Play_Clock`: the hour follows real time, holding and releasing, NightOnly lamps off by day and on at night, what counts as night, and `Now()` while held and running. It failed before `WorldClock` existed and passes 5/5 now;
+  - Play_Road 11/11 still passes. Play_Stealth passes 8/9: `GunshotPullsTheCamp` fails, as it sometimes does (a known flaky test); the old version of the test fails the same way;
+  - by hand: held at 23:00, the sky is dark and the square's lamps are lit (`Documents/images/World Clock/Lindenmoor at 23h.jpg`); held at 13:00, all 17 lamps are off (`Lindenmoor at 13h.jpg`).
+  - The owner's save was restored after the Play session, and the test hook was removed.
+- **For the owner:** publish `RenseiServer` from Ye, then update it in Foundry by hand. The other places only get the clock once their copy of `RenseiServer` is updated. Their street lamps need `NightOnly` set on the lamp part to go dark by day.
+
 ## 2026-10-23 — Region Foundation Task 1: the trainers' exams open
 
 Choosing "I'm ready for the examination." with any of the five alchemy trainers (Calda, Veyra, Holt, Ansel, Brannoc) did nothing: the exam panel never appeared, so nobody could finish an acquisition questline at Act V. Fixed in Ye. Backups are in `ServerStorage.RenseiBackups["Pre-RegionFoundation_2026-10-23"]`.

@@ -5,6 +5,7 @@ local PS = require(SSS.PerceptionService)
 local ES = require(SSS.EnemyService)
 local NS = require(SSS.NoiseService)
 local LS = require(SSS.LightService)
+local WorldClock = require(SSS.WorldClock) -- Region Foundation Task 2: the clock moves, so the test holds it
 local P = require(game.ReplicatedStorage.Modules.Data.Rensei.Perception)
 local Lighting = game:GetService("Lighting")
 local Player = game.Players:GetPlayers()[1]
@@ -126,9 +127,9 @@ return {
 		end)
 	end,
 	LampExposureAndShadow = function(T)
-		local Clock = Lighting.ClockTime
+		local WasHeld = WorldClock.IsHeld() and Lighting.ClockTime
 		Guard(nil, function()
-			Lighting.ClockTime = 0 -- night
+			WorldClock.Hold(0) -- night
 			local Base = Vector3.new(0, 400, 0) -- open sky, far above the map
 			T.Near(LS.ExposureAt(Base, {}), P.NightFloor, 1e-6, "night, no lamp")
 			local Lamp = Part({Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(Base + Vector3.new(4, 0, 0)), CanCollide = false})
@@ -142,12 +143,12 @@ return {
 			Wall:Destroy()
 			L.Enabled = false
 			T.Near(LS.ExposureAt(Base, {}), P.NightFloor, 1e-6, "lamp put out")
-			Lighting.ClockTime = 14.5
+			WorldClock.Hold(14.5)
 			T.Near(LS.ExposureAt(Base, {}), 1, 1e-6, "afternoon in the open")
 			Part({Size = Vector3.new(8, 1, 8), CFrame = CFrame.new(Base + Vector3.new(0, 6, 0))})
 			T.Near(LS.ExposureAt(Base, {}), P.IndoorDay, 1e-6, "afternoon under a roof")
 		end)
-		Lighting.ClockTime = Clock
+		if WasHeld then WorldClock.Hold(WasHeld) else WorldClock.Release() end
 	end,
 	LeashStopsTheChurn = function(T)
 		local Rig = Find("Grunt")
