@@ -2,6 +2,18 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-23 — World Plan 1, Task 8b: roads you walk, with a seamless crossing
+
+**Owner:** "the 'On the road' option should be a free roam type of RPG thing, where the passageway (or road) they are on TP's them to the outside area of the next place ... Sort of like a seemless cutscene". The train is the fast travel; roads are walked.
+
+- **The roads:** Lindenmoor's North Road branches east off the hub road, and Foundry's South Road runs 382 studs out of the gate. Both are built in the part-ground style, about 1,050 parts each. Task 8's road card, journey screen, ambush arena and road prompt are gone (backed up in `RenseiBackups["Pre-RoadsOnFoot_2026-10-21"]`).
+- **The crossing:** walk to the far end and the game takes over for a moment. You keep walking (still sprinting if you were), the screen dims, and you arrive walking in at the next place's outside area. Party members within about 40 studs who also walked the road come along.
+- **No shortcuts:** the server tracks that you walked the road's stretches in order. Teleporting in, starting partway along, or a lag spike can't trigger a crossing. You can still join the road from the fields beside its first stretch.
+- **Ambushes:** one roll per crossing. On a hit, bandits wait at a random spot ahead of you. Bandits that chase too far off the road give up and walk home.
+- **Tests:** Road 11/11, Stealth 9/9, Travel 7/7, Station 16/16, RideEvents 9/9, Boot 2/2.
+- **Code:** `Art/Studio/Travel/src/` (RoadService, TravelClient, TravelService, FlowTeleport, Play_Road) and the two station scripts.
+- **For the owner:** publish the `RenseiServer` package so Foundry gets the new RoadService. Foundry's road and TravelClient are already in place.
+
 ## 2026-10-22 — The slide flows into a sprint
 
 **Owner:** "if a player is running and slides, they continue running if they are holding the sprint key or has auto run on". The owner tried it: "I like the slide into the sprint".
