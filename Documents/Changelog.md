@@ -2,6 +2,106 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-23 — World Plan 1 complete (Task 11: Foundry end to end, the World Travel guide)
+
+**Owner:** "I want the full map to be so big you have to use the train, etc. to TP to the place. I want it to really feel like a real RPG experience where all the systems connect together with the map to make something super immersive and breathtaking."
+
+### Task 11
+- **Foundry's ticket booth moved outside the gate.** Task 9's railing had left it on the platform, behind the checkpoint, where a Wanted player couldn't reach the clerk. It now stands in the open ground below the platform (x 16, z 36, PROPOSAL), with its window facing the way in.
+  - `station_foundry.lua` was re-run in Foundry. Every other part was checked against a backup and is unmoved (4,264 parts), with the same tags.
+  - Checked in Play:
+    - the clerk prompt is in reach and in sight from in front of the booth (3.4 studs), but not from the platform (13.6 studs, behind the booth's back wall);
+    - a player walks from the booth up the ramp and through the gate onto the platform.
+  - Backup: `RenseiBackups["Pre-Task11_2026-10-23"]` in Foundry. Its tags were removed so nothing in the game sees the copy.
+- **The whole travel system passes in Foundry Yard.** Foundry's `ServerStorage.RenseiTests` now holds TestKit and the seven travel suites. Results, in both Foundry and Ye: Boot 2/2, Travel 7/7, Station 16/16, Road 11/11, Gate 11/11, RideEvents 9/9, Arrive 5/5.
+- **The suites now run in any place.** Three needed changes, made once in the repo and copied into both places:
+  - `Play_Road`: Foundry's South Road is Lindenmoor's North Road turned a quarter, so the test's fixed spots are mapped onto whichever road the place has, and the place names come from the place itself;
+  - `Play_Station`: the "sitting through the wall" test stands on Foundry's platform edge (Foundry has no edge strip);
+  - `Play_Arrive`: the "quest taken elsewhere" test pretends to be in a third region (in Foundry it was pretending to be in the Foundry).
+- **The World Travel guide:** `Documents/World Travel.md`. It covers what players see, prices, the papers check, roads, the save handover, the Studio loopback, where everything lives, and your next steps. Screenshots are in `Documents/images/World Travel/`.
+- **Tooling:** `Art/Studio/Travel/test_hook.lua` now matches the hook every test used. There is a new tooling note in `Lindenmoor Kit.md`.
+- The owner's save was snapshotted and restored in both places, and both hooks were removed.
+
+### World Plan 1: what was built (Tasks 1–11, 2026-10-20 to 2026-10-23)
+- **The train:** built in Blender (locomotive, tender and five cars) and imported into Studio.
+- **Shared code:** the server code is in the `RenseiServer` package and the data in `Modules`, so every region place runs the same code.
+- **Stations:**
+  - tickets by class;
+  - a departure clock every server agrees on;
+  - seats you choose;
+  - a 50-second ride with one event;
+  - one group teleport with the save handed over safely.
+- **Roads you walk,** with a seamless crossing and ambushes.
+- **The papers check and the stowaway route.**
+- **Rumours by rail,** four new regions, arrival quests and party tickets.
+- **Two places:** Lindenmoor (Ye) and a placeholder Foundry Yard, both with a station and a road.
+
+**Stand-ins and adaptations:**
+- **No arrest yet:** a Wanted 3+ player is refused at the gate, with +10 State Heat, instead of the spec's arrest.
+- **EnemyService:** `EnemyService.Spawn` takes a spawn part, not a type and a position. Train and road bandits are spawned from an unparented marker part (`EnemyType = "Grunt"`, shown as "Bandit"), so a killed bandit never respawns.
+- **Region test numbers** changed with the four new regions, because global standing averages over more regions:
+  - Authority, for a one-place deed: 24 → 8;
+  - Circle: −8 → −16/3;
+  - the rumour tests now expect the train.
+
+**Rulings made during the plan** (the controller's, from the plan log; the ones marked † are on the owner's list to confirm):
+- Work went straight onto the docs repo's main branch and into Ye, with no worktree, and the changelog was kept up to date.
+- The plan's agents ran on Opus, as the owner asked.
+- Server scripts keep their old ServerScriptService paths at runtime, because RenseiBoot copies them in from RenseiServer. So hooks that use those paths needed no change.
+- The trains sit on the measured rail top (local Y 5.2 in Ye), not the brief's 4.9.
+- When moving server code into RenseiServer broke three test suites' paths, the suites were fixed and the move was kept.
+- The profile test hook only runs in Studio, so it can never touch live player data even though it ships in a Package.
+- Play suites run in the game's own VM (through `LMRunSuite`), never from the tool's sandbox, which sees no loaded saves.
+- The controller, not a subagent, updated the Menu and Tutorial copies of FlowTeleport.
+- Arrival trusts only a trip record the server writes into the save before the teleport, never the teleport data. A join to the wrong place is sent where the save says (live only).
+- The first TravelService fix round also:
+  - releases only the players actually sent;
+  - burns exactly the class ridden;
+  - labels every PROPOSAL.
+
+  A stalled-teleport watchdog and the north gate's height were left for later.
+- Everything in Foundry is built by `station_foundry.lua`. Nothing is added there by hand.
+- Someone in a car their ticket doesn't allow when the train leaves is moved to the nearest allowed car. The departure also re-checks who is aboard at the moment of the move, skips a hitch, sends gifts by UserId, and kicks (live) if the teleport fails after the save was handed over.
+- A second fix round closed the class barrier for good.
+- † Dying aboard drops you from the ride. You come to back in town with your ticket still good, and you're never pulled back into the train.
+- Task 8's road trips:
+  - held the party safely for the trip time;
+  - rolled the ambush partway along;
+  - turned a second party away from a busy arena;
+  - had their arena moved outside the gate.
+
+  Task 8b later replaced all of this with roads you walk.
+- A party that flees an ambush may split (consistent with the spec), and the teleport-screen failsafe was left for later.
+- The ticket window was rebuilt in the game's own dialogue box: the clerk says the line, and the classes and "Ticket for" are the choices.
+- † The full-screen black ride fade stays a plain black frame. It is a transition, not a UI panel.
+- The server only seats you in the car you're standing in. A seat is freed on death or leaving, anyone in the wrong class is stood up, and nobody sits down during the fade.
+- The ticket window has no number-key picking. It closes on death, when you walk away from the clerk, or when a real dialogue opens, and it fits any screen.
+- † A 0.8 s slide cooldown (PROPOSAL) stops slide-chaining. A single slide feels the same.
+- A road crossing counts only if you walked the road's stretches in order. There is one ambush roll per crossing; on a hit, the bandits wait at a random spot ahead.
+- The road's trees and rocks still block enemy sight (only their touch events are off), so stealth works there.
+- A rider thrown off by the inspector ends the ride back on the platform they left from.
+- Stowaways caught by the inspector gain State Heat (+5, PROPOSAL). The freight yard has a watchman whose sighting adds +5 State Heat, once per visit.
+- The gate tests set aside any ticket the tester holds for the test route and give it back afterwards.
+- A road walk can't start where the stretches overlap at a bend. A bandit chased off its stretch gives up and walks home.
+- Joining the road from the fields beside its first stretch still counts as walking it.
+- Papers are checked again at boarding, and a railing closes the platform's back edge.
+- Footsteps count: the yard watchman turns toward a noise, and any of his senses can notice you.
+- The yard watchman and the gate guard are lawmen (Authority witnesses), and the yard's zone stops at the fence.
+- Smaller Task 9 fixes:
+  - being let off clears the thrown-off mark;
+  - the stowaway lines were reworded;
+  - the stowaway-spot cache no longer holds on to removed trains.
+- A ticket holder without papers who rides hidden with the baggage gains Heat instead of the fine, and keeps the ticket.
+- Foundry's ticket booth had to move outside the gate (done in Task 11).
+- Old saves keep their reputation with the new regions: a one-time step on join spreads old deeds into them.
+- That step works faction by faction, so a faction that heard a deed everywhere it lived keeps its full standing.
+- The controller pushes Task 11's commit and republishes the status page after the final review.
+
+**For the owner:**
+1. Publish, then ride Lindenmoor → Foundry with 2+ players and check that everyone lands on one server.
+2. Rejoin and check that you come back in the Foundry.
+3. Confirm the † rulings above.
+
 ## 2026-10-23 — World Plan 1, Task 10: the regions join the world's word-of-mouth
 
 - **New regions:** Aerugo Borderlands, Ishval, the Northern Wall and the Corrupted Lands are now on the rumour map, with their factions and law (PROPOSAL).

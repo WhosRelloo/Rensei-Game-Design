@@ -74,7 +74,9 @@ return {
 			-- accepted "elsewhere": Here() reports another region while the quest starts
 			local OldHere = TS.Here
 			local Ok, Err = pcall(function()
-				TS.Here = function() return Elsewhere == "City" and "Foundry" or "City" end
+				-- Task 11: a third region, neither here nor Elsewhere (in Foundry the old "Foundry" fallback was here)
+				local Away = Here ~= "City" and Elsewhere ~= "City" and "City" or (Here ~= "Ishval" and Elsewhere ~= "Ishval" and "Ishval" or "North")
+				TS.Here = function() return Away end
 				Started = QS.Start(P, "__test_arrive_here")
 			end)
 			TS.Here = OldHere

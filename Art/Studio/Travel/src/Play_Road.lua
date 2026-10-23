@@ -4,6 +4,10 @@
 -- RoadPoints (8 studs every 0.1 s, well under RoadService.MaxSpeed) from the mouth.
 -- Fix round 2: a walk can't start where the leg boxes overlap at a bend; a stalled watch allows no bigger jump; party
 -- members must be on the last legs; a bandit chased off its stretch gives up and walks home.
+-- Task 11 (2026-10-23): the suite runs in both road places. Lindenmoor's North Road and Foundry's South Road are the
+-- same passage (the same legs, turned a quarter and moved), so the fixed spots below are written in Lindenmoor's frame
+-- and mapped onto this place's road through its mouth (Map; the identity in Ye), and the place's own names come from
+-- TravelService.Here() and the threshold's To.
 local SSS = game.ServerScriptService
 local CS = game:GetService("CollectionService")
 local ROUTE = "RoadLindenmoorFoundry"
@@ -36,6 +40,32 @@ local function RoadPoints()
 	end
 	table.sort(Out, function(A, B) return A[1] < B[1] end)
 	return Out
+end
+
+-- Task 11: Lindenmoor's frame -> this place. Lindenmoor's mouth (the first RoadPoint, measured) is at (8, 1, -270), the
+-- road leaving along +X; here the first RoadPoint gives the mouth and the way out (U), with V = U turned as +Z is from +X.
+local L_MOUTH = Vector3.new(8, 1, -270)
+local FrameO, FrameU, FrameV
+local function Frame()
+	if not FrameO then
+		local First = RoadPoints()[1][2]
+		FrameO, FrameU = First.Position, (First.LookVector * Vector3.new(1, 0, 1)).Unit
+		FrameV = Vector3.new(-FrameU.Z, 0, FrameU.X)
+	end
+	return FrameO, FrameU, FrameV
+end
+local function MapDir(D) -- a Lindenmoor direction, here
+	local _, U, V = Frame()
+	return U * D.X + Vector3.yAxis * D.Y + V * D.Z
+end
+local function Map(P) -- a Lindenmoor position, here
+	local O = Frame()
+	return O + MapDir(P - L_MOUTH)
+end
+local function Unmap(P) -- a position here, in Lindenmoor's frame
+	local O, U, V = Frame()
+	local D = P - O
+	return L_MOUTH + Vector3.new(D:Dot(U), D.Y, D:Dot(V))
 end
 
 -- a living character to test with
@@ -89,7 +119,7 @@ end
 
 -- park P off the passage, on the hub road beside its mouth
 local function OffRoad(P)
-	Stand(P, Vector3.new(-1, 0.1, -262), Vector3.new(0, 0, 1))
+	Stand(P, Map(Vector3.new(-1, 0.1, -262)), MapDir(Vector3.new(0, 0, 1)))
 	task.wait(0.3)
 end
 
@@ -137,6 +167,11 @@ local function Ground(X, Z, C)
 		table.insert(Skip, I)
 	end
 	return Vector3.new(X, 4, Z)
+end
+-- Task 11: the ground at Lindenmoor-frame (X, Z), here
+local function GroundL(X, Z, C)
+	local W = Map(Vector3.new(X, 1, Z))
+	return Ground(W.X, W.Z, C)
 end
 local function Flat(V) return Vector3.new(V.X, 0, V.Z).Magnitude end
 
@@ -190,13 +225,13 @@ return {
 			while not Got and os.clock() - t0 < 6 do task.wait(0.1) end
 			T.True(Got ~= nil, "arrived")
 			T.Eq(Got and Got[2], ROUTE, "Arrived fired for the road")
-			T.Eq(Got and Got[1], "Lindenmoor", "in this place (the Studio loopback)")
-			T.True(Info ~= nil and Info.Route == ROUTE and Info.Arrive == "RoadStart" and Info.To == "Foundry", "the saved Trip took them (" .. tostring(Info and Info.Arrive) .. ")")
+			T.Eq(Got and Got[1], TS.Here(), "in this place (the Studio loopback)")
+			T.True(Info ~= nil and Info.Route == ROUTE and Info.Arrive == "RoadStart" and Info.To == Th:GetAttribute("To"), "the saved Trip took them (" .. tostring(Info and Info.Arrive) .. ")")
 			local Flat = At and Vector3.new(At.X - Start.Position.X, 0, At.Z - Start.Position.Z).Magnitude or math.huge
 			T.True(Flat < 3, ("set down at RoadStart (%.1f studs off)"):format(Flat))
 			T.True(RS.Walking(P, ROUTE) ~= nil, "arriving counts as having walked in")
 			local D = PS.GetData(P)
-			T.True(D and D.Travel and D.Travel.Trip == nil and D.Travel.Region == "Lindenmoor", "the Trip is used up")
+			T.True(D and D.Travel and D.Travel.Trip == nil and D.Travel.Region == TS.Here(), "the Trip is used up")
 			task.wait(2.5)
 			T.Eq(Count, 1, "arriving doesn't carry you straight back out")
 			T.True(not RS.OnRoad(P), "not crossing again")
@@ -341,7 +376,7 @@ return {
 			local Far = Member("Far", Road + Dir * 60, true)
 			local Down = Member("Down", Road - Dir * 15, true)
 			Down.Character:SetAttribute("Knocked", true)
-			local Off = Member("OffRoad", Road + Vector3.new(0, 0, -30), true) -- 30 away, in the fields south of the passage
+			local Off = Member("OffRoad", Road + MapDir(Vector3.new(0, 0, -30)), true) -- 30 away, in the fields south of the passage
 			local Dropped = Member("Teleported", Road - Dir * 20, false) -- on the passage and near, but not walking it
 			local LegBack = Member("OneLegBack", Road + Dir * 10, true, Last - 1) -- a leg behind, near: goes
 			local Lagging = Member("Lagging", Road - Dir * 8, true, Last - 2) -- near by distance, but two legs back
@@ -413,7 +448,7 @@ return {
 			T.True(RS.Force == true, "no second roll this crossing")
 			RS.Force = nil
 			-- nobody near for ClearAfter: they go (removed, no reward)
-			Stand(P, Vector3.new(-1, 0.1, -150), Vector3.new(0, 0, 1)) -- 100+ studs away up the hub road
+			Stand(P, Map(Vector3.new(-1, 0.1, -150)), MapDir(Vector3.new(0, 0, 1))) -- 100+ studs away up the hub road
 			t0 = os.clock()
 			local Gone = false
 			while not Gone and os.clock() - t0 < 5 do
@@ -511,17 +546,22 @@ return {
 		end
 		local Ok, Err = pcall(function()
 			local B = Legs()
-			local Lo = function(L) return B[L].Position - B[L].Size / 2 end
-			local Hi = function(L) return B[L].Position + B[L].Size / 2 end
+			local function Box(L) -- leg L's (axis-aligned) box in Lindenmoor's frame: centre, size (Task 11)
+				local _, U, V = Frame()
+				local S = B[L].Size
+				return Unmap(B[L].Position), Vector3.new(math.abs(U.X) * S.X + math.abs(U.Z) * S.Z, S.Y, math.abs(V.X) * S.X + math.abs(V.Z) * S.Z)
+			end
+			local Lo = function(L) local Ce, S = Box(L) return Ce - S / 2 end
+			local Hi = function(L) local Ce, S = Box(L) return Ce + S / 2 end
 			-- 1. the inner corner of the bend, where boxes 1, 2 and 3 meet: hop down into it off the bank above
 			local CX = (math.max(Lo(1).X, Lo(2).X, Lo(3).X) + math.min(Hi(1).X, Hi(2).X, Hi(3).X)) / 2
 			local CZ = (math.max(Lo(1).Z, Lo(2).Z, Lo(3).Z) + math.min(Hi(1).Z, Hi(2).Z, Hi(3).Z)) / 2
 			OffRoad(P)
-			Stand(P, Ground(CX + 12, CZ + 12, C), Vector3.new(-1, 0, -1)) -- up beside it, in box 2 or 3 but not 1
+			Stand(P, GroundL(CX + 12, CZ + 12, C), MapDir(Vector3.new(-1, 0, -1))) -- up beside it, in box 2 or 3 but not 1
 			task.wait(0.5)
 			T.True(not LegsAt(Root()):find("1"), "up on the bank: off leg 1 (" .. LegsAt(Root()) .. ")")
 			T.True(RS.Walking(P, ROUTE) == nil, "and not walking")
-			Stand(P, Ground(CX, CZ, C), Vector3.new(-1, 0, -1))
+			Stand(P, GroundL(CX, CZ, C), MapDir(Vector3.new(-1, 0, -1)))
 			task.wait(0.6)
 			T.Eq(LegsAt(Root()), "1+2+3", "down in the corner, in legs 1, 2 and 3")
 			T.True(RS.Walking(P, ROUTE) == nil, "no walk starts there (was leg " .. tostring(RS.Walking(P, ROUTE)) .. ")")
@@ -533,10 +573,10 @@ return {
 			local FX = (math.max(Lo(1).X, Lo(2).X) + Lo(3).X) / 2
 			local FZ = math.max(Lo(1).Z, Lo(2).Z) + 8
 			OffRoad(P)
-			Stand(P, Ground(FX, FZ - 10, C), Vector3.new(0, 0, 1)) -- in the fields, just off the passage
+			Stand(P, GroundL(FX, FZ - 10, C), MapDir(Vector3.new(0, 0, 1))) -- in the fields, just off the passage
 			task.wait(0.5)
 			T.Eq(LegsAt(Root()), "", "in the fields: off the passage")
-			Stand(P, Ground(FX, FZ, C), Vector3.new(0, 0, 1))
+			Stand(P, GroundL(FX, FZ, C), MapDir(Vector3.new(0, 0, 1)))
 			task.wait(0.6)
 			T.Eq(LegsAt(Root()), "1+2", "in legs 1 and 2")
 			T.True(RS.Walking(P, ROUTE) == nil, "no walk starts there (was leg " .. tostring(RS.Walking(P, ROUTE)) .. ")")
@@ -694,11 +734,11 @@ return {
 		local Conn = TS.Arrived.Event:Connect(function(Who) if Who == P then Got = true end end)
 		local Ok, Err = pcall(function()
 			OffRoad(P)
-			Stand(P, Vector3.new(30, 1, -270), Vector3.new(1, 0, 0)) -- on the passage, 22 in from its mouth
+			Stand(P, Map(Vector3.new(30, 1, -270)), MapDir(Vector3.new(1, 0, 0))) -- on the passage, 22 in from its mouth
 			task.wait(1)
 			T.Eq(RS.PassageAt(C.HumanoidRootPart.Position), ROUTE, "on the passage")
 			T.Eq(RS.Walking(P, ROUTE), 1, "walking it")
-			C.Humanoid:MoveTo(Vector3.new(-2, 0.1, -268)) -- back out onto the hub road
+			C.Humanoid:MoveTo(Map(Vector3.new(-2, 0.1, -268))) -- back out onto the hub road
 			local t0 = os.clock()
 			while RS.PassageAt(C.HumanoidRootPart.Position) and os.clock() - t0 < 5 do task.wait(0.1) end
 			T.True(RS.PassageAt(C.HumanoidRootPart.Position) == nil, "walked back off it")

@@ -1,17 +1,20 @@
--- World Plan 1 (2026-10-20): installs the TEMP profile hook used by every Play test in this plan.
--- Run in Edit mode on Ye. It snapshots the tester's Profile.Data on load and exposes
--- ServerStorage.LMTestHook (BindableFunction) with "diff" (changed top-level keys) and "restore".
--- Same as the Lindenmoor kit test hook, except DataManager is found with WaitForChild, because after
--- Task 3 the hook is cloned into ServerScriptService by RenseiBoot. Delete LMTestHook_TEMP (in
--- ServerStorage.RenseiServer after Task 3) and ServerStorage.LMTestHook when the tests are done.
+-- World Plan 1 (2026-10-20; updated Task 11, 2026-10-23, to the version every Play test in the plan used): installs the
+-- TEMP profile hook. Run in Edit mode on the place you will Play (Ye or Foundry Yard). It goes into
+-- ServerScriptService (RenseiServer is a Package, so it no longer goes there), is Studio-only, snapshots the tester's
+-- Profile.Data on load (ServerStorage attribute LMSnapTaken = the player's name) and adds two BindableFunctions:
+--   ServerStorage.LMTestHook:Invoke("diff" | "restore") -- "diff" compares JSON, so it lists keys whose tables merely
+--                                                       -- iterate in another order, even straight after a restore;
+--   ServerStorage.LMRunSuite:Invoke("Play_X")           -- runs RenseiTests.Play_X in the GAME VM (the execute_luau
+--                                                       -- sandbox has its own require cache and sees no profiles).
+-- After the tests: LMTestHook:Invoke("restore") from the Server datamodel, Stop, then delete LMTestHook_TEMP (in Edit).
 local S = Instance.new("Script")
 S.Name = "LMTestHook_TEMP"
 S.Source = [==[
-if not game:GetService("RunService"):IsStudio() then return end -- never runs on a live server (RenseiServer is cloned into every server and becomes a Package)
--- TEMP: snapshot the tester's profile on load, restore on demand. Delete after.
+if not game:GetService("RunService"):IsStudio() then return end
+-- TEMP (Lindenmoor kit play test, 2026-10-20): snapshot the tester's profile on load, restore on demand. Delete after.
 local Players = game:GetService("Players")
 local HS = game:GetService("HttpService")
-local DM = require(game.ServerScriptService:WaitForChild("CharacterHandler"):WaitForChild("DataManager"))
+local DM = require(game.ServerScriptService:WaitForChild("CharacterHandler", 60):WaitForChild("DataManager", 60)) -- waits for RenseiBoot's copy
 local function copy(t) if type(t) ~= "table" then return t end local r = {} for k, v in pairs(t) do r[k] = copy(v) end return r end
 local Snap = {}
 local BF = Instance.new("BindableFunction")
@@ -35,6 +38,14 @@ BF.OnInvoke = function(Op, Name)
 	end
 end
 BF.Parent = game.ServerStorage
+local RS = Instance.new("BindableFunction") -- runs a test suite in the GAME VM (the sandbox has its own require cache)
+RS.Name = "LMRunSuite"
+RS.OnInvoke = function(Name)
+	local TK = require(game.ServerStorage.RenseiTests.TestKit)
+	local Ok, Res = pcall(function() return (TK.Run(require(game.ServerStorage.RenseiTests[Name]))) end)
+	return Ok and Res or ("ERROR " .. tostring(Res))
+end
+RS.Parent = game.ServerStorage
 local function Take(P)
 	local Prof = DM:WaitProfile(P, 60)
 	if Prof then Snap[P] = copy(Prof.Data) game.ServerStorage:SetAttribute("LMSnapTaken", P.Name) end
@@ -42,6 +53,5 @@ end
 Players.PlayerAdded:Connect(Take)
 for _, P in ipairs(Players:GetPlayers()) do task.spawn(Take, P) end
 ]==]
--- After Task 3 the hook lives in RenseiServer like every server script (RenseiBoot clones it in).
-S.Parent = game.ServerStorage:FindFirstChild("RenseiServer") or game.ServerScriptService
-return "hook installed in " .. S.Parent:GetFullName()
+S.Parent = game.ServerScriptService
+return "hook installed"

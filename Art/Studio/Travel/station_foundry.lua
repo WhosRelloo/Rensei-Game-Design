@@ -14,6 +14,7 @@
 -- of the tracks by the baggage car's open side door (crates, a fence with one gap, a lamp, a yard watchman tagged
 -- RenseiWatcher and the RenseiFreightYard zone); a RideBlock in the ride train's baggage car side door.
 -- Server code: StationService.
+-- Task 11 (2026-10-23): the ticket booth stands in the ticket hall below the platform (x 16, z 36), outside the gate.
 -- The template Baseplate and SpawnLocation go to ServerStorage.RenseiBackups["Pre-WorldPlan1_2026-10-20"].
 -- Re-runnable: rebuilds World.Map.Foundry (all Foundry content comes from this script). The real region is a later
 -- plan; every size is a PROPOSAL.
@@ -203,8 +204,11 @@ local function booth(CF, Station)
 	M.Parent = St
 	return M
 end
--- PROPOSAL: on the platform's back half (x 2..6, top 6.4), facing the track (-X)
-booth(CFrame.lookAt(Vector3.new(2.5, 6.4, 40), Vector3.new(1.5, 6.4, 40)), "Foundry")
+-- PROPOSAL: in the ticket hall (the open ground east of the platform's railing, top 4), south of the gate's ramp, its
+-- back to the platform and its window facing the way in (+X). Task 11 (2026-10-23) moved it here from the platform
+-- (x 2.5, top 6.4, z 40), which Task 9's railing had put past the gate: tickets are bought before the papers check
+-- (spec §4: the gate stands between the ticket hall and the platform).
+booth(CFrame.lookAt(Vector3.new(16, 4, 36), Vector3.new(17, 4, 36)), "Foundry")
 
 local function board(Pos, Facing)
 	local M = Instance.new("Model")
@@ -915,10 +919,10 @@ local function Railing(C)
 	return M
 end
 
--- the papers check: a short ramp up to the platform's back edge (x 6, top 6.4) north of the booth, the gate across its
+-- the papers check: a short ramp up to the platform's back edge (x 6, top 6.4) north of the booth (in the hall below it since Task 11), the gate across its
 -- top under a sign, the guard on the ground beside it; the freight yard west of the tracks (x -18..-35) by the baggage
 -- car (z 78..165). This placeholder's spawn and arrival point stand on the platform, past the gate.
-local GateZ = 52 -- PROPOSAL: between the ticket booth (z 40) and the departure board (z 70)
+local GateZ = 52 -- PROPOSAL: north of the ticket booth (z 36) and south of the departure board (z 70)
 local Ramp = Instance.new("WedgePart")
 Ramp.Name, Ramp.Size, Ramp.Anchored = "GateRamp", Vector3.new(8, 2.4, 6), true -- high end (+Z local) at the platform
 Ramp.CFrame = CFrame.lookAt(Vector3.new(9, 5.2, GateZ), Vector3.new(10, 5.2, GateZ))

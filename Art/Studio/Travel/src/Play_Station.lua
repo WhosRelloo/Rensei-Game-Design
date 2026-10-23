@@ -369,12 +369,16 @@ return {
 		TS.AddTicket(P, "LindenmoorFoundry", "Third")
 		local Ok, Err = pcall(function()
 			local Platform = workspace:FindFirstChild("PlatformTrain", true)
-			local Edge = Platform.Parent:FindFirstChild("PlatformEdge")
+			-- Task 11: Ye's station has a thin PlatformEdge strip; Foundry's placeholder has only the 12-wide Platform
+			-- (World.Map.Foundry.Platform), so stand on its track-side edge, 0.4 in (on Ye's 0.8 strip that is its middle)
+			local Edge = Platform.Parent:FindFirstChild("PlatformEdge") or Platform.Parent.Parent:FindFirstChild("Platform")
+			local Side = math.sign(Edge.CFrame:PointToObjectSpace(Platform:GetPivot().Position).X)
+			local EdgeX = Side * math.max(0, Edge.Size.X / 2 - 0.4)
 			local Best, BestD, Stand
 			for _, S in ipairs(Platform.ThirdClass_Main:GetDescendants()) do
 				if S:IsA("Seat") and not S.Occupant then
 					local L = Edge.CFrame:PointToObjectSpace(S.Position)
-					local At = Edge.CFrame * Vector3.new(0, Edge.Size.Y / 2 + 3, math.clamp(L.Z, -Edge.Size.Z / 2, Edge.Size.Z / 2))
+					local At = Edge.CFrame * Vector3.new(EdgeX, Edge.Size.Y / 2 + 3, math.clamp(L.Z, -Edge.Size.Z / 2, Edge.Size.Z / 2))
 					local D = (At - S.Position).Magnitude
 					if not BestD or D < BestD then Best, BestD, Stand = S, D, At end
 				end
