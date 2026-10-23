@@ -2,6 +2,18 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-23 — World Plan 1, Task 10: the regions join the world's word-of-mouth
+
+- **New regions:** Aerugo Borderlands, Ishval, the Northern Wall and the Corrupted Lands are now on the rumour map, with their factions and law (PROPOSAL).
+- **Word rides the rails:** news travels by train between Lindenmoor, the Foundry, the City and Ishval in 3–4 minutes (PROPOSAL). A big rumour can now reach about 11 places.
+- **Each place knows where it is:** a deed done outside every named area counts in the place's own region. In Ye that is now Lindenmoor (Militia law), not the City (State law). So, for example, unlicensed casting in Ye's hub is no longer a State crime.
+- **Arrival quests:** a quest goal can be "arrive in X". It completes when you arrive, or at once if you're already there when the quest or its stage begins.
+- **Party tickets:** the ticket window's "Ticket for" choice cycles through your party (it used to cycle every player, and the server refused non-members). If a party member's save isn't loaded, the clerk refuses before charging; a ticket that still fails is refunded.
+- **Old saves keep their standing:** global standing averages over the regions a faction lives in, and some factions now live in more of them. A one-time step on join spreads old deeds into the new regions wherever a faction had already heard them everywhere it lived, so no player's standing moves. Tested on old-shaped saves (an Ishvalan birth stays Trusted; a City-only Authority deed keeps its full weight).
+- **Changed test numbers** (each follows from the new regions): Authority global standing 24 → 8 and Circle −8 → −16/3 for a one-place deed; rumour tests now expect the train.
+- **Tests:** Edit — Regions, Reputation, Schema5, RumourCore, Heat, Travel, Perception, Witness, Sound, TestKit all pass. Play — Arrive 5/5, Travel, Station, Gate, Road, RideEvents, Rumours, Morality, Heat, Stealth, Boot all pass. `Play_Rumours` fails if run straight after `Play_Morality` (an old test-order issue).
+- **For the owner:** publish the `ReplicatedStorage.Modules` package (Regions, Reputation, Quests) and `RenseiServer` (TravelService, StationService, QuestService, MoralityService), then update both packages in Foundry. TravelClient is already copied into Foundry.
+
 ## 2026-10-23 — World Plan 1, Task 9: the papers check and the stowaway route
 
 - **The gate:** a turnstile and a guard stand between the ticket hall and the platform.
