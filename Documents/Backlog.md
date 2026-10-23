@@ -2,7 +2,20 @@
 
 Owner's to-do list, in the owner's words. The order is the owner's, and none of it is started.
 
-## Next, right after World Plan 1 (owner, 2026-10-21)
+## Next, right after World Plan 1 (owner, 2026-10-21 and 2026-10-23)
+- [ ] **Build every region in Blender** (owner, 2026-10-23): "Here's a PDF of all of the region layouts, I want all of them built in blender once all tasks are complete." The brief is `Documents/Rensei-Regional-Map-Design-Brief.pdf` (9 pages: world connections, shared rules, then one page per region). Seven places:
+
+  | Region | Footprint (studs) | Palette |
+  |---|---|---|
+  | Lindenmoor | 2,048 × 2,048 (keep the village at its current coordinates; expand around it) | cypress greens, creek teal, field gold |
+  | Central City | 2,560 × 2,560 | civic stone, aged brick, slate, restrained green |
+  | Foundry Yard | 1,536 × 1,536 | soot, iron, furnace brick, ember |
+  | Ishval | 2,048 × 2,048 | sandy orange, ochre, clay, oasis teal |
+  | Aerugo Borderlands | 2,560 × 2,048 | warm ochre, vineyard green, white hill stone, irrigation teal |
+  | Northern Wall | 1,536 × 2,048 | snow, ice blue, cold stone, deep pine |
+  | Corrupted Lands | 3,072 × 2,560 | ash, charred earth, dead olive, corruption crimson |
+
+  - Notes for when this starts: the brief's footprints replace the world spec's earlier "about 3,000 × 3,000" target. Each region's station, gate, freight yard, road passages and arrival points (World Plan 1) must be rebuilt into the new layouts, not lost. Keep the approved main-map style (the stepped part-ground). The layout pictures are schematics, "not final Studio coordinates".
 - [ ] **Hostages:** "make a cool option for other players to take others hostage, and have it intertwine with the game's mechanics already". The owner's choices are in the spec draft `Documents/specs/2026-10-21-hostage-design.md`, which is waiting for owner approval:
   - taking: from knocked, plus a stealth grab;
   - what the captor can do: shield, ransom, bounty, journeys;
