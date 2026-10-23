@@ -2,6 +2,24 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-23 — World Plan 1, Task 9: the papers check and the stowaway route
+
+- **The gate:** a turnstile and a guard stand between the ticket hall and the platform.
+  - Not Wanted: walk through.
+  - Wanted 1–2: the guard stops you in the game's dialogue box with "Pay $X" or "Get searched". Either clears you for 10 minutes.
+  - Wanted 3+: refused, with +10 State Heat (resisting a checkpoint) and the guard's line "Your face is on a poster. Not on my platform." There is no arrest system yet, so refusal stands in for one.
+- **Papers are checked at boarding too:** the server won't board a ticket holder whose papers aren't in order, however they reached the platform. The conductor says "Papers first — see the gate guard." A kit-fence railing now runs along the back and ends of the platform.
+- **Stowaways:** a freight-yard path with crates and a fence leads to the baggage car's open side door. Hiding there gets you aboard without a ticket.
+  - A yard watchman uses the game's sight, light and sound rules: crouch in the shadows and stay quiet. If he sees you in the yard: +5 State Heat (PROPOSAL), once per visit. Noise makes him turn to look.
+  - The ticket inspector fines stowaways and adds +5 State Heat (PROPOSAL).
+- **Thrown off:** a rider who can't pay the inspector's fine ends the ride back on the departure platform.
+- **The guards are lawmen:** both report crimes they see. Hitting one counts as assaulting a townsperson.
+- **Fixed along the way:** the list of stowaways was being lost between the station and the ride events (Roblox drops player keys from event tables), so the inspector never saw them.
+- **Tests:** Gate 11/11, Road 11/11, Travel 7/7, Station 16/16, RideEvents 9/9, Boot 2/2. Stealth's `GunshotPullsTheCamp` is flaky: it sometimes picks a bandit behind a tent.
+- **Screenshots:** `Documents/images/Map Concept/Station Gate - *.png`.
+- **Foundry:** the station is rebuilt there and TravelClient re-synced. Its ticket booth currently sits behind the gate; Task 11 moves it.
+- **For the owner:** publish the `RenseiServer` package (StationService, RideEvents).
+
 ## 2026-10-23 — World Plan 1, Task 8b: roads you walk, with a seamless crossing
 
 **Owner:** "the 'On the road' option should be a free roam type of RPG thing, where the passageway (or road) they are on TP's them to the outside area of the next place ... Sort of like a seemless cutscene". The train is the fast travel; roads are walked.
