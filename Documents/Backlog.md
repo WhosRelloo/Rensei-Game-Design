@@ -22,6 +22,10 @@ Owner's to-do list, in the owner's words. The order is the owner's, and none of 
   - getting free: struggle, rescue, time limit, captor's choice;
   - where: never in safe zones.
 
+## After the Foundry Yard plan (owner, 2026-10-23)
+- [ ] **Gun class rework:** "Fix gun shoot mode aiming mechanics. (balance out the gun class completely, add a reload animation as well)".
+- [ ] **Swimming revamp:** "Completely audit and revamp the swimming system. (I want it to be directional, with a dive system)".
+
 ## After the world plans (owner, 2026-10-20)
 
 These start after the world, travel and seasons plans are finished (`Documents/specs/2026-10-20-world-travel-seasons-design.md`).
