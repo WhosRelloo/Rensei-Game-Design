@@ -88,6 +88,30 @@ return {
 		T.Same(Reputation.GlobalStanding(M, All), Snapshot)
 		T.Eq(game:GetService("HttpService"):JSONEncode(M.Places), Before, "places untouched")
 	end,
+	-- fix 2: per faction. Before Task 10 the Authority lived only in the City, so a deed it heard there counted in
+	-- full; Townsfolk lived in City, Foundry and Lindenmoor, so one heard in only some of them didn't
+	PerFactionReseed = function(T)
+		local All = {d_local = Deeds.d_local, d_public = Deeds.d_public}
+		local M = Fresh({d_local = {At = 4, Count = 1}, d_public = {At = 5, Count = 1}})
+		M.Seeded = true
+		M.SeededRegions = 9 -- migrated by the round-1 rule already: version 10 runs once more
+		Reputation.Land(M, "City", "d_local", {"Authority"}, 4) -- the Authority's only old region
+		Reputation.Land(M, "City", "d_public", {"Townsfolk"}, 5) -- Townsfolk: City only, not Foundry / Lindenmoor
+		Reputation.Land(M, "Foundry", "d_public", {"Townsfolk"}, 5)
+		T.Near(Reputation.GlobalStanding(M, All).Authority, 12 / 3, 1e-9, "before: a third (City of City, Aerugo, North)")
+		T.True(Reputation.CatchUpRegions(M, All, 100))
+		local G = Reputation.GlobalStanding(M, All)
+		T.Near(G.Authority, 12, 1e-9, "a City deed the Authority heard counts in full again")
+		T.Eq(M.Places.Aerugo.Known.d_local.Authority, 4, "stamped with the deed's own time")
+		T.Eq(M.Places.North.Known.d_local.Authority, 4)
+		T.Eq(M.Places.Aerugo.Known.d_local.Townsfolk, nil, "only the faction that heard it everywhere it lived")
+		T.True(M.Places.Aerugo.Known.d_public == nil and (M.Places.Ishval == nil or M.Places.Ishval.Known.d_public == nil),
+			"Townsfolk heard d_public in only some of its old regions: not spread")
+		T.Eq(M.SeededRegions, Reputation.RegionsVersion)
+		local Before = game:GetService("HttpService"):JSONEncode(M.Places)
+		T.True(not Reputation.CatchUpRegions(M, All, 200), "a second run changes nothing")
+		T.Eq(game:GetService("HttpService"):JSONEncode(M.Places), Before, "places untouched")
+	end,
 	BirthDeedLandsInNewRegionsEvenAfterTheReseed = function(T)
 		local Real = require(Rensei.Deeds)
 		local All = {born_Ishvalan = Real.born_Ishvalan}

@@ -99,26 +99,18 @@ function Reputation.Seed(M, Deeds, Now)
 end
 
 -- World plan 1 Task 10 (2026-10-23): four region places (Aerugo, Ishval, North, Corrupted) joined the graph, so
--- GlobalStanding divides by more regions. A save whose deeds were spread everywhere before that would lose
--- standing; on every join this lands them in the new regions too (idempotent: Land is once per faction per place).
+-- GlobalStanding divides by more regions. A save whose deeds had reached everywhere a faction lived before that would
+-- lose standing; on every join this lands them in the new regions too (idempotent: Land is once per faction per place).
 --   * Birth deeds count everywhere, always: each recorded Birth deed is landed in every region.
---   * Once per profile (M.SeededRegions, versioned): a deed heard by every faction present in all the regions that
---     existed before (OldRegions) was "heard everywhere", so it is heard in the new ones as well.
+--   * Once per profile (M.SeededRegions, versioned), faction by faction (fix 2): for each deed and each faction F that
+--     lived in at least one of the old regions (OldRegions), if F had heard the deed in every old region where F is
+--     present, the deed counted in full for F before; so F hears it in the new regions where F is present too,
+--     stamped with the deed's own time. (Before Task 10 the Authority lived only in the City: a City deed it heard
+--     counted in full, and still does.)
 -- Returns true if anything changed.
 Reputation.OldRegions = {"City", "Foundry", "Lindenmoor", "Adit", "Wilds"} -- the graph before Task 10
-Reputation.RegionsVersion = 9 -- the number of regions this catch-up spreads to; bump it with the next migration
-
-local function HeardIn(M, DeedId, List)
-	for _, Region in ipairs(List) do
-		local P = (M.Places or {})[Region]
-		local Heard = P and P.Known and P.Known[DeedId]
-		if not Heard then return false end
-		for _, F in ipairs(Regions.FactionsAt(Region)) do
-			if Heard[F] == nil then return false end
-		end
-	end
-	return true
-end
+-- the re-seed's version: 9 = round 1 (whole deeds), 10 = per faction (runs once more on a profile the round-1 rule did)
+Reputation.RegionsVersion = 10
 
 local function Everywhere(M, DeedId, Now)
 	local Any = false
@@ -126,6 +118,29 @@ local function Everywhere(M, DeedId, Now)
 		if #Reputation.Land(M, Id, DeedId, Regions.FactionsAt(Id), Now) > 0 then Any = true end
 	end
 	return Any
+end
+
+-- the factions that heard DeedId in every old region where they're present (and live in at least one)
+local function HeardAllOver(M, DeedId)
+	local Old, Out, Seen = {}, {}, {}
+	for _, R in ipairs(Reputation.OldRegions) do Old[R] = true end
+	for _, R in ipairs(Reputation.OldRegions) do
+		for _, F in ipairs(Regions.FactionsAt(R)) do
+			if not Seen[F] then
+				Seen[F] = true
+				local All = true
+				for _, R2 in ipairs(Reputation.OldRegions) do
+					if Regions.Present(R2, F) then
+						local P = (M.Places or {})[R2]
+						local Heard = P and P.Known and P.Known[DeedId]
+						if not (Heard and Heard[F] ~= nil) then All = false break end
+					end
+				end
+				if All then table.insert(Out, F) end
+			end
+		end
+	end
+	return Out, Old
 end
 
 function Reputation.CatchUpRegions(M, Deeds, Now)
@@ -136,7 +151,12 @@ function Reputation.CatchUpRegions(M, Deeds, Now)
 	end
 	if (M.SeededRegions or 0) < Reputation.RegionsVersion then
 		for Id, E in pairs(M.Deeds or {}) do
-			if HeardIn(M, Id, Reputation.OldRegions) and Everywhere(M, Id, E.At or Now) then Changed = true end
+			local Fs, Old = HeardAllOver(M, Id)
+			if #Fs > 0 then
+				for Region in pairs(Regions.Regions) do
+					if not Old[Region] and #Reputation.Land(M, Region, Id, Fs, E.At or Now) > 0 then Changed = true end
+				end
+			end
 		end
 		M.SeededRegions = Reputation.RegionsVersion
 		Changed = true

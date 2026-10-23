@@ -130,8 +130,10 @@ return {
 		D.Money = OldMoney
 		if not Ok then error(Err, 0) end
 		T.Eq(R.Ok1, false, "no ticket for a member without a loaded save")
+		T.Eq(R.Why1, "The clerk can't issue their ticket right now.", "refused for the missing save, not earlier")
 		T.Eq(R.Money1, 1000, "and nothing charged")
 		T.Eq(R.Ok2, false, "issuing failed")
+		T.Eq(R.Why2, "The clerk can't issue that ticket right now.", "refused after paying: the refund path")
 		T.Eq(R.Money2, 1000, "refunded")
 		T.Eq(R.Held2, R.Held, "no ticket appeared")
 	end,
