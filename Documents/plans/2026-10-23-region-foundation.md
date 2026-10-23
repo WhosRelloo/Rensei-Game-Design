@@ -710,6 +710,7 @@ return {Regions = {}}
     | ember | Neon | e0782a |
     | lamp | Neon | ffb35c |
 
+  - **Texture-pack images (owner, 2026-10-23):** a `Palette` value may be an object instead of a key, `{"Key": "brick", "Pack": "<pack item name>"}`, which names a block in `Art/Regions/texture_pack.json`. `materials.write_table` then adds `"PackImage": "rbxassetid://<I>"` and `"StudsPerTile": <U>` to that material's entry. The Blender material stays the flat palette colour, because Blender can't load Roblox images.
   - `stages.ground(layout, grid)`: one prefab per 64×64-stud tile (group `Ground`). It holds merged `Top` slabs (1 stud thick), `Side` blocks (from `top-1` down to `bottom`) and ramps (tilted 1.2-thick slabs over a side block, `ground.lua` style).
   - `stages.routes(layout, grid)`: paving and kerb strips on public routes (`paving`), cinder lanes on quiet routes, rails on `rail` routes, stairs where a route climbs more than 4 studs over 8 studs. Group `Routes`.
   - `stages.markers(layout, grid)`: one invisible, non-colliding 2×2×2 part per point marker (or the box size for `Box` markers), with `rs_invisible=True`, `rs_tags=<Tag>`, `rs_attr=json(Attr)`, and the yaw applied. Group `Markers`.
@@ -800,6 +801,10 @@ return {Regions = {}}
   - **Tags:** field 16 tags are added with `CollectionService:AddTag`.
   - Every model gets attribute `RegionKit = <Region>`, not `LindenmoorKit`; Lindenmoor's own run keeps `LindenmoorKit`.
   - **Materials:** they come from `materials.json` when present, otherwise from the built-in table.
+  - **Pack images:** for each `materials.json` entry with `PackImage`, the first chunk ensures a `MaterialVariant` named `RG_<Region>_<key>` exists in `MaterialService`, with `BaseMaterial` = the entry's material, `ColorMap` = `PackImage` and `StudsPerTile` = the entry's value. Parts of that material get `MaterialVariant = "RG_<Region>_<key>"`.
+    - `finish.lua` backs up any existing variants it replaces.
+    - The dry run checks that every expected variant exists.
+    - The Testbed uses one pack image (Ceiling C) to prove this.
   - **`finish.lua`:**
     - with the attribute `DryRun = true` on `ServerStorage.RegionStaging`: checks counts and tags against `expected.json`, then destroys the staging folder, and returns `"dry run ok: …"`;
     - otherwise:

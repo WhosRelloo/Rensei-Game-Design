@@ -8,7 +8,11 @@
 - **First region:** Foundry Yard.
 - **Scope:** "Map + living world". That means the playable map, townsfolk with routines, a quest for each clue, and the region's trainer and trial rooms moved in.
 - **Approach:** "a region layout file plus a shared Blender builder".
-- **Surfaces:** Roblox built-in materials tinted to each region's palette, as Lindenmoor does today. Real textures can come later.
+- **Surfaces:** Roblox built-in materials tinted to each region's palette, as Lindenmoor does today.
+  - **Update (owner, 2026-10-23):** "I threw a texture pack into the foundry yard, use the assets as applicable". The pack is `Workspace."Texture pack (realistic)"` in Foundry Yard: 241 sample blocks (ceilings, floors, glass, roofs, terrain, walls and 168 numbered textures). Each block shows one image on six `Texture` faces. The catalog is in `Art/Regions/texture_pack.json`.
+  - **How it's used:** wherever a pack image fits a region palette key, it becomes a **MaterialVariant** (`ColorMap` = the pack image, with its studs-per-tile) on the mapped built-in material, and parts reference it by name. That adds no objects per part. Keys with no fitting image stay tinted built-ins.
+  - **Tested on 2026-10-23:** a MaterialVariant made from Ceiling C's image matched the original block.
+  - Blender renders can't load the Roblox images, so they show the palette colours. The Studio screenshots after import show the textures.
 - **Townsfolk:** "Routines + reactions". They have jobs and day schedules, hide from fights, act as witnesses, pass on rumours and greet you by your standing. About 20–40 per region.
 - **Day cycle:** "Add a day cycle". A world clock drives lighting, schedules, lamps and the night ambush odds.
 
