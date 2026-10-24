@@ -335,7 +335,7 @@ python -I Art/Studio/Regions/bundle_setup.py setup <scratch>/setup_bundle.lua
 python -I Art/Tools/rbxc.py luau "placeId: <id>" Edit @<scratch>/setup_bundle.lua
 ```
 
-Set `REGION` and `MAP_CHILD` at the top of `setup.lua` first. A Station marker also needs `ServerStorage.TrainKit` (copy it from Ye).
+Set `REGION`, `MAP_CHILD` and `ORIGIN` at the top of `setup.lua` first. `ORIGIN` must equal the export's origin: `(0, 0, 0)` for a region built by `region_builder`, but `(0, 4, -650)` for Lindenmoor's expansion, which exports with Lindenmoor's origin. Setup adds it to every RoadPassage leg, RoadY, FloorY, Skip, Clip and Railing run, so a wrong `ORIGIN` builds the road in the wrong place. A Station marker also needs `ServerStorage.TrainKit` (copy it from Ye).
 
 - It checks every marker before building anything, and builds everything or nothing.
 - Running it again rebuilds `Travel`. A hand-made `Travel` is backed up the first time, in `RenseiBackups["Pre-RegionSetup_<MapChild>"]`.
@@ -347,14 +347,20 @@ Set `REGION` and `MAP_CHILD` at the top of `setup.lua` first. A Station marker a
 - The schema checks the same within one region file.
 - Setup checks the whole place, including kept map children.
 
-**Ride trains** use identity rotation and must stand clear: at least 300 studs above every map part, and away from other ride trains (PROPOSAL).
+**Ride trains** use identity rotation and must stand clear: at least 300 studs above every map part, and away from other ride trains (PROPOSAL). Setup places the ride train at a fixed offset from the platform, +(0, 400, -1600); it does **not** check the clearance itself. The contract test does, so run it after every build with a Station.
 
-**Test runs** use `ServerStorage.RegionSetupRoot`, and only when it carries the attribute `TEST = true`. A root without it makes setup refuse, so a forgotten test root can't turn a real run into a test. Remove the test roots afterwards, because their tagged parts are live tags while they exist.
+**Test runs** use `ServerStorage.RegionSetupRoot`, and only when it carries the attribute `TEST = true` (an optional `ServerStorage.RegionSetupPlace` stands in for the rest of the place). A root without `TEST` makes setup refuse. A leftover root that still has `TEST = true` turns a real run into a test build in ServerStorage; that's harmless, and the summary says "test root", but remove test roots afterwards. Their tagged parts are also live tags while they exist.
 
-**Check the result** with the contract test:
+**Check the result** with the contract test. First write it:
 
 ```
 python -I Art/Studio/Regions/bundle_setup.py contract <scratch>/check.lua workspace.World.Map.<MapChild>
+```
+
+Then run it in the place:
+
+```
+python -I Art/Tools/rbxc.py luau "placeId: <id>" Edit @<scratch>/check.lua
 ```
 
 It returns `PASS n / FAIL n`. Then rerun the travel Play suites in the place.

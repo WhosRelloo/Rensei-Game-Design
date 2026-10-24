@@ -45,9 +45,9 @@ The Region Foundation is done: the shared pieces every new region map needs, bui
 - **Play, new flakes (not fixed in this task):**
   - Exams 4/5 (`EarthExamOpens`: the exam wasn't running 1.5 s later), then 5/5 on a rerun.
   - TownsfolkHurt 9/10 (`Gossip`: the townsperson told the "struck" rumour, not the killing) twice when run after Townsfolk and Assault in the same session; 10/10 first in a fresh session. It looks order-dependent: deeds from earlier suites stay in the session, and the test's four talks hold only one rumour.
-- **Play, failing because of a test issue (known, pre-existing):** the owner's save holds a Cabin ticket, and these suites have no wrapper that clears tickets:
-  - RideEvents 8/9;
-  - Travel 5/7 (`TicketsAddUseAndKeepCount`, `LoopbackArrivesAtThePlatform`). These are the same cause; adding a ticket keeps the better Cabin class.
+- **Play, failing because of a test issue (pre-existing):** the owner's save holds a Cabin ticket, and these suites have no wrapper that clears tickets:
+  - RideEvents 8/9 (known);
+  - Travel 5/7 (`TicketsAddUseAndKeepCount`, `LoopbackArrivesAtThePlatform`). It has the same known cause, but is first recorded for Travel: adding a ticket keeps the better Cabin class.
 - **Edit:** all 12 `Test_` modules pass:
   - TownsfolkLogic 9/9, RumourCore 10/10, Reputation 10/10, Travel 8/8, Sound 8/8;
   - Heat 6/6, Regions 6/6, Schema5 6/6, Perception 4/4, TestKit 4/4, Witness 3/3, AditRoute 1/1.
@@ -67,9 +67,6 @@ The Region Foundation is done: the shared pieces every new region map needs, bui
 **Fixes**
 - The alchemy trainers' examinations work again. Choosing "I'm ready for the examination." now opens the exam with every trainer.
 - An attack only counts as assault if it actually lands. Blocked, dodged or missed swings no longer count against you.
-
-**Coming soon**
-- Towns full of ordinary people, clues to find on the map, and new regions.
 ```
 
 ## 2026-10-24 — Region Foundation Task 12: stations and roads built from map markers
