@@ -24,6 +24,9 @@ MARKER_TAGS = frozenset((
     # other map-placed gameplay pieces
     "RenseiInspect", "RenseiMechanism", "RenseiPuzzleDoor", "RenseiLight",
 ))
+# Builder-only tags: the builder reads these markers and never exports them (the markers stage makes no part for
+# them). EdgeGap: a Box where the edges stage leaves the edge ridges open (a road mouth, the station); it needs a Box.
+BUILDER_TAGS = frozenset(("EdgeGap",))
 # the spec's old names: no service reads them, so a marker carrying one would import and silently do nothing
 OLD_TAGS = {
     "RenseiClerk": "RenseiTicketClerk",
@@ -234,9 +237,12 @@ def validate(data):
             tag = None
         elif tag in OLD_TAGS:
             c.err(w, f"unknown Tag {tag!r} (an old spec name: the game reads {OLD_TAGS[tag]})")
-        elif tag not in MARKER_TAGS:
+        elif tag not in MARKER_TAGS and tag not in BUILDER_TAGS:
             c.err(w, f"unknown Tag {tag!r}")
         has_at, has_box = "At" in m, "Box" in m
+        if tag in BUILDER_TAGS and not has_box:
+            c.err(w, f"{tag} needs a Box ([[x0, y0, z0], [x1, y1, z1]])")
+            continue
         if has_at == has_box:
             c.err(w, "needs exactly one of At ([x, y, z]) or Box ([[x, y, z], [x, y, z]])")
         elif has_at:

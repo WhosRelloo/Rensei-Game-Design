@@ -19,7 +19,9 @@
     {"Tag": "RenseiPost", "At": [10, 0, 20], "Yaw": 90, "Attr": {"PostId": "test_work", "Kind": "Work"}},
     {"Tag": "RenseiPost", "At": [-20, 0, 20], "Yaw": 0, "Attr": {"PostId": "test_shelter", "Kind": "Shelter"}},
     {"Tag": "RenseiClue", "At": [30, 0, 30], "Attr": {"ClueId": "test_clue"}},
-    {"Tag": "RenseiArea", "Box": [[-128, -10, -128], [128, 80, 128]], "Attr": {"AreaName": "Testbed"}}
+    {"Tag": "RenseiArea", "Box": [[-128, -10, -128], [128, 80, 128]], "Attr": {"AreaName": "Testbed"}},
+    {"Tag": "EdgeGap", "Box": [[-128, 0, -10], [-112, 60, 10]]},
+    {"Tag": "EdgeGap", "Box": [[112, 0, -10], [128, 60, 10]]}
   ],
   "Budget": 12000
 }

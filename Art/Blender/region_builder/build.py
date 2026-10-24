@@ -5,6 +5,8 @@ Run in Blender (Art/Tools/blender_mcpc.py code @file.py):
     from region_builder import build
     result = build.run("Testbed")                         # every stage, renders included
     result = build.run("Testbed", "ground,routes,markers")
+Stages, in build order: ground, routes, buildings, landmarks, cover (cover clusters and street lamps), edges, markers,
+lighting, render. cover plans around the buildings itself, so it may run without them.
 
 run() refuses a Blender file with unsaved changes (it opens an empty file, which would throw them away). It then builds
 the scene Region_<Region>, writes Art/Regions/<Region>/materials.json and water.json, and saves only
@@ -23,7 +25,7 @@ REGIONS = os.path.join(REPO, "Art", "Regions")
 BLENDS = os.path.join(REPO, "Art", "Blender", "Regions")
 RENDERS = os.path.join(REPO, "Documents", "images", "Regions")
 PROTECTED = {"lindenmoor_full.blend", "lindenmoor_expansion.blend"}  # other sessions' files: never saved over
-STAGES = ("ground", "routes", "markers", "lighting", "render")
+STAGES = ("ground", "routes", "buildings", "landmarks", "cover", "edges", "markers", "lighting", "render")
 CELL = 4  # studs; the ground's cell (4 near routes and towns, spec §3.2; the Testbed is all town)
 
 
@@ -62,6 +64,9 @@ def run(region, stages="all", budget=None):
         counts["ground"] = ST.ground(layout, grid)
     if "routes" in want:
         counts["routes"] = ST.routes(layout, grid)
+    for name in ("buildings", "landmarks", "cover", "edges"):  # the style kits (Task 10)
+        if name in want:
+            counts[name] = getattr(ST, name)(layout, grid)
     if "markers" in want:
         counts["markers"] = ST.markers(layout, grid)
     if "lighting" in want or "render" in want:

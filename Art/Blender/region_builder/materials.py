@@ -32,6 +32,15 @@ BASE = {
     "glass_warm": ("Glass", "3a2a1c", 0.3),  # PROPOSAL
     "ember": ("Neon", "e0782a", 0),  # PROPOSAL
     "lamp": ("Neon", "ffb35c", 0),  # PROPOSAL
+    # the rail-town kit (Task 10): roofs, trim, warm windows, yard goods
+    "slate_roof": ("Slate", "3b4046", 0),  # PROPOSAL
+    "iron_roof": ("CorrodedMetal", "57524b", 0),  # PROPOSAL: corrugated iron
+    "rust": ("CorrodedMetal", "7a4a2c", 0),  # PROPOSAL
+    "stone": ("Concrete", "77716a", 0),  # PROPOSAL: sills, lintels, copings, plinths
+    "soot": ("Slate", "211e1c", 0),  # PROPOSAL: chimney caps, stack tops
+    "window": ("Glass", "d9934a", 0.15),  # PROPOSAL: warm lit windows
+    "crate": ("WoodPlanks", "7a5c3c", 0),  # PROPOSAL
+    "canvas": ("Fabric", "6b5a44", 0),  # PROPOSAL: awnings, stall canopies
 }
 # studs per tile when a pack item has no U (every pack item with an image has one today). PROPOSAL
 PACK_TILE_DEFAULT = 4
@@ -42,7 +51,8 @@ ROLE_DEFAULTS = {"ground_top": "cinder", "ground_side": "slag", "path": "paving"
                  "kerb": "slag", "rail": "iron", "sleeper": "timber"}
 # how each Roblox material looks in the Blender renders: (roughness, metallic, emission strength)
 LOOK = {"Ground": (0.95, 0.0, 0), "Slate": (0.85, 0.0, 0), "Cobblestone": (0.9, 0.0, 0), "Brick": (0.85, 0.0, 0),
-        "Metal": (0.45, 0.8, 0), "WoodPlanks": (0.8, 0.0, 0), "Glass": (0.1, 0.0, 0), "Neon": (0.5, 0.0, 6)}
+        "Metal": (0.45, 0.8, 0), "WoodPlanks": (0.8, 0.0, 0), "Glass": (0.1, 0.0, 0), "Neon": (0.5, 0.0, 6),
+        "CorrodedMetal": (0.75, 0.5, 0), "Concrete": (0.9, 0.0, 0), "Fabric": (0.95, 0.0, 0)}
 
 
 def mat_name(layout, key):

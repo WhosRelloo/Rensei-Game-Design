@@ -173,6 +173,25 @@ def test_schema():
     bad["Palette"]["wall"] = {"Pack": "Floor A"}
     r, m, msgs = raises_schema(schema, bad, "Palette")
     check("a layout with a Pack-only Palette value raises", r and m, msgs)
+
+    # EdgeGap (Task 10): a builder-only tag. The edges stage reads it to leave a gap in the edge ridges; the markers
+    # stage makes no part for it, so nothing exports it. It needs a Box.
+    check("EdgeGap is a builder-only tag",
+          "EdgeGap" in getattr(schema, "BUILDER_TAGS", ()) and "EdgeGap" not in schema.MARKER_TAGS)
+    good = copy.deepcopy(raw)
+    good["Markers"].append({"Tag": "EdgeGap", "Box": [[-20, 0, -128], [20, 60, -112]]})
+    r, m, msgs = raises_schema(schema, good, "EdgeGap")
+    check("an EdgeGap with a Box loads", not r, msgs)
+    bad = copy.deepcopy(raw)
+    bad["Markers"].append({"Tag": "EdgeGap", "At": [-120, 0, 0]})
+    r, m, msgs = raises_schema(schema, bad, "EdgeGap needs a Box")
+    check("an EdgeGap without a Box raises", r and m, msgs)
+    bad = copy.deepcopy(raw)
+    bad["Markers"].append({"Tag": "EdgeGap", "Box": [[-20, 60, -128], [20, 0, -112]]})
+    r, m, msgs = raises_schema(schema, bad, "Box")
+    check("an EdgeGap with an inside-out Box raises", r and m, msgs)
+    check("the Testbed has an EdgeGap at each end of the main road",
+          sum(1 for mk in L["Markers"] if mk["Tag"] == "EdgeGap") == 2, [mk["Tag"] for mk in L["Markers"]])
     return L
 
 

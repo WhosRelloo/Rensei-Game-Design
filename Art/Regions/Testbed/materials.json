@@ -9,6 +9,11 @@
   "Material": "Brick",
   "Transparency": 0
  },
+ "RG_Testbed_canvas": {
+  "Color": "6b5a44",
+  "Material": "Fabric",
+  "Transparency": 0
+ },
  "RG_Testbed_cinder": {
   "Color": "4a4642",
   "Material": "Ground",
@@ -17,6 +22,11 @@
  "RG_Testbed_cinder_dark": {
   "Color": "3a3633",
   "Material": "Ground",
+  "Transparency": 0
+ },
+ "RG_Testbed_crate": {
+  "Color": "7a5c3c",
+  "Material": "WoodPlanks",
   "Transparency": 0
  },
  "RG_Testbed_ember": {
@@ -39,6 +49,11 @@
   "Material": "Metal",
   "Transparency": 0
  },
+ "RG_Testbed_iron_roof": {
+  "Color": "57524b",
+  "Material": "CorrodedMetal",
+  "Transparency": 0
+ },
  "RG_Testbed_lamp": {
   "Color": "ffb35c",
   "Material": "Neon",
@@ -49,14 +64,39 @@
   "Material": "Cobblestone",
   "Transparency": 0
  },
+ "RG_Testbed_rust": {
+  "Color": "7a4a2c",
+  "Material": "CorrodedMetal",
+  "Transparency": 0
+ },
  "RG_Testbed_slag": {
   "Color": "2f2b29",
   "Material": "Slate",
+  "Transparency": 0
+ },
+ "RG_Testbed_slate_roof": {
+  "Color": "3b4046",
+  "Material": "Slate",
+  "Transparency": 0
+ },
+ "RG_Testbed_soot": {
+  "Color": "211e1c",
+  "Material": "Slate",
+  "Transparency": 0
+ },
+ "RG_Testbed_stone": {
+  "Color": "77716a",
+  "Material": "Concrete",
   "Transparency": 0
  },
  "RG_Testbed_timber": {
   "Color": "5a4636",
   "Material": "WoodPlanks",
   "Transparency": 0
+ },
+ "RG_Testbed_window": {
+  "Color": "d9934a",
+  "Material": "Glass",
+  "Transparency": 0.15
  }
 }
