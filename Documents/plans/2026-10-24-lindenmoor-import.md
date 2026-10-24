@@ -236,7 +236,7 @@ if __name__ == "__main__":
 >
 > **(e) Share the keep mask** (Task 1 review, Minor 1). Factor the Keep mask into `expansion_plan.keep_mask(...)` and use it from both `plan()` and `check_survey.py`'s `infill_runs()`. Then re-stamp the survey's Infill runs and update the hard-coded 10,863 cell count in `test_check_survey.py`.
 >
-> **(d) A new pad for the test arena** (owner: "Keep it in the map"; Ruling 5). Add a `lindenmoor.reserve` landmark `res_test_arena` in North Meadows near the practice yard, clear of routes, the training field and the ridge marker, with radius about 122 (PROPOSAL: `arrange()` radius + 6). The practice yard pad keeps `LedgeCourse` only.
+> **(d) A new pad for the test arena** (owner: "Keep it in the map"; Ruling 5). Add a `lindenmoor.reserve` landmark `res_test_arena` in North Meadows near the practice yard, clear of routes, the training field and the ridge marker, with radius about 108 (PROPOSAL: `arrange()` radius + 6, from the tight part boxes; check_survey.py prints the exact number). The practice yard pad keeps `LedgeCourse` only.
 >
 > **The rebuild.** Re-run every stage the pad change affects: ground, fields, trees, landmarks and markers. Re-render the aerial view and the views that show a changed pad. The owner sees that seven clearings grew slightly; send them the aerial. Keep the part count at or under 42,000.
 
