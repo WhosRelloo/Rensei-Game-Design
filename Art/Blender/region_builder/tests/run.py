@@ -443,10 +443,11 @@ def test_placement():
     plan = PL.plan_buildings(L, G)
     got = sorted((b["id"], b["x"], b["z"], round(b["theta"], 4), b["w"], b["d"], b["storeys"], b["party"]) for b in plan)
     # (fix round 2: the row district moved south of the main road; at its old place the 16-stud wall clearance left
-    # room for only 2 houses. A terrace of 2, a Density alley of 19 studs, then 1 house; all face the road, north.)
+    # room for only 2 houses. A terrace of 2, a Density alley of 19 studs, then 1 house; all face the road, north.
+    # Task 10b: the 26-stud wall clearance cut the frontage to 2 houses again; the district now reaches x = -20.)
     check("the Testbed plan: 3 houses facing the main road",
-          got == [("row_0", -92.0, 20.5, 0.0, 12, 17, 3, "R"), ("row_1", -78.0, 20.5, 0.0, 16, 17, 3, "L"),
-                  ("row_2", -43.0, 21.5, 0.0, 16, 19, 2, "")], got)
+          got == [("row_0", -82.0, 20.5, 0.0, 12, 17, 3, "R"), ("row_1", -68.0, 20.5, 0.0, 16, 17, 3, "L"),
+                  ("row_2", -33.5, 21.5, 0.0, 15, 19, 2, "")], got)
     check("plans are deterministic", [b["seed"] for b in PL.plan_buildings(L, G)] == [b["seed"] for b in plan])
 
     # every style on a long flat frontage: coverage rises with Density, alleys >= 4, <= 3 in a row, no overlaps,
@@ -513,10 +514,14 @@ def test_placement():
     check("stoop risers are 1 stud or less, the top one included", ok)
     check("no door, no stoop", PL.stoop_tops(None, 10, 4) == [])
 
-    # the edge walls: 120 studs (fully upgraded climbers), and nothing within WALL_CLEAR of their inner faces
-    check("edge walls stand 120 studs over the ground (PROPOSAL)", PL.EDGE_HEIGHT >= 120, PL.EDGE_HEIGHT)
-    check("the wall-clear rect is EDGE_BAND + WALL_CLEAR (28) in from the Testbed's edge",
-          PL.wall_clear_rect(L) == (-100, -100, 100, 100), PL.wall_clear_rect(L))
+    # the edge walls (Task 10b, owner: "Ungrippable edges"): they carry RenseiNoGrip, so no climb or wall run grabs
+    # them; 80 studs over the ground (well over a running jump, about +16 to +19) and nothing within WALL_CLEAR (26:
+    # past a running jump's apex, 18-23 studs out) of their inner faces
+    check("edge walls stand 80 studs over the ground (PROPOSAL)", PL.EDGE_HEIGHT == 80, PL.EDGE_HEIGHT)
+    check("WALL_CLEAR is 26 studs (PROPOSAL)", PL.WALL_CLEAR == 26, PL.WALL_CLEAR)
+    check("the edge tag is RenseiNoGrip", getattr(PL, "EDGE_TAG", None) == "RenseiNoGrip", getattr(PL, "EDGE_TAG", None))
+    check("the wall-clear rect is EDGE_BAND + WALL_CLEAR (38) in from the Testbed's edge",
+          PL.wall_clear_rect(L) == (-90, -90, 90, 90), PL.wall_clear_rect(L))
     x0, z0, x1, z1 = PL.wall_clear_rect(L)
 
     def within(q):
@@ -524,20 +529,20 @@ def test_placement():
     Gt = HF.sample(L, cell=4)
     pt = PL.plan_buildings(L, Gt)
     props = PL.plan_props(L, Gt, pt)
-    check("Testbed: buildings (with overhangs and stoops) and props keep 16+ studs off the walls' inner faces",
+    check(f"Testbed: buildings (with overhangs and stoops) and props keep {PL.WALL_CLEAR}+ studs off the walls' inner faces",
           all(within(b["clear"]) for b in pt) and all(within(PL._quad(p["x"], p["z"], p["theta"], (-3, -3, 3, 3)))
                                                      for p in props), [(b["id"], b["clear"]) for b in pt])
     wide = _flat_district(raw, "railtown.house", 1.0, poly=[[-128, -60], [128, -60], [128, -12], [-128, -12]])
     Gw = HF.sample(wide, cell=4)
     pw = PL.plan_buildings(wide, Gw)
-    check("a district reaching the footprint's edge builds only 16+ studs clear of the walls",
+    check(f"a district reaching the footprint's edge builds only {PL.WALL_CLEAR}+ studs clear of the walls",
           pw and all(within(b["clear"]) for b in pw) and min(min(x for x, _ in b["clear"]) for b in pw) >= x0 - 1e-9,
           [(round(min(x for x, _ in b["clear"]), 1), round(max(x for x, _ in b["clear"]), 1)) for b in pw])
-    check("cover and lamps keep 16+ studs off the walls too",
+    check(f"cover and lamps keep {PL.WALL_CLEAR}+ studs off the walls too",
           all(within(PL._quad(p["x"], p["z"], p["theta"], (-3, -3, 3, 3))) for p in PL.plan_props(wide, Gw, pw)))
     near = copy.deepcopy(raw)
     near["Landmarks"].append({"Id": "nearwall", "Kind": "railtown.market_stall", "At": [110, 40], "Yaw": 0})
-    check("a landmark within 16 studs of a wall is caught (the landmarks stage refuses it)",
+    check(f"a landmark within {PL.WALL_CLEAR} studs of a wall is caught (the landmarks stage refuses it)",
           PL.landmarks_too_near_walls(near) == ["nearwall"] and PL.landmarks_too_near_walls(L) == [],
           PL.landmarks_too_near_walls(near))
     # the warehouse dock: 1.4 over level ground gets a step (the stage builds exactly the planner's stoop_tops)

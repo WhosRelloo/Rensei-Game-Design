@@ -218,6 +218,11 @@ TuningConfig.Parkour = {
 	WallRunReach = 5, -- how far to the side a wall can be to start
 	KickUp = 35, KickAway = 30, KickAlong = 20, -- kick-off velocity on release
 	WallRunChainDelay = 0.25, -- after kicking off, how soon you can catch a DIFFERENT wall
+	-- Ungrippable edges (Region Foundation Task 10b, owner 2026-10-24: "Ungrippable edges"): a part with this
+	-- CollectionService tag, or inside a Model with it, can't be grabbed by a climb, a climb leap or a wall run
+	-- (JumpManager.Grippable = MovementState.Grippable, also used by the server's wall check). It can still be stood
+	-- on and collided with. Region edge walls and cliffs carry it (the region builder's rs_tags).
+	NoGripTag = "RenseiNoGrip",
 }
 
 -- Traversal state (Managers.MovementState, 2026-10-17). The server owns which traversal a character is in
@@ -947,6 +952,7 @@ TuningConfig.Enemies = {
 	-- Combat Read's sparring partner (MinigameService.WorldChallenges): attacks only when the drill tells it to,
 	-- can't be hurt (AdminGod), never respawns, gives nothing. PROPOSAL.
 	Sparring = {
+		Knockable = false, -- the sparring dummy is never knocked (owner 2026-10-20: every other enemy is)
 		DisplayName = "Sparring Partner", Level = 0, Health = 1000, DamageMult = 0.15,
 		WalkSpeed = 10, AggroRange = 25, LeashRange = 40, AttackRange = 5,
 		Combo = {1, 1}, HeavyChance = 0, Pause = {1, 1},

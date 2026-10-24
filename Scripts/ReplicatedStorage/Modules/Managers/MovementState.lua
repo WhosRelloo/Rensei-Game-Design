@@ -48,6 +48,24 @@ function MovementState.ParseSession(Session)
 	return tonumber(Seq), Kind, Reason
 end
 
+-- Ungrippable edges (Region Foundation Task 10b, owner 2026-10-24): false for an instance tagged
+-- TuningConfig.Parkour.NoGripTag (RenseiNoGrip) or inside one with that tag (a Model, a Folder), and for nil; true for
+-- anything else. The one helper every grab path uses: the client's climb, climb leap, climb probes and wall-run rays
+-- (JumpManager.Grippable is this function) and the server's wall-in-reach check below. Floors, collision and looks
+-- are untouched.
+local NoGripTags = game:GetService("CollectionService")
+function MovementState.Grippable(Part)
+	if typeof(Part) ~= "Instance" then return false end
+	local Tag = Tuning.Parkour.NoGripTag
+	if not Tag then return true end
+	local Node = Part
+	while Node and Node ~= workspace do
+		if NoGripTags:HasTag(Node, Tag) then return false end
+		Node = Node.Parent
+	end
+	return true
+end
+
 if RunService:IsServer() then
 	local WCS = require(ReplicatedStorage.Modules.Framework.WCS)
 	local SkillMods = require(ReplicatedStorage.Modules.Managers.SkillMods)
@@ -67,7 +85,8 @@ if RunService:IsServer() then
 		table.insert(Directions, Vector3.new(math.cos(A), 0, math.sin(A)))
 	end
 
-	-- a wall (not floor or ceiling) of the map within reach, around the root at body and head height
+	-- a wall (not floor or ceiling) of the map within reach, around the root at body and head height; a part that
+	-- can't be gripped (RenseiNoGrip, MovementState.Grippable) is no wall here, so a climb or wall run on one is refused
 	local function WallInReach(Character)
 		local Root = Character:FindFirstChild("HumanoidRootPart")
 		if not Root then return false end
@@ -77,7 +96,7 @@ if RunService:IsServer() then
 			local Origin = Root.Position + Vector3.new(0, Height, 0)
 			for _, D in ipairs(Directions) do
 				local Hit = workspace:Raycast(Origin, D * Reach, WallParams)
-				if Hit and math.abs(Hit.Normal.Y) < 0.7 then return true end
+				if Hit and math.abs(Hit.Normal.Y) < 0.7 and MovementState.Grippable(Hit.Instance) then return true end
 			end
 		end
 		return false

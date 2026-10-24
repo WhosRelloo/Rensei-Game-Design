@@ -525,7 +525,7 @@ def landmarks(layout, grid):
     near = PL.landmarks_too_near_walls(layout)
     if near:
         raise ValueError(f"landmark(s) {', '.join(near)} come within {PL.WALL_CLEAR} studs of an edge wall's inner face "
-                         f"(placement.WALL_CLEAR: nothing a climber can grab or rest on near the walls); move them in")
+                         f"(placement.WALL_CLEAR: nothing to jump over the crest from near the walls); move them in")
     kits.bind(materials.palette(layout))
     c = clear_group(layout, "Landmarks")
     n = 0
@@ -585,7 +585,8 @@ def edges(layout, grid):
     """Group Edges: slag walls in the EDGE_BAND round the footprint (plan_edges), one prefab per side, one sheer block
     per piece (the owner's Lindenmoor rule, placement.EDGE_HEIGHT): its inner face rises straight from 1 stud below the
     lowest ground under it to at least EDGE_HEIGHT over the highest ground under it or in the 4-stud strip inside it,
-    with no tread anywhere on the face, so no one climbs out of the map. The crests vary (PROPOSAL: 0-10 studs higher)
+    with no tread anywhere on the face. Every block carries rs_tags placement.EDGE_TAG (RenseiNoGrip, Task 10b): no
+    climb, climb leap or wall run can grab it, so no one climbs out of the map. The crests vary (PROPOSAL: 0-10 studs higher)
     and so does each block's depth into the band (10-12 studs, PROPOSAL), for a broken slag silhouette; neighbouring
     blocks meet only in upright faces. EdgeGap boxes stay open. Returns the part count."""
     M = materials.palette(layout)
@@ -612,8 +613,9 @@ def edges(layout, grid):
         bottom = lo - 1
         top = hi + EDGE_HEIGHT + round(rng.uniform(0, 10), 1)  # PROPOSAL crest variation
         mat = "cinder_dark" if j % 3 == 1 else "slag"
-        part(root, f"Wall{j}", (bx1 - bx0, bz1 - bz0, top - bottom),
-             bl((bx0 + bx1) / 2, (top + bottom) / 2, (bz0 + bz1) / 2), M[mat], bevel=0.3)
+        o = part(root, f"Wall{j}", (bx1 - bx0, bz1 - bz0, top - bottom),
+                 bl((bx0 + bx1) / 2, (top + bottom) / 2, (bz0 + bz1) / 2), M[mat], bevel=0.3)
+        o["rs_tags"] = PL.EDGE_TAG  # ungrippable (Task 10b): the climb and the wall run can't grab it
         n += 1
     return n
 

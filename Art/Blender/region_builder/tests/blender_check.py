@@ -553,6 +553,9 @@ def kit_main():
                       t.z - sz[2] / 2))
     check("edge parts are unrotated blocks", eparts and all(
         o["rs_kind"] == "Block" and all(abs(a) < 1e-6 for a in o.matrix_world.to_euler()) for o in eparts))
+    # Task 10b (owner: "Ungrippable edges"): every edge wall block carries RenseiNoGrip, so no climb or wall run grabs it
+    check("every edge wall block carries rs_tags RenseiNoGrip", eparts and all(
+        "RenseiNoGrip" in tags_of(o) for o in eparts), [o.name for o in eparts if "RenseiNoGrip" not in tags_of(o)][:6])
 
     def in_gap(x, z):
         return any(g["Box"][0][0] <= x <= g["Box"][1][0] and g["Box"][0][2] <= z <= g["Box"][1][2] for g in gaps_)
@@ -566,7 +569,8 @@ def kit_main():
     # inward profiles every 2 studs round the perimeter (the corner squares excluded: the other side's profiles cover
     # their faces): h(t) = the highest edge top at inset t. Each profile must be covered from the footprint edge to one
     # inner face, every covered inset within 1 stud of the crest (no tread to rest on), and the inner face at least
-    # EDGE_HEIGHT (120, PROPOSAL: the owner's Lindenmoor rule) over the highest ground in the 4 studs beside it
+    # EDGE_HEIGHT (80, PROPOSAL: the owner's Lindenmoor figure; the walls are ungrippable) over the highest ground in the
+    # 4 studs beside it
     sides = {"N": ((1, 0), (0, 1), (0, -hd), hw), "S": ((1, 0), (0, -1), (0, hd), hw),
              "W": ((0, 1), (1, 0), (-hw, 0), hd), "E": ((0, 1), (-1, 0), (hw, 0), hd)}
     open_, short, treads, blocked, nprof = [], [], [], [], 0
@@ -604,7 +608,7 @@ def kit_main():
     check("the edge walls close the footprint's edge except at EdgeGaps", eparts and nprof > 400 and not open_,
           open_[:8])
     check(f"each edge wall's inner face stands {PL.EDGE_HEIGHT}+ studs over the ground beside it (PROPOSAL, "
-          "owner's rule: fully upgraded climbers)",
+          "owner's Lindenmoor figure; the walls are ungrippable)",
           not short, short[:6])
     check("no tread on an edge wall's climbable face (nothing more than 1 stud below the crest)", not treads,
           treads[:6])
@@ -617,7 +621,7 @@ def kit_main():
         if b[5] > lo + 1e-6:
             bad.append((o.name, round(b[5], 2), lo))
     check("each edge wall reaches the lowest ground under it", eparts and not bad, bad[:4])
-    # nothing a climber could grab or rest on stands within WALL_CLEAR (16) of a wall's inner face: every part of every
+    # nothing a player could stand on stands within WALL_CLEAR (26) of a wall's inner face: every part of every
     # building, landmark, cover cluster and lamp taller than 1 stud, against every wall block (horizontal distance)
     near = []
     for g in ("Buildings", "Landmarks", "Cover"):
@@ -647,6 +651,10 @@ def kit_main():
           len([r for pf in data["prefabs"] if pf["g"] == "Markers" for r in pf["p"]]) == 4)
     check("full export: ledge rows carry field 16 = RenseiLedge",
           any(len(r) == 16 and "RenseiLedge" in r[15].split(",") for r in rows))
+    erows = [r for pf in data["prefabs"] if pf["g"] == "Edges" for r in pf["p"]]
+    check("full export: every edge wall row carries field 16 with RenseiNoGrip",
+          len(erows) == len(eparts) and all(len(r) == 16 and "RenseiNoGrip" in str(r[15]).split(",") for r in erows),
+          (len(erows), len(eparts), [r[15] if len(r) == 16 else len(r) for r in erows][:4]))
     check("full export: lamp glow rows carry NightOnly",
           any(len(r) == 16 and r[14] and json.loads(r[14]).get("NightOnly") is True for r in rows))
     check("full export: lamp lights are exported", sum(len(pf["l"]) for pf in data["prefabs"]) >= len(glows),

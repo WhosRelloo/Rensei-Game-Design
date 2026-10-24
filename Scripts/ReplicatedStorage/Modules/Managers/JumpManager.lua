@@ -63,6 +63,20 @@ local raycastParams = RaycastParams.new()
 raycastParams.FilterDescendantsInstances = {workspace.World.Map}
 raycastParams.FilterType = Enum.RaycastFilterType.Include
 
+-- Ungrippable edges (Region Foundation Task 10b, owner 2026-10-24: "Ungrippable edges"): a part tagged
+-- TuningConfig.Parkour.NoGripTag (RenseiNoGrip: region edge walls and cliffs), or inside a Model with it, can't be
+-- grabbed for a climb (HitObject, the grab buffer), a climb leap (FindNextClimb), climbing along it (WallAt and the
+-- move probe: the wall ends where a tagged part starts) or a wall run (SideObject, CanWallRun, the ride ray). It can
+-- still be stood on and collided with. One helper, shared with the server's wall check: MovementState.Grippable.
+Air.Grippable = MovementState.Grippable
+-- workspace:Raycast whose hit counts only on a grippable part: a tagged part stops the ray and nothing is found
+-- (it is not looked past). On untagged parts it is exactly workspace:Raycast.
+local function GripRay(Origin, Direction, Params)
+	local Hit = workspace:Raycast(Origin, Direction, Params)
+	if Hit and not Air.Grippable(Hit.Instance) then return nil end
+	return Hit
+end
+
 -- How far the climber's root hangs off the wall face. 1.15 lets both hands reach the wall in the
 -- climb poses (see the hands-on-wall pass in OnConstructClient) with the chest still clear of it;
 -- at the old 1.5 the arms were too short for much of the climb step.
@@ -81,7 +95,7 @@ local function HitObject(Character)
 	local RayOrigin = Root.Position + Vector3.new(0,3,0)
 	local RayDirection = Root.CFrame.LookVector * 3
 
-	local raycastResult = workspace:Raycast(RayOrigin, RayDirection, raycastParams)
+	local raycastResult = GripRay(RayOrigin, RayDirection, raycastParams)
 
 	return raycastResult
 end
@@ -92,8 +106,8 @@ local function SideObject(Character,Side)
 	local RayOrigin = Root.Position
 	local RayDirection = Root.CFrame.RightVector * Tuning.Parkour.WallRunReach
 
-	local rightResult = (Side and Side == "Right" or not Side) and workspace:Raycast(RayOrigin, RayDirection, raycastParams)
-	local leftResult = (Side and Side == "Left" or not Side) and  workspace:Raycast(RayOrigin, -RayDirection, raycastParams)
+	local rightResult = (Side and Side == "Right" or not Side) and GripRay(RayOrigin, RayDirection, raycastParams)
+	local leftResult = (Side and Side == "Left" or not Side) and  GripRay(RayOrigin, -RayDirection, raycastParams)
 	
 	return rightResult or leftResult, rightResult and "Right" or leftResult and "Left"
 end
@@ -127,6 +141,7 @@ end
 Air.AirUses = {Climb = false, WallRun = false} -- WallRun = false or {Normal, Position, At} of the last wall
 
 local function CanWallRun(Hit)
+	if Hit and not Air.Grippable(Hit.Instance) then return false end -- RenseiNoGrip: never a wall to run on
 	local Last = Air.AirUses.WallRun
 	if not Last then return true end
 	if not Hit or os.clock() - Last.At < (Tuning.Parkour.WallRunChainDelay or 0.25) then return false end
@@ -287,7 +302,7 @@ local function FindNextClimb(Character,Direction)
 
 		local RayDirection = Root.CFrame.LookVector * 5
 
-		local raycastResult = workspace:Raycast(CurrentPos, RayDirection, raycastParams)
+		local raycastResult = GripRay(CurrentPos, RayDirection, raycastParams) -- a RenseiNoGrip part is no hold
 
 		if raycastResult then
 			return raycastResult,Multiplier/ClimbHeight
@@ -419,7 +434,7 @@ function Air:ClimbLoop(Character, Normal)
 		-- trim, a beam) left the climber hanging off ITS face; above it the real wall was just out of reach and the
 		-- climb vaulted you off mid-wall as if it were the top (fluidity pass 2026-10-18, LedgeCourse L1)
 		local Probe = 4 + (P.ClimbProbeExtra or 0)
-		local function WallAt(Pos) return workspace:Raycast(Pos + Vector3.new(0, 3, 0) + Normal * 1.5, -Normal * Probe, WallProbe) end
+		local function WallAt(Pos) return GripRay(Pos + Vector3.new(0, 3, 0) + Normal * 1.5, -Normal * Probe, WallProbe) end -- RenseiNoGrip ends the wall
 		if Y ~= 0 and not WallAt(Align.Position + Vector3.yAxis * Y * 0.5) then
 			if Y > 0 then
 				-- top of the wall: vault onto the ledge
@@ -453,7 +468,7 @@ function Air:ClimbLoop(Character, Normal)
 		local Vertical = Y > 0 and P.ClimbSpeed * Surge or P.ClimbDownSpeed
 		local Delta = Right * X * P.ClimbSideSpeed * Side * Dt + Vector3.yAxis * Y * Vertical * Dt
 		local Target = Align.Position + Delta
-		local Hit = workspace:Raycast(Target + Vector3.new(0, 3, 0) + Normal * 1.5, -Normal * Probe, WallProbe)
+		local Hit = GripRay(Target + Vector3.new(0, 3, 0) + Normal * 1.5, -Normal * Probe, WallProbe)
 		if not Hit then return end
 		if Y < 0 and workspace:Raycast(Root.Position, Vector3.new(0, -3.3, 0), WallProbe) then
 			LetGo() -- climbed down to the ground
@@ -780,8 +795,8 @@ function Air:OnStartClient()
 					if not HasStamina(Character, "WallRunTick") then EndWallRun(false) return end
 					Charge("WallRunTick")
 				end
-				local Hit = workspace:Raycast(Root.Position, -Normal * 4.5, WallParams)
-				if not Hit then EndWallRun(true) return end -- ran out of wall: hop off it
+				local Hit = GripRay(Root.Position, -Normal * 4.5, WallParams)
+				if not Hit then EndWallRun(true) return end -- ran out of wall (or reached a RenseiNoGrip part): hop off it
 				-- follow curved walls
 				Normal = Hit.Normal
 				WallPos = Hit.Position

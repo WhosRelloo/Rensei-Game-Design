@@ -38,24 +38,22 @@ STEP_TREAD = 1.2  # studs: a stoop step's tread (risers are 1 stud or less)
 COVER_EVERY = 20  # PROPOSAL (brief): studs of quiet route, or of built frontage (back yards), per cover cluster
 LAMP_EVERY = 40  # PROPOSAL: studs of public or road route per street lamp, sides alternating
 EDGE_BAND = 12  # PROPOSAL: the edge ridges' depth in from the footprint's edge
-# PROPOSAL, the owner's Lindenmoor rule (natural edges, no invisible walls; Lindenmoor's crag stands about 115 over its
-# ridges): every edge wall shows a SHEER inner face at least EDGE_HEIGHT studs over the ground beside it, with no tread
-# on that face, so that not even a fully upgraded climber gets out. This supersedes the Task 10 brief's "at least 24
-# studs" (coordinator, fix rounds 1-2). The reach of a full climb, from the game's numbers:
-#   stamina      TuningConfig.Stamina.Max 100 (TuningConfig.lua:10) + BO_Endure +10 max stamina x 3 ranks
-#                (SkillTree.lua:82) = 130;
-#   climb cost   Parkour.ClimbStart 10 to grab, ClimbMove 3 per ClimbTickEvery 0.25 s = 12/s while moving
-#                (TuningConfig.lua:197, 202, 204), both x 0.8 with BO_Climb "Climber" (ParkourCost -20%,
-#                SkillTree.lua:83);
-#   climb speed  Parkour.ClimbSpeed 9 studs/s (TuningConfig.lua:199).
-#   Base: (100 - 10) / 12 x 9 = 67.5 studs; fully upgraded: (130 - 8) / 9.6 x 9 = 114.4 studs above the grab.
-# The grab itself comes from a jump, a few studs up, so 120 leaves little margin: raise it if jump or stamina grow.
-EDGE_HEIGHT = 120
-# PROPOSAL: every structure (building, landmark, cover cluster, lamp: anything a climber could grab or rest on) keeps
-# this far from any edge wall's inner face, so nothing within ClimbReach 5 (TuningConfig.lua:205) plus a running jump
-# of the wall lets a climber start higher or rest part way up. The wall's inner face is at most EDGE_BAND in from the
-# footprint's edge, so structures stay EDGE_BAND + WALL_CLEAR in (_Site.inner, wall_clear_rect).
-WALL_CLEAR = 16
+# Ungrippable edges (Task 10b, owner 2026-10-24: "Ungrippable edges"; natural edges, never invisible walls). No wall
+# height holds a climber: the climb leap (Space+W, Parkour.ClimbStep 8 x the ParkourCost multiplier, +12 studs, 0.5 s
+# cooldown) takes a base player about 123 studs up from a running jump and a fully upgraded one about 207. So every edge
+# wall block carries EDGE_TAG (the CollectionService tag RenseiNoGrip, TuningConfig.Parkour.NoGripTag, through rs_tags):
+# the climb, the climb leap and the wall run can't grab it (JumpManager.Grippable; the server's wall check refuses it
+# too), while it still shows and collides. The height only has to beat what needs no grip at all.
+EDGE_TAG = "RenseiNoGrip"
+# PROPOSAL (the owner's earlier Lindenmoor figure): every edge wall shows a SHEER inner face at least EDGE_HEIGHT studs
+# over the ground beside it, with no tread on that face. A running jump rises about +16 to +19 studs, so 80 is well
+# over anything reached without a grip. (Supersedes fix round 2's 120, which was sized against a full climb.)
+EDGE_HEIGHT = 80
+# PROPOSAL: every structure (building, landmark, cover cluster, lamp: anything a player could stand on) keeps this far
+# from any edge wall's inner face. A running jump's apex lands 18-23 studs out, so at 26 no roof or crate stack can
+# launch a player over the crest. The wall's inner face is at most EDGE_BAND in from the footprint's edge, so
+# structures stay EDGE_BAND + WALL_CLEAR in (_Site.inner, wall_clear_rect).
+WALL_CLEAR = 26
 EDGE_SEG = 16  # PROPOSAL: the longest ridge block along an edge
 STREET_KINDS = ("public", "quiet", "road")  # the routes a building may front
 
