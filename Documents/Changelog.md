@@ -2,6 +2,25 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-23 — Closed-test fixes (afternoon and evening)
+
+Fixes made during the weekend closed test, each tested in Ye and published by the owner.
+
+- **Alchemy:** every move with a range reaches 50% further (PROPOSAL), including enemy alchemists. While locked on, casts aim at the target's body. Fireball, Air Slash and Metal Bind track a target that moves during the windup.
+- **Weapons:**
+  - The air heavy after an uppercut now hits in mid-air and slams the target down.
+  - The rapier skill's hits land on its animation.
+  - The katana skill and crit use published animations (Iaido Barrage, Quick Draw).
+  - Multi-hit timing no longer drifts late.
+- **Grips:** unarmed grips always use the grip animation. B right after the knockdown no longer gets ignored. Climbing hand effects no longer stick to the arm.
+- **Leaderboard:** the scroll bar moves and drags, long names end in "…", and the player card hides off-screen.
+- **Players stuck unable to attack:** a long combo ending in a wall knockback or a downslam left an endless stun. A 0-second stun is no longer started.
+- **Health regen:** none while in combat. It resumes at 1% of max health per second, 2 s after combat ends (PROPOSAL).
+- **Travel:**
+  - A failed journey's kick message now shows Roblox's reason. That's how the "not published" cause was found: Foundry Yard had to be published once.
+  - A live countdown to your train's departure shows once you hold a ticket.
+- **Greatsword:** it sits centred on the back, on a steeper diagonal, with the handle over the right shoulder. Screenshots: `images/Fixes/Greatsword back - *.jpg`.
+
 ## 2026-10-23 — Region Foundation Tasks 3-6: townsfolk who keep to their day, walk through crowds, run from fights and talk
 
 Towns get ordinary people: each one has a job, a place to be at each hour, and something to say. Built in Ye. Ye has no townsfolk roster yet, so **nobody new appears in Ye**: the first real townsfolk come with Foundry Yard's roster (the Foundry plan). Until then everything below runs in the tests. Backups are in `ServerStorage.RenseiBackups["Pre-RegionFoundation_2026-10-23"]`. Every number and every line of speech is a **PROPOSAL**.

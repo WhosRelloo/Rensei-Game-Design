@@ -37,7 +37,7 @@ These start after the world, travel and seasons plans are finished (`Documents/s
 - [ ] **Down slam:** fix it not doing anything on uptilt.
 - [ ] **Parry:** "Fix parrying so players can constantly spam F (let me know if I need to add parry attempt anims)".
   - Ask the owner before starting: should spam be blocked by a miss window (a parry attempt with its own animation and cooldown)? If so, which animations are needed?
-- [ ] **Greatsword:** fix its sheathe position on the back.
+- [x] **Greatsword:** fix its sheathe position on the back. *(Done 2026-10-23: centred on the spine, steeper diagonal; `HolsterC0` on the Greatsword grip part, Assets package.)*
 - [ ] **Alchemy aim:** alchemy doesn't lock on with the lock-on; it fires in random directions.
 
 ### Performance and multiplayer
