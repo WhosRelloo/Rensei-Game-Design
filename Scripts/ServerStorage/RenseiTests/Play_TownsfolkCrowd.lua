@@ -39,9 +39,12 @@ local function Fixture(T, Name, Body, FloorSize)
 	local Home = C and C:GetPivot()
 	local Root = C and C:FindFirstChild("HumanoidRootPart")
 	local WasAnchored = Root and Root.Anchored
-	local Ctx = {O = O, Ground = Ground, Ids = Ids, Folder = Folder, Extra = Extra}
+	local Cleanups = {}
+	-- Lift: the walking level above the floor (a raised deck); OnCleanup(fn) runs fn in the cleanup
+	local Ctx = {O = O, Ground = Ground, Ids = Ids, Folder = Folder, Extra = Extra, Lift = 0}
+	function Ctx.OnCleanup(Fn) table.insert(Cleanups, Fn) end
 
-	function Ctx.At(X, Z) return Vector3.new(O.X + X, Ground, O.Z + Z) end
+	function Ctx.At(X, Z) return Vector3.new(O.X + X, Ground + Ctx.Lift, O.Z + Z) end
 	function Ctx.Part(Pos, Size, Props)
 		local P = Instance.new("Part")
 		P.Anchored = true
@@ -189,6 +192,7 @@ local function Fixture(T, Name, Body, FloorSize)
 	workspace:SetAttribute("RenseiCrowdPhase", nil)
 	for _, Id in ipairs(Ids) do pcall(TS.Despawn, Id) end
 	for _, M in ipairs(Extra) do pcall(function() M:Destroy() end) end
+	for _, Fn in ipairs(Cleanups) do pcall(Fn) end
 	pcall(function() Folder:Destroy() end)
 	pcall(function()
 		if WasHeld then WorldClock.Hold(WasHour) else WorldClock.Release() end
@@ -359,6 +363,88 @@ return {
 		end)
 	end,
 
+	-- (fix round 2) a 2-stud gap in a wall is a short cut only a squeezing agent fits; an 8-stud opening 40 studs along
+	-- is the long way round. The walker must take the long way (a 2-stud gap wedges an R6), arrive, and never fail.
+	Squeeze = function(T)
+		Fixture(T, "Squeeze", function(Ctx)
+			Ctx.Wall(0, -50.5, 2, 99) -- the wall at x = 0: solid from the floor's edge to z = -1...
+			Ctx.Wall(0, 20.5, 2, 39) -- ...a 2-stud gap at z = -1..1, solid to z = 40...
+			Ctx.Wall(0, 74, 2, 52) -- ...the 8-stud opening at z = 40..48, solid to the edge
+			local W = Ctx.Walkers({{From = {-15, 0}, To = {15, 0}}})
+			local S0 = Mover.Stats()
+			Ctx.Go()
+			local Rig = W[1].Rig
+			local MaxZ, MinRadius = -math.huge, math.huge
+			local Watching = true
+			task.spawn(function()
+				while Watching do
+					MaxZ = math.max(MaxZ, Rig.HumanoidRootPart.Position.Z - Ctx.O.Z)
+					local H = Mover.Handle(Rig)
+					if H and H.Radius and H.Radius > 0 then MinRadius = math.min(MinRadius, H.Radius) end -- (0: a direct leg)
+					task.wait(0.1)
+				end
+			end)
+			local R = Ctx.Track(W, 40, 2.2)
+			Watching = false
+			local S1 = Mover.Stats()
+			Say("Squeeze", "arrived %s s, furthest along the wall z %.1f, narrowest agent radius used %s, fails %d, replans %d",
+				Arrivals(R), MaxZ, tostring(MinRadius), S1.Fails - S0.Fails, S1.Replans - S0.Replans)
+			T.True(R.All, "arrives (" .. Arrivals(R) .. ")")
+			T.Eq(S1.Fails - S0.Fails, 0, "no walk failed")
+			T.True(MaxZ > 30, ("took the long way round (furthest z %.1f)"):format(MaxZ))
+			T.True(MinRadius >= 1.5, "never planned as a squeezing agent (radius " .. tostring(MinRadius) .. ")")
+		end)
+	end,
+
+	-- (fix round 2) an alley whose east mouth opens onto a 4-wide bridge over a dry 3-stud drop (south) and water
+	-- (north). The walker that gives way backs out across the bridge and must not step off it into either.
+	YieldPocket = function(T)
+		Fixture(T, "YieldPocket", function(Ctx)
+			local O, G = Ctx.O, Ctx.Ground
+			local function Deck(X0, X1, Z0, Z1)
+				Ctx.Part(Vector3.new(O.X + (X0 + X1) / 2, G + 1.5, O.Z + (Z0 + Z1) / 2), Vector3.new(X1 - X0, 3, Z1 - Z0),
+					{Color = Color3.fromRGB(125, 120, 110)})
+			end
+			Deck(-60, 10, -100, 100) -- the west deck (the alley stands on it)
+			Deck(10, 20, -2, 2) -- the bridge
+			Deck(20, 60, -100, 100) -- the east deck
+			-- the pits beside the bridge: south is a dry 3-stud drop; north holds water up to 0.5 below the deck
+			local Water = CFrame.new(O.X + 15, G + 1.25, O.Z + 20)
+			workspace.Terrain:FillBlock(Water, Vector3.new(8, 2.5, 32), Enum.Material.Water)
+			Ctx.OnCleanup(function() workspace.Terrain:FillBlock(Water, Vector3.new(16, 8, 40), Enum.Material.Air) end)
+			Ctx.Lift = 3
+			Ctx.Wall(0, -51.25, 20, 97.5) -- the alley: x = -10..10, z = -2.5..2.5
+			Ctx.Wall(0, 51.25, 20, 97.5)
+			task.wait(1)
+			-- the east walker is further from its goal when they meet in the alley, so it is the one that gives way
+			local W = Ctx.Walkers({{From = {-20, 0}, To = {30, 0}}, {From = {30, 0}, To = {-30, 0}}})
+			local S0 = Mover.Stats()
+			Ctx.Go()
+			local Low, Swam = math.huge, false
+			local Watching = true
+			task.spawn(function()
+				while Watching do
+					for _, X in ipairs(W) do
+						Low = math.min(Low, X.Rig.HumanoidRootPart.Position.Y - (G + 3))
+						if X.Rig.Humanoid:GetState() == Enum.HumanoidStateType.Swimming then Swam = true end
+					end
+					task.wait(0.1)
+				end
+			end)
+			local R = Ctx.Track(W, 45, 2.2)
+			Watching = false
+			local S1 = Mover.Stats()
+			Say("YieldPocket", "closest %.2f, arrived %s s, yields %d, lowest root %.2f above the deck, swam %s, fails %d",
+				R.Min, Arrivals(R), S1.Yields - S0.Yields, Low, tostring(Swam), S1.Fails - S0.Fails)
+			T.True(R.All and R.Last <= 45, "both arrive (" .. Arrivals(R) .. ")")
+			T.Eq(S1.Fails - S0.Fails, 0, "no walk failed")
+			T.True(S1.Yields - S0.Yields >= 1, "one gave way")
+			T.True(Low > 1.5, ("nobody stepped down off the deck (lowest root %.2f above it)"):format(Low))
+			T.Eq(Swam, false, "nobody stepped into the water")
+			T.True(R.Min >= 2.2, ("roots never closer than 2.2 (closest %.2f)"):format(R.Min))
+		end)
+	end,
+
 	-- (fix round 1) an alley 5 wide and 20 long, the only way through a wall across the floor: two walkers swap through
 	-- it. No room to step aside inside, so the one that gives way backs out along its own trail.
 	Alley = function(T)
@@ -410,7 +496,7 @@ return {
 			T.True(H1.Waypoints ~= nil and H2.Waypoints ~= nil, "both planned")
 			T.True(Raw2 > Kept2 and Kept2 >= 9, "the slalom keeps a turn per wall (" .. Kept2 .. " of " .. Raw2 .. ")")
 			T.True(S1.MaxPlanMs <= 25 and S2.MaxPlanMs <= 25, ("a 300-stud plan's own work stays under 25 ms (%.2f, %.2f)"):format(S1.MaxPlanMs, S2.MaxPlanMs))
-			T.True(S2.MaxPlanFrameMs <= Mover.PlanBudgetMs + 3, ("...spread over frames (at most %.2f ms in one)"):format(S2.MaxPlanFrameMs))
+			T.True(S2.MaxPlanFrameMs <= Mover.PlanBudgetMs + 1, ("...spread over frames (at most %.2f ms in one)"):format(S2.MaxPlanFrameMs))
 		end, 340)
 	end,
 
@@ -489,13 +575,13 @@ return {
 			local S = Mover.Stats()
 			local Full = FullTicks > 0 and FullMs / FullTicks or 0
 			Say("Performance", "StepMs with all 20 steering %.3f over %d ticks (all ticks %.3f, p99 %.3f, max %.3f, per Heartbeat %.4f); worst tick %s; plans %d, PlanMs avg %.2f max %.2f, max planning in one frame %.2f ms; closest %.2f, worst pair under 2.2 for %.2f s, arrived %d/20 by %.1f s, yields %d, replans %d",
-				Full, FullTicks, S.StepMs, S.P99StepMs, S.MaxStepMs, S.HeartbeatMs, S.WorstTick, S.Plans, S.PlanMs, S.MaxPlanMs, S.MaxPlanFrameMs,
+				Full, FullTicks, S.StepMs, Mover.P99StepMs(), S.MaxStepMs, S.HeartbeatMs, S.WorstTick, S.Plans, S.PlanMs, S.MaxPlanMs, S.MaxPlanFrameMs,
 				R.Min, R.MaxBelow, Count(R.Arrived), R.Last, S.Yields, S.Replans)
 			T.True(S.PeakWalkers >= 20, "20 walkers steered at once (" .. S.PeakWalkers .. ")")
 			T.Eq(S.Fails, 0, "no walk failed")
 			T.True(FullTicks >= 10, "measured over ticks with all 20 steering (" .. FullTicks .. ")")
 			T.True(Full <= 1.5, ("average steering step with 20 walkers %.3f ms <= 1.5"):format(Full))
-			T.True(S.MaxPlanFrameMs <= Mover.PlanBudgetMs + 3, ("planning in one frame %.2f ms stays near the %.1f ms budget"):format(S.MaxPlanFrameMs, Mover.PlanBudgetMs))
+			T.True(S.MaxPlanFrameMs <= Mover.PlanBudgetMs + 1, ("planning in one frame %.2f ms stays near the %.1f ms budget"):format(S.MaxPlanFrameMs, Mover.PlanBudgetMs))
 			T.True(R.All, "all 20 arrive")
 		end)
 	end,

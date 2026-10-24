@@ -11,6 +11,7 @@
 --       (agent radius used), Yields, Replans, Detours, Why (why it failed).
 --   * Mover.Place(Rig, TargetCFrame): cancels any walk, anchors the root and puts the rig exactly there.
 --   * Mover.Handle(Rig) -> the walk in progress (debug), or nil.
+--   * Mover.P99StepMs() -> the 99th-percentile steering tick of the last 1000 (sorted on demand).
 --   * Mover.Stats() -> {Walkers, StepMs, MaxStepMs, HeartbeatMs, Ticks, PeakWalkers, Yields, Replans, Sidesteps,
 --       Fails, Arrivals, PostWaits, Detours}; Mover.ResetStats(). StepMs = average time of one steering tick (all walkers).
 --
@@ -63,8 +64,9 @@ end
 local Mover = {}
 -- ===== tuning (all PROPOSALS) =====
 Mover.Agent = {AgentRadius = 2.5, AgentHeight = 5.5, AgentCanJump = false, AgentCanClimb = false, WaypointSpacing = 4}
-Mover.NarrowRadii = {2, 1.5, 1} -- tried in turn when there's no path at the agent's radius (a 5-stud door needs 2;
--- 1 = half a torso: squeezing between crates)...
+Mover.NarrowRadii = {2, 1.5} -- tried in turn when there's no path at the agent's radius (a 5-stud door needs 2)...
+Mover.SqueezeRadius = 1 -- the last resort, only when no path exists at any of those: half a torso, squeezing between
+-- crates (never chosen as a short cut: a 2-stud gap wedges an R6 whose arms are 4 across)
 Mover.DetourRatio, Mover.DetourSlack = 1.3, 8 -- ...or when its path is longer than this x the straight line + slack
 Mover.Costs = { -- material (or PathfindingModifier label) -> cost; anything else costs 1
 	Cobblestone = 1, Brick = 1, Concrete = 1, Pavement = 1,
@@ -117,6 +119,7 @@ Mover.FacingDist = 4 -- ...within this distance, facing each other
 Mover.YieldBack = 1.5 -- the yielder steps back this far and...
 Mover.YieldSide = 2.5 -- ...this far to its right
 Mover.YieldMax = 15 -- s: never yields longer than this (backing out of an alley takes a while)
+Mover.StepHeight = 1.5 -- a side spot this much higher or lower than where the walker stands is no pocket
 Mover.TrailStep = 1 -- studs between the breadcrumbs a walker leaves (the way back out of an alley)...
 Mover.TrailLength = 40 -- ...and how many it keeps
 Mover.OccupiedRadius = 2 -- someone this close to a post occupies it
@@ -138,7 +141,7 @@ local Stats
 function Mover.ResetStats()
 	Stats = {Ticks = 0, Ms = 0, MaxMs = 0, Heartbeats = 0, HeartbeatMs = 0, PeakWalkers = 0, Yields = 0, Replans = 0,
 		Sidesteps = 0, Fails = 0, Arrivals = 0, PostWaits = 0, Detours = 0, Plans = 0, PlanMs = 0, MaxPlanMs = 0,
-		MaxPlanFrameMs = 0, Routes = 0, RouteMs = 0, MaxRouteMs = 0, WorstTick = "", Times = {}}
+		MaxPlanFrameMs = 0, Routes = 0, RouteMs = 0, MaxRouteMs = 0, WorstTick = "", Times = {}, TimeAt = 0}
 end
 Mover.ResetStats()
 
@@ -153,12 +156,16 @@ function Mover.Stats()
 		Plans = Stats.Plans, PlanMs = Stats.Plans > 0 and Stats.PlanMs / Stats.Plans or 0, MaxPlanMs = Stats.MaxPlanMs,
 		MaxPlanFrameMs = Stats.MaxPlanFrameMs, Routes = Stats.Routes,
 		RouteMs = Stats.Routes > 0 and Stats.RouteMs / Stats.Routes or 0, MaxRouteMs = Stats.MaxRouteMs,
-		WorstTick = Stats.WorstTick, P99StepMs = (function()
-			local T = table.clone(Stats.Times)
-			table.sort(T)
-			return T[math.max(1, math.ceil(#T * 0.99))] or 0
-		end)(),
+		WorstTick = Stats.WorstTick,
 	}
+end
+
+-- the 99th percentile steering tick over the last Mover.TimeRing ticks (sorted on demand: call it now and then)
+Mover.TimeRing = 1000
+function Mover.P99StepMs()
+	local T = table.clone(Stats.Times)
+	table.sort(T)
+	return T[math.max(1, math.ceil(#T * 0.99))] or 0
 end
 
 local function Flat(V) return Vector3.new(V.X, 0, V.Z) end
@@ -251,16 +258,60 @@ local function CacheTagged(I)
 	end
 end
 
+-- The map's modifiers are found by walking World.Map a chunk at a time (ScanChunk instances a frame), in its own
+-- thread, so the first walk never waits for it (smoothing simply sees no modifiers until it is done). When World.Map
+-- is replaced (a region loads), the map's entries are dropped and the new map is scanned.
+Mover.ScanChunk = 1000 -- (instances a frame: ~1.5 ms on Ye)
+Mover.ScanInfo = {Instances = 0, Ms = 0, MaxSliceMs = 0, Done = false} -- (debug: the last map scan's cost)
+local ScanGen = 0
+local function ScanMap(Map)
+	ScanGen += 1
+	local Gen = ScanGen
+	for M, E in pairs(Modifiers) do
+		if E.FromMap then Modifiers[M] = nil end
+	end
+	if not Map then return end
+	task.defer(function()
+		local Stack, Seen = {Map}, 0
+		local Info = {Instances = 0, Ms = 0, MaxSliceMs = 0, Done = false}
+		Mover.ScanInfo = Info
+		local Slice = os.clock()
+		while #Stack > 0 do
+			if Gen ~= ScanGen then return end -- (a newer map: that scan takes over)
+			local I = table.remove(Stack)
+			for _, C in ipairs(I:GetChildren()) do
+				table.insert(Stack, C)
+				if C:IsA("PathfindingModifier") then
+					CacheModifier(C, C)
+					if Modifiers[C] then Modifiers[C].FromMap = true end
+				end
+			end
+			Seen += 1
+			if Seen % Mover.ScanChunk == 0 then
+				local Ms = (os.clock() - Slice) * 1000
+				Info.Ms += Ms
+				Info.MaxSliceMs = math.max(Info.MaxSliceMs, Ms)
+				task.wait()
+				Slice = os.clock()
+			end
+		end
+		local Ms = (os.clock() - Slice) * 1000
+		Info.Ms += Ms
+		Info.MaxSliceMs = math.max(Info.MaxSliceMs, Ms)
+		Info.Instances, Info.Done = Seen, true
+	end)
+end
+
 local function WatchModifiers()
 	if ModifiersReady then return end
 	ModifiersReady = true
-	local World = workspace:FindFirstChild("World")
-	local Map = World and World:FindFirstChild("Map")
-	if Map then
-		for _, D in ipairs(Map:GetDescendants()) do
-			if D:IsA("PathfindingModifier") then CacheModifier(D, D) end
-		end
-	end
+	task.defer(function()
+		local World = workspace:WaitForChild("World", 30)
+		if not World then return end
+		ScanMap(World:FindFirstChild("Map"))
+		World.ChildAdded:Connect(function(C) if C.Name == "Map" then ScanMap(C) end end)
+		World.ChildRemoved:Connect(function(C) if C.Name == "Map" then ScanMap(World:FindFirstChild("Map")) end end)
+	end)
 	for _, I in ipairs(CollectionService:GetTagged(Mover.ModifierTag)) do CacheTagged(I) end
 	CollectionService:GetInstanceAddedSignal(Mover.ModifierTag):Connect(CacheTagged)
 	CollectionService:GetInstanceRemovedSignal(Mover.ModifierTag):Connect(function(I)
@@ -385,12 +436,21 @@ local function Smooth(Costs, Pts, Labels, Budget)
 	return Out, Orig
 end
 
--- a clear, walkable spot from P (root position) to Spot (root height)? (side-steps, yields, waiting spots)
+-- a clear, walkable spot from P (root position) to Spot (root height)? (side-steps, yields, waiting spots) Nothing in
+-- the way, no one there, and ground the walker can stand on and walk back from: not water, no dearer (Costs) than the
+-- ground it stands on now, and no more than StepHeight up or down (it can't jump or climb back)
 local function SpotClear(H, P, Spot)
 	local D = Spot - P
 	if D.Magnitude > 0.05 and workspace:Spherecast(P - Vector3.new(0, LIFT - Mover.WaistHeight, 0), 1, D, Obstacles) then return false end
-	local Hit = workspace:Raycast(Spot, Vector3.new(0, -(LIFT + Mover.GroundDrop), 0), Ground)
-	if not Hit or Hit.Normal.Y < 0.7 then return false end
+	local Down = Vector3.new(0, -(LIFT + Mover.GroundDrop), 0)
+	local Hit = workspace:Raycast(Spot, Down, Ground)
+	if not Hit or Hit.Normal.Y < 0.7 or Hit.Material == Enum.Material.Water then return false end
+	local Here = workspace:Raycast(P, Down, Ground)
+	local HereY = Here and Here.Position.Y or (P.Y - LIFT)
+	if math.abs(Hit.Position.Y - HereY) > Mover.StepHeight then return false end
+	local Costs = (H.Agent and H.Agent.Costs) or Mover.Costs
+	local function C(M) return Costs[M.Name] or Mover.Costs[M.Name] or 1 end
+	if C(Hit.Material) > math.max(1, Here and C(Here.Material) or 1) then return false end
 	for _, B in ipairs(Bodies) do
 		if B.Model ~= H.Rig and B.Pos and FlatDist(B.Pos, Spot) < 2.5 then return false end
 	end
@@ -522,7 +582,7 @@ end
 -- Plans run in their own threads. Their own work (not their waits) is timed per plan, and all of it shares
 -- PlanBudgetMs per frame: once the frame's budget is spent, a plan waits for the next frame at its next check, so a
 -- schedule change that sends everyone walking at once can't stall one frame.
-local FrameNo = 0 -- counts Heartbeats while anyone walks (Tick)
+local FrameNo = 0 -- counts physics frames (PreSimulation) while anyone walks
 local PlanFrame, PlanFrameSpent = -1, 0
 
 local function NewClock() return {Spent = 0, Mark = os.clock()} end
@@ -543,6 +603,7 @@ local function PlanWait(Clock, Seconds) -- a wait inside a plan (not its own wor
 end
 
 local Conn -- the Heartbeat connection (only while someone walks)
+local FrameConn -- the frame counter for the planning budget (likewise)
 
 local function Budget(Clock)
 	Spend(Clock)
@@ -620,19 +681,26 @@ local function PlanBody(H, Gen, Clock)
 		if not Best then
 			-- no path from here (a walker pressed against a jamb or a neighbour is off the navmesh; a post between
 			-- standing townsfolk may be inside their inflated outlines): a short, clear straight leg to the goal, or a
-			-- path from a spot just behind or beside the walker
+			-- path from a spot just behind or beside the walker (at the narrowest comfortable radius, then squeezing)
 			local Here = H.Root.Position - Vector3.new(0, LIFT, 0)
 			if Straight <= 15 and Valid({Here, H.Goal}) and Safe(Costs, Here, H.Goal, math.huge) then
 				Best = {Pts = {Here, H.Goal}, Labels = {}, Raw = 2, Radius = 0, Length = Straight, Off = 0}
 			else
 				local Dir, Right = H.Dir, RightOf(H.Dir)
-				for _, Off in ipairs({-Dir * 3, Right * 2.5, -Right * 2.5, -Dir * 6}) do
-					local From = H.Root.Position + Off
-					if Valid({Here, From - Vector3.new(0, LIFT, 0)}) then
-						local Got = Compute(H, Agent, Costs, Radii[#Radii], Clock, From)
-						if not Alive(H, Gen) then return end
-						if type(Got) == "table" then Best = Got break end
+				for _, Radius in ipairs({Radii[#Radii], Mover.SqueezeRadius}) do
+					for _, Off in ipairs({Vector3.zero, -Dir * 3, Right * 2.5, -Right * 2.5, -Dir * 6}) do
+						if Radius == Radii[#Radii] and Off == Vector3.zero then continue end -- (tried above)
+						local From = H.Root.Position + Off
+						if Off == Vector3.zero or Valid({Here, From - Vector3.new(0, LIFT, 0)}) then
+							Budget(Clock)
+							if not Alive(H, Gen) then return end
+							local Got = Compute(H, Agent, Costs, Radius, Clock, Off ~= Vector3.zero and From or nil)
+							if not Alive(H, Gen) then return end
+							if type(Got) == "table" then Best = Got break end
+							if Got == "stale" then Stale = true end
+						end
 					end
+					if Best then break end
 				end
 			end
 		end
@@ -1077,8 +1145,12 @@ local function YieldPath(H, P, Dir)
 	for _, Off in ipairs({Back + Side, Back - Side, Side, -Side}) do
 		if SpotClear(H, P, P + Off) then return {P + Off} end
 	end
+	-- (the trail is cut back to the crumb it backs out to: what lies beyond is the way towards the other walker)
 	local Path, From = {}, P
 	local Trail = H.Trail
+	local function Keep(K)
+		for I = #Trail, K + 1, -1 do Trail[I] = nil end
+	end
 	for K = #Trail, 1, -1 do
 		local C = Trail[K]
 		if FlatDist(C, From) >= 1.5 then
@@ -1092,13 +1164,18 @@ local function YieldPath(H, P, Dir)
 				for _, Off in ipairs({R2 * Mover.YieldSide, -R2 * Mover.YieldSide}) do
 					if SpotClear(H, C, C + Off) then
 						table.insert(Path, C + Off)
+						Keep(K)
 						return Path
 					end
 				end
 			end
 		end
 	end
-	if #Path == 0 then table.insert(Path, P - Dir * (Mover.YieldBack + Mover.YieldSide)) end
+	if #Path == 0 then
+		table.insert(Path, P - Dir * (Mover.YieldBack + Mover.YieldSide))
+	else
+		Keep(1)
+	end
 	return Path
 end
 
@@ -1323,7 +1400,6 @@ end
 local Acc = 0
 local function Tick(Dt)
 	Stats.Heartbeats += 1
-	FrameNo += 1
 	Acc += Dt
 	local Period = 1 / Mover.Hz
 	if Acc < Period then return end
@@ -1365,7 +1441,8 @@ local function Tick(Dt)
 	if #List > 0 or Ms > 0 then
 		Stats.Ticks += 1
 		Stats.Ms += Ms
-		if #Stats.Times < 5000 then table.insert(Stats.Times, Ms) end
+		Stats.TimeAt = Stats.TimeAt % Mover.TimeRing + 1
+		Stats.Times[Stats.TimeAt] = Ms
 		if Ms > Stats.MaxMs then
 			Stats.MaxMs = Ms
 			Stats.WorstTick = ("%.2f ms: %d walkers (%.3f ms each on average, slowest %.2f ms %s), bodies refresh %.2f ms (%d bodies), %d local route(s) %.2f ms, Lua heap %+d KB"):format(
@@ -1376,8 +1453,11 @@ local function Tick(Dt)
 	if #List == 0 and Conn then
 		Conn:Disconnect()
 		Conn = nil
+		if FrameConn then FrameConn:Disconnect() FrameConn = nil end
 	end
 end
+
+WatchModifiers() -- (the scan runs deferred, in chunks)
 
 -- ===== API =====
 -- (debug) the rig's walk in progress, or nil
@@ -1409,7 +1489,7 @@ function Mover.WalkTo(Rig, TargetCFrame, Opts)
 	H.Dir = L.Magnitude > 1e-3 and L.Unit or Vector3.new(0, 0, -1)
 	H.SlowT, H.StuckReplans, H.SightAt, H.NextPlanAt, H.Detours = 0, 0, 0, 0, 0
 	H.Trail = {Root.Position}
-	WatchModifiers()
+	WatchModifiers() -- (already started at load; this only guards)
 	ResetWindow(H, Root.Position, os.clock())
 	Humanoid.WalkSpeed = H.Speed
 	Humanoid.AutoRotate = false -- (the facing is ours: Facer)
@@ -1423,6 +1503,7 @@ function Mover.WalkTo(Rig, TargetCFrame, Opts)
 	table.insert(List, H)
 	BodiesAt = 0 -- (a new walker: refresh the bodies on the next tick)
 	if not Conn then Conn = RunService.Heartbeat:Connect(Tick) end
+	if not FrameConn then FrameConn = RunService.PreSimulation:Connect(function() FrameNo += 1 end) end
 	Plan(H, "start")
 	return H
 end
