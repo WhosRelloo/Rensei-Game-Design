@@ -33,8 +33,9 @@ def parts_of(scene):
             if o.type == "MESH" and o.get("rs_kind") and o.parent is not None and o.parent.get("rs_prefab")]
 
 
-def run(region, stages="all"):
+def run(region, stages="all", budget=None):
     """Builds the region's stages ("all", or a comma-separated subset of STAGES) and saves the .blend.
+    budget overrides the layout's Budget (for checks of the over-budget path).
     Returns {"objects", "parts", "budget", "over", "renders": [paths], "blend", "stages"}."""
     want = list(STAGES) if stages == "all" else [x.strip() for x in stages.split(",") if x.strip()]
     bad = [x for x in want if x not in STAGES]
@@ -68,7 +69,7 @@ def run(region, stages="all"):
     bpy.context.view_layer.update()
 
     parts = len(parts_of(s))
-    budget = layout["Budget"]
+    budget = layout["Budget"] if budget is None else budget
     over = parts > budget
     s["rs_parts"], s["rs_budget"], s["rs_over_budget"] = parts, budget, over
     renders = ST.render(layout, os.path.join(RENDERS, region), grid) if "render" in want else []

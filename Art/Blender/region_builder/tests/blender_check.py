@@ -29,9 +29,22 @@ def tags_of(o):
 
 def main():
     import bpy
+    from mathutils import Vector
     from region_builder import build, materials
 
+    from region_builder import heightfield as HF, schema, stages as ST
+    import dataclasses
+
+    # the over-budget path: a 1-part budget (markers only, so the run is quick)
+    over = build.run("Testbed", "markers", budget=1)
+    check("over budget: over is True", over["over"] is True and over["budget"] == 1 and over["parts"] == 4, over)
+    check("over budget: the scene carries rs_over_budget",
+          bpy.context.scene.get("rs_over_budget") is True or bpy.context.scene.get("rs_over_budget") == 1,
+          dict(bpy.context.scene.items()) if hasattr(bpy.context.scene, "items") else None)
+
     out = build.run("Testbed", "ground,routes,markers")
+    layout = schema.load(os.path.join(REPO, "Art", "Regions", "Testbed", "layout.json"))
+    grid = HF.sample(layout, cell=build.CELL)
     INFO["run"] = {k: out[k] for k in ("objects", "parts", "budget", "over")}
     s = bpy.context.scene
     bpy.context.view_layer.update()
@@ -66,10 +79,42 @@ def main():
             bad.append((o.name, round(z_top, 4), o["rs_size"][2]))
     INFO["top_slabs"] = len(tops)
     check("every Top slab's top face is at a whole-stud height", tops and not bad, bad[:5])
-    ramps = [o for o in ground if o.name.split("_")[-1].startswith("Ramp")]
-    INFO["ramps"] = len(ramps)
-    check("the climb gets ramps", len(ramps) > 0)
-    check("ramps are 1.2 thick", all(abs(o["rs_size"][2] - 1.2) < 1e-6 for o in ramps))
+    ramps = [o for o in ground if o.name.split("_")[-1].startswith(("Ramp", "Under"))]
+    INFO["ramps"] = len([o for o in ramps if "Ramp" in o.name])
+    check("ramps are 1.2 thick", all(abs(o["rs_size"][2] - 1.2) < 1e-6 for o in ramps if "Ramp" in o.name))
+    under = ST.stair_cells(layout, grid)
+    INFO["stair_cells"] = len(under)
+    check("the climb's stairs cover some cells", len(under) > 0)
+
+    def cell_at(o):
+        t = o.matrix_world.translation
+        return ST._cell_of(grid, t.x, t.y)
+    on = [o.name for o in ramps if cell_at(o) in under]
+    check("no Ramp or Under part under a stair run", not on, on)
+
+    # Side blocks span exactly top - 1 down to the column's bottom (the stair-adjusted columns, as ground builds them)
+    tops = [col[:] for col in grid.top]
+    for (i, k), t in under.items():
+        tops[i][k] = t
+    bottom = {(i, k): b for i, k, t, b, kd in HF.columns(dataclasses.replace(grid, top=tops))}
+    bad = []
+    nsides = 0
+    for o in ground:
+        nm = o.name.split("_")[-1]
+        if not nm.startswith("Side"):
+            continue
+        nsides += 1
+        top = bpy.data.objects.get(o.name[:-len(nm)] + "Top" + nm[4:])
+        sz, t = o["rs_size"][2], o.matrix_world.translation
+        s_top, s_bot = t.z + sz / 2, t.z - sz / 2
+        t_bottom = top.matrix_world.translation.z - 0.5 if top else None
+        # a merged rect's cells share one bottom: read it at the rect's north-west cell
+        x0, z0 = t.x - o["rs_size"][0] / 2 + 0.01, t.y - o["rs_size"][1] / 2 + 0.01
+        b = bottom[ST._cell_of(grid, x0, z0)]
+        if top is None or abs(s_top - t_bottom) > 1e-4 or abs(s_bot - b) > 1e-4:
+            bad.append((o.name, round(s_top, 3), t_bottom, round(s_bot, 3), b))
+    INFO["sides"] = nsides
+    check("every Side block spans top - 1 down to its column's bottom", nsides > 0 and not bad, bad[:5])
 
     # routes: the climb (10 -> 4 over 8 studs of box edge) is steeper than 4 over 8, so it gets stairs
     routes = groups.get("Routes", [])
@@ -77,6 +122,26 @@ def main():
     kerbs = [o for o in routes if "Kerb" in o.name.split("_")[-1]]
     INFO["stairs"], INFO["kerbs"] = len(stairs), len(kerbs)
     check("the climb gets stairs", len(stairs) > 0)
+    # the stair rise: whole-stud tops, 1 stud per riser, the bottom step 1 above the ground it leaves and the top step
+    # flush with the plateau slab it reaches
+    runs = ST.stair_runs(layout)
+    tops_built = sorted(round(o.matrix_world.translation.z + o["rs_size"][2] / 2, 4) for o in stairs)
+    plan = sorted(float(t) for r in runs for _, _, t in r["steps"])
+    INFO["stair_tops"] = tops_built
+    check("stair tops are whole studs, as planned", tops_built == plan and all(t == int(t) for t in tops_built),
+          (tops_built, plan))
+    rise_ok = True
+    for r in runs:
+        ts = [t for _, _, t in r["steps"]]
+        (ax, az), (ux, uz) = r["a"], r["u"]
+        g0 = ST.ground_y(grid, ax + ux * (r["s0"] - 1), az + uz * (r["s0"] - 1))  # just before the run
+        g1 = ST.ground_y(grid, ax + ux * (r["s1"] + 1), az + uz * (r["s1"] + 1))  # just after it
+        lo, hi = min(g0, g1), max(g0, g1)
+        rise_ok &= all(abs(b - a) == 1 for a, b in zip(ts, ts[1:])) and min(ts) == lo + 1 and max(ts) == hi
+        INFO.setdefault("stair_ends", []).append({"route": r["route"], "ground": [g0, g1], "tops": [ts[0], ts[-1]]})
+    check("each riser is 1 stud; the steps meet the slabs at both ends", runs and rise_ok, INFO.get("stair_ends"))
+    check("steps stand on the run's base", all(abs(o.matrix_world.translation.z - o["rs_size"][2] / 2
+                                                   - runs[0]["base"]) < 1e-4 for o in stairs), runs[0]["base"])
     check("the public main road gets kerbs", len(kerbs) > 0)
 
     # markers
@@ -155,6 +220,34 @@ def main():
     plain = [r for pf in data["prefabs"] if pf["g"] == "Ground" for r in pf["p"]]
     check("ground rows stay 13 fields", plain and all(len(r) == 13 for r in plain))
     check("export parts = run parts", ex["parts"] == out["parts"], (ex["parts"], out["parts"]))
+
+    # ramps: the Testbed climb is all stairs, so build the ground once more with a gentler plateau edge (Edge 24:
+    # 6 studs over 24, under the stairs' 4 over 8) and check the ramps; then revert, so the saved file stays as built
+    import copy
+    gentle = copy.deepcopy(layout)
+    gentle["Heights"][1]["Edge"] = 24
+    gg = HF.sample(gentle, cell=build.CELL)
+    ST.ground(gentle, gg)
+    bpy.context.view_layer.update()
+    rp = [o for o in s.objects if o.type == "MESH" and o.name.split("_")[-1].startswith("Ramp")]
+    INFO["gentle_ramps"] = len(rp)
+    check("a gentle climb gets ramps and no stairs", len(rp) > 0 and not ST.stair_runs(gentle),
+          (len(rp), len(ST.stair_runs(gentle))))
+    check("ramps are 1.2 thick, tilted",
+          rp and all(abs(o["rs_size"][2] - 1.2) < 1e-6 and abs(o.matrix_world.to_euler().x)
+                     + abs(o.matrix_world.to_euler().y) > 1e-3 for o in rp))
+    # a ramp's top face passes through its cell's corner heights (ground.lua): check the centre height
+    worst = 0.0
+    for o in rp:
+        t = o.matrix_world.translation
+        i, k = ST._cell_of(gg, t.x, t.y)
+        mid = sum(HF.corners(gg, gentle, i, k)) / 4
+        top_c = t + o.matrix_world.to_3x3() @ Vector((0, 0, 0.6))
+        worst = max(worst, abs(top_c.z - mid))
+    check("ramp tops pass through the corner heights' mean", rp and worst < 1e-3, worst)
+    bpy.ops.wm.revert_mainfile()
+    check("the saved Testbed file is back as built", not bpy.data.is_dirty and len(build.parts_of(bpy.context.scene))
+          == out["parts"], len(build.parts_of(bpy.context.scene)))
 
 
 try:

@@ -33,6 +33,8 @@ BASE = {
     "ember": ("Neon", "e0782a", 0),  # PROPOSAL
     "lamp": ("Neon", "ffb35c", 0),  # PROPOSAL
 }
+# studs per tile when a pack item has no U (every pack item with an image has one today). PROPOSAL
+PACK_TILE_DEFAULT = 4
 # the material of invisible marker parts (Studio hides them: export field 14 = 1); not a palette colour
 HELPER = ("SmoothPlastic", "ff4fd8", 1)
 # the roles the ground and routes stages read, and the base key each falls back to when the Palette leaves it out
@@ -84,7 +86,8 @@ def table(layout):
             raise ValueError(f"Palette {role}: {pack!r} is not a texture-pack item with an image")
         mat, col, tr = BASE[key]
         t[mat_name(layout, role)] = {"Material": mat, "Color": col, "Transparency": tr,
-                                     "PackImage": "rbxassetid://" + str(it["I"]), "StudsPerTile": it.get("U", 4)}
+                                     "PackImage": "rbxassetid://" + str(it["I"]),
+                                     "StudsPerTile": it.get("U", PACK_TILE_DEFAULT)}
     return t
 
 

@@ -9,7 +9,7 @@ Each stage clears and rebuilds its own collection under Region_<Region> (the Rob
 Every exported piece is a prefab: an Empty with rs_prefab / rs_id, its parts parented, each part carrying rs_kind,
 rs_size, rs_mat (and rs_invisible / rs_attr / rs_tags on markers). Water previews and the lights live outside the
 groups and have no prefab, so export.py skips them. Every size here is a PROPOSAL."""
-import json, math, os
+import dataclasses, json, math, os
 
 import bpy
 from mathutils import Matrix, Vector
@@ -150,15 +150,21 @@ def _ramp(root, n, grid, layout, i, k, bottom, mat, side):
 def ground(layout, grid):
     """One prefab per 64 x 64-stud tile (group Ground): merged Top slabs 1 stud thick, Side blocks from top - 1 down
     to the column's bottom, and ramps on sloping route cells. Route cells' tops are the routes' surfaces (paving on
-    public and road routes, cinder lanes on quiet ones); a water cell's top is its bed. Returns the part count."""
+    public and road routes, cinder lanes on quiet ones); a water cell's top is its bed. Cells under a stair run (see
+    stair_cells) get no ramp: they are flat columns whose tops stay at or below the steps over them, so the stairs
+    stand alone. Returns the part count."""
     M = materials.palette(layout)
     c = clear_group(layout, "Ground")
     top_mat = {"top": M["ground_top"], "path": M["path"], "quiet": M["quiet"], "water": M["ground_side"]}
     side = M["ground_side"]
-    ramps = HF.ramps(grid, layout)
+    under = stair_cells(layout, grid)  # cells under a stair run: flat columns kept below the steps, never ramps
+    ramps = HF.ramps(grid, layout) - set(under)
     ox, oz, cell = grid.origin[0], grid.origin[1], grid.cell
+    tops = [col[:] for col in grid.top]
+    for (i, k), t in under.items():
+        tops[i][k] = t
     tiles = {}
-    for i, k, t, b, kd in HF.columns(grid):
+    for i, k, t, b, kd in HF.columns(dataclasses.replace(grid, top=tops)):
         tiles.setdefault((i * cell // TILE, k * cell // TILE), {})[(i, k)] = (t, b, kd)
     n = 0
     for (ti, tk), cols in sorted(tiles.items()):
@@ -221,8 +227,9 @@ def _runs(cells, along):
 
 
 def _kerbs(layout, grid, c, mat):
-    """Kerbs along every path cell edge that meets plain ground or water (not on ramps), one prefab per tile."""
-    ramps = HF.ramps(grid, layout)
+    """Kerbs along every path cell edge that meets plain ground or water (not on ramps or under stairs), one prefab per
+    tile."""
+    ramps = HF.ramps(grid, layout) | set(stair_cells(layout, grid))
     tc = max(1, TILE // grid.cell)  # cells per tile
     edges = {d: {} for d in ("N", "S", "W", "E")}
     for i in range(grid.nx):
@@ -290,29 +297,83 @@ def _steep_spans(layout, a, b):
     return out, h, (ux, uz)
 
 
-def _stairs(layout, route, root, mat):
-    """Stairs (1-stud risers) over every stretch of the route steeper than STEEP; each step's top meets the slope's
-    higher end over its tread, so the steps cover the ramp under them."""
-    n = 0
-    w = route["Width"]
-    for a, b in zip(route["Line"], route["Line"][1:]):
-        spans, h, u = _steep_spans(layout, a, b)
-        if not spans:
+def stair_runs(layout, route=None):
+    """The stair runs of the public, road and quiet routes (or of one route): every stretch steeper than STEEP becomes
+    1-stud risers between whole-stud ends, the ground's rounded heights where the stretch starts and stops, so the
+    bottom step rises 1 from the slab below and the top step is flush with the slab above. Each run is a dict:
+    route Id, a (segment start [x, z]), u (unit direction), s0 / s1 (distances along the segment), width, base (the
+    lower end - 1: every step is solid down to it) and steps [(sa, sb, top)] in order along the segment."""
+    out = []
+    for r in layout["Routes"] if route is None else [route]:
+        if r["Kind"] not in ("public", "road", "quiet"):
             continue
-        ux, uz = u
+        for a, b in zip(r["Line"], r["Line"][1:]):
+            spans, h, u = _steep_spans(layout, a, b)
+            for s0, s1 in spans:
+                H0, H1 = HF._round(h(s0)), HF._round(h(s1))
+                if H0 == H1:
+                    continue
+                n, rise = abs(H1 - H0), (1 if H1 > H0 else -1)
+                tread = (s1 - s0) / n
+                steps = [(s0 + j * tread, s0 + (j + 1) * tread, max(H0 + j * rise, H0 + (j + 1) * rise))
+                         for j in range(n)]
+                out.append({"route": r["Id"], "a": a, "u": u, "s0": s0, "s1": s1, "width": r["Width"],
+                            "base": min(H0, H1) - 1, "steps": steps})
+    return out
+
+
+def stair_top_at(run, x, z):
+    """The top of the step over (x, z), or None outside the run's footprint."""
+    (ax, az), (ux, uz) = run["a"], run["u"]
+    s = (x - ax) * ux + (z - az) * uz
+    d = -(x - ax) * uz + (z - az) * ux
+    if abs(d) > run["width"] / 2 or s < run["s0"] or s > run["s1"]:
+        return None
+    for sa, sb, top in run["steps"]:
+        if s <= sb:
+            return top
+    return run["steps"][-1][2]
+
+
+def stair_cells(layout, grid, samples=5):
+    """{(i, k): top} for every cell a stair run's footprint touches: the cell's top lowered, where needed, to the
+    lowest step over it (sampled on a samples x samples grid inside the cell), so no slab pokes through the steps."""
+    out = {}
+    runs = stair_runs(layout)
+    if not runs:
+        return out
+    c = grid.cell
+    offs = [(m + 0.5) * c / samples for m in range(samples)]
+    for run in runs:
+        (ax, az), (ux, uz) = run["a"], run["u"]
+        reach = run["width"] / 2 + c
+        xs = [ax + ux * run["s0"], ax + ux * run["s1"]]
+        zs = [az + uz * run["s0"], az + uz * run["s1"]]
+        i0, k0 = _cell_of(grid, min(xs) - reach, min(zs) - reach)
+        i1, k1 = _cell_of(grid, max(xs) + reach, max(zs) + reach)
+        for i in range(i0, i1 + 1):
+            for k in range(k0, k1 + 1):
+                x0, z0 = grid.origin[0] + i * c, grid.origin[1] + k * c
+                tops = [t for dx in offs for dz in offs if (t := stair_top_at(run, x0 + dx, z0 + dz)) is not None]
+                if tops:
+                    out[(i, k)] = min(out.get((i, k), grid.top[i][k]), grid.top[i][k], min(tops))
+    return out
+
+
+def _stairs(layout, route, root, mat):
+    """Builds the route's stair runs (stair_runs): one solid Step block per riser, from the run's base up to the
+    step's whole-stud top."""
+    n = 0
+    for run in stair_runs(layout, route):
+        (ax, az), (ux, uz) = run["a"], run["u"]
         yaw_b = math.atan2(uz, ux) - math.pi / 2  # Blender: the step's local +y runs along the segment
-        for s0, s1 in spans:
-            h0, h1 = h(s0), h(s1)
-            steps = max(1, int(round(abs(h1 - h0))))
-            rise, tread = (h1 - h0) / steps, (s1 - s0) / steps
-            for j in range(steps):
-                lo_h, hi_h = h0 + j * rise, h0 + (j + 1) * rise
-                top, bottom = max(lo_h, hi_h), min(lo_h, hi_h) - 1.5
-                sm = s0 + (j + 0.5) * tread
-                x, z = a[0] + ux * sm, a[1] + uz * sm
-                part(root, f"Step{n}", (w, tread + 0.05, top - bottom), bl(x, (top + bottom) / 2, z), mat,
-                     rot=(0, 0, yaw_b))
-                n += 1
+        base = run["base"]
+        for sa, sb, top in run["steps"]:
+            sm = (sa + sb) / 2
+            x, z = ax + ux * sm, az + uz * sm
+            part(root, f"Step{n}", (run["width"], sb - sa + 0.05, top - base), bl(x, (top + base) / 2, z), mat,
+                 rot=(0, 0, yaw_b))
+            n += 1
     return n
 
 
@@ -416,7 +477,8 @@ def _engine(s):
 
 
 def lighting(layout):
-    """A sooty overcast sky and a warm sun (the rail-town mood; PROPOSAL), EEVEE at 1920 x 1080."""
+    """A sooty overcast sky and a near-white sun (so the palette's hex colours read true; PROPOSAL), EEVEE at
+    1920 x 1080."""
     s = bpy.context.scene
     c = clear_group(layout, "Lighting")
     w = bpy.data.worlds.get(f"RG_{layout['Region']}_World") or bpy.data.worlds.new(f"RG_{layout['Region']}_World")

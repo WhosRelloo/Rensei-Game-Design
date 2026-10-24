@@ -157,6 +157,22 @@ def test_schema():
         except schema.SchemaError:
             ok = True
     check("invalid JSON raises SchemaError", ok)
+
+    # Palette values: a key string, or {"Key": key, "Pack": texture-pack item} (Pack optional; owner, 2026-10-23)
+    check("_pal accepts a key string", schema._pal("cinder"))
+    check("_pal accepts {Key, Pack}", schema._pal({"Key": "brick", "Pack": "Floor A"}))
+    check("_pal accepts {Key}", schema._pal({"Key": "brick"}))
+    check("_pal rejects {Pack} alone", not schema._pal({"Pack": "Floor A"}))
+    check("_pal rejects an unknown field", not schema._pal({"Key": "brick", "Tint": "ff0000"}))
+    check("_pal rejects an empty Pack", not schema._pal({"Key": "brick", "Pack": ""}))
+    good = copy.deepcopy(raw)
+    good["Palette"]["wall"] = {"Key": "brick", "Pack": "Floor A"}
+    r, m, msgs = raises_schema(schema, good, "Palette")
+    check("a layout with a {Key, Pack} Palette value loads", not r, msgs)
+    bad = copy.deepcopy(raw)
+    bad["Palette"]["wall"] = {"Pack": "Floor A"}
+    r, m, msgs = raises_schema(schema, bad, "Palette")
+    check("a layout with a Pack-only Palette value raises", r and m, msgs)
     return L
 
 

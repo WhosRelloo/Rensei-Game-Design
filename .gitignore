@@ -1,3 +1,5 @@
 Art/Blender/textures/
 __pycache__/
 *.blend1
+Art/Blender/Regions/*.blend
+Art/Blender/Regions/*.blend1

@@ -7,8 +7,9 @@ Then run import/finish.lua (hand-written): backup, swap into Workspace.World.Map
 
 Materials are Roblox built-ins (Plaster, ClayRoofTiles, RoofShingles, WoodPlanks, Cobblestone, LeafyGrass, ...) with
 a colour each; the names stay the Blender material names so MaterialVariants can be layered on later.
-Part rows may carry field 14 (1 = invisible helper: Transparency 1, CanCollide off, CanQuery/CanTouch on) and field 15
-(a JSON string of attributes). Shape 3 is a Seat (box-sized). Art/Studio/Train uses this with the train kit.
+Part rows may carry field 14 (1 = invisible helper: Transparency 1, CanCollide off, CanQuery/CanTouch on), field 15
+(a JSON string of attributes; "" = none) and field 16 (CollectionService tags; not applied here yet: the region
+import, Task 11, reads it). Shape 3 is a Seat (box-sized). Art/Studio/Train uses this with the train kit.
 Every colour is a PROPOSAL."""
 import base64, json, math, os, struct, sys, xml.sax.saxutils as sx
 
@@ -124,7 +125,7 @@ for I, PF in ipairs(DATA) do
 		if P[14] == 1 then -- invisible helper (BoardZone, StowZone, CarDoor, ...)
 			Part.Transparency, Part.CanCollide, Part.CanQuery, Part.CanTouch, Part.CastShadow = 1, false, true, true, false
 		end
-		if type(P[15]) == "string" then
+		if type(P[15]) == "string" and P[15] ~= "" then -- "" = no attributes (export rows keep fields 14-16 together)
 			for K, V in pairs(HS:JSONDecode(P[15])) do
 				Part:SetAttribute(K, V)
 			end
@@ -267,7 +268,7 @@ def rbxmx(pf, mats):
         extra = ""
         if helper:
             collide, tr = "false", 1
-        if len(p) > 14 and isinstance(p[14], str):
+        if len(p) > 14 and isinstance(p[14], str) and p[14]:  # "" = no attributes
             extra = attrs_xml(p[14])
         shape_xml = '<token name="shape">2</token>' if shape == 1 else ('<token name="shape">1</token>' if cls != "WedgePart" else "")
         plist.append((x, y, z, mat))
@@ -280,7 +281,7 @@ def rbxmx(pf, mats):
                           f'<token name="Material">{MAT_ENUM[mat]}</token><Color3uint8 name="Color3uint8">{rgb_uint(col)}</Color3uint8>'
                           f'<float name="Transparency">{tr}</float><token name="TopSurface">0</token><token name="BottomSurface">0</token>'
                           + shape_xml + extra + "</Properties>", ""])
-        if len(p) > 14 and isinstance(p[14], str) and json.loads(p[14]).get("Emit") == "Steam":
+        if len(p) > 14 and isinstance(p[14], str) and p[14] and json.loads(p[14]).get("Emit") == "Steam":
             parts_xml[-1][1] += steam_xml(nref())
     for l in pf["l"]:  # [x, y, z, range, brightness, shadows, r, g, b]
         best, bd = 0, 1e9
