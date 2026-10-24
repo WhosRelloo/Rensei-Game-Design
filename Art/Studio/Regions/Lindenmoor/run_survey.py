@@ -5,6 +5,11 @@
 3. writes ye_survey.json next to this file;
 4. destroys ServerStorage.LMSurvey and checks it is gone.
 It then prints a one-line summary; run check_survey.py ye_survey.json to check it. Never touches any other Studio.
+
+python -I run_survey.py --seam
+    runs the same read-only survey but writes only its SeamHeights and SeamNewTops (Ruling 21) to seam_survey.json,
+    leaving ye_survey.json (the pre-import baseline that check_survey.py and make_pads.py read) untouched. It also
+    reports whether GroundFootprint still matches the stored one.
 """
 import json, os, re, subprocess, sys, tempfile
 
@@ -15,6 +20,12 @@ STUDIO = "placeId: 106992859583940"  # Ye
 SURVEY = os.path.join(HERE, "survey_ye.lua")
 OUT = os.path.join(HERE, "ye_survey.json")
 CHUNK = 25000
+SEAM_OUT = os.path.join(HERE, "seam_survey.json")
+SEAM_NOTE = ("Ruling 21 seam measurement, read-only, taken in Ye after the import by survey_ye.lua through run_survey.py "
+             "--seam. SeamHeights: [cx, cz, y, hits, ring] for footprint cells within 2 cells of a non-footprint cell, "
+             "y = Ye's real top (rays filtered to World.Map.Ground + HalvardsAdit; -999 = fewer than 3 of 5 rays hit). "
+             "SeamNewTops: [cx, cz, y] for non-footprint cells bordering the footprint, against "
+             "World.Map.LindenmoorExpansion.Ground. Cells are 4-stud world cells by their min corner.")
 
 READ = """local v = game:GetService("ServerStorage"):FindFirstChild("LMSurvey")
 if not v then return "@@ERR@@no LMSurvey" end
@@ -66,6 +77,16 @@ def main():
             gone = luau(CLEAN, tmp)
         if "@@LMSurvey=nil@@" not in gone:
             raise SystemExit("LMSurvey was not removed: " + gone.strip()[:300])
+    if sys.argv[1:] == ["--seam"]:
+        with open(OUT, encoding="utf-8") as f:
+            same = json.load(f).get("GroundFootprint") == data.get("GroundFootprint")
+        seam = {"Note": SEAM_NOTE, "SeamHeights": data["SeamHeights"], "SeamNewTops": data["SeamNewTops"]}
+        with open(SEAM_OUT, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(seam, f, separators=(",", ":"))
+            f.write("\n")
+        print(f"seam_survey.json written: {len(seam['SeamHeights'])} Ye seam cells, {len(seam['SeamNewTops'])} new seam "
+              f"cells; GroundFootprint unchanged: {same}; LMSurvey removed")
+        return
     with open(OUT, "w", encoding="utf-8", newline="\n") as f:
         json.dump(data, f, indent=1)
         f.write("\n")

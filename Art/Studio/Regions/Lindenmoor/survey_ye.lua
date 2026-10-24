@@ -277,6 +277,85 @@ end
 result.GroundCells = toRuns(held)
 result.GroundFootprint = toRuns(foot)
 
+-- SeamHeights (Ruling 21): Ye's real top at every footprint cell within 2 cells (8-neighbour rings) of a
+-- non-footprint cell, as {cx, cz, y, hits, ring}: y = the median of 5 downward rays (cell centre and +-1.2 corners)
+-- that hit World.Map.Ground or World.Map.HalvardsAdit only (the expansion and everything else excluded; parts with
+-- Transparency >= 0.95 are passed through), -999 when fewer than 3 rays hit. SeamNewTops: the same for every
+-- non-footprint cell bordering the footprint, against World.Map.LindenmoorExpansion.Ground (y -999 if absent).
+local function isFoot(x, z) return foot[x] ~= nil and foot[x][z] == true end
+local function topAt(include, x, z)
+	local rp = RaycastParams.new()
+	rp.FilterType = Enum.RaycastFilterType.Include
+	rp.FilterDescendantsInstances = include
+	local ys = {}
+	for _, o in ipairs({ { 0, 0 }, { 1.2, 1.2 }, { -1.2, 1.2 }, { 1.2, -1.2 }, { -1.2, -1.2 } }) do
+		local from = Vector3.new(x + o[1], 600, z + o[2])
+		local hit
+		for _ = 1, 6 do
+			local r = workspace:Raycast(from, Vector3.new(0, -800, 0), rp)
+			if not r then break end
+			if r.Instance.Transparency < 0.95 then hit = r.Position.Y break end
+			from = r.Position - Vector3.new(0, 0.01, 0)
+		end
+		if hit then table.insert(ys, hit) end
+	end
+	if #ys < 3 then return -999, #ys end
+	table.sort(ys)
+	return r1(ys[math.ceil(#ys / 2)]), #ys
+end
+local yeInc = {}
+for _, n in ipairs({ "Ground", "HalvardsAdit" }) do
+	if Map:FindFirstChild(n) then table.insert(yeInc, Map[n]) end
+end
+local EX = Map:FindFirstChild("LindenmoorExpansion")
+local exInc = EX and EX:FindFirstChild("Ground") and { EX.Ground } or nil
+local ring = {} -- [x][z] = 1 or 2 for footprint cells
+local function setRing(x, z, v)
+	ring[x] = ring[x] or {}
+	if not ring[x][z] or ring[x][z] > v then ring[x][z] = v end
+end
+local newRing = {}
+for x, zs in pairs(foot) do
+	for z in pairs(zs) do
+		for dx = -4, 4, 4 do
+			for dz = -4, 4, 4 do
+				if not isFoot(x + dx, z + dz) then
+					setRing(x, z, 1)
+					newRing[x + dx] = newRing[x + dx] or {}
+					newRing[x + dx][z + dz] = true
+				end
+			end
+		end
+	end
+end
+for x, zs in pairs(foot) do
+	for z in pairs(zs) do
+		if not (ring[x] and ring[x][z]) then
+			for dx = -4, 4, 4 do
+				for dz = -4, 4, 4 do
+					if ring[x + dx] and ring[x + dx][z + dz] == 1 then setRing(x, z, 2) end
+				end
+			end
+		end
+	end
+end
+result.SeamHeights = {}
+for x, zs in pairs(ring) do
+	for z, v in pairs(zs) do
+		local y, n = topAt(yeInc, x + 2, z + 2)
+		table.insert(result.SeamHeights, { x, z, y, n, v })
+	end
+end
+result.SeamNewTops = {}
+if exInc then
+	for x, zs in pairs(newRing) do
+		for z in pairs(zs) do
+			local y = topAt(exInc, x + 2, z + 2)
+			table.insert(result.SeamNewTops, { x, z, y })
+		end
+	end
+end
+
 local json = HttpService:JSONEncode(result)
 local sv = ServerStorage:FindFirstChild("LMSurvey") or Instance.new("StringValue")
 sv.Name = "LMSurvey"
