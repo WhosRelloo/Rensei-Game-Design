@@ -1,0 +1,62 @@
+{
+ "RG_Testbed_brick": {
+  "Color": "7a3e2e",
+  "Material": "Brick",
+  "Transparency": 0
+ },
+ "RG_Testbed_brick_dark": {
+  "Color": "5e2f24",
+  "Material": "Brick",
+  "Transparency": 0
+ },
+ "RG_Testbed_cinder": {
+  "Color": "4a4642",
+  "Material": "Ground",
+  "Transparency": 0
+ },
+ "RG_Testbed_cinder_dark": {
+  "Color": "3a3633",
+  "Material": "Ground",
+  "Transparency": 0
+ },
+ "RG_Testbed_ember": {
+  "Color": "e0782a",
+  "Material": "Neon",
+  "Transparency": 0
+ },
+ "RG_Testbed_glass_warm": {
+  "Color": "3a2a1c",
+  "Material": "Glass",
+  "Transparency": 0.3
+ },
+ "RG_Testbed_helper": {
+  "Color": "ff4fd8",
+  "Material": "SmoothPlastic",
+  "Transparency": 1
+ },
+ "RG_Testbed_iron": {
+  "Color": "3d4247",
+  "Material": "Metal",
+  "Transparency": 0
+ },
+ "RG_Testbed_lamp": {
+  "Color": "ffb35c",
+  "Material": "Neon",
+  "Transparency": 0
+ },
+ "RG_Testbed_paving": {
+  "Color": "5c5853",
+  "Material": "Cobblestone",
+  "Transparency": 0
+ },
+ "RG_Testbed_slag": {
+  "Color": "2f2b29",
+  "Material": "Slate",
+  "Transparency": 0
+ },
+ "RG_Testbed_timber": {
+  "Color": "5a4636",
+  "Material": "WoodPlanks",
+  "Transparency": 0
+ }
+}

@@ -5,9 +5,12 @@ model pivot. Axis mapping (Blender -> Roblox local): (x, y, z) -> (X = x, Y = z,
 Blender cylinders run along local Z, Roblox cylinders along local X, so they get R_b @ Ry(-90) and size (h, 2r, 2r).
 Skipped: rs_skip objects (terrain/water/kept references) and Reskin_* roots (Studio keeps those parts and only
 changes their material, see Art/Studio/Lindenmoor/import_finish.lua).
-Part row: [name, shape, mat, sx, sy, sz, X, Y, Z, qx, qy, qz, qw] (+ [invisible 0/1] (+ [attributes JSON string])).
-shape: 0 Block, 1 Cylinder, 2 Wedge, 3 Seat (box-sized). Helper parts set ["rs_invisible"] = True (field 14 = 1) and/or
-["rs_attr"] = a JSON string of attributes (field 15; field 14 is then written as 0 when the part is visible)."""
+Part row: [name, shape, mat, sx, sy, sz, X, Y, Z, qx, qy, qz, qw] (+ [invisible 0/1, attributes JSON, tags]).
+shape: 0 Block, 1 Cylinder, 2 Wedge, 3 Seat (box-sized). Helper parts set ["rs_invisible"] = True (field 14 = 1),
+["rs_attr"] = a JSON string of attributes (field 15) and/or ["rs_tags"] = comma-separated CollectionService tags
+(field 16). A part with any of the three gets all three, so rows stay positional: field 14 = 0 when visible, field 15
+= "" with no attributes, field 16 = "" with no tags. A part with none of them stays a 13-field row.
+origin: the world position the importer places the build at (written to the file; Lindenmoor's by default)."""
 import bpy, json, math, os
 from mathutils import Matrix
 
@@ -40,7 +43,7 @@ def walk(o):
         yield from walk(c)
 
 
-def export(scene_name="Lindenmoor_Full", out_path=OUT):
+def export(scene_name="Lindenmoor_Full", out_path=OUT, origin=(0, 4, -650)):
     s = bpy.data.scenes[scene_name]
     mats, mi = [], {}
     prefabs = []
@@ -76,18 +79,16 @@ def export(scene_name="Lindenmoor_Full", out_path=OUT):
                 size = [sz[0], sz[2], sz[1]]
                 shape = {"Wedge": 2, "Seat": 3}.get(k, 0)
             row = [short(root, o.name), shape, mi[mname], r(size[0]), r(size[1]), r(size[2])] + to_roblox(rel)
-            inv_flag, attr = bool(o.get("rs_invisible")), o.get("rs_attr")
-            if inv_flag or attr:
-                row.append(1 if inv_flag else 0)
-                if attr:
-                    row.append(str(attr))
+            inv_flag, attr, tags = bool(o.get("rs_invisible")), o.get("rs_attr"), o.get("rs_tags")
+            if inv_flag or attr or tags:
+                row += [1 if inv_flag else 0, str(attr) if attr else "", str(tags) if tags else ""]
             parts.append(row)
         if not parts:
             continue
         g = root.users_collection[0].name.split(".")[0]
         prefabs.append({"k": kind, "id": str(root.get("rs_id")), "g": g, "cf": to_roblox(root.matrix_world), "p": parts, "l": lights})
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    data = {"origin": [0, 4, -650], "mats": mats, "prefabs": prefabs}
+    data = {"origin": list(origin), "mats": mats, "prefabs": prefabs}
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(data, f, separators=(",", ":"))
     return {"file": out_path, "prefabs": len(prefabs), "parts": sum(len(p["p"]) for p in prefabs), "lights": sum(len(p["l"]) for p in prefabs), "mats": mats}

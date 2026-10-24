@@ -73,6 +73,13 @@ def _line(v):
     return isinstance(v, list) and len(v) >= 2 and all(_point(p) for p in v)
 
 
+def _pal(v):
+    """A Palette value: a material key, or {"Key": key, "Pack": texture-pack item name} (Pack optional)."""
+    if isinstance(v, dict):
+        return _str(v.get("Key")) and set(v) <= {"Key", "Pack"} and ("Pack" not in v or _str(v["Pack"]))
+    return _str(v)
+
+
 def _rect(v):
     return isinstance(v, list) and len(v) == 4 and all(_num(c) for c in v) and v[0] < v[2] and v[1] < v[3]
 
@@ -151,8 +158,8 @@ def validate(data):
     if "Budget" in data and not (_int(data["Budget"]) and 0 < data["Budget"] <= MAX_BUDGET):
         c.err("region", f"Budget must be an integer in 1..{MAX_BUDGET}, got {data['Budget']!r}")
     pal = data.get("Palette")
-    if "Palette" in data and not (isinstance(pal, dict) and all(_str(k) and _str(v) for k, v in pal.items())):
-        c.err("region", "Palette must map names to material names (strings)")
+    if "Palette" in data and not (isinstance(pal, dict) and all(_str(k) and _pal(v) for k, v in pal.items())):
+        c.err("region", 'Palette must map names to material names (strings) or to {"Key": name, "Pack": item}')
     for k in ("Heights", "Districts", "Routes", "Landmarks", "Markers"):
         if k in data and not isinstance(data[k], list):
             c.err("region", f"{k} must be a list")
