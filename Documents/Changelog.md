@@ -4,6 +4,68 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-24 — Region Foundation Task 10b: ungrippable map edges
+
+Your choice: "Ungrippable edges". The climb leap (Space+W) gains 12 studs for little stamina, so a base player can climb about 123 studs from a running jump, and a fully upgraded one about 207. No sensible wall height keeps them in. Instead, edge cliffs and walls keep their look, but carry a new tag, `RenseiNoGrip`, that nothing can grab. There are still no invisible walls. Built in Ye; backups are in `ServerStorage.RenseiBackups["Pre-RegionFoundation_2026-10-23"]` (`*_task10b`). Every number is a **PROPOSAL**.
+
+- **Movement.** A part tagged `RenseiNoGrip`, or inside a model with the tag, can't be grabbed by any of these:
+  - a climb;
+  - a mid-air grab;
+  - a climb leap;
+  - moving along a climb (the wall ends where the tagged part starts);
+  - a wall run;
+  - the air wall-kick (S).
+
+  You can still stand on it and bump into it. Climbing an ordinary wall up to a tagged part stops there; you vault onto the top if there is one, or drop. **Nothing changes on any untagged surface.** The server refuses a climb or wall run against a tagged wall too, so a modified client can't climb one.
+- **No tagged parts exist in the live game yet.** The first ones come with the region imports. Lindenmoor's expansion cliff gets the tag when it's imported.
+- **Region edges.**
+  - Edge walls carry the tag. They stand 80 studs over the ground beside them, well over a running jump (about +16 to +19).
+  - No building, landmark or tall prop stands within 26 studs of an edge wall. That's beyond a running jump's reach, so no roof can launch anyone over the top.
+  - The Testbed's row district moved slightly to keep its 3 houses.
+- **Also:** the repo copy of TuningConfig now matches Studio, picking up an earlier `Knockable = false` line for the sparring dummy.
+- **Tests:**
+  - A new Play_NoGrip test covers the tag check and the server's refusal (6/6).
+  - On a real client, a mid-air grab caught a tagged wall before the change and never after; ordinary walls still grabbed.
+  - Play_Boot passes, and so do the region builder checks (144/144 and 101/101).
+  - The owner's save was restored and the test hook removed.
+- **To publish:** the `Modules` package (JumpManager, MovementState, TuningConfig).
+
+### Discord announcement
+
+Hold: not live yet. No map edges use this until the first new region ships.
+
+## 2026-10-24 — Region Foundation Task 10: the rail-town building kit
+
+The region builder can now dress a region in the rail-town style (Foundry Yard's look: soot, iron, furnace brick, ember). It uses the same chunky, blocky parts as Lindenmoor. **Nothing changed in Studio.** Code: `Art/Blender/region_builder/kits/railtown.py`, `placement.py`, `stages.py`. Renders: `Documents/images/Regions/Kits/` and `Documents/images/Regions/Testbed/`. Every number, size and colour is a **PROPOSAL**.
+
+- **Buildings:** brick terrace houses with slate roofs, chimneys and warm windows, a long boarding house, a corrugated shed, a brick warehouse with a loading dock, and a smokestack. Each stays under 150 parts, up to 4 storeys.
+- **Landmarks:**
+  - a walled practice court with benches;
+  - the foundry hall: a sawtooth roof, glowing furnace mouths, and upper walkways reached by a stair and a bridge;
+  - a crane bay with climbable legs and a walkable girder;
+  - a raised iron rail walk on trestles;
+  - an arched brick tunnel section (its use along underground routes still needs a design);
+  - a canteen and a market stall.
+- **Placing buildings:**
+  - Districts fill their street frontage with buildings, more densely as the region file asks.
+  - Buildings face the street, leave alleys at least 4 studs wide every 2–3 buildings, and keep 2 studs off roads and markers.
+  - Each sits on its own plinth, with steps no higher than 1 stud.
+  - Placement is exact and repeatable: the same file always builds the same town.
+- **Cover:** crate stacks and machinery along quiet lanes and yards, and street lamps that light only at night.
+- **Movement:** building ledges carry the ledge-walk tag the game already reads. Climbing and wall-running work on any surface, so nothing else needed tagging.
+- **Edges:** sheer slag walls round the map, broken only where a road leaves (see Task 10b).
+- **Fixes found in review:**
+  - the foundry walkway rails blocked the stair and bridge;
+  - the rail walk's deck floated;
+  - a lintel flickered;
+  - the crane's trolley blocked the girder;
+  - the warehouse dock had no step.
+- **Tests:** the Blender check passes 101/101 and the core tests 144/144. The Testbed is 809 of its 12,000-part budget.
+
+### Discord announcement
+
+Hold: not live yet. This is behind-the-scenes map tooling; there's nothing for players to see until the first new region ships.
+
 ## 2026-10-23 — Region Foundation Task 9: the builder makes ground, roads and markers in Blender
 
 The region builder now builds a region's ground in Blender from its region file, ready for the later export to Studio. **Nothing changed in Studio.** The test region (Testbed) builds to 455 parts against a 12,000-part budget. Code: `Art/Blender/region_builder/` (`materials.py`, `stages.py`, `build.py`). Renders: `Documents/images/Regions/Testbed/`. Every number and colour below is a **PROPOSAL**.
