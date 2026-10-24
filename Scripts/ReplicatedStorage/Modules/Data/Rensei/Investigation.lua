@@ -3,6 +3,11 @@
 --     "Inspect" prompt. {Title, Text, AfterText (shown once already examined), Evidence, Requires}
 --     Requires (StoryLogic conditions) gates the evidence; without it the player just reads Locked
 --     (or Text when Locked is absent).
+--     StartsQuest = "<QuestId>" (optional, 2026-10-23): after an inspect that is not Locked (the evidence was given,
+--     or it was already held and AfterText shown; or the def has no Evidence), the quest starts if
+--     QuestService.CanStart allows it. A Locked inspect never starts it.
+--     Region-map clue markers: a part tagged "RenseiClue" with attribute ClueId = Id is an inspect point for
+--     Inspects[Id] (InvestigationService gives it the RenseiInspect tag and InspectId = ClueId).
 --   Deductions[Id]: Case Board questions. {Title, Question, Slots = {{Label, Answer = evidence id}},
 --     Requires (evidence needed before it shows), Wrong (line for a wrong answer)}
 -- PLACEHOLDER content (Foundry Yard investigation).
@@ -13,7 +18,7 @@ return {
 	Inspects = {
 		-- ===== Forgotten Sites: Halvard's Adit (2026-10-18) =====
 		adit_mouth = {Title = "Boarded Adit", Evidence = "adit_survey_mark",
-			Text = "Planks nailed over a mine mouth cut into the ridge. Two have been pried loose, wide enough to slip through.",
+			Text = "Planks nailed over a mine mouth cut into the ridge. Two hang loose; a few good hits, or a little alchemy, would bring the lot down.", -- PROPOSAL wording (boards smash, 2026-10-20): the owner can reword
 			AfterText = "H. Halvard, Licensed Assayer. Sealed by the Authority. Pried open since."},
 		adit_shift_chart = {Title = "Shift Chart",
 			Text = "A chart nailed by the sluices, the ink run but readable: \"No. 2 sump. To drain: north SHUT, middle OPEN, south SHUT. Never all three open or the gallery floods.\""},

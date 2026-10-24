@@ -2,6 +2,9 @@
 --   Inspect: any BasePart / Model tagged "RenseiInspect" with attribute InspectId gets an "Inspect"
 --     prompt. The server checks distance, shows the text in the dialogue box (DialogueService.Say),
 --     and gives the evidence when its Requires pass. Signals "Inspect" for quests.
+--   Clues (Region Foundation, 2026-10-23): a part tagged "RenseiClue" with attribute ClueId (the region maps' Blender
+--     "markers" stage) is made an inspect point: it gets the RenseiInspect tag and InspectId = ClueId.
+--   StartsQuest: an inspect def's StartsQuest quest starts after any inspect that isn't Locked, if CanStart allows.
 --   Deduce: Requests.Investigation("Deduce", Id, Answers) with Answers[slot] = evidence id. Only
 --     evidence the player holds counts; a wrong answer costs nothing (fair, recoverable).
 
@@ -18,6 +21,7 @@ local QuestService = require(ServerScriptService.QuestService)
 local UIService = require(ServerScriptService.UIService)
 
 local TAG = "RenseiInspect"
+local CLUE_TAG = "RenseiClue"
 local MAX_DISTANCE = 14
 
 local InvestigationService = {}
@@ -37,6 +41,7 @@ function InvestigationService.Inspect(Player, Id, Inst)
 	if not Data then return false end
 
 	local Text = Def.Text
+	local Locked = false
 	if Def.Evidence then
 		if Data.Story.Evidence[Def.Evidence] then
 			Text = Def.AfterText or Def.Text
@@ -44,9 +49,14 @@ function InvestigationService.Inspect(Player, Id, Inst)
 			StoryService.GiveEvidence(Player, Def.Evidence)
 		else
 			Text = Def.Locked or Def.Text
+			Locked = true
 		end
 	end
 	require(ServerScriptService.DialogueService).Say(Player, Part, Def.Title or "Inspect", Text)
+	-- after the evidence (the new quest's CatchUp counts it) and before the Inspect signal (its Inspect objectives count)
+	if not Locked and Def.StartsQuest and QuestService.CanStart(Player, Def.StartsQuest) then
+		QuestService.Start(Player, Def.StartsQuest)
+	end
 	QuestService.Signal(Player, "Inspect", Id)
 	return true
 end
@@ -90,9 +100,22 @@ local function Attach(Inst)
 	Prompt.Triggered:Connect(function(Player) InvestigationService.Inspect(Player, Id, Inst) end)
 end
 
+-- a clue marker becomes an inspect point; adding the tag fires TAG's added signal, which attaches the prompt
+local function MapClue(Inst)
+	local Id = Inst:GetAttribute("ClueId")
+	if type(Id) ~= "string" then
+		warn("InvestigationService: clue", Inst:GetFullName(), "has no ClueId")
+		return
+	end
+	Inst:SetAttribute("InspectId", Id)
+	CollectionService:AddTag(Inst, TAG)
+end
+
 function InvestigationService.Start()
+	for _, Inst in ipairs(CollectionService:GetTagged(CLUE_TAG)) do MapClue(Inst) end
 	for _, Inst in ipairs(CollectionService:GetTagged(TAG)) do Attach(Inst) end
 	CollectionService:GetInstanceAddedSignal(TAG):Connect(function(Inst) task.defer(Attach, Inst) end)
+	CollectionService:GetInstanceAddedSignal(CLUE_TAG):Connect(function(Inst) task.defer(MapClue, Inst) end)
 end
 
 return InvestigationService
