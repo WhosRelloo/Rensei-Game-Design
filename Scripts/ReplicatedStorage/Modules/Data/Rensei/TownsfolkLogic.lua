@@ -86,6 +86,35 @@ function L.Validate(Roster, PostIds)
 			end
 		end
 	end
+	-- Task 5b: two townsfolk at the same post at the same hour would stand in each other (and the second one to walk
+	-- there would wait for a post that never frees up), so a post is one townsperson's at a time. Slots are half-open
+	-- ([From, To)), so back to back is fine; a slot past midnight is split in two.
+	local Spans = {} -- [PostId] = {{Id, From, To}, ...}
+	for _, D in ipairs(Roster) do
+		if type(D) ~= "table" or type(D.Schedule) ~= "table" then continue end
+		for _, S in ipairs(D.Schedule) do
+			if type(S) ~= "table" or type(S[1]) ~= "number" or type(S[2]) ~= "number" or S[3] == nil then continue end
+			local function Add(From, To)
+				if To <= From then return end
+				Spans[S[3]] = Spans[S[3]] or {}
+				table.insert(Spans[S[3]], {D.Id, From, To})
+			end
+			if S[1] <= S[2] then Add(S[1], S[2]) else Add(S[1], 24) Add(0, S[2]) end
+		end
+	end
+	local Told = {}
+	for PostId, List in pairs(Spans) do
+		for I = 1, #List do
+			for J = I + 1, #List do
+				local A, B = List[I], List[J]
+				local Key = tostring(PostId) .. "|" .. tostring(A[1]) .. "|" .. tostring(B[1])
+				if A[1] ~= B[1] and A[2] < B[3] and B[2] < A[3] and not Told[Key] then
+					Told[Key] = true
+					Err(B[1], "shares post " .. tostring(PostId) .. " with " .. tostring(A[1]) .. " from hour " .. tostring(math.max(A[2], B[2])))
+				end
+			end
+		end
+	end
 	return #Errs == 0, Errs
 end
 

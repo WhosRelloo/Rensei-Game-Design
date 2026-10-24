@@ -17,9 +17,11 @@
 --   * Idles: the IdleAnim attribute (NpcIdles.server.lua plays it and keeps only the root anchored). At a post the
 --     root is anchored; to walk, IdleAnim is cleared and the root unanchored (NpcIdles only re-anchors while an idle
 --     is playing); on arrival the root is anchored again and the post's idle set.
---   * Walking: ONLY through the child module Mover (Mover.WalkTo / Mover.Place), so the pathfinding follow-up (Task 5b)
---     can replace it without touching spawning or schedules. A walk's handle is cancellable; a newer WalkTo or Place
---     on the same rig cancels it, so a newer schedule change (or a flee) wins.
+--   * Walking: ONLY through the child module Mover (Mover.WalkTo / Mover.Place): crowd-quality movement (Task 5b:
+--     smoothed paths, steering around each other and players, giving way in doorways, re-planning). A walk's handle
+--     is cancellable; a newer WalkTo or Place on the same rig cancels it, so a newer schedule change (or a flee) wins.
+--     A walk that fails is finished by placing the townsperson at its post only when no player is within
+--     PlaceRadius (nobody sees a teleport); otherwise it tries the walk again every RetryDelay seconds.
 --   * Collision: the rigs are in the "Townsfolk" collision group (created if missing), which collides with Default
 --     and with itself: townsfolk don't pass through each other or through players.
 --   * States: AtPost, Walking, Asleep; Fleeing and Sheltering are reserved for later tasks (Step leaves them alone).
@@ -41,6 +43,8 @@ local TownsfolkService = {}
 TownsfolkService.SleepRadius = 300 -- PROPOSAL: no player this close -> held still, placed at posts instead of walking
 TownsfolkService.WalkSpeed = 8 -- PROPOSAL: an unhurried stroll (players walk 16)
 TownsfolkService.GenderTries = 64 -- seeds tried to find a look of Def.Look.Gender
+TownsfolkService.PlaceRadius = 60 -- PROPOSAL (Task 5b): a failed walk is placed at its post only with no player this close
+TownsfolkService.RetryDelay = 5 -- PROPOSAL (Task 5b): ...otherwise the walk is tried again after this many seconds
 
 local POST_TAG = "RenseiPost"
 local FOLK_TAG = "RenseiTownsfolk"
@@ -114,20 +118,38 @@ local function Settle(F, PostId, State)
 		At = CFrame.lookAt(F.Root.Position, F.Root.Position + (Flat.Magnitude > 1e-3 and Flat or Vector3.new(0, 0, -1)))
 	end
 	Mover.Place(F.Rig, At) -- (cancels a walk in progress)
-	F.Post, F.Target, F.Walk = PostId, PostId, nil
+	F.Post, F.Target, F.Walk, F.RetryAt = PostId, PostId, nil, nil
 	F.Rig:SetAttribute("PostId", PostId)
 	F.Rig:SetAttribute("IdleAnim", Post and IdleFor(F.Def, Post) or F.Def.Idle or TownsfolkLogic.KindIdles.Home)
 	SetState(F, State)
 end
 
+-- is a player within Radius of the townsperson or of the post? (Task 5b: nobody may see a teleport)
+local function PlayerWithin(F, PostId, Radius)
+	local Post = Posts[PostId]
+	for _, P in ipairs(Players:GetPlayers()) do
+		local R = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+		if R and ((R.Position - F.Root.Position).Magnitude <= Radius or (Post and (R.Position - Post.Position).Magnitude <= Radius)) then
+			return true
+		end
+	end
+	return false
+end
+
 -- walks to PostId through the Mover; a newer Walk / Settle / Despawn cancels it
 local function Walk(F, PostId)
-	F.Target = PostId
+	F.Target, F.RetryAt = PostId, nil
 	SetState(F, "Walking")
 	F.Rig:SetAttribute("IdleAnim", nil) -- NpcIdles stops the pose and stops re-anchoring the root
 	local H
 	local function Done(Result)
 		if Result == "failed" then
+			if PlayerWithin(F, PostId, TownsfolkService.PlaceRadius) then
+				-- someone would see the teleport: stand where it is and try again shortly (Step, below)
+				WarnOnce("retry " .. F.Id .. ">" .. PostId, F.Id, "couldn't walk to post", PostId, "- trying again")
+				F.Walk, F.RetryAt = nil, os.clock() + TownsfolkService.RetryDelay
+				return
+			end
 			WarnOnce("walk " .. F.Id .. ">" .. PostId, F.Id, "couldn't walk to post", PostId, "- placed there instead")
 		end
 		Settle(F, PostId, "AtPost")
@@ -279,10 +301,17 @@ function TownsfolkService.Step(Hour)
 			return
 		end
 		if F.State == "Fleeing" or F.State == "Sheltering" then return end
-		-- watchdog: "Walking" with no live walk (it ended without settling) -> settle at the post it was walking to
 		if F.State == "Walking" and not (F.Walk and F.Walk.Status == "walking") then
-			WarnOnce("watchdog " .. Id, Id, "was Walking with no walk in progress - settled at", F.Target)
-			Settle(F, F.Target, "AtPost")
+			if F.RetryAt then
+				-- a failed walk with a player near: try again (or place it, once nobody is near)
+				if os.clock() >= F.RetryAt then
+					if PlayerWithin(F, F.Target, TownsfolkService.PlaceRadius) then Walk(F, F.Target) else Settle(F, F.Target, "AtPost") end
+				end
+			else
+				-- watchdog: "Walking" with no live walk (it ended without settling) -> settle at the post it was walking to
+				WarnOnce("watchdog " .. Id, Id, "was Walking with no walk in progress - settled at", F.Target)
+				Settle(F, F.Target, "AtPost")
+			end
 		end
 		local Want = TownsfolkLogic.PostAt(F.Def.Schedule, Hour)
 		local Here = Near(F.Root.Position)
