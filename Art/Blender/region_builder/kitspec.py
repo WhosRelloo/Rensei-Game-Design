@@ -37,6 +37,25 @@ KITS = {
         "cover": {"kind": "Cover", "foot": (-3, -3, 3, 3)},
         "lamp": {"kind": "LampPost", "foot": (-0.8, -0.8, 0.8, 0.8)},
     },
+    # Foundry Yard's own set pieces (kits/foundry.py; owner-approved layout 2026-10-24). No building styles: its
+    # districts use railtown's. The viaduct is built by extras.py, not here.
+    "foundry": {
+        "styles": {},
+        "landmarks": {
+            "great_hall": {"kind": "GreatHall", "foot": (-101, -58, 101, 65)},
+            "ticket_hall": {"kind": "TicketHall", "foot": (-31, -25, 31, 13)},
+            "platform_canopy": {"kind": "PlatformCanopy", "foot": (-6, -160, 7, 160)},
+            "road_gate": {"kind": "RoadGate", "foot": (-11, -2, 11, 2)},
+            "gatehouse": {"kind": "Gatehouse", "foot": (-19, -7, 19, 6)},
+            "shift_office": {"kind": "ShiftOffice", "foot": (-8, -9, 8, 6)},
+            "signal_gantry": {"kind": "SignalGantry", "foot": (-3, -36, 3, 36)},
+            "wagon": {"kind": "Wagon", "foot": (-15, -5, 15, 5)},
+            "water_tower": {"kind": "WaterTower", "foot": (-7, -10, 7, 7)},
+            "yard_wall": {"kind": "YardWall", "foot": (-31, -2, 31, 3)},
+        },
+        "cover": {"kind": "Cover", "foot": (-3, -3, 3, 3)},
+        "lamp": {"kind": "LampPost", "foot": (-0.8, -0.8, 0.8, 0.8)},
+    },
 }
 
 

@@ -4,6 +4,60 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-24 — Foundry Yard built in Blender (owner-approved layout and renders; not imported)
+
+Foundry Yard's new map is built in Blender with the region builder, from the layout the owner approved: 1,536 × 1,536 studs in soot, iron, furnace brick and ember, following the brief's page and spec §7. Nothing changed in Studio, and no game script changed. Every number is a **PROPOSAL** unless the owner chose it.
+
+**Owner decisions (2026-10-24):**
+- **Layout:** "Yes, build it".
+- **The north road toward Central City:** a shut gatehouse at the end of a viaduct, with a solid wall behind it.
+- **Brannoc's forge rooms:** Foundry-style shells in the great hall, ready for the Silent Forge and Forge Floor pieces from Ye.
+- **Enemies:** a few Grunts in the underworks only.
+- **After the first renders:** "Fill the empty east first, and remember to place things for the movement and combat we currently have in game".
+- **Renders:** "Approved" for a later Studio import.
+
+**What's there:**
+- **The station (south-west):** the terminus, a platform canopy, the booking hall with the ticket booth, the papers gate and the railing, and the stowaway yard by the baggage car. Setup builds the travel pieces from markers at import.
+- **The rail corridor:** two lines leaving east through a dead-end tunnel portal, raised iron rail walks and signal gantries.
+- **Housing:**
+  - Cinder Lane and the lower town;
+  - Brannoc's practice court, with the shift office and its ledger clue beside it;
+  - workers' row and the boarding houses;
+  - the market square with 16 stalls and the canteen.
+- **The underworks:** a dark brick tunnel along the south edge.
+- **The freight yard:** box wagons on the sidings, a goods platform and warehouses.
+- **The rail yards:** engine and coal sheds, crane bays on a spur, a cooling pond and raised walks.
+- **The foundry works:** a 200 × 110 great hall with furnaces, gantries and the two forge rooms, plus stacks, sheds and a casting shed.
+- **The south road to Lindenmoor:** it winds between slag heaps to a tunnel portal.
+- **The north viaduct:** it crosses a slag cut to the shut gatehouse.
+- **Edges:** ungrippable slag walls. The only gaps are the two portals, each a dead end.
+
+**Movement and combat:**
+- climbable faces everywhere, with copings, wagon roofs and tower decks to pull up onto;
+- wall-run walls, including two pairs set 12 apart for chained kicks;
+- ledge-walk strips on the yard walls, rail walks and houses;
+- loud iron high routes;
+- roofed shade for stealth (tunnel, halls, canopies, stalls);
+- crate, wagon and wall cover;
+- a pond to swim and dive in.
+
+**Numbers:** 43,685 parts against the 45,000 ceiling. There are 76 townsfolk posts, 2 clues, 11 area names, 4 Grunt spawns, and Brannoc's trainer spot.
+
+**Files:**
+- `Art/Regions/Foundry/` (the region file, materials, water);
+- `region_builder/kits/foundry.py` (10 set pieces), `extras.py` (portals, the viaduct, a render-only travel preview) and `tools/build_foundry.py`;
+- the tests `tests/foundry_check.py` and `tests/foundry_blender_check.py`;
+- the renders in `Documents/images/Regions/Foundry/`;
+- **`Documents/Foundry Yard Kit.md`**, with the layout, the movement table and the **Foundry import notes**: the MapChild, keep list, ORIGIN, what the import retires, Brannoc's move, the roster, areas and clues.
+
+**Tests:** `foundry_check.py` 35/35; `run.py` 216/216; `foundry_blender_check.py` 13/13 (parts within budget, ungrippable edges and portals, the viaduct, the forge rooms, every post, clue and spawn on walkable ground).
+
+**Next:** the Studio import into Foundry Yard, in a later session, following the import notes.
+
+### Discord announcement
+
+Hold: not live yet.
+
 ## 2026-10-24 — Region Foundation final fix pass: ready for the Lindenmoor import into Ye
 
 The final whole-branch review found five things that would have gone wrong in the Ye import. They are fixed in the tools and the docs; no game script and nothing in Ye changed.

@@ -4,15 +4,15 @@ A layout names a piece "<kit>.<piece>": a district's Style ("railtown.house") or
 ("railtown.practice_court"). piece(name) returns the kit module, the piece's entry and whether it is a style
 (a building: (root, rng, w, d, storeys) -> parts) or a landmark ((root, rng) -> parts). Blender only: the kits build
 with lindenmoor.core's primitives. bind(palette) gives every kit the region's materials before a stage builds."""
-from . import railtown
+from . import railtown, foundry
 from .. import kitspec
 
-KITS = {"railtown": railtown}
+KITS = {"railtown": railtown, "foundry": foundry}
 
 
 def bind(palette):
     for k in KITS.values():
-        k.bind(palette)
+        k.bind(palette)  # foundry shares railtown's palette dict
 
 
 def piece(name):
