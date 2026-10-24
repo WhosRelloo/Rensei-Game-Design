@@ -10,7 +10,7 @@
 - working trainer exams.
 
 **Architecture:**
-- **Blender side:** `Art/Blender/regions/`, a Python package generalized from `Art/Blender/lindenmoor/`.
+- **Blender side:** `Art/Blender/region_builder/`, a Python package generalized from `Art/Blender/lindenmoor/`.
   - Pure modules (schema, heightfield, merge) have no `bpy` import and are tested with plain Python.
   - The `bpy` stages build the scene and render it.
 - **Export:** reuses `export.py` and `studio_kit.py`, extended to carry CollectionService tags and a per-region material table.
@@ -64,7 +64,7 @@
   - Pure Luau modules get `ServerStorage.RenseiTests.Test_<Name>`, run in Edit with `TestKit.Run(require(Suite))`.
   - Services get `Play_<Name>`.
   - TestKit helpers: `T.Eq(a,b,msg)`, `T.Near(a,b,eps,msg)`, `T.True(v,msg)`, `T.Same(a,b,msg)`.
-  - Pure Python modules are tested by `python -I Art/Blender/regions/tests/run.py`.
+  - Pure Python modules are tested by `python -I Art/Blender/region_builder/tests/run.py`.
   - Known flakes: Play_Station first run (seat/position), Play_Rumours after Play_Morality, Play_Stealth `GunshotPullsTheCamp`. Rerun once before reporting.
 - **Blender:**
   - Run code with `python -I C:/Users/Owner/Rensei-Game-Design/Art/Tools/blender_mcpc.py code @file.py`; the script sets `result`.
@@ -96,15 +96,15 @@
 | `Scripts/ServerScriptService/InvestigationService.lua` | (modify) `RenseiClue` markers become inspect points; `StartsQuest` |
 | `Scripts/ServerScriptService/ServerHandler.server.lua` | (modify) start WorldClock and TownsfolkService |
 | `Scripts/ServerStorage/RenseiTests/Play_Exams.lua`, `Play_Clock.lua`, `Test_TownsfolkLogic.lua`, `Play_Townsfolk.lua`, `Play_Clue.lua` | (new) tests |
-| `Art/Blender/regions/__init__.py` | (new) package |
-| `Art/Blender/regions/schema.py` | (new, pure) load and validate `layout.json` |
-| `Art/Blender/regions/heightfield.py` | (new, pure) heights → a cell grid → stepped slabs, ramps and sides |
-| `Art/Blender/regions/merge.py` | (new, pure) greedy rectangle merge |
-| `Art/Blender/regions/materials.py` | (new) palette keys → Blender materials and the Roblox material table (`materials.json`) |
-| `Art/Blender/regions/stages.py` | (new, bpy) ground, routes, markers, buildings, landmarks, cover, edges, lighting, renders |
-| `Art/Blender/regions/kits/railtown.py` | (new, bpy) the rail-town style kit (buildings, landmarks, props) |
-| `Art/Blender/regions/build.py` | (new, bpy) `run(region, stages)` and the budget check |
-| `Art/Blender/regions/tests/run.py` | (new) pure-module tests |
+| `Art/Blender/region_builder/__init__.py` | (new) package |
+| `Art/Blender/region_builder/schema.py` | (new, pure) load and validate `layout.json` |
+| `Art/Blender/region_builder/heightfield.py` | (new, pure) heights → a cell grid → stepped slabs, ramps and sides |
+| `Art/Blender/region_builder/merge.py` | (new, pure) greedy rectangle merge |
+| `Art/Blender/region_builder/materials.py` | (new) palette keys → Blender materials and the Roblox material table (`materials.json`) |
+| `Art/Blender/region_builder/stages.py` | (new, bpy) ground, routes, markers, buildings, landmarks, cover, edges, lighting, renders |
+| `Art/Blender/region_builder/kits/railtown.py` | (new, bpy) the rail-town style kit (buildings, landmarks, props) |
+| `Art/Blender/region_builder/build.py` | (new, bpy) `run(region, stages)` and the budget check |
+| `Art/Blender/region_builder/tests/run.py` | (new) pure-module tests |
 | `Art/Regions/Testbed/layout.json` | (new) a 256 × 256 test region exercising every key |
 | `Art/Blender/lindenmoor/export.py` | (modify) optional `rs_tags` → row field 16; origin and output as parameters |
 | `Art/Studio/Lindenmoor/studio_kit.py` | (modify) optional tags, a `materials.json` override, a staging folder name and region attribute as arguments |
@@ -710,7 +710,7 @@ Roblox's `PathfindingService` plans only around static geometry. It knows nothin
 ### Task 8: The region file and the pure builder modules
 
 **Files:**
-- Create: `Art/Blender/regions/__init__.py`, `schema.py`, `heightfield.py`, `merge.py`, `tests/run.py`
+- Create: `Art/Blender/region_builder/__init__.py`, `schema.py`, `heightfield.py`, `merge.py`, `tests/run.py`
 - Create: `Art/Regions/Testbed/layout.json`
 
 **Interfaces:**
@@ -772,7 +772,7 @@ Roblox's `PathfindingService` plans only around static geometry. It knows nothin
   - **columns:** every column's bottom is at least 1 below each neighbour's top.
   - **ramps:** the `climb` route (rising from 4 to 10) yields at least 1 ramp cell, and the flat `main` route yields none.
   - **merge:** a 10×10 block of one key merges into 1 rect; a checkerboard of two keys gives 100 rects; `max_span=4` on a 10×1 strip gives 3 rects.
-- [ ] **Step 2: Run** `python -I Art/Blender/regions/tests/run.py`. Expected: FAIL (modules missing).
+- [ ] **Step 2: Run** `python -I Art/Blender/region_builder/tests/run.py`. Expected: FAIL (modules missing).
 - [ ] **Step 3: Implement** the three modules: no `bpy`, no third-party imports.
   - **Shapes, in order (later wins):** plane sets Y; box sets Y inside, blending linearly over `Edge` outside; ridge raises to Y at distance 0 from the polyline, falling linearly to the base at `Width`; cut lowers to Y inside; water sets the bed and records the water box.
   - Then round to integers.
@@ -786,7 +786,7 @@ Roblox's `PathfindingService` plans only around static geometry. It knows nothin
 ### Task 9: The Blender stages: ground, routes, markers, budget, renders
 
 **Files:**
-- Create: `Art/Blender/regions/materials.py`, `stages.py`, `build.py`
+- Create: `Art/Blender/region_builder/materials.py`, `stages.py`, `build.py`
 - Modify: `Art/Blender/lindenmoor/export.py`: export `rs_tags` as row field 16; make `origin` a parameter with today's default; skip nothing new
 
 **Interfaces:**
@@ -820,7 +820,7 @@ Roblox's `PathfindingService` plans only around static geometry. It knows nothin
   - `build.run(region, stages="all") -> {"objects": n, "parts": n, "budget": b, "over": bool, "renders": [paths]}`, which reads `Art/Regions/<Region>/layout.json` and saves `Art/Blender/Regions/<Region>.blend`. Over budget, it returns `over=True`, and `export` must not be run.
   - Roblox water: the builder records water boxes in `Art/Regions/<Region>/water.json`; the Studio setup fills them with terrain water (SwimService reads terrain water).
 
-- [ ] **Step 1: Write the failing check.** Add a Blender-side test script `Art/Blender/regions/tests/blender_check.py`, run through `blender_mcpc.py code @...`. It runs `build.run("Testbed", "ground,routes,markers")` and sets `result` to a JSON string with:
+- [ ] **Step 1: Write the failing check.** Add a Blender-side test script `Art/Blender/region_builder/tests/blender_check.py`, run through `blender_mcpc.py code @...`. It runs `build.run("Testbed", "ground,routes,markers")` and sets `result` to a JSON string with:
   - the Ground part count;
   - the number of objects with `rs_tags` containing `RenseiPost` (expected 2), `RenseiClue` (1) and `RenseiArea` (1);
   - whether every Top slab's top face is at an integer height;
@@ -839,8 +839,8 @@ Roblox's `PathfindingService` plans only around static geometry. It knows nothin
 ### Task 10: The rail-town style kit: buildings, landmarks, cover, edges
 
 **Files:**
-- Create: `Art/Blender/regions/kits/__init__.py`, `Art/Blender/regions/kits/railtown.py`
-- Modify: `Art/Blender/regions/stages.py` (add the buildings, landmarks, cover and edges stages)
+- Create: `Art/Blender/region_builder/kits/__init__.py`, `Art/Blender/region_builder/kits/railtown.py`
+- Modify: `Art/Blender/region_builder/stages.py` (add the buildings, landmarks, cover and edges stages)
 
 **Interfaces:**
 - **Consumes:** the Task 9 primitives and materials. Districts give `Style`, `Density` and `Storeys`; landmarks give `Kind`, `At` and `Yaw`.

@@ -69,7 +69,7 @@ The file holds:
 | `Budget` | The part ceiling for the region (§3.6). |
 
 ### 3.2 The builder
-The builder lives in `Art/Blender/regions/`. It is generalized from `Art/Blender/lindenmoor/` (`core.py`, `world.py`, `build.py`), and the Lindenmoor scripts stay working. Run it as `regions.build.run("<Region>", stages)`. Its stages:
+The builder lives in `Art/Blender/region_builder/` (not `regions/`: on Windows that would be the same folder as the `Art/Blender/Regions/` output folder, and Python could not import it). It is generalized from `Art/Blender/lindenmoor/` (`core.py`, `world.py`, `build.py`), and the Lindenmoor scripts stay working. Run it as `region_builder.build.run("<Region>", stages)`. Its stages:
 
 - **ground:** builds a heightfield from `Heights`, then stepped slabs in the approved style. Slabs are 4-stud cells near routes and towns, and 8–16-stud cells elsewhere. Climbing routes get dirt ramps, and the slabs merge into large parts. Water stays as Roblox terrain water, because SwimService reads it.
 - **routes:** paving, alleys, rail walks, under-routes and their tunnels, ramps and stairs. Every public and quiet route must be continuous and walkable.
