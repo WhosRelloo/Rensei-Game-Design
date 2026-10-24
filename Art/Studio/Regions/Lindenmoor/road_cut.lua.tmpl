@@ -23,6 +23,8 @@
 --@@DELTA@@
 --@@COLS@@
 --@@EXPECT@@
+--@@RAMP@@
+--@@RETILT@@
 --@@ROUTES@@
 
 local HS = game:GetService("HttpService")
@@ -53,6 +55,8 @@ local OLD = HS:JSONDecode(OLD_JSON)
 local NEW = HS:JSONDecode(NEW_JSON)
 local COLS = HS:JSONDecode(COLS_JSON) -- road columns: {x, z, sx, sz, yaw, underside}
 local EXPECT = HS:JSONDecode(EXPECT_JSON) -- changed cells: {i, j, new top}
+local RETILT = HS:JSONDecode(RETILT_JSON) -- {part path, near {x, z}, top}: one end of a ribbon piece re-tilted to y top
+local RAMP = HS:JSONDecode(RAMP_JSON) -- the mouth ramp slab (Ruling 35): {a, b (top line ends), width, thick, template}
 local ROUTES = HS:JSONDecode(ROUTES_JSON)
 local DELTA = {}
 for _, e in ipairs(HS:JSONDecode(DELTA_JSON)) do
@@ -345,6 +349,44 @@ local function apply()
 		p.Parent = tile
 		n.built += 1
 	end
+	-- 4. the mouth ramp (Ruling 35): a tilted slab cloned from the north road's ribbon, its top climbing from the
+	-- ribbon's top (a) into the passage's first column (b)
+	if RAMP.a then
+		local tpl = EX
+		for name in RAMP.template:gmatch("[^/]+") do tpl = tpl and tpl:FindFirstChild(name) end
+		assert(tpl and tpl:IsA("BasePart"), "road_cut: no ramp template " .. RAMP.template)
+		local a, b = Vector3.new(RAMP.a[1], RAMP.a[2], RAMP.a[3]), Vector3.new(RAMP.b[1], RAMP.b[2], RAMP.b[3])
+		local mid = (a + b) / 2
+		local cf = CFrame.lookAt(mid, b)
+		local p = tpl:Clone()
+		for k in pairs(p:GetAttributes()) do p:SetAttribute(k, nil) end
+		p.Name = "MouthRamp"
+		p.Size = Vector3.new(RAMP.width, RAMP.thick, (b - a).Magnitude)
+		p.CFrame = cf - cf.UpVector * (RAMP.thick / 2)
+		p:SetAttribute(NEWATTR, true)
+		p.Parent = tpl.Parent
+		n.ramp = 1
+	end
+	-- 4b. re-tilt named ribbon pieces: the end nearest `near` to top `top`, the other end where it is
+	for _, e in ipairs(RETILT) do
+		local p = EX
+		for name in e.part:gmatch("[^/]+") do p = p and p:FindFirstChild(name) end
+		assert(p and p:IsA("BasePart"), "road_cut: no part " .. e.part)
+		local cf, sz = p.CFrame, p.Size
+		local e1 = cf.Position - cf.LookVector * (sz.Z / 2) + cf.UpVector * (sz.Y / 2)
+		local e2 = cf.Position + cf.LookVector * (sz.Z / 2) + cf.UpVector * (sz.Y / 2)
+		local near = Vector3.new(e.near[1], 0, e.near[2])
+		local function hd(v) return (Vector3.new(v.X, 0, v.Z) - near).Magnitude end
+		if hd(e1) < hd(e2) then e1 = Vector3.new(e1.X, e.top, e1.Z) else e2 = Vector3.new(e2.X, e.top, e2.Z) end
+		p:SetAttribute(FROM, cf)
+		p:SetAttribute(FROMSIZE, sz)
+		local look = (e2 - e1).Unit
+		local mid = (e1 + e2) / 2
+		local ncf = CFrame.lookAt(mid, mid + look)
+		p.Size = Vector3.new(sz.X, sz.Y, (e2 - e1).Magnitude)
+		p.CFrame = ncf - ncf.UpVector * (sz.Y / 2)
+		n.retilted += 1
+	end
 	-- 5. the replaced parts go into the backup, tags stripped and kept
 	for _, p in ipairs(oldList) do
 		p:SetAttribute("LindenmoorRoadCutPath", p:GetFullName())
@@ -371,7 +413,12 @@ local function apply()
 	local R = EX:FindFirstChild("Routes")
 	if R then
 		for _, p in ipairs(R:GetDescendants()) do
-			if p:IsA("BasePart") and not colAt(p.Position.X, p.Position.Z) and retilt(p) then n.retilted += 1 end
+			-- the ribbon piece under the mouth ramp (its template) stays as it is: the ramp slab covers it
+			local skip = RAMP.template and p:GetFullName():sub(-#RAMP.template:gsub("/", ".")) == RAMP.template:gsub("/", ".")
+			if p:IsA("BasePart") and not skip and not p:GetAttribute(NEWATTR) and not colAt(p.Position.X, p.Position.Z)
+				and not p:GetAttribute(FROM) and retilt(p) then
+				n.retilted += 1
+			end
 		end
 	end
 	EX:SetAttribute(FLAG, ("applied 2026-10-24 (Ruling 31): built %d, fill %d, backed up %d, moved %d, route pieces %d"):format(
@@ -462,6 +509,52 @@ local function checks()
 		end
 	end
 	res.tops = { cells = #EXPECT, mismatched = mis, where = mwhere }
+	-- walk the north road's centreline from inside the village into the passage (and on along it): the first solid
+	-- surface every stud, overhead parts (the gate's lintel, canopies: more than 6 above the last step) passed through
+	local line = { { 0, -330 }, { 0, -296 }, { 0, -150 }, { 60, -60 }, { 200, 80 }, { 380, 260 }, { 560, 480 }, { 700, 680 },
+		{ 790, 860 }, { 806, 938 } }
+	local wp = RaycastParams.new()
+	wp.FilterType = Enum.RaycastFilterType.Exclude
+	local chars = {}
+	for _, pl in ipairs(game:GetService("Players"):GetPlayers()) do if pl.Character then table.insert(chars, pl.Character) end end
+	wp.FilterDescendantsInstances = chars
+	local walk = { samples = 0, steps = 0, max = 0, where = {}, mouth = {} }
+	local prev
+	for k = 1, #line - 1 do
+		local a, b = line[k], line[k + 1]
+		local L = math.sqrt((b[1] - a[1]) ^ 2 + (b[2] - a[2]) ^ 2)
+		for st = 0, math.ceil(L) - 1 do
+			local t = st / L
+			local x, z = a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t
+			local from, y, what = Vector3.new(x, 300, z), nil, nil
+			for _ = 1, 12 do
+				local r = workspace:Raycast(from, Vector3.new(0, -400, 0), wp)
+				if not r then break end
+				local i = r.Instance
+				if i.CanCollide and i.Transparency < 0.95 and (not prev or r.Position.Y <= prev + 6) then
+					y, what = r.Position.Y, i
+					break
+				end
+				from = r.Position - Vector3.new(0, 0.01, 0)
+			end
+			if y then
+				walk.samples += 1
+				if x > 640 and x < 700 and #walk.mouth < 40 and st % 2 == 0 then
+					table.insert(walk.mouth, ("%.0f,%.0f %.1f"):format(x, z, y))
+				end
+				if prev and math.abs(y - prev) > 1.0 then
+					walk.steps += 1
+					walk.max = math.max(walk.max, math.floor(math.abs(y - prev) * 100 + 0.5) / 100)
+					if #walk.where < 10 then
+						table.insert(walk.where, ("(%.0f, %.0f) %.1f -> %.1f %s"):format(x, z, prev, y,
+							what:GetFullName():gsub("Workspace.World.Map.", "")))
+					end
+				end
+				prev = y
+			end
+		end
+	end
+	res.walk = walk
 	-- bare Baseplate: every 4-stud point whose first solid hit is the Baseplate (or nothing)
 	local bp = Map:FindFirstChild("Baseplate")
 	local rp = RaycastParams.new()

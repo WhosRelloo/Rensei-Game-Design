@@ -20,6 +20,9 @@ their own planners, so the parts it replaces are known by name and position; roa
     is longer (up to BLEND_MAX), so the blend's steps stay about 1 stud;
   * ramp: any neighbour outside the corridor still more than 1 stud off a regraded cell is clamped to within 1 of it
     (and so on outward), so the regrade never leaves a new wall or trench over 1 stud;
+  * the mouth ramp and the village join (Ruling 35): a slab cloned from the north road's ribbon climbs from the ribbon
+    (y 4) into the passage's first column (y 9), the ground under and beside it following; the ribbon's first piece is
+    re-tilted down to meet Ye's own road surface where the north road leaves the village;
   * left alone: crag cells (RenseiNoGrip), the expansion's own route corridors outside the road's footprint (the
     rails beside it), the water channels' beds and banks (the gorge, the west creek), Ye's own
     cells, and the road and its travel pieces themselves (reported if the corridor crosses crag or a channel). The
@@ -45,6 +48,19 @@ MARGIN = 4  # studs beyond the road's columns that sit at the road's underside (
 BLEND = 16  # studs over which the cut blends back to the existing ground (Ruling 31; PROPOSAL)
 STEEP = 6  # ... or STEEP x the height change, if longer, so a blend step stays <= ~1 stud per cell (PROPOSAL)
 BLEND_MAX = 48  # but never further than this (PROPOSAL)
+# the mouth ramp (Ruling 35): the expansion's north road ribbon (measured: 12 wide, 1.2 thick, top y 4, Ground
+# 6b5a45, Route_north_road.Ribbon28 runs (634, 586) -> (671, 638)) climbs into the passage
+RAMP_LINE = ((560, 480), (700, 680))  # the north road's last leg before the passage (layout.json)
+RIBBON_TOP = 4.0
+RAMP_WIDTH, RAMP_THICK = 12, 1.2
+RAMP_RUN = 5  # studs of run per stud of rise (about 11 degrees; PROPOSAL)
+RAMP_INTO = 1  # studs the slab reaches into the passage's first column (PROPOSAL)
+RAMP_VERGE = 4  # studs either side of the slab whose ground rises with it (PROPOSAL)
+RAMP_TEMPLATE = "Routes/Route_north_road/Ribbon28"
+# the north road's join with the village (Ruling 35's walk check): the ribbon starts at y 2.73 (the retired NorthRoad's
+# surface, measured for the plan) where Ye's own road surface is at 0..1 (measured: its last row z -300..-296 at 0,
+# the row before at 1). Ribbon0's village end is re-tilted down to y 0.9 (within 1 of both rows); its other end (shared with Ribbon1) stays
+RETILT = [{"part": "Routes/Route_north_road/Ribbon0", "near": [0, -296], "top": 0.9}]  # PROPOSAL
 
 MEASURE = r'''
 local HS = game:GetService("HttpService")
@@ -246,10 +262,42 @@ def compute():
                 y = round(cur + (corridor[c] - cur) * (1 - G.smooth(d / L)))
                 blend[(i, j)] = y
                 newtop[i][j] = y
+    # the mouth ramp (Ruling 35): the expansion's north road (its ribbon, top y 4) meets the passage's first columns
+    # (tops 8-9) at the mouth. A tilted slab cloned from the ribbon climbs from the ribbon's top to the column's top
+    # over RAMP_RUN studs per stud of rise; the ground under it follows (top = the slab's underside, floored)
+    ramp = mouth_ramp(cols, top)
+    ramp_cells = {}
+    if ramp:
+        (ax, ay, az), (bx, by, bz) = ramp["a"], ramp["b"]
+        L = math.hypot(bx - ax, bz - az)
+        ux, uz = (bx - ax) / L, (bz - az) / L
+        for i in range(max(0, i0), min(N, i1 + 1)):
+            for j in range(max(0, j0), min(N, j1 + 1)):
+                if not new(i, j):
+                    continue
+                x, z = E.cell_center(i, j)
+                t = (x - ax) * ux + (z - az) * uz
+                w = abs(-(x - ax) * uz + (z - az) * ux)
+                if 0 <= t <= L and w <= ramp["width"] / 2 + RAMP_VERGE:
+                    if nearest_col(x, z, 0.01):
+                        continue  # under the passage: already at its underside
+                    yt = ay + (by - ay) * t / L  # the slab's top above this cell's centre
+                    under_slab = w <= ramp["width"] / 2
+                    y = math.floor(yt - ramp["thick"]) if under_slab else math.floor(yt) - 1
+                    y = max(y, top[i][j])
+                    ramp_cells[(i, j)] = y
+                    newtop[i][j] = y
+                    corridor[(i, j)] = y  # a fixed source for the ramp clamp below
     # ramp: no step over 1 stud between a regraded cell and its neighbours outside the corridor (except crag, channel
     # and Ye cells, which stay as they are): clamp each neighbour into [y - 1, y + 1], nearest its current top, and go on
     from collections import deque
-    free = lambda c: new(*c) and c not in corridor and not P.crag[c[0]][c[1]] and c not in beds and c not in C["banks"]         and P.kind[c[0]][c[1]] is None
+    near_ramp = set()
+    for (i, j) in ramp_cells:
+        for a in range(-2, 3):
+            for b in range(-2, 3):
+                near_ramp.add((i + a, j + b))
+    free = lambda c: (new(*c) and c not in corridor and not P.crag[c[0]][c[1]] and c not in beds and c not in C["banks"]
+                      and (P.kind[c[0]][c[1]] is None or c in near_ramp))
     q = deque(c for c in list(corridor) + list(blend))
     ramped = set()
     while q:
@@ -293,7 +341,27 @@ def compute():
                                                          ("route" if P.kind[o[0]][o[1]] else ""))
                 walls.append((E.cell_center(i, j), newtop[i][j], E.cell_center(*o), top[o[0]][o[1]], why))
     return dict(S=S, C=C, P=P, top=top, newtop=newtop, corridor=corridor, under=under, blend=blend, changed=changed,
-                delta=delta, old_parts=old_parts, new_parts=new_parts, skipped=skipped, walls=walls)
+                delta=delta, old_parts=old_parts, new_parts=new_parts, skipped=skipped, walls=walls, ramp=ramp,
+                ramp_cells=ramp_cells)
+
+
+def mouth_ramp(cols, top):
+    """the ramp slab at the passage's mouth: from the north road's ribbon (centreline (560, 480) -> (700, 680), top
+    y RIBBON_TOP) into the first passage column it meets, climbing RAMP_RUN studs per stud of rise"""
+    (x0, z0), (x1, z1) = RAMP_LINE
+    L = math.hypot(x1 - x0, z1 - z0)
+    ux, uz = (x1 - x0) / L, (z1 - z0) / L
+    for k in range(int(L * 4)):
+        x, z = x0 + ux * k / 4, z0 + uz * k / 4
+        hit = [c for c in cols if col_dist(c, x, z) < 1e-6]
+        if hit:
+            hm = max(c[6] for c in hit)
+            bx, bz = x + ux * RAMP_INTO, z + uz * RAMP_INTO  # end a little inside the column, so no gap is left
+            run = RAMP_RUN * (hm - RIBBON_TOP)
+            ax, az = x - ux * run, z - uz * run
+            return {"a": [round(ax, 3), RIBBON_TOP, round(az, 3)], "b": [round(bx, 3), hm, round(bz, 3)],
+                    "width": RAMP_WIDTH, "thick": RAMP_THICK, "template": RAMP_TEMPLATE}
+    return None
 
 
 def stats(R):
@@ -307,6 +375,7 @@ def stats(R):
     print(f"new walls over 1 stud at the blend's edge: {len(R['walls'])} {R['walls'][:6]}")
     unders = Counter(c[5] for c in R["S"]["cols"])
     print(f"column undersides: {sorted(unders.items())}")
+    print(f"mouth ramp: {R['ramp']}; ground cells under/beside it {len(R['ramp_cells'])}")
 
 
 def write_lua(R, out, mode):
@@ -318,6 +387,8 @@ def write_lua(R, out, mode):
         "DELTA": json.dumps(sorted([i, j, v] for (i, j), v in R["delta"].items()), separators=(",", ":")),
         "COLS": json.dumps([[c[0], c[1], c[2], c[3], c[4], c[5]] for c in R["S"]["cols"]], separators=(",", ":")),
         "EXPECT": json.dumps(sorted([i, j, R["newtop"][i][j]] for (i, j) in R["changed"]), separators=(",", ":")),
+        "RAMP": json.dumps(R["ramp"] or {}, separators=(",", ":")),
+        "RETILT": json.dumps(RETILT, separators=(",", ":")),
         "ROUTES": json.dumps({r["Id"]: r["Line"] for r in G.E.load()["Routes"] if r["Kind"] != "ledge"}, separators=(",", ":")),
     }
     src = src.replace("--@@MODE@@", f'local MODE = "{mode}"')
