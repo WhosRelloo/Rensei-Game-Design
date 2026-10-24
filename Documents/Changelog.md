@@ -31,7 +31,7 @@ Towns get ordinary people: each one has a job, a place to be at each hour, and s
   - what they do for a living;
   - then the greeting again.
 
-  If you're at the right step of a quest they know something about, they give you that clue first. Talking to them also counts for "talk to" quest steps. They also speak up on their own:
+  If you're at the right step of a quest they know something about, they give you that clue first. Rumours and clues are said to you alone: other players nearby see greetings, job lines and remarks, but not those. Talking to them also counts for "talk to" quest steps. They also speak up on their own:
   - a passing remark when you first come near (at most once every 5 minutes each);
   - sometimes a word when they set off for their next place;
   - a shout when they run from a fight;
