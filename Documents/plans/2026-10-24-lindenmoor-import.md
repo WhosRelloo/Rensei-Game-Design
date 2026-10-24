@@ -218,7 +218,23 @@ if __name__ == "__main__":
 
 ---
 
-### Task 2: The crag carries `RenseiNoGrip`
+### Task 2: The crag carries `RenseiNoGrip` (plus two fixes from Task 1's survey)
+
+> **Amendment from Task 1's survey (controller Rulings 3 and 4, 2026-10-24).** This task makes three changes to the expansion and then one Blender rebuild.
+>
+> **(a) The crag tag**, as below.
+>
+> **(b) A wider Keep mask.** The survey found 417 village `Ground` parts in the expansion's `Infill` cells, all within one 4-stud cell of Keep. Widen the expansion's Keep mask by one 4-stud cell, so no new ground is built there.
+> - Add an `expansion_tests` check that the planned new ground never touches a cell holding a village Ground part. Use `Art/Studio/Regions/Lindenmoor/ye_survey.json` (export the Ground part XZ centres into the survey first if they aren't there).
+> - After the rebuild, re-run `survey_ye.lua` and `check_survey.py`. Expected: `GroundInInfill` 0.
+>
+> **(c) Bigger pads.** For each `lindenmoor.reserve` pad:
+> - Set its `Radius` to `pad_layout.arrange(...)["radius"] + 6` (PROPOSAL), using `Art/Studio/Regions/Lindenmoor/pad_layout.py`. `check_survey.py` prints these numbers.
+> - Keep each pad flat and clear: no routes, fields or trees. Move a pad's centre up to 60 studs inside its own area only if it can't grow in place, and report every move.
+> - Keep `expansion_tests`' flat-and-clear reserved-spot checks passing.
+> - After the rebuild, `check_survey.py` must PASS its pad checks.
+>
+> **The rebuild.** Re-run every stage the pad change affects: ground, fields, trees, landmarks and markers. Re-render the aerial view and the views that show a changed pad. The owner sees that seven clearings grew slightly; send them the aerial. Keep the part count at or under 42,000.
 
 **Files:**
 - Modify: `Art/Blender/lindenmoor/expansion_plan.py` (the height function at ~:180-200 and the plan's `tops`/`sides`), `Art/Blender/lindenmoor/expansion.py` (`ground()` ~:198-226), `Art/Blender/lindenmoor/expansion_tests.py`
@@ -371,6 +387,11 @@ if __name__ == "__main__":
 ---
 
 ### Task 5: Reversible Ye prep: retire the old road, move the hub pieces and trainers onto their pads
+
+> **Amendment from Task 1's survey (controller Ruling 4, 2026-10-24).** Pieces are placed **by slot**, not by keeping today's relative layout. `pads.json` comes from `Art/Studio/Regions/Lindenmoor/pad_layout.arrange(...)`: each piece's slot offset from its pad centre, plus each pad's ground height. Each Map child goes to its pad centre plus its slot offset; its lowest point goes to the pad's height.
+> - **Practice yard:** the test arena (both `Wall`s, `Curve`, `Hill`, `Step`, `TrainingGround`) moves as one block that keeps its internal layout. `LedgeCourse` is a second block.
+> - **`AlchemistSpawns` children** move by their own site's offset.
+> - **This supersedes** "the group's XZ centre goes to the pad's (x, z)" below.
 
 **Files:**
 - Create: `Art/Studio/Regions/Lindenmoor/prep_ye.lua`, `Art/Studio/Regions/Lindenmoor/pads.json`
