@@ -2,6 +2,8 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+**Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
+
 ## 2026-10-23 — Closed-test fixes (afternoon and evening)
 
 Fixes made during the weekend closed test, each tested in Ye and published by the owner.
@@ -20,6 +22,35 @@ Fixes made during the weekend closed test, each tested in Ye and published by th
   - A failed journey's kick message now shows Roblox's reason. That's how the "not published" cause was found: Foundry Yard had to be published once.
   - A live countdown to your train's departure shows once you hold a ticket.
 - **Greatsword:** it sits centred on the back, on a steeper diagonal, with the handle over the right shoulder. Screenshots: `images/Fixes/Greatsword back - *.jpg`.
+
+### Discord announcement
+
+```md
+**Closed Test Patch Notes: Oct 23**
+
+**Combat**
+- Alchemy reaches 50% further, and when you're locked on your casts now aim at your target. Fireball, Air Slash and Metal Bind follow a target that moves.
+- The air heavy after an uppercut now hits in mid-air and slams your opponent down.
+- Rapier skill hits now line up with its animation.
+- The katana skill and crit now play their proper animations.
+- Multi-hit attacks no longer land late.
+- Fixed players getting stuck unable to attack after being knocked into a wall or slammed down.
+
+**Health**
+- No more healing mid-fight. Your health starts coming back 2 seconds after combat ends.
+
+**Grips**
+- Unarmed grips always play the grip animation, and pressing B right after a knockdown now works.
+- Climbing hand effects no longer stick to your arm.
+
+**Travel**
+- Once you hold a train ticket, a live countdown shows how long until your train leaves.
+- If a journey fails, the message now tells you why.
+
+**Other**
+- The leaderboard scrolls properly, and long names are shortened.
+- The greatsword now sits centred on your back.
+```
 
 ## 2026-10-23 — Region Foundation Tasks 3-6: townsfolk who keep to their day, walk through crowds, run from fights and talk
 
