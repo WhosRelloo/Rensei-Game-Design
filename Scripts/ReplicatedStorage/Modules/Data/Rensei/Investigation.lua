@@ -3,11 +3,15 @@
 --     "Inspect" prompt. {Title, Text, AfterText (shown once already examined), Evidence, Requires}
 --     Requires (StoryLogic conditions) gates the evidence; without it the player just reads Locked
 --     (or Text when Locked is absent).
---     StartsQuest = "<QuestId>" (optional, 2026-10-23): after an inspect that is not Locked (the evidence was given,
---     or it was already held and AfterText shown; or the def has no Evidence), the quest starts if
---     QuestService.CanStart allows it. A Locked inspect never starts it.
+--     StartsQuest = "<QuestId>" (optional, 2026-10-23): after an inspect whose Requires pass (the evidence was
+--     given, or it was already held and AfterText shown), the quest starts if QuestService.CanStart allows it.
+--     A failed Requires never starts it: not a Locked inspect, and not a def with no Evidence either (on such a
+--     def Requires gates only the quest; the text is the same either way). Put any other gate on the quest's own
+--     Requires (CanStart checks it). An active or completed quest is never restarted, but a Repeatable quest
+--     starts again on a later inspect once its Cooldown has passed.
 --     Region-map clue markers: a part tagged "RenseiClue" with attribute ClueId = Id is an inspect point for
---     Inspects[Id] (InvestigationService gives it the RenseiInspect tag and InspectId = ClueId).
+--     Inspects[Id] (InvestigationService gives it the RenseiInspect tag and InspectId = ClueId; ClueId wins over
+--     an InspectId the part already carries).
 --   Deductions[Id]: Case Board questions. {Title, Question, Slots = {{Label, Answer = evidence id}},
 --     Requires (evidence needed before it shows), Wrong (line for a wrong answer)}
 -- PLACEHOLDER content (Foundry Yard investigation).
