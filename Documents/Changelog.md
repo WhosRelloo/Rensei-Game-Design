@@ -2,6 +2,28 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-23 — Lindenmoor expansion in Blender (owner-approved layout; not in Studio yet)
+
+Lindenmoor is planned and built in Blender at its full 2,048 × 2,048 footprint, around the finished village. It follows page 3 of the Regional Map Design Brief. **Nothing changed in Ye**: the import waits until the hub graybox has moved out (the owner's choice: "Plan as if it's gone") and is coordinated by the main session. Design: `Documents/specs/2026-10-23-lindenmoor-expansion-design.md`. What was built, the renders and the import steps are in `Documents/Lindenmoor Kit.md`, "Expansion (Blender)". Every number is a **PROPOSAL**.
+
+- **The new land:**
+  - farmsteads, a market and a watermill in the south-west;
+  - the mine approach above Halvard's Adit;
+  - Mill Creek's gorge with a second ledge walk, a footbridge, the lookout and a waterfall;
+  - Bramble woods;
+  - the training field and the ridge marker;
+  - patchwork fields, orchards and hay barns;
+  - the Cypress Ridge rim with three overlooks;
+  - the north road and the rails side by side to tunnel portals in a north-east gap (the owner's choice: "Together, NE corner").
+- **Edges:** natural edges with no invisible walls. The forested ridges end in a sheer crag that's too tall to climb out of.
+- **Size:** 39,190 parts (expansion ceiling 42,000; place ceiling 80,000).
+- **Orientation finding:** the brief reads correctly with drawing-down = +Z (Ye's north). The region-builds spec's "drawing top = +Z" rule is mirrored for Ye.
+- **Files:**
+  - `Art/Regions/Lindenmoor/layout.json` and `water.json`;
+  - `Art/Blender/lindenmoor/expansion_plan.py` (pure), `expansion_tests.py` and `expansion.py`;
+  - the renders in `Documents/images/Regions/Lindenmoor/`.
+- **Tests:** `python -I Art/Blender/lindenmoor/expansion_tests.py` passes 59/59.
+
 ## 2026-10-23 — Region Foundation Task 2: a day and night: 24 minutes, the same time in every place
 
 The time of day now moves. One real minute is one game hour, so a full day takes 24 real minutes (**PROPOSAL**). The hour comes from the real clock, so every place and every server shows the same time: if it is evening in Lindenmoor it is evening in Foundry Yard too. Built in Ye. Backups are in `ServerStorage.RenseiBackups["Pre-RegionFoundation_2026-10-23"]`.

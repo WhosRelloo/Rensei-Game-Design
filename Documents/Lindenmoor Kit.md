@@ -176,3 +176,110 @@ The owner's profile was snapshotted when it loaded and restored before Stop. The
   - The hook's `diff` compares tables as JSON, so it still lists keys after a restore when their contents only iterate in a different order. It can't confirm a restore.
 - **The travel suites run in both Ye and Foundry Yard.** `ServerStorage.RenseiTests` in Foundry holds TestKit and the seven travel Play suites, copied from `Art/Studio/Travel/src/`. Play_Road maps its fixed spots from Lindenmoor's North Road onto whichever road the place has; the two roads are the same shape, turned a quarter.
 - **Screenshots:** the Studio MCP's `screen_capture` returns the image as JPEG data. `rbxc.py call screen_capture` only prints `[ image ]`, so save it by decoding the tool result's image content (base64) to a `.jpg`. With `camera_position` and `look_at_position` it works in Edit mode; without them, in Play, it captures the player's view and the UI.
+
+## Expansion (Blender, 2026-10-23): Lindenmoor fills its 2,048 × 2,048 footprint
+
+**Owner:** asked for the Lindenmoor expansion to be built in Blender alongside the region foundation. They approved the layout ("Yes, build it"), chose "Plan as if it's gone" for the hub graybox, and chose "Together, NE corner" for the exits. The design is `Documents/specs/2026-10-23-lindenmoor-expansion-design.md`. It is **Blender only**: nothing has gone into Ye yet. Every number is a **PROPOSAL**.
+
+![Map](images/Regions/Lindenmoor/Lindenmoor%20expansion%20-%20map.png)
+![Aerial](images/Regions/Lindenmoor/Lindenmoor%20expansion%20-%20aerial.png)
+
+The map is drawn as the brief draws it: north at the bottom, east on the right, which is Studio's top-down view. The street-level renders are in `images/Regions/Lindenmoor/Lindenmoor expansion - *.png`:
+- farmsteads, mill creek, mine approach, gorge ledge, lookout and Bramble woods;
+- training field, ridge marker, cypress overlook, north meadows and northeast gap.
+
+### What was built
+- **Around the fixed village:**
+  - four farmsteads and a roadside market in the south-west, with a watermill, a stone viaduct and the creek running on west to a spring;
+  - the mine approach above Halvard's Adit;
+  - Mill Creek's gorge east to a waterfall, with a second `RenseiLedge` walk, a footbridge and the lookout;
+  - Bramble woods in the south-east;
+  - the training field and the ridge marker where the hub was, with patchwork crop fields, orchards and hay barns in the north meadows;
+  - the Cypress Ridge rim with three overlooks in the north-west;
+  - the north road and the rails side by side to tunnel portals in the north-east gap.
+- **Edges:** forested ridges rise to a sheer crag (crest y 150–195), more than a stamina bar can climb. There are no invisible walls.
+- **Ground:** the approved stepped part ground, with merged mossy slabs over stone sides and dirt ramps where routes climb. New ground blends to the village's edge heights; nothing is built on the village's own ground.
+- **Part count:** **39,190**, against the expansion ceiling of 42,000:
+
+  | Group | Parts |
+  |---|---|
+  | Ground | 23,335 |
+  | Forest | 11,519 (1,416 trees) |
+  | Farmsteads | 1,423 |
+  | Fields | 1,310 (44 fields) |
+  | Routes | 778 |
+  | Edging | 274 |
+  | Gorge | 115 |
+  | Training | 90 |
+  | Mine | 81 |
+  | Landmarks | 68 |
+  | Meadows | 68 |
+  | Lamps | 40 |
+  | Gap | 40 |
+  | Markers | 37 |
+  | Bridges | 12 |
+
+  With Ye's existing ~30.5k (village, ground, Adit dressing, trains; needs a Studio count), the place comes to about 70k against an 80k ceiling.
+
+### Files
+- `Art/Regions/Lindenmoor/layout.json`: the region file, in world studs (x east, z north), in the region-foundation Task 8 format. Its `Notes` list the extensions: `Materials`, `Keep`, `Infill`, channel cuts and water, `Crag`, and patchwork fields.
+- `Art/Regions/Lindenmoor/water.json`: terrain water boxes (one rotated box per channel segment, surface y 5.2).
+- `Art/Blender/lindenmoor/expansion_plan.py`: the pure planner, with no bpy.
+- `Art/Blender/lindenmoor/expansion_tests.py`: 59 checks on the plan, including:
+  - no ground on the village;
+  - no holes;
+  - a continuous crag at least 80 studs above the ground beside it;
+  - route grades and continuity;
+  - the rails meeting Ye's rail top;
+  - the ledge's wall;
+  - water beds;
+  - markers;
+  - non-overlapping areas;
+  - level, clear fields;
+  - trees clear of routes;
+  - the road passage length;
+  - the budget.
+
+  Run `python -I Art/Blender/lindenmoor/expansion_tests.py`.
+- `Art/Blender/lindenmoor/expansion.py`: the Blender stages. Run them through `Art/Tools/blender_mcpc.py code @file.py`:
+  - `run("village")` once (`world.py`'s village plus a stepped preview of its ground, linked in for renders);
+  - then `run("all")` or single stages: `ground, water, routes, fields, landmarks, trees, markers, lighting`;
+  - then `render_all()`, `count()` and `save()`.
+- `Art/Blender/Regions/Lindenmoor_Expansion.blend` (not committed): scenes `Lindenmoor_Expansion` (the build) and `Lindenmoor_Full` (the village preview, never exported).
+- `world.py`, `core.py` and `export.py` are unchanged.
+
+### Notes on the pipeline
+- **Mirrored renders:** the Blender frame is a mirror image of Roblox's (export maps Roblox (X, Y, Z) to Blender (x, z, y)). The expansion's renders are therefore flipped to show the place as Studio will: perspective shots left-right, the map top-bottom. The older village renders were not flipped.
+- **Slow deletes:** removing tens of thousands of objects one at a time takes Blender most of an hour. `expansion.clear()` uses `bpy.data.batch_remove`.
+- **Slow stages:** stages over five minutes outlive `blender_mcpc.py`'s 300 s wait, but Blender finishes them anyway. Watch for the output file or the saved `.blend` instead.
+
+### Importing later (main session, after the hub has moved out)
+1. **Measure Ye first:**
+   - the Baseplate's position (assumed the template's (0, −8, 0));
+   - the place's part count;
+   - that `World.Map.Ground` has no parts in the layout's `Infill` cells (the creek's run east to the gorge, and the thin west, south and north strips);
+   - the seam heights where new ground meets the village. They are blended from `terrain_studio.json`'s 8-stud grid; the Adit hill's are estimates.
+2. **Move out or retire:**
+   - the hub graybox (trainers, five trial sites, Foundry graybox, ledge course, test arena; the owner's choice);
+   - today's `NorthRoad` passage with its encounters, threshold and `RoadStart` arrival;
+   - the `HubRoad` strip and its sign;
+   - the north buffer stop at world (−270, −369), since the rails continue from there.
+
+   Back them all up.
+3. **Export:** `expansion.export_expansion(path)` unlinks the village preview and runs `export.py` on the expansion scene. It needs the region-foundation Task 9 change to carry `rs_tags` (row field 16) before the markers, the ledge strip and the clue points get their tags. The region origin is world (0, 0, 0); the scene is built in the village frame, so `export.py`'s (0, 4, −650) origin is right as it is.
+4. **Materials:** `studio_kit.py`'s `MATS` needs `LM_GrassGround`, `LM_GroundMeadow`, `LM_GroundSide`, `LM_Ballast`, `LM_Falls`, `LM_Foam` and `LM_Shadow`. Their values are in the layout's `Materials` (or use Task 9's `materials.json` override).
+5. **Import** with the staged import and finish (Task 11; it refuses to run twice). Fill `water.json`'s boxes with terrain water.
+6. **Travel:** run `setup.lua` (Task 12) for the `RoadPassage` marker. Re-run the travel suites, especially Play_Road, which maps fixed spots from today's North Road.
+7. **Game data:**
+   - add the 10 new `AreaName`s to `Rensei.Regions.Areas` → Lindenmoor;
+   - set `Regions.HubLaw` for Ye to Lindenmoor once the hub is gone, or the unnamed ground counts as City;
+   - give the clues `lm_ridge_marker` and `lm_mine_shaft` quests (F4);
+   - give the 18 posts a Lindenmoor townsfolk roster (F3);
+   - check that the 6 Grunt spawns are wanted.
+8. **Play-test:**
+   - walk every route;
+   - try to climb the crag (it should fail);
+   - swim the creek and the gorge;
+   - walk the gorge ledge;
+   - check that the lamps' `NightOnly` heads follow the clock;
+   - check streaming with the full map.

@@ -1,0 +1,187 @@
+{
+ "Note": "Terrain water boxes for Ye (world studs; fill from Bed to Top with Enum.Material.Water). PROPOSAL.",
+ "Boxes": [
+  {
+   "Id": "creek_west_water_0",
+   "From": [
+    -330,
+    -530
+   ],
+   "To": [
+    -420,
+    -524
+   ],
+   "Width": 24,
+   "Top": 5.2,
+   "Bed": 1
+  },
+  {
+   "Id": "creek_west_water_1",
+   "From": [
+    -420,
+    -524
+   ],
+   "To": [
+    -520,
+    -538
+   ],
+   "Width": 24,
+   "Top": 5.2,
+   "Bed": 1
+  },
+  {
+   "Id": "creek_west_water_2",
+   "From": [
+    -520,
+    -538
+   ],
+   "To": [
+    -610,
+    -530
+   ],
+   "Width": 24,
+   "Top": 5.2,
+   "Bed": 1
+  },
+  {
+   "Id": "creek_west_water_3",
+   "From": [
+    -610,
+    -530
+   ],
+   "To": [
+    -700,
+    -520
+   ],
+   "Width": 24,
+   "Top": 5.2,
+   "Bed": 1
+  },
+  {
+   "Id": "creek_west_water_4",
+   "From": [
+    -700,
+    -520
+   ],
+   "To": [
+    -790,
+    -528
+   ],
+   "Width": 24,
+   "Top": 5.2,
+   "Bed": 1
+  },
+  {
+   "Id": "creek_west_water_5",
+   "From": [
+    -790,
+    -528
+   ],
+   "To": [
+    -878,
+    -522
+   ],
+   "Width": 24,
+   "Top": 5.2,
+   "Bed": 1
+  },
+  {
+   "Id": "gorge_water_0",
+   "From": [
+    336,
+    -548
+   ],
+   "To": [
+    420,
+    -540
+   ],
+   "Width": 40,
+   "Top": 5.2,
+   "Bed": 1
+  },
+  {
+   "Id": "gorge_water_1",
+   "From": [
+    420,
+    -540
+   ],
+   "To": [
+    520,
+    -552
+   ],
+   "Width": 40,
+   "Top": 5.2,
+   "Bed": 1
+  },
+  {
+   "Id": "gorge_water_2",
+   "From": [
+    520,
+    -552
+   ],
+   "To": [
+    590,
+    -548
+   ],
+   "Width": 40,
+   "Top": 5.2,
+   "Bed": 1
+  },
+  {
+   "Id": "gorge_water_3",
+   "From": [
+    590,
+    -548
+   ],
+   "To": [
+    750,
+    -548
+   ],
+   "Width": 40,
+   "Top": 5.2,
+   "Bed": 1
+  },
+  {
+   "Id": "gorge_water_4",
+   "From": [
+    750,
+    -548
+   ],
+   "To": [
+    840,
+    -538
+   ],
+   "Width": 40,
+   "Top": 5.2,
+   "Bed": 1
+  },
+  {
+   "Id": "gorge_water_5",
+   "From": [
+    840,
+    -538
+   ],
+   "To": [
+    930,
+    -552
+   ],
+   "Width": 40,
+   "Top": 5.2,
+   "Bed": 1
+  },
+  {
+   "Id": "gorge_water_6",
+   "From": [
+    930,
+    -552
+   ],
+   "To": [
+    966,
+    -548
+   ],
+   "Width": 40,
+   "Top": 5.2,
+   "Bed": 1
+  }
+ ]
+}
