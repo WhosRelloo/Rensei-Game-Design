@@ -1,0 +1,492 @@
+# Region Builder: how to build a region and put it in a place
+
+This is the how-to for the region pipeline built by the Region Foundation (2026-10-23 to 2026-10-24). It covers the whole route:
+
+1. the region file;
+2. the Blender builder and its renders;
+3. the export;
+4. the safe import into a Studio place;
+5. the travel setup;
+6. the game data that brings a region to life: townsfolk, clues and the clock.
+
+The design is `Documents/specs/2026-10-23-region-builds-design.md`, and the plan is `Documents/plans/2026-10-23-region-foundation.md`. Where this page and the plan differ, this page follows the code as built.
+
+Every size, height, colour and timing in the tools is a **PROPOSAL** unless the owner has chosen it. This page marks the ones that matter.
+
+## The pieces at a glance
+
+| Step | Where | What it does |
+|---|---|---|
+| Region file | `Art/Regions/<Region>/layout.json` | Describes the region: size, heights, districts, roads, landmarks, markers. |
+| Builder | `Art/Blender/region_builder/` (`build.run`) | Builds the region in Blender, saves `Art/Blender/Regions/<Region>.blend`, writes renders, `materials.json` and `water.json`. |
+| Export | `Art/Blender/lindenmoor/export.py` (`export(scene, out, origin)`) | Writes the parts to `Art/Studio/Regions/<Region>/layout.json`. |
+| Import kit | `Art/Studio/Regions/kit.py` | Writes chunk scripts plus `finish.lua`, `restore.lua` and `unstrip.lua`. |
+| Travel setup | `Art/Studio/Regions/setup.lua` (bundled by `bundle_setup.py`) | Builds the station and road pieces from `RenseiMarker` markers. |
+| Game data | `Rensei.Townsfolk`, `Rensei.Investigation`, `WorldClock` | Townsfolk rosters, clue texts and quests, the time of day. |
+
+The builder package is `region_builder/`, not `regions/`. On Windows, `regions/` would be the same folder as the `Art/Blender/Regions/` output folder, and Python can't import it.
+
+## 1. The region file
+
+The region file is `Art/Regions/<Region>/layout.json`. `region_builder/schema.py` checks it, listing every problem at once with where it is. An unknown top-level key is an error, which catches typos.
+
+**Coordinates** are studs, with the origin at the footprint's centre:
+- x is east and z is south;
+- a point is `[x, z]`;
+- a marker's `At` is `[x, y, z]`, where `y = 0` means "on the ground" (the builder snaps it) and any other y is an absolute height;
+- a Rect is `[x0, z0, x1, z1]` with `x0 < x1` and `z0 < z1`.
+
+### Top-level keys
+
+| Key | Required | Value |
+|---|---|---|
+| `Region` | yes | The region id, e.g. `"Foundry"`. |
+| `PlaceId` | yes | The Studio place the region goes into (whole number; 0 for a test region). |
+| `Footprint` | yes | `[width, depth]` in studs. |
+| `Palette` | yes | Role → material key (see "Palette and materials"). |
+| `Heights` | yes | List of height shapes. |
+| `Districts` | yes | List of built-up areas. |
+| `Routes` | yes | List of roads, lanes and rails. |
+| `Landmarks` | yes | List of landmark pieces. |
+| `Markers` | yes | List of markers (tags with attributes). |
+| `Budget` | yes | The part ceiling, 1 to 90,000. |
+| `KeepMapChildren` | no | Names of `workspace.World.Map` children the import must leave in place. Absent means keep nothing. |
+| `MapChild` | no | The `World.Map` child the import builds. Absent means the Region name. Letters, digits and `_`, starting with a letter. |
+
+`KeepMapChildren` may not name the `MapChild`. Lindenmoor's file has its own top-level `Keep` (a list of area objects). That is a different thing, and the import ignores it.
+
+### Heights
+
+Each entry has a `Kind`. The ground is worked out on a 4-stud grid in 1-stud steps, as Lindenmoor's was.
+
+| Kind | Keys | Meaning |
+|---|---|---|
+| `plane` | `Y` | The base ground height everywhere. |
+| `box` | `Rect`, `Y`, optional `Edge` (default 0) | A raised block that blends down over `Edge` studs. |
+| `ridge` | `Line` (2+ points), `Width`, `Y` | A ridge along a line that falls away to the sides. |
+| `cut` | `Rect`, `Y` | A sunken area. |
+| `water` | `Rect`, `Top`, `Bed` (`Bed < Top`) | Water with its surface and bed. Kept only where it stands above the ground. |
+
+Later shapes override earlier ones. A shape can raise ground out of water, and no water is filled under raised ground.
+
+### Districts
+
+Each has `Id`, `Poly` (3+ points), `Style`, `Density` (0–1) and `Storeys` `[min, max]` (1 ≤ min ≤ max ≤ 4; the cap of 4 is a PROPOSAL).
+
+`Style` names a building style as `"<kit>.<piece>"`. The rail-town kit has:
+- `railtown.house`;
+- `railtown.boarding`;
+- `railtown.shed`;
+- `railtown.warehouse`;
+- `railtown.stack`.
+
+### Routes
+
+Each has `Id`, `Kind`, `Width` and `Line` (2+ points). The kinds are:
+- `public`: paved, with kerbs;
+- `road`: paved like `public`;
+- `quiet`: a cinder lane;
+- `rail`: rails;
+- `under`: an underground route, dressed with the underworks tunnel piece. Its use still needs a design.
+- `ledge`: left to a later traversal stage; it builds nothing yet.
+
+Where a public, road or quiet route climbs more than 4 studs over 8, it gets stairs of 1 stud per step.
+
+### Landmarks
+
+Each has `Id`, `Kind`, `At` (`[x, z]`) and optional `Yaw` (degrees). The rail-town landmarks are:
+- `practice_court`;
+- `foundry_hall`;
+- `crane_bay`;
+- `rail_walk`;
+- `underworks`;
+- `canteen`;
+- `market_stall`.
+
+Write each with its kit name, e.g. `railtown.crane_bay`. The kit's footprints are in `region_builder/kitspec.py`.
+
+### Markers
+
+Each marker has:
+- `Tag`;
+- exactly one of `At` (`[x, y, z]`) or `Box` (`[[x0, y0, z0], [x1, y1, z1]]`);
+- optional `Yaw` (degrees; 0 faces −Z, north);
+- optional `Attr`, the attributes the part carries in Studio.
+
+The builder makes each one an invisible, non-colliding part with the tag and attributes:
+- a point marker is a 2 × 2 × 2 part standing on its spot;
+- a box marker is its box.
+
+**The tag names are the ones the game's services read.** The spec's four older names are refused, so a wrong tag can't import and silently do nothing.
+
+| Tag | Required `Attr` | What it is |
+|---|---|---|
+| `RenseiPost` | `PostId` (unique), `Kind` (`Work` / `Seat` / `Counter` / `Home` / `Shelter`) | A townsfolk post. The marker's Yaw is the way they face. |
+| `RenseiClue` | `ClueId` | A clue point (see "Clues"). |
+| `RenseiArea` | `AreaName` | A named area. Use a Box. |
+| `RenseiTrial` | `TrialId` | A trial room entrance. |
+| `RenseiMarker` | `Piece` (+ that piece's keys) | A travel piece that `setup.lua` builds (see "Travel setup"). Must use `At`. |
+| `RenseiArrival`, `RenseiPlatformTrain`, `RenseiTicketClerk`, `RenseiDepartureBoard`, `RenseiStationGate`, `RenseiFreightYard`, `RenseiWatcher`, `RenseiRoadPassage`, `RenseiRoadThreshold`, `RenseiRoadEncounter` | as the travel services expect | World Plan 1 travel tags. For a new region, prefer `RenseiMarker` pieces and let `setup.lua` lay these. |
+| `RenseiLedge`, `RenseiEnemySpawn`, `RenseiInspect`, `RenseiMechanism`, `RenseiPuzzleDoor`, `RenseiLight` | as their services expect | Other map-placed gameplay pieces. |
+| `EdgeGap` | none; needs a `Box` | Builder only: the edges stage leaves this box open (a road mouth, the station). Never exported. |
+
+The old names `RenseiClerk`, `RenseiThreshold`, `RenseiEncounter` and `RenseiTrialDoor` are refused. Use `RenseiTicketClerk`, `RenseiRoadThreshold`, `RenseiRoadEncounter` and `RenseiTrial` instead. To allow a new tag, add it to `MARKER_TAGS` in `schema.py`.
+
+### `RenseiMarker` pieces
+
+`Attr.Piece` names the piece. Any other attribute not listed is refused, because a misspelt name would be silently ignored in Studio.
+- Types are: str (non-empty), num (number), int (whole number), bool, json.
+- A json value is a **string** holding JSON, because Roblox attributes can't hold lists.
+- Coordinates in attributes are region coordinates.
+
+| Piece | Required | Optional |
+|---|---|---|
+| `Station` | `Route`, `TrackX`, `RailTop`, `NoseZ`, `PlatformSide` (must be 1) | `Arrival` (false: no Platform arrival) |
+| `Clerk` | `Station` | |
+| `Board` | none | |
+| `Gate` | `Route` | `Sign` (default "STATE CHECKPOINT") |
+| `Railing` | `Runs` (json `[[x1, z1, x2, z2], ...]`), `WallTop` | |
+| `FreightYard` | none | |
+| `RoadPassage` | `Route`, `To`, `RoadName`, `Legs` (json: `["line", x1, z1, x2, z2]` / `["arc", cx, cz, r, a1, a2]`), `Threshold`, `RoadStart`, `Encounters` (json `[s, ...]`), `Half`, `RoadY`, `Seed` (int) | `Arrival`, `Name`, `FloorY`, `Cut`, `High`, `Gate`, `Fence` (json `[s1, s2]`), `Skip` (json list of Rects), `Clip` (json `{MinX, MaxX, MinZ, MaxZ}`) |
+
+A `RoadPassage` needs `0 ≤ RoadStart < Threshold ≤` the road's length. What each piece builds, and every derived size, is in the header of `Art/Studio/Regions/setup.lua`. Those sizes come from Foundry's hand-built station and are PROPOSALs.
+
+### Palette and materials
+
+`Palette` maps a role to a material key from `region_builder/materials.py` (`BASE`). The roles are `ground_top`, `ground_side`, `path`, `quiet`, and any role a stage uses.
+
+A value is either:
+- a key, e.g. `"cinder"`;
+- or `{"Key": "paving", "Pack": "<texture-pack item>"}`, which names a block in `Art/Regions/texture_pack.json`. In Studio, that material becomes a MaterialVariant with the pack image, while Blender shows the flat colour.
+
+The builder writes `Art/Regions/<Region>/materials.json`: `RG_<Region>_<key>` → `{Material, Color, Transparency}`, plus `PackImage` and `StudsPerTile` for a pack role. `StudsPerTile` is a PROPOSAL.
+
+### Example
+
+The Testbed, `Art/Regions/Testbed/layout.json`, is a 256 × 256 test map with one of everything. Copy it to start a new region.
+
+## 2. Running the builder
+
+Run it in Blender, through the bridge, with a small Python file:
+
+```python
+import sys; sys.path.insert(0, r"C:/Users/Owner/Rensei-Game-Design/Art/Blender")
+from region_builder import build
+result = build.run("Testbed")                      # every stage, renders included
+# result = build.run("Testbed", "ground,routes,markers")
+```
+
+```
+python -I Art/Tools/blender_mcpc.py code @my_build.py
+```
+
+The stages, in order:
+1. `ground`: stepped slabs in 64 × 64 tiles, side blocks and ramps;
+2. `routes`: kerbs, stairs and rails;
+3. `buildings`: districts filled from the style kit, facing the street, with alleys;
+4. `landmarks`;
+5. `cover`: crate stacks and machinery, plus street lamps that light only at night;
+6. `edges`;
+7. `markers`;
+8. `lighting`;
+9. `render`.
+
+**Safety.** `build.run`:
+- refuses to run if Blender has unsaved changes, because it opens an empty file;
+- saves only `Art/Blender/Regions/<Region>.blend`, which is never committed;
+- never saves over `Lindenmoor_Full.blend` or `Lindenmoor_Expansion.blend`.
+
+**Budget.** `build.run` returns `{objects, parts, budget, over, renders, blend, stages}`. When `over` is true, the scene carries `rs_over_budget`. **Don't export an over-budget scene.** The import kit refuses it as well.
+
+**Renders** go to `Documents/images/Regions/<Region>/`: an aerial view, plus a street view per district and landmark. They are flipped left-right so they show the place as Studio will. **The owner approves the renders before any import.**
+
+**Tests.**
+- Pure Python: `python -I Art/Blender/region_builder/tests/run.py`.
+- In Blender: `python -I Art/Tools/blender_mcpc.py code @Art/Blender/region_builder/tests/blender_check.py`.
+- The kit gallery renders come from `region_builder/tools/render_kit_gallery.py`.
+
+### Edges and `RenseiNoGrip`
+
+The owner's rule is natural edges and no invisible walls. The climb leap can take a player about 123 studs up (a fully upgraded one about 207), so no sensible wall height keeps people in. Instead, edge walls carry the tag **`RenseiNoGrip`** (owner, 2026-10-24: "Ungrippable edges").
+
+A part with `RenseiNoGrip`, or inside a model that has it, can't be grabbed by:
+- a climb;
+- a mid-air grab;
+- a climb leap;
+- moving along a climb;
+- a wall run;
+- the air wall-kick (S).
+
+It still shows, and you can stand on it and bump into it. The server refuses a climb or wall run against it too. The tag name lives in `TuningConfig.Parkour.NoGripTag`.
+
+- **The builder** tags every edge wall block (export row field 16).
+- **By hand in Studio:** add the tag with the Tag editor or `CollectionService:AddTag(part, "RenseiNoGrip")`. Tagging a model covers every part in it.
+- **Edge numbers** (`region_builder/placement.py`, PROPOSALs):
+  - `EDGE_HEIGHT = 80`: each wall's sheer inner face stands at least 80 studs over the ground beside it. A running jump reaches about +16 to +19.
+  - `WALL_CLEAR = 26`: no building, landmark, cover cluster or lamp stands within 26 studs of an edge wall's inner face, so no roof can launch anyone over.
+  - `EDGE_BAND = 12`: the walls' depth in from the footprint's edge.
+- **Gaps:** `EdgeGap` box markers leave the wall open where a road or the station leads out.
+
+Today, no tagged part is in any live map. The first ones arrive with the region imports.
+
+## 3. Export
+
+The export is `Art/Blender/lindenmoor/export.py`: `export(scene_name="Lindenmoor_Full", out_path=..., origin=(0, 4, -650))`. For a region, give all three:
+
+```python
+from lindenmoor import export as EX
+EX.export("Region_<Region>", r"C:/Users/Owner/Rensei-Game-Design/Art/Studio/Regions/<Region>/layout.json", origin=(0, 0, 0))
+```
+
+With origin (0, 0, 0), region coordinates are world coordinates. Each part row is:
+- `[name, shape, mat, sx, sy, sz, X, Y, Z, qx, qy, qz, qw]`;
+- then three more fields for marker and tagged parts: field 14 invisible (0/1), field 15 an attributes JSON string, field 16 comma-separated tags.
+
+Field 16 is how `RenseiPost`, `RenseiClue`, `RenseiNoGrip` and the other tags reach Studio. When any of the three extra fields is present, all three are written, with `""` meaning none. Rows without them stay at 13 fields, so Lindenmoor's and the train's exports are byte-for-byte unchanged.
+
+## 4. The import: dry run first, then Confirm
+
+### Generate the scripts
+
+```
+python -I Art/Studio/Regions/kit.py <Region> [--keep Name1,Name2] [--map-child Name] [--place <id>] [--date YYYY-MM-DD]
+```
+
+It reads:
+- the export, `Art/Studio/Regions/<Region>/layout.json`;
+- `Art/Regions/<Region>/materials.json` and `water.json` (both optional);
+- the region file, for `PlaceId`, `Budget`, `KeepMapChildren` and `MapChild`.
+
+It writes these into `Art/Studio/Regions/<Region>/import/`:
+- `chunk_NN.lua`;
+- `expected.json`;
+- `finish.lua`;
+- `restore.lua`;
+- `unstrip.lua`.
+
+It refuses an export over the region's `Budget`.
+
+| Option | Meaning |
+|---|---|
+| `--keep` | More `World.Map` children to leave in place, added to the file's `KeepMapChildren`. |
+| `--map-child` | The `World.Map` child to build (default: the file's `MapChild`, else the Region name). |
+| `--place` | Another place id, for a test run. |
+| `--date` | The date written into the headers. The backup is named by the **run** date. |
+
+`water.json` must be `{"Boxes": [{"Rect": [x0, z0, x1, z1], "Top": t, "Bed": b}, ...]}` in region coordinates. The builder writes it this way from the cells that are actually under water.
+
+### Run it in Studio (Edit mode, the region's place)
+
+Run each chunk in order:
+
+```
+python -I Art/Tools/rbxc.py luau "placeId: <id>" Edit @Art/Studio/Regions/<Region>/import/chunk_01.lua
+```
+
+The chunks build everything into `ServerStorage.RegionStaging`. Nothing is in the live map yet.
+
+**1. The dry run, always first.** Set the attribute `DryRun = true` on `ServerStorage.RegionStaging`, then run `finish.lua`. It checks the staging against `expected.json`:
+- models and parts per group;
+- every tag per group: posts, clues, areas, ledges, `RenseiNoGrip`;
+- lights;
+- the texture-pack MaterialVariants and the parts that carry them.
+
+Then it removes the staging folder and every MaterialVariant the chunks made, so the place is left exactly as it was. It returns `dry run ok: ...` or `dry run FAILED: ...`.
+
+**2. The real run, only with `Confirm`.** Run the chunks again, set `Confirm = "<Region>"` (the region's name, as a string) on `RegionStaging`, and run `finish.lua`. With neither attribute set, it refuses and changes nothing.
+
+The real run refuses, before changing anything, if:
+- the checks fail;
+- this is another place;
+- today's backup `RenseiBackups["Pre-Region_<Region>_<date>"]` already exists;
+- `World.Map` is missing;
+- a keep name isn't a `World.Map` child, or is the `MapChild`.
+
+When it goes ahead, it:
+- builds `World.Map.<MapChild>` from the staged groups;
+- moves every `World.Map` child **not** in the keep list into the dated backup, with its CollectionService tags set aside in the attribute `RegionKitTags`, so the services stop seeing the old markers;
+- backs up and swaps any MaterialVariant it replaces;
+- snapshots the terrain under each water box and fills it with water.
+
+**The keep list.** Children named in `KeepMapChildren` or `--keep` stay exactly where they are, with all their tags. That is how Lindenmoor's village stays when its expansion goes into Ye beside it, as `World.Map.LindenmoorExpansion`.
+
+**Rollback.** The whole swap runs inside a pcall. If anything fails partway, everything is moved back as it was.
+
+**Restore.** `restore.lua` undoes a real run:
+- it puts the old map back, with its tags, water and texture settings;
+- it never deletes the imported map: that moves to `RenseiBackups["Post-Region_<Region>_<date>"]`, tags stripped, so anything built in it after the import is kept;
+- it refuses if a backed-up child's name is already taken in `World.Map`;
+- set `DATE` at its top to restore an older backup than the newest.
+
+**Unstrip.** A piece dragged out of a backup has no tags. To get them back, either:
+- set `PATH` in `unstrip.lua` to its path (e.g. `"ServerStorage/RenseiBackups/Post-Region_<Region>_<date>/<MapChild>/<Group>/<Model>"`);
+- or put the attribute `RegionKitUnstrip = true` on each piece.
+
+Then run `unstrip.lua`, which re-adds every tag from `RegionKitTags`. A re-tagged piece left in ServerStorage becomes visible to the services again, so move it out.
+
+**Collision.** In a region import, parts named `*Glass` or `*Glow` are walk-through. Kerbs, crates and walls stay solid.
+
+## 5. Travel setup
+
+After the import, `setup.lua` builds the station and road pieces from the `RenseiMarker` parts under `World.Map.<MapChild>`, into its `Travel` folder.
+
+```
+python -I Art/Studio/Regions/bundle_setup.py setup <scratch>/setup_bundle.lua
+python -I Art/Tools/rbxc.py luau "placeId: <id>" Edit @<scratch>/setup_bundle.lua
+```
+
+Set `REGION` and `MAP_CHILD` at the top of `setup.lua` first. A Station marker also needs `ServerStorage.TrainKit` (copy it from Ye).
+
+- It checks every marker before building anything, and builds everything or nothing.
+- Running it again rebuilds `Travel`. A hand-made `Travel` is backed up the first time, in `RenseiBackups["Pre-RegionSetup_<MapChild>"]`.
+- It returns a one-line summary with any warnings.
+
+**One of each per place.** The game takes the **first** arrival point and the **first** train it finds for a route (`TravelService.ArrivalPoint`, `StationService.TrainOf`). So setup refuses to add a Platform arrival, a RoadStart arrival, or a platform or ride train for a route the place already has anywhere outside the old `Travel`. It also refuses more than one of either arrival.
+- A second station needs `Arrival = false`.
+- A second road needs `Arrival = false`.
+- The schema checks the same within one region file.
+- Setup checks the whole place, including kept map children.
+
+**Ride trains** use identity rotation and must stand clear: at least 300 studs above every map part, and away from other ride trains (PROPOSAL).
+
+**Test runs** use `ServerStorage.RegionSetupRoot`, and only when it carries the attribute `TEST = true`. A root without it makes setup refuse, so a forgotten test root can't turn a real run into a test. Remove the test roots afterwards, because their tagged parts are live tags while they exist.
+
+**Check the result** with the contract test:
+
+```
+python -I Art/Studio/Regions/bundle_setup.py contract <scratch>/check.lua workspace.World.Map.<MapChild>
+```
+
+It returns `PASS n / FAIL n`. Then rerun the travel Play suites in the place.
+
+## 6. Townsfolk
+
+### Posts
+
+Posts are map markers: parts tagged `RenseiPost` with `PostId` (string) and `Kind`. The post's front (LookVector) is the way the townsperson faces. Each kind has an idle (PROPOSALs):
+
+| Kind | Idle |
+|---|---|
+| `Work` | the townsperson's own `Idle` |
+| `Seat` | `NPC_Chill` |
+| `Counter` | `NPC_CrossArms` |
+| `Home` | `NPC_Chill` |
+| `Shelter` | `NPC_CurledUp` |
+
+**Shelter** posts are where townsfolk run to from a fight.
+
+### The roster
+
+Rosters live in `ReplicatedStorage.Modules.Data.Rensei.Townsfolk`, as `Townsfolk.Regions[RegionId] = { ... }`. The region id is `TravelService.Here()` for the place, e.g. `"Foundry"`. Ye has no roster yet, so nobody appears there.
+
+```lua
+{
+	Id = "foundry_crane_1",            -- unique within the region
+	Name = "Edda Varn",
+	Job = "Crane hand",
+	JobLine = "Third shift on the bay crane. Watch your head under the hooks.",
+	Faction = "Foundry",               -- a Factions id; the greeting reads your standing with it here
+	Look = {Nation = "Amestrian", Gender = "Female", Seed = 11}, -- Nation required (Customization.NationLooks); Gender optional
+	Idle = "NPC_Blacksmith",           -- optional: the idle at Work posts
+	Schedule = { {6, 14, "crane_bay_2"}, {14, 15, "canteen_seat_4"}, {15, 6, "workers_row_3"} },
+	Greetings = nil,                   -- optional per-tier overrides {Hostile = ..., Neutral = ...}
+	Clue = nil,                        -- optional {Quest = "<QuestId>", Stage = <stage>, Text = "...", Signal = "<target>"}
+}
+```
+
+**Schedule** slots are `{From, To, PostId}` in clock hours (0–24):
+- a slot covers `From ≤ hour < To`;
+- it wraps past midnight when `From > To`;
+- the first matching slot wins.
+
+**Checks.** `TownsfolkLogic.Validate` checks the roster when the town loads, and refuses the **whole** roster with a clear message for any of:
+- a non-table entry;
+- a missing or duplicate `Id`;
+- an unknown `Faction`;
+- a missing or unknown `Look.Nation`, or an unknown `Look.Gender`;
+- no schedule;
+- a slot whose hours are outside 0–24, or that is empty (`From == To`; use `{0, 24, ...}` for all day);
+- a post that doesn't exist on the map;
+- any uncovered hour;
+- two townsfolk at the same post at the same hour.
+
+**Talk.** Each Talk says one line, in a bubble over their head. In order:
+1. the clue line, if you're on `Clue.Quest` at `Clue.Stage` (no `Stage` means any stage). It then signals `Clue.Signal`.
+2. Otherwise, the next step of your rotation with them:
+   - a greeting by your standing tier (Hostile, Distrusted, Neutral, Trusted, Honoured);
+   - a rumour you haven't heard from them;
+   - their `JobLine`;
+   - then the greeting again.
+
+Rumour and clue lines are said to you alone. A Talk also counts for "talk to" quest steps.
+
+**Dress.** They wear their own nation's clothes, from `Customization.NationLooks`, with `Look.Seed` picking the outfit.
+
+**Hurt.** Townsfolk can be hurt, knocked and killed, which counts as assault or murder. A newcomer takes a dead townsperson's job at the next 06:00. See the Task 6b changelog entry.
+
+## 7. Clues
+
+A clue is a part tagged `RenseiClue` with the attribute `ClueId`. `InvestigationService` turns it into an Inspect point for `Investigation.Inspects[ClueId]`. It works both for parts on the map at server start (how imported regions arrive) and for parts added later. `ClueId` wins over any `InspectId` the part already carries.
+
+Clue texts live in `ReplicatedStorage.Modules.Data.Rensei.Investigation`, under `Inspects`:
+
+```lua
+foundry_cart_tracks = {
+	Title = "Cart Tracks",
+	Text = "Fresh ruts run from the gate to the slag heap, too deep for an empty cart.",
+	AfterText = "Deep ruts to the slag heap.",       -- shown once you already hold the evidence
+	Evidence = "deep_ruts",                          -- optional: the evidence it gives
+	Requires = {Quest = {Id = "...", StageAtLeast = 2}}, -- optional StoryLogic conditions
+	Locked = "Ruts in the cinder.",                  -- optional: shown when Requires fails
+	StartsQuest = "foundry_cart_quest",              -- optional: the quest this clue starts
+},
+```
+
+(The entry above shows the shape only; it isn't real content.)
+
+**Starting a quest.** With `StartsQuest`, an inspect starts the quest when all of these hold:
+- `Requires` passes: you got the evidence now, or you held it already and saw `AfterText`;
+- `QuestService.CanStart` allows it: not active, not done, not on cooldown.
+
+A failed `Requires` never starts the quest. On a clue with no `Evidence`, `Requires` gates only the quest. Put any other gate on the quest's own `Requires`. An active or finished quest is never restarted, but a `Repeatable` quest starts again after its cooldown.
+
+A townsperson can also hold a clue line (the roster's `Clue`, above).
+
+## 8. The clock
+
+`WorldClock` lives in `RenseiServer`. The time of day comes from real time, so every place and every server shows the same hour.
+
+- **Day length:** one real minute is one game hour, so a full day takes 24 real minutes (`WorldClock.DayMinutes = 24`, PROPOSAL).
+- **Night** is 18:00 to 06:00 (`IsNight`, PROPOSAL).
+- **The API:**
+  - `Hour()`: the real-time hour;
+  - `Now()`: the hour the world shows, which is the held hour while held;
+  - `Hold(h)` and `Release()`;
+  - `IsHeld()`;
+  - `IsNight(h)`;
+  - `Changed`: fires with each new whole hour.
+- **Townsfolk schedules** read `Now()`.
+- **Lamps:** give the lamp's part the attribute `NightOnly = true`. Its lights are on only at night. By day, the part's material becomes `SmoothPlastic` (`WorldClock.DayMaterial`, PROPOSAL), so a Neon head doesn't glow at noon, and its own material comes back at night. The builder's street lamps already carry `NightOnly`.
+- **Admin:** the admin panel's Time box holds the clock at the hour you type; type `run` to let it follow real time again.
+- **Different meanings of "night".** They don't all agree yet:
+  - lamps light at 18:00;
+  - the road's ambush bonus starts after 19:00;
+  - stealth is darkest from 20:00 (daylight fades from 17:00 and returns 06:00 to 09:00).
+
+## 9. Checklist for a new region
+
+1. Write `Art/Regions/<Region>/layout.json`, starting from the Testbed. Run `tests/run.py`.
+2. Run `build.run("<Region>")` in Blender. Check `over` is false. Show the owner the renders, and wait for approval.
+3. Export `Region_<Region>` with origin (0, 0, 0) to `Art/Studio/Regions/<Region>/layout.json`.
+4. Run `kit.py <Region>` with the right `--keep` and `--map-child`.
+5. In Studio:
+   - run the chunks, then a **dry run**;
+   - read the result;
+   - run the chunks again, set `Confirm`, and do the real run.
+6. Run `setup.lua` for the travel pieces, then the contract test and the travel Play suites.
+7. Add the game data:
+   - the roster in `Rensei.Townsfolk`;
+   - the clue texts in `Rensei.Investigation`;
+   - area names in `Rensei.Regions`.
+8. Play-test: walk every route, try to climb the edges, check lamps at night, talk to the townsfolk.
+9. Commit the region file, `materials.json`, `water.json`, the export and the `import/` scripts. Never commit `.blend` files.

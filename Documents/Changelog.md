@@ -4,6 +4,74 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-24 — Region Foundation complete (Task 13): what it built, and the final test run
+
+The Region Foundation is done: the shared pieces every new region map needs, built and reviewed task by task from 2026-10-23 to 2026-10-24 (Tasks 1–12; each has its own entry below). Next, in the order you set: the **Lindenmoor expansion import into Ye**, then the **Foundry Yard plan**, then the **gun and swimming reworks**. Every number in the work is a **PROPOSAL** unless you chose it.
+
+**What's in the live game now** (you published RenseiServer and Modules with Tasks 1–10b):
+- **A day and night (Task 2).** One real minute is one game hour, so a day takes 24 minutes. It's the same hour in every place and on every server. Lindenmoor's street lamps light at night, and night makes you harder to see.
+- **Trainers' exams open again (Task 1).** "I'm ready for the examination." now opens the exam with all five alchemy trainers.
+- **Assault needs a landed hit (Task 6b).** A blocked, dodged or missed swing at a witness no longer counts.
+
+**Built and live in the code, but not visible until a region ships:**
+- **Townsfolk (Tasks 3–6b).** They have jobs, day schedules, crowd-quality walking, speech bubbles, rumours and clue lines. They run from fights, and can be hurt, knocked and killed, with the full Heat, morality and reputation cost. Ye has no roster yet, so nobody appears; Foundry Yard's townsfolk come with the Foundry plan.
+- **Clues that start quests (Task 7).** These are map points tagged `RenseiClue`.
+- **Ungrippable edges (Task 10b).** The tag `RenseiNoGrip` can't be climbed, leapt or wall-run; no live map part carries it yet.
+
+**The region tools (Tasks 8–12; nothing changed in Ye's map):**
+- a region file;
+- a Blender builder: stepped ground, roads, the rail-town kit, edges and markers, with renders for your approval;
+- an export that carries tags;
+- a safe import: a dry run first, a real run only with `Confirm`, a keep list, rollback, restore and unstrip;
+- a travel setup that builds stations and roads from markers, one of each per place.
+
+**New docs:**
+- `Documents/Region Builder.md`, the how-to for all of it: the region file's keys, running the builder, export, import, setup, the marker table, the townsfolk roster and clue formats, and the clock.
+- `Documents/Lindenmoor Kit.md` now notes the `export.py` and `studio_kit.py` changes, and has a "Before the import into Ye" checklist.
+
+**Still open for you:**
+- **HubLaw:** the old Lindenmoor plan says to set Ye's HubLaw to Lindenmoor, but you chose "Keep State law". Ask before the import changes it.
+- **Townsfolk:** should hurt townsfolk heal at 06:00? Should murder also raise Circle Heat?
+- **Edges:** a boundary vault, or a leap with no hold, can't chain over an all-tagged wall. Decide whether that's fine before Lindenmoor's crag is tagged.
+
+**Final test run (Ye, 2026-10-24; the owner's save restored after each of 4 Play sessions, the test hook removed and PlayLock cleared):**
+- **Play, passing:**
+  - Rumours 3/3 (run first), Boot 2/2, Station 20/20 (first run), Road 11/11, Gate 13/13 (run before Crowd);
+  - Arrive 5/5, Clock 5/5, AditBoards 10/10, Clue 1/1, NoGrip 6/6;
+  - Heat 8/8, Morality 3/3, Assault 1/1, Townsfolk 16/16, TownsfolkCrowd 13/13.
+- **Play, known flakes that passed on a rerun or in a fresh session:**
+  - Perception 6/6 when first in a fresh session. In another session it failed 1 of 6 when run first, then 3 of 6 on a rerun after other suites.
+  - Stealth 8/9 (`GunshotPullsTheCamp`), then 9/9.
+- **Play, new flakes (not fixed in this task):**
+  - Exams 4/5 (`EarthExamOpens`: the exam wasn't running 1.5 s later), then 5/5 on a rerun.
+  - TownsfolkHurt 9/10 (`Gossip`: the townsperson told the "struck" rumour, not the killing) twice when run after Townsfolk and Assault in the same session; 10/10 first in a fresh session. It looks order-dependent: deeds from earlier suites stay in the session, and the test's four talks hold only one rumour.
+- **Play, failing because of a test issue (known, pre-existing):** the owner's save holds a Cabin ticket, and these suites have no wrapper that clears tickets:
+  - RideEvents 8/9;
+  - Travel 5/7 (`TicketsAddUseAndKeepCount`, `LoopbackArrivesAtThePlatform`). These are the same cause; adding a ticket keeps the better Cabin class.
+- **Edit:** all 12 `Test_` modules pass:
+  - TownsfolkLogic 9/9, RumourCore 10/10, Reputation 10/10, Travel 8/8, Sound 8/8;
+  - Heat 6/6, Regions 6/6, Schema5 6/6, Perception 4/4, TestKit 4/4, Witness 3/3, AditRoute 1/1.
+- **Python:** `region_builder/tests/run.py` 202/202; `Art/Studio/Regions/test_kit.py` 47/47.
+- No game script was changed in this task.
+
+### Discord announcement
+
+```md
+**Update: Day and Night**
+
+**A living clock**
+- Time now moves! A full day and night takes 24 minutes, and it's the same time everywhere. If it's evening in Lindenmoor, it's evening in Foundry Yard too.
+- Lindenmoor's street lamps light up at dusk and go out at dawn.
+- Night is darker, which makes you harder to spot. Sneaking is easier after dark.
+
+**Fixes**
+- The alchemy trainers' examinations work again. Choosing "I'm ready for the examination." now opens the exam with every trainer.
+- An attack only counts as assault if it actually lands. Blocked, dodged or missed swings no longer count against you.
+
+**Coming soon**
+- Towns full of ordinary people, clues to find on the map, and new regions.
+```
+
 ## 2026-10-24 — Region Foundation Task 12: stations and roads built from map markers
 
 A region's map can now carry markers for its station, ticket booth, departure board, papers gate, railing, freight yard and road passage. One script builds the real pieces from them, the same pieces World Plan 1 built by hand in Foundry Yard. Tested in Foundry Yard, which was left exactly as it started; **Ye was not touched.** Code:

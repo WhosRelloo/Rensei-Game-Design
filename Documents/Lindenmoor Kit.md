@@ -287,3 +287,28 @@ The map is drawn as the brief draws it: north at the bottom, east on the right, 
    - walk the gorge ledge;
    - check that the lamps' `NightOnly` heads follow the clock;
    - check streaming with the full map.
+
+## Region Foundation tooling note (2026-10-24)
+The Region Foundation reused this pipeline for every region. Lindenmoor's own commands are unchanged, and its export is byte-for-byte the same. Its stored kit outputs were regenerated once with today's `studio_kit.py` (commit ee24b09). The full region how-to is `Documents/Region Builder.md`.
+
+- **`export.py`** now takes optional arguments: `export(scene_name="Lindenmoor_Full", out_path=..., origin=(0, 4, -650))`. With no arguments it exports Lindenmoor exactly as before. A region passes its scene, its output path and origin `(0, 0, 0)`.
+  - Part rows can carry **field 16**: comma-separated CollectionService tags, from a Blender object's `rs_tags`.
+  - When a part has any of `rs_invisible`, `rs_attr` or `rs_tags`, it gets all three fields (14 = 0/1, 15 = `""` with no attributes, 16 = `""` with no tags). Rows without them stay at 13 fields, so Lindenmoor's export is byte-for-byte the same.
+- **`studio_kit.py`** gained region arguments: `main(folder, region={...})`, called by `Art/Studio/Regions/kit.py`. The command line is unchanged. In a region run:
+  - the chunks build into `ServerStorage.RegionStaging`;
+  - field 16 tags are added;
+  - materials come from the region's `materials.json`, and texture-pack entries become MaterialVariants;
+  - the region's own walk-through name list is used.
+- **The `""` guard:** `studio_kit.py` (both the Python and the generated Lua) treats an empty field 15 as "no attributes", so a marker with tags but no settings imports instead of failing.
+
+### Before the import into Ye
+The order after the foundation is: this import first, then the Foundry Yard plan, then the gun and swimming reworks (owner, 2026-10-24: "I want the lindenmoor expansion to go first after foundation"). The village stays at its coordinates, and the expansion goes in around it. Check each item before the import plan is written:
+
+- [ ] **water.json format.** `Art/Regions/Lindenmoor/water.json` uses the expansion's segment format (`{Id, From, To, Width, Top, Bed}`, world studs). `kit.py` needs `{"Boxes": [{"Rect": [x0, z0, x1, z1], "Top", "Bed"}]}` in region coordinates. It needs a converter, and a decision on world versus region coordinates. The export's origin is `(0, 4, -650)`, and `finish.lua` adds the origin to region coordinates.
+- [ ] **Keep and MapChild.** Lindenmoor's `layout.json` is not a region-builder file (it has 31 schema errors, and its `Keep` is a list of area objects). Generate the import with `python -I Art/Studio/Regions/kit.py Lindenmoor --keep <village children> --map-child LindenmoorExpansion`, or add `KeepMapChildren` and `MapChild` to the file. Export the expansion scene to `Art/Studio/Regions/Lindenmoor/layout.json`.
+- [ ] **Separate top-level map children.** Check in Studio that the village, its ground, Halvard's Adit dressing and the trains are separate top-level `World.Map` children from the hub graybox. Only the hub pieces may move (onto their reserved spots); everything kept must be in `--keep`. Do a dry run in Ye first.
+- [ ] **Retire the old north road.** The expansion moves the road exit to the north-east corner. Before the expansion's `RoadPassage` is built (it carries the RoadStart arrival), retire `Map.Lindenmoor`'s old `NorthRoad` passage and its `RoadStart` arrival, with a backup. `setup.lua` refuses a second RoadStart in the place. Also retire the `HubRoad` strip and the north buffer stop (step 2 above).
+- [ ] **No Station marker.** The station stays in the village. The expansion must not carry a `Station` marker, or `setup.lua` refuses a second Platform arrival and platform train.
+- [ ] **`RenseiNoGrip` on the crag.** The crag must carry the tag (on its parts or its model). The import's dry run should show the tag on the crag. Tell the owner first: a boundary vault, or a leap with no hold, can't chain over an all-tagged wall.
+- [ ] **Part budget.** Count Ye's parts in Studio. The estimate is ~30.5k today plus ~40.4k for the expansion, against the place's 80k ceiling. `kit.py` refuses an export over the file's `Budget` (42,000).
+- [ ] **Open: HubLaw.** This doc's step 7 says to set `Regions.HubLaw` for Ye to Lindenmoor once the hub is gone. But the owner chose "Keep State law" for Ye's unnamed ground (2026-10-23). **Ask the owner before changing it.**
