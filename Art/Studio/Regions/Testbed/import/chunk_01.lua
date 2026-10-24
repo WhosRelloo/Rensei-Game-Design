@@ -184,8 +184,11 @@ for I, PF in ipairs(DATA) do
 				Part:SetAttribute(K, V)
 			end
 		end
-		if type(P[16]) == "string" and P[16] ~= "" then -- "" = no tags
-			for T in string.gmatch(P[16], "[^,]+") do CS:AddTag(Part, T) end
+		if type(P[16]) == "string" then -- "" = no tags
+			for T in string.gmatch(P[16], "[^,]+") do
+				T = T:match("^%s*(.-)%s*$")
+				if T ~= "" then CS:AddTag(Part, T) end
+			end
 		end
 		if Part:GetAttribute("Emit") == "Steam" then Steam(Part) end -- the locomotive's chimney
 		Part.Parent = Model

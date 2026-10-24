@@ -47,5 +47,8 @@
  "lights": 6,
  "variants": [
   "RG_Testbed_path"
- ]
+ ],
+ "variantParts": {
+  "RG_Testbed_path": 37
+ }
 }

@@ -8,8 +8,8 @@ Then run import/finish.lua (hand-written): backup, swap into Workspace.World.Map
 Materials are Roblox built-ins (Plaster, ClayRoofTiles, RoofShingles, WoodPlanks, Cobblestone, LeafyGrass, ...) with
 a colour each; the names stay the Blender material names so MaterialVariants can be layered on later.
 Part rows may carry field 14 (1 = invisible helper: Transparency 1, CanCollide off, CanQuery/CanTouch on), field 15
-(a JSON string of attributes; "" = none) and field 16 (comma-separated CollectionService tags; "" = none; applied
-only in a region run). Shape 3 is a Seat (box-sized). Art/Studio/Train uses this with the train kit.
+(a JSON string of attributes; "" = none) and field 16 (comma-separated CollectionService tags, each trimmed, empty
+ones skipped: split_tags; "" = none; applied only in a region run). Shape 3 is a Seat (box-sized). Art/Studio/Train uses this with the train kit.
 Every colour is a PROPOSAL.
 
 Region runs (Art/Studio/Regions/kit.py calls main(folder, region={...}); the command line above is unchanged): the
@@ -18,7 +18,7 @@ tags are added with CollectionService:AddTag, materials come from the region's m
 fills any gap), an entry with PackImage becomes a MaterialVariant of the same name (RG_<Region>_<key>, made by
 chunk 1 and set on that material's parts), the no-collide name list is the region's own, no kit/*.rbxmx files are
 written, and expected.json also carries per-group part counts, tag counts and the variants."""
-import base64, json, math, os, struct, sys, xml.sax.saxutils as sx
+import base64, json, math, os, re, struct, sys, xml.sax.saxutils as sx
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -56,6 +56,43 @@ KIT = {"Farmhouse": 9, "Oak": 4, "OakBig": 3, "Cypress": 3, "LampPost": 1, "Barn
        "RidgeTerrace": 3, "BankStones": 3, "EdgeStone": 3, "Square": 1,
        "Locomotive": 1, "Tender": 1, "BaggageCar": 1, "ThirdClass": 1, "DiningCar": 1, "SecondClass": 1, "CabinCar": 1}
 CHUNK_PARTS = 1100
+# every Enum.Material name (read from Studio, 2026-10-24): a region's materials are checked against it before any Lua
+ROBLOX_MATERIALS = frozenset((
+    "Plastic", "SmoothPlastic", "Neon", "Wood", "WoodPlanks", "Marble", "Basalt", "Slate", "CrackedLava", "Concrete",
+    "Limestone", "Granite", "Pavement", "Brick", "Pebble", "Cobblestone", "Rock", "Sandstone", "CorrodedMetal",
+    "DiamondPlate", "Foil", "Metal", "Grass", "LeafyGrass", "Sand", "Fabric", "Snow", "Mud", "Ground", "Asphalt", "Salt",
+    "Ice", "Glacier", "Glass", "ForceField", "Air", "Water", "Cardboard", "Carpet", "CeramicTiles", "ClayRoofTiles",
+    "RoofShingles", "Leather", "Plaster", "Rubber"))
+
+
+def split_tags(s):
+    """Field 16 -> tags: split on commas, trim each, skip empty ones. The region chunks' Lua (@TAGS@) uses the
+    same rule."""
+    if not isinstance(s, str):
+        return []
+    return [t.strip() for t in s.split(",") if t.strip()]
+
+
+def lua_str(s):
+    """A Lua string literal for s (quotes, backslashes and anything outside printable ASCII escaped)."""
+    out = []
+    for ch in str(s):
+        o = ord(ch)
+        if ch in '\\"':
+            out.append("\\" + ch)
+        elif 32 <= o < 127:
+            out.append(ch)
+        else:
+            out.append("\\u{%x}" % o)  # Luau's \u{XXXX} escape
+    return '"' + "".join(out) + '"'
+
+
+def long_json(v, **kw):
+    """json.dumps for a Lua long string [==[ ... ]==]: refuses text that would close it early."""
+    s = json.dumps(v, **kw)
+    if "]==]" in s:
+        raise ValueError("JSON contains ']==]', which would end the Lua long string early")
+    return s
 
 
 def light_props(l):
@@ -67,23 +104,34 @@ def light_props(l):
 def region_mats(region):
     """The material table of a region run: the built-in MATS, overridden by materials.json entries.
     {name: (material, hex, transparency, variant name or None)}; variant entries also list (name, base, image, studs)."""
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", str(region.get("name", ""))):
+        raise ValueError(f"region name {region.get('name')!r}: letters, digits and _ only, starting with a letter")
     out = {k: (*v, None) for k, v in MATS.items()}
     variants = []
     for k, e in sorted((region.get("materials") or {}).items()):
         var = None
         if e.get("PackImage"):
             var = k if k.startswith(f"RG_{region['name']}_") else f"RG_{region['name']}_{k}"
-            variants.append({"Name": var, "Base": e["Material"], "ColorMap": e["PackImage"],
-                             "Studs": e.get("StudsPerTile", 4)})  # 4 = materials.PACK_TILE_DEFAULT (PROPOSAL)
+            studs = e.get("StudsPerTile", 4)  # 4 = materials.PACK_TILE_DEFAULT (PROPOSAL)
+            if not (isinstance(studs, (int, float)) and studs > 0):
+                raise ValueError(f"materials.json {k}: StudsPerTile must be a number > 0, got {studs!r}")
+            variants.append({"Name": var, "Base": e["Material"], "ColorMap": str(e["PackImage"]), "Studs": studs})
         out[k] = (e["Material"], e["Color"], e.get("Transparency", 0), var)
+    for k, (mat, col, tr, var) in out.items():
+        if mat not in ROBLOX_MATERIALS:
+            raise ValueError(f"material {k}: {mat!r} is not an Enum.Material name")
+        if not re.fullmatch(r"[0-9a-fA-F]{6}", str(col)):
+            raise ValueError(f"material {k}: colour {col!r} is not a 6-digit hex")
+        if isinstance(tr, bool) or not (isinstance(tr, (int, float)) and 0 <= tr <= 1):
+            raise ValueError(f"material {k}: Transparency {tr!r} is not a number in 0..1")
     return out, variants
 
 
 def lua_header(data, region=None):
     if region:
         table, _ = region_mats(region)
-        mats = ",\n".join(f'\t["{k}"] = {{Enum.Material.{v[0]}, Color3.fromHex("{v[1]}"), {v[2]}'
-                          + (f', "{v[3]}"' if v[3] else "") + "}" for k, v in sorted(table.items()))
+        mats = ",\n".join(f'\t[{lua_str(k)}] = {{Enum.Material.{v[0]}, Color3.fromHex("{v[1]}"), {v[2]}'
+                          + (f", {lua_str(v[3])}" if v[3] else "") + "}" for k, v in sorted(table.items()))
         no_collide, kinds = region["no_collide"], region.get("no_collide_kinds", ())
     else:
         mats = ",\n".join(f'\t["{k}"] = {{Enum.Material.{v[0]}, Color3.fromHex("{v[1]}"), {v[2]}}}' for k, v in sorted(MATS.items()))
@@ -94,16 +142,25 @@ local SS = game:GetService("ServerStorage")
 local MATS = {{
 {mats}
 }}
-local MATN = HS:JSONDecode([==[{json.dumps(data["mats"])}]==])
+local MATN = HS:JSONDecode([==[{long_json(data["mats"])}]==])
 local O = Vector3.new({data["origin"][0]}, {data["origin"][1]}, {data["origin"][2]})
-local NOCOLLIDE = HS:JSONDecode([==[{json.dumps(list(no_collide))}]==])
-local NOCOLLIDE_KINDS = HS:JSONDecode([==[{json.dumps(list(kinds))}]==])
+local NOCOLLIDE = HS:JSONDecode([==[{long_json(list(no_collide))}]==])
+local NOCOLLIDE_KINDS = HS:JSONDecode([==[{long_json(list(kinds))}]==])
 """ + steam_lua()
     if region:
         head += (f'-- region {region["name"]} (Art/Studio/Regions/kit.py)\n'
                  'local CS = game:GetService("CollectionService")\n'
-                 f'local REGION = "{region["name"]}"\n')
+                 f'local REGION = {lua_str(region["name"])}\n')
     return head
+
+
+# field 16 -> tags in a region chunk: the rule of split_tags (split on commas, trim each, skip empty ones)
+TAGS_LUA = ('\t\tif type(P[16]) == "string" then -- "" = no tags\n'
+            '\t\t\tfor T in string.gmatch(P[16], "[^,]+") do\n'
+            '\t\t\t\tT = T:match("^%s*(.-)%s*$")\n'
+            '\t\t\t\tif T ~= "" then CS:AddTag(Part, T) end\n'
+            "\t\t\tend\n"
+            "\t\tend\n")
 
 
 def body_lua(region=None, prelude=""):
@@ -112,9 +169,7 @@ def body_lua(region=None, prelude=""):
     if region:
         fill = {"@STAGE@": "RegionStaging", "@KITATTR@": '"RegionKit", REGION',
                 "@VARIANT@": "\t\tif M[4] then Part.MaterialVariant = M[4] end -- a texture-pack MaterialVariant\n",
-                "@TAGS@": ('\t\tif type(P[16]) == "string" and P[16] ~= "" then -- "" = no tags\n'
-                           '\t\t\tfor T in string.gmatch(P[16], "[^,]+") do CS:AddTag(Part, T) end\n'
-                           "\t\tend\n")}
+                "@TAGS@": TAGS_LUA}
     else:
         fill = {"@STAGE@": "LindenmoorStaging", "@KITATTR@": '"LindenmoorKit", PF.k', "@VARIANT@": "", "@TAGS@": ""}
     fill["@PRELUDE@"] = prelude
@@ -422,8 +477,8 @@ def main(folder=HERE, region=None):
     for i, ch in enumerate(chunks, 1):
         prelude = ""
         if region and i == 1 and variants:
-            prelude = f"local VARIANTS = HS:JSONDecode([==[{json.dumps(variants)}]==])\n" + VARIANT_LUA
-        src = (head + f"local CHUNK = \"{i}/{len(chunks)}\"\nlocal DATA = HS:JSONDecode([==[{json.dumps(ch, separators=(',', ':'))}]==])\n"
+            prelude = f"local VARIANTS = HS:JSONDecode([==[{long_json(variants)}]==])\n" + VARIANT_LUA
+        src = (head + f"local CHUNK = \"{i}/{len(chunks)}\"\nlocal DATA = HS:JSONDecode([==[{long_json(ch, separators=(',', ':'))}]==])\n"
                + body_lua(region, prelude))
         open(os.path.join(imp, f"chunk_{i:02d}.lua"), "w", encoding="utf-8").write(src)
     # expected totals for finish.lua's check
@@ -433,15 +488,19 @@ def main(folder=HERE, region=None):
     expected = {"models": len(pre), "parts": sum(len(p["p"]) for p in pre), "groups": groups}
     if region:
         gparts, tags, tag_groups = {}, {}, {}
+        vparts = {v["Name"]: 0 for v in variants}
         for pf in pre:
             gparts[pf["g"]] = gparts.get(pf["g"], 0) + len(pf["p"])
             for p in pf["p"]:
-                for t in (p[15].split(",") if len(p) > 15 and isinstance(p[15], str) and p[15] else []):
+                var = table[data["mats"][p[2]]][3]
+                if var:
+                    vparts[var] += 1
+                for t in dict.fromkeys(split_tags(p[15] if len(p) > 15 else "")):  # a tag once per part, as AddTag
                     tags[t] = tags.get(t, 0) + 1
                     tg = tag_groups.setdefault(t, {})
                     tg[pf["g"]] = tg.get(pf["g"], 0) + 1
         expected.update({"region": region["name"], "groupParts": gparts, "tags": tags, "tagsByGroup": tag_groups,
-                         "lights": sum(len(p["l"]) for p in pre), "variants": [v["Name"] for v in variants]})
+                         "lights": sum(len(p["l"]) for p in pre), "variants": [v["Name"] for v in variants], "variantParts": vparts})
     json.dump(expected, open(os.path.join(imp, "expected.json"), "w"), indent=1)
     # kit (Lindenmoor and the train only: a region's pieces live in its Blender scene)
     files = 0
