@@ -30,7 +30,8 @@
 --         BodySeconds, then is removed; nothing settles or walks a dead townsperson.
 --       - Newcomers: at the next NewcomerHour (06:00, WorldClock.Changed) every dead townsperson's slot is filled
 --         again: same Id, job, faction, nation, schedule, a new Name (TownsfolkLogic.NewcomerName: none alive in the
---         region has it) and a new look seed. They greet people as anyone does; the killer's deed stands.
+--         region has it) and a new look seed. They greet people as anyone does; the killer's deed stands. With a
+--         player within PlaceRadius of the post (or the old body), that newcomer waits for a later Step (fix round 1).
 --   * Idles: the IdleAnim attribute (NpcIdles.server.lua plays it and keeps only the root anchored). At a post the
 --     root is anchored; to walk, IdleAnim is cleared and the root unanchored (NpcIdles only re-anchors while an idle
 --     is playing); on arrival the root is anchored again and the post's idle set.
@@ -222,14 +223,10 @@ local function Down(F)
 		or R:GetAttribute("GrippedBy") ~= nil or R:GetAttribute("CarriedBy") ~= nil
 end
 
--- free to run: up, not stunned, not slowed or pinned by a hit (MoverManager's Movement), not tripped or ragdolled
-local PINNED = {
-	[Enum.HumanoidStateType.Physics] = true, [Enum.HumanoidStateType.Ragdoll] = true,
-	[Enum.HumanoidStateType.FallingDown] = true, [Enum.HumanoidStateType.PlatformStanding] = true,
-}
+-- free to run: up, not pinned (Mover.Pinned: knocked / gripped / carried, slowed or pinned by a hit, tripped or
+-- ragdolled) and not stunned (WCS)
 local function Free(F)
-	if not F.Rig.Parent or Down(F) or F.Humanoid.PlatformStand or PINNED[F.Humanoid:GetState()] then return false end
-	if (tonumber(F.Rig:GetAttribute("Movement")) or 0) > 0 then return false end
+	if not F.Rig.Parent or Down(F) or Mover.Pinned(F.Rig) then return false end
 	if F.WC then
 		local Ok, Stunned = pcall(function() return F.WC:HasStatusEffects({CombatModules().Stun}) end)
 		if Ok and Stunned then return false end
@@ -507,10 +504,16 @@ local function RunWhenFree(F, Attacker)
 		repeat task.wait(0.1)
 		until F.HurtGen ~= Gen or not F.Rig.Parent or Down(F) or Free(F) or os.clock() - T0 >= TownsfolkService.HurtMax
 		if F.HurtGen ~= Gen or not F.Rig.Parent or Down(F) or F.State ~= "Hurt" then return end
-		local Ok, Err = pcall(Flee, F, PosOf(Attacker) or From, true)
-		if not Ok then WarnOnce("hurtflee " .. F.Id, F.Id, "couldn't flee:", Err) end
+		local Ok, Err = pcall(TownsfolkService.HurtFlee, F, PosOf(Attacker) or From, true)
+		if not Ok then
+			-- (fix round 1) never left frozen in Hurt: curl up where it stands, as a failed run does
+			WarnOnce("hurtflee " .. F.Id, F.Id, "couldn't flee:", Err)
+			local COk, CErr = pcall(Cower, F)
+			if not COk then WarnOnce("hurtcower " .. F.Id, F.Id, "couldn't curl up either:", CErr) end
+		end
 	end)
 end
+TownsfolkService.HurtFlee = Flee -- (the hurt one's run; a field so a test can make it throw and check the fallback)
 
 -- a player's hit landed on F (Attacker = their character): F reacts unless the hit knocked it (OnKnockedChanged
 -- takes that), and everyone else within HelpRadius runs too
@@ -758,17 +761,39 @@ function TownsfolkService.Spawn(Def, Region)
 	return Rig
 end
 
+-- is a player within Radius of Pos?
+local function PlayerNear(Pos, Radius)
+	for _, P in ipairs(Players:GetPlayers()) do
+		local R = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+		if R and (R.Position - Pos).Magnitude <= Radius then return true end
+	end
+	return false
+end
+
 -- Task 6b: every dead townsperson's slot gets a newcomer (WorldClock.Changed at NewcomerHour; tests call it): the same
--- Id, job, faction, nation and schedule, a new Name nobody alive in the region has and a new look seed. Returns how
--- many came.
-function TownsfolkService.Newcomers()
-	local Came = 0
+-- Id, job, faction, nation and schedule, a new Name nobody alive in the region has and a new look seed. Fix round 1:
+-- nobody sees one appear -- with a player within PlaceRadius of the post it starts at (or of the old body), that
+-- newcomer is due but waits (Dead[Id] kept, Due set), and Step tries again (OnlyDue) once nobody is near. Returns how
+-- many came and how many are waiting.
+function TownsfolkService.Newcomers(OnlyDue)
+	local Came, Waiting = 0, 0
 	local Ids = {}
-	for Id in pairs(Dead) do table.insert(Ids, Id) end
+	for Id, D in pairs(Dead) do
+		if not OnlyDue or D.Due then table.insert(Ids, Id) end
+	end
 	table.sort(Ids)
 	for _, Id in ipairs(Ids) do
 		local D = Dead[Id]
+		if not D then continue end -- (another pass already brought this one)
 		local Old = D.Def
+		D.Due = true
+		local Post = Posts[TownsfolkLogic.PostAt(Old.Schedule, WorldClock.Now()) or ""]
+		local Body = Folk[Id] and Folk[Id].Rig.Parent and Folk[Id].Root
+		local Radius = TownsfolkService.PlaceRadius
+		if (Post and PlayerNear(Post.Position, Radius)) or (Body and PlayerNear(Body.Position, Radius)) then
+			Waiting += 1
+			continue
+		end
 		local Taken = {[Old.Name or ""] = true}
 		for _, O in pairs(Folk) do
 			if O.Region == D.Region and not O.Dead and O.Def.Name then Taken[O.Def.Name] = true end
@@ -784,10 +809,11 @@ function TownsfolkService.Newcomers()
 		if Ok then
 			Came += 1
 		else
-			WarnOnce("newcomer " .. Id .. tostring(Err), "no newcomer for", Id, Err) -- (tried again at the next one)
+			D.Due = nil -- (tried again at the next NewcomerHour, not every Step)
+			WarnOnce("newcomer " .. Id .. tostring(Err), "no newcomer for", Id, Err)
 		end
 	end
-	return Came
+	return Came, Waiting
 end
 
 -- Validates a roster against the posts that exist and spawns everyone, or warns and spawns nobody.
@@ -807,6 +833,7 @@ function TownsfolkService.LoadRegion(Region, Roster)
 	return true
 end
 
+local NewcomersBusy = false -- (a due-newcomer pass from Step is running)
 -- One update for every townsperson (the 1 Hz loop calls it; tests call it directly). Never yields.
 function TownsfolkService.Step(Hour)
 	Hour = Hour or WorldClock.Now()
@@ -900,6 +927,20 @@ function TownsfolkService.Step(Hour)
 	for Id, F in pairs(Folk) do
 		local Ok, Err = pcall(One, Id, F) -- one bad townsperson doesn't stop the others
 		if not Ok then WarnOnce("step " .. Id, Id, "Step failed:", Err) end
+	end
+	-- (fix round 1) newcomers who were due while a player was watching their post
+	for _, D in pairs(Dead) do
+		if D.Due then
+			if not NewcomersBusy then
+				NewcomersBusy = true
+				task.spawn(function() -- (in its own thread: Step never yields, a spawn may)
+					local Ok, Err = pcall(TownsfolkService.Newcomers, true)
+					NewcomersBusy = false
+					if not Ok then WarnOnce("newcomers", "newcomers failed:", Err) end
+				end)
+			end
+			break
+		end
 	end
 end
 

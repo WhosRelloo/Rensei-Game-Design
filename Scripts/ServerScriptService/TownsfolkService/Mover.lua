@@ -14,7 +14,7 @@
 --   * Mover.Stop(Rig) (Task 6b): ends the rig's walk "cancelled" where it stands WITHOUT placing it: the root is left
 --     unanchored, the facing constraint off, AutoRotate back on, no more Humanoid:Move. For a townsperson who is hit,
 --     knocked, gripped or carried: the combat code owns the body from then on.
---   * Suspension (Task 6b): a walk whose rig is pinned (Knocked / GrippedBy / CarriedBy, PlatformStand, a Physics /
+--   * Suspension (Task 6b; the rule is Mover.Pinned(Rig)): a walk whose rig is pinned (Knocked / GrippedBy / CarriedBy, PlatformStand, a Physics /
 --     Ragdoll / FallingDown / PlatformStanding state, or MoverManager's Movement slow-or-pin active) is held: no
 --     steering, the facing constraint off (it would fight knockback spin and knockdown tilt), the root never
 --     re-anchored, and the stuck clock held. When the rig is free again the walk resumes at its own speed.
@@ -601,12 +601,15 @@ local PINNED_STATES = {
 	[Enum.HumanoidStateType.Physics] = true, [Enum.HumanoidStateType.Ragdoll] = true,
 	[Enum.HumanoidStateType.FallingDown] = true, [Enum.HumanoidStateType.PlatformStanding] = true,
 }
-local function Pinned(H)
-	local Rig, Hum = H.Rig, H.Humanoid
+-- Mover.Pinned(Rig): the one place this rule lives (TownsfolkService's Free uses it too, with the WCS stun on top)
+function Mover.Pinned(Rig)
+	local Hum = Rig:FindFirstChildOfClass("Humanoid")
+	if not Hum then return true end
 	return Hum.PlatformStand or PINNED_STATES[Hum:GetState()] == true or Rig:GetAttribute("Knocked") == true
 		or Rig:GetAttribute("GrippedBy") ~= nil or Rig:GetAttribute("CarriedBy") ~= nil
 		or (tonumber(Rig:GetAttribute("Movement")) or 0) > 0
 end
+local function Pinned(H) return Mover.Pinned(H.Rig) end
 
 local function ResetWindow(H, P, Now)
 	H.WinPos, H.WinT, H.Excused, H.SlowT, H.SlowRef = P, Now, false, 0, nil

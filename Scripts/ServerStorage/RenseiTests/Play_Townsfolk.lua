@@ -349,7 +349,9 @@ return {
 				local Rig = TS.Spawn(D, "Test")
 				table.insert(Spawned, D.Id)
 				BesideLine(Posts)
-				TS.CalmSeconds = 2
+				-- (Task 6b fix round 1: longer than the ~3.1 s run, so the service's own Step can't end Sheltering before the
+				-- poll below sees it; with 2 s it sometimes did, once in about 6 runs)
+				TS.CalmSeconds = 6
 				T.True(Rig.HumanoidRootPart.TalkPrompt.Enabled, "the Talk prompt is on at the post")
 				local Before = select(3, TS.LastLine(D.Id))
 				NoiseService.Emit(Rig.HumanoidRootPart.Position + Vector3.new(5, 0, 0), "Hit", nil)
@@ -369,7 +371,7 @@ return {
 				T.Eq(Rig:GetAttribute("IdleAnim"), "NPC_CurledUp", "curled up")
 				T.Eq(Rig.HumanoidRootPart.TalkPrompt.Enabled, false, "no talking while sheltering")
 				T.Eq(TS.Talk(Player, D.Id), nil, "Talk says nothing while sheltering")
-				-- calm: back to the post within 2 + 15 s
+				-- calm: back to the post within 17 s (the rest of the 6 s calm, then the walk back)
 				T0 = os.clock()
 				local SawReturn = false
 				while os.clock() - T0 < 17 and not (TS.State(D.Id) == "AtPost" and (Rig.HumanoidRootPart.Position - Stand(Posts.A)).Magnitude < 1) do

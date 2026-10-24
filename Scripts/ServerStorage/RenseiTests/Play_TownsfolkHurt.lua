@@ -5,7 +5,7 @@
 -- (X = studs along it): the townsfolk's own posts, Shelter posts where a test needs them, the test player standing on
 -- the line in Combat Mode. Hits are real: HitboxManager.Sweep (the test player's Light1 swing) -> DamageManager ->
 -- DownedManager -> ProgressionService.RecordHit's listeners; the grip goes through DownedManager.Request. Timers are
--- shortened inside a test and put back by the fixture (KnockedSeconds, BodySeconds, HelpChance, TalkCooldown).
+-- shortened inside a test and put back by the fixture (KnockedSeconds, BodySeconds, HelpChance, TalkCooldown, HurtFlee).
 local SSS = game:GetService("ServerScriptService")
 local CollectionService = game:GetService("CollectionService")
 local TS = require(SSS.TownsfolkService)
@@ -84,6 +84,7 @@ local function Fixture(T, Body)
 		Held = WorldClock.IsHeld(), Hour = WorldClock.Now(), Home = C:GetPivot(), Anchored = Root.Anchored,
 		Mode = C:GetAttribute("CombatMode"), God = C:GetAttribute("AdminGod"),
 		Knocked = TS.KnockedSeconds, Body = TS.BodySeconds, Help = TS.HelpChance, Cool = TS.TalkCooldown,
+		HurtFlee = TS.HurtFlee,
 	}
 	local X = {Dir = Dir, Side = Side, Tag = Tag, After = After}
 	function X.At(Along, Off) return Origin + Dir * Along + Side * (Off or 0) end
@@ -126,6 +127,11 @@ local function Fixture(T, Body)
 		C:PivotTo(CFrame.lookAt(P, P + (Facing or Dir)))
 		Root.AssemblyLinearVelocity = Vector3.zero
 	end
+	-- (fix round 1) the test player far off: 500 studs up, held there (the fixture puts them back)
+	function X.Away()
+		Root.Anchored = true
+		C:PivotTo(CFrame.new(X.At(40) + Vector3.new(0, 500, 0)))
+	end
 	function X.Swing()
 		local Got = {}
 		for _, R in ipairs(HitboxManager.Sweep(C, "Light1", 0)) do Got[R.Victim] = R.Result end
@@ -146,6 +152,7 @@ local function Fixture(T, Body)
 	for _, Id in ipairs(Spawned) do pcall(TS.Despawn, Id) end
 	for _, P in ipairs(Made) do pcall(function() P:Destroy() end) end
 	TS.KnockedSeconds, TS.BodySeconds, TS.HelpChance, TS.TalkCooldown = Saved.Knocked, Saved.Body, Saved.Help, Saved.Cool
+	TS.HurtFlee = Saved.HurtFlee
 	pcall(function() if Saved.Held then WorldClock.Hold(Saved.Hour) else WorldClock.Release() end end)
 	pcall(function()
 		C:SetAttribute("CombatMode", Saved.Mode)
@@ -358,6 +365,7 @@ return {
 		Fixture(T, function(X)
 			local V, Rig = X.Folk("V", 40)
 			local OldName, OldSeed = V.Name, V.Look.Seed
+			X.Away() -- (nobody watching the post: the newcomer comes at once, NewcomerWaitsWhileWatched covers the rest)
 			Rig.Humanoid.Health = 0
 			T.True(WaitFor(2, function() return TS.State(V.Id) == "Dead" end), "dead")
 			WorldClock.Hold(5.98)
@@ -383,6 +391,49 @@ return {
 			T.Eq(NewRig:GetAttribute("DisplayName"), New.Name)
 			T.Eq(NewRig.Humanoid.Health, TS.MaxHealth, "whole")
 			T.Eq(TS.State(V.Id), "AtPost")
+		end)
+	end,
+
+	-- fix round 1: at 06:00 with a player within PlaceRadius of the post, the newcomer waits (nobody sees them appear);
+	-- a later Step brings them once nobody is near
+	NewcomerWaitsWhileWatched = function(T)
+		Fixture(T, function(X)
+			local V, Rig = X.Folk("V", 40)
+			X.Stand(30) -- (10 studs from the post)
+			Rig.Humanoid.Health = 0
+			T.True(WaitFor(2, function() return TS.State(V.Id) == "Dead" end), "dead")
+			WorldClock.Hold(5.98)
+			WorldClock.Tick()
+			WorldClock.Hold(6)
+			WorldClock.Tick()
+			task.wait(0.3)
+			TS.Step()
+			task.wait(0.1)
+			T.Eq(TS.State(V.Id), "Dead", "06:00 with a player at the post: not yet")
+			T.Eq(TS.Def(V.Id).Name, V.Name, "the slot still holds the dead one")
+			local Came, Waiting = TS.Newcomers(true)
+			T.Eq(Came, 0) T.Eq(Waiting, 1, "one newcomer waiting")
+			X.Away()
+			TS.Step()
+			T.True(WaitFor(1, function() return TS.State(V.Id) == "AtPost" end), "nobody near: the newcomer comes (" .. tostring(TS.State(V.Id)) .. ")")
+			T.True(TS.Def(V.Id).Name ~= V.Name, "a new name")
+			T.True(TS.Get(V.Id) ~= Rig, "a new person")
+		end)
+	end,
+
+	-- fix round 1: if the hurt one's run fails, it curls up where it stands instead of staying frozen in Hurt
+	HurtFleeFailureCurlsUp = function(T)
+		Fixture(T, function(X)
+			local V, Rig = X.Folk("V", 40)
+			TS.HurtFlee = function() error("test: the run fails") end
+			X.Stand(36)
+			task.wait(0.2)
+			TS.OnHit(Player.Character, Rig, "Hit")
+			T.Eq(TS.State(V.Id), "Hurt", "hurt")
+			local Done = WaitFor(TS.HurtMax + 1, function() return TS.State(V.Id) ~= "Hurt" end)
+			T.True(Done, "not left in Hurt")
+			T.Eq(TS.State(V.Id), "Sheltering", "curled up where it stands")
+			T.Eq(Rig:GetAttribute("IdleAnim"), "NPC_CurledUp")
 		end)
 	end,
 
