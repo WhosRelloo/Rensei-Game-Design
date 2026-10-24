@@ -5,6 +5,7 @@ A layout names a piece "<kit>.<piece>": a district's Style ("railtown.house") or
 (a building: (root, rng, w, d, storeys) -> parts) or a landmark ((root, rng) -> parts). Blender only: the kits build
 with lindenmoor.core's primitives. bind(palette) gives every kit the region's materials before a stage builds."""
 from . import railtown
+from .. import kitspec
 
 KITS = {"railtown": railtown}
 
@@ -29,9 +30,5 @@ def piece(name):
 
 
 def kit_of(layout):
-    """The region's kit: its first district's or landmark's kit, else railtown (under-route tunnels use it)."""
-    for item in list(layout.get("Districts") or []) + list(layout.get("Landmarks") or []):
-        name = item.get("Style") or item.get("Kind") or ""
-        if name.partition(".")[0] in KITS:
-            return KITS[name.partition(".")[0]]
-    return railtown
+    """The region's kit module (kitspec.kit_name: its first district's or landmark's kit, else railtown)."""
+    return KITS[kitspec.kit_name(layout)]

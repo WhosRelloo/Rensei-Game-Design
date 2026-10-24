@@ -30,6 +30,8 @@ import bpy
 
 from lindenmoor.core import box, cyl, srgb
 
+from .. import kitspec
+
 M = {}  # the region palette: {key: material}; set by bind()
 SH = 10  # studs per storey (PROPOSAL: R6 is 5 tall; Lindenmoor's ground floor is about 10)
 LEDGE = (1.4, 1.0)  # ledge strip depth and height, as Ye's RenseiLedge parts
@@ -349,14 +351,17 @@ def warehouse(root, rng, w, d, storeys):
             if i % 2 == 0:
                 P += window(root, f"WinB{k}{i}", "B", d / 2, x, k * sh + 6.5, w=2.4, h=3.6, sill=False)
     x = xs[mid]
+    clear_bay = w / len(xs) - 1.2 - 0.1  # between the bay's two pilasters
     P.append(pb(root, "BigDoor", (7.0, 0.4, 9.0), (x, -d / 2 - 0.1, 1.4 + 4.5), "timber", bevel=0.05))
     for k in range(1, storeys):
         P.append(pb(root, f"LoadDoor{k}", (4.6, 0.4, 7.0), (x, -d / 2 - 0.1, k * sh + 4.0), "timber", bevel=0.05))
-        P.append(pb(root, f"LoadLintel{k}", (6.0, 0.6, 0.8), (x, -d / 2 - 0.2, k * sh + 7.9), "stone", bevel=0.06))
+        P.append(pb(root, f"LoadLintel{k}", (min(6.0, clear_bay), 0.6, 0.8), (x, -d / 2 - 0.2, k * sh + 7.9), "stone",
+                    bevel=0.06))
     P.append(pb(root, "HoistBeam", (0.8, 3.6, 0.8), (x, -d / 2 - 1.6, H - 1.2), "iron", bevel=0.04))
     P.append(pc(root, "HoistChain", 0.15, 5.0, (x, -d / 2 - 3.0, H - 4.1), "iron", verts=6))
     P.append(pb(root, "HoistHook", (0.8, 0.8, 1.0), (x, -d / 2 - 3.0, H - 7.0), "iron", bevel=0.05))
     P.append(pb(root, "Dock", (12.0, 3.6, 1.4), (x, -d / 2 - 1.8, 0.7), "stone", bevel=0.1))
+    root["rs_step_w"] = 12.0  # the stoop's footing spans the dock (kitspec step: the dock, 1.4 high, 3.6 deep)
     root["rs_door_x"] = x
     return P
 
@@ -470,24 +475,38 @@ def foundry_hall(root, rng):
         P.append(pc(root, f"Flue{k}", 1.8, Hw - 2.0, (x, fy, 14.0 + (Hw - 2.0) / 2), "brick_dark", verts=12))
         P.append(pc(root, f"FlueCap{k}", 2.2, 1.0, (x, fy, Hw + 12.5), "soot", verts=12))
         light(root, f"Ember{k}", (x, fy - 6.0, 3.5), 4500, "e0782a", 26)
-    gz = 14.0  # gantries along both side walls
-    gl = D - 2 * T - 4
+    gz = 14.0  # gantries along both side walls, wall to wall
+    gl = D - 2 * T
+    by, bw = -6.0, 6.0  # the bridge between them: its middle (y) and width (R6 is 4 wide)
+    sy, sw = -D / 2 + T + 2.5, 4.0  # the stair up to the west gantry, along the inside of the front wall
     for s in (-1, 1):
         x = s * (W / 2 - T - 2.5)
         P.append(pb(root, f"Gantry{s:+d}", (4.0, gl, 0.6), (x, 0, gz - 0.3), "iron", bevel=0.03))
         for i, y in enumerate((-24.0, -10.0, 4.0, 18.0)):
             P.append(pb(root, f"GantryPost{s:+d}{i}", (0.8, 0.8, gz - 0.6), (x - s * 1.6, y, (gz - 0.6) / 2), "iron",
                         bevel=0.03))
-        P.append(pb(root, f"GantryToe{s:+d}", (0.2, gl, 0.8), (x - s * 1.9, 0, gz + 0.4), "iron", bevel=0))
-        P.append(pb(root, f"GantryRail{s:+d}", (0.3, gl, 0.3), (x - s * 1.9, 0, gz + 3.3), "iron", bevel=0))
-    bl = W - 2 * T - 10
-    P.append(pb(root, "Bridge", (bl, 4.0, 0.6), (0, -6.0, gz - 0.3), "iron", bevel=0.03))
+        # the toe board and handrail on the open side, broken where the bridge (both gantries) and the stair landing
+        # (the west one) meet the gantry, so a body walks straight on
+        gaps = [(by - bw / 2, by + bw / 2)] + ([(-gl / 2, sy + sw / 2 + 1.0)] if s < 0 else [])
+        y0 = -gl / 2
+        pieces = []
+        for g0, g1 in sorted(gaps):
+            if g0 > y0:
+                pieces.append((y0, g0))
+            y0 = max(y0, g1)
+        pieces.append((y0, gl / 2))
+        for i, (a, b) in enumerate(pieces):
+            P.append(pb(root, f"GantryToe{s:+d}{i}", (0.2, b - a, 0.8), (x - s * 1.9, (a + b) / 2, gz + 0.4), "iron",
+                        bevel=0))
+            P.append(pb(root, f"GantryRail{s:+d}{i}", (0.3, b - a, 0.3), (x - s * 1.9, (a + b) / 2, gz + 3.3), "iron",
+                        bevel=0))
+    bl = 2 * (W / 2 - T - 4.5)  # from gantry edge to gantry edge
+    P.append(pb(root, "Bridge", (bl, bw, 0.6), (0, by, gz - 0.3), "iron", bevel=0.03))
     for s in (-1, 1):
-        P.append(pb(root, f"BridgeRail{s:+d}", (bl, 0.3, 0.3), (0, -6.0 + s * 1.9, gz + 3.3), "iron", bevel=0))
-    for k in range(1, int(gz) + 1):  # a stair up to the west gantry along the inside of the front wall: 1-stud risers
+        P.append(pb(root, f"BridgeRail{s:+d}", (bl, 0.3, 0.3), (0, by + s * (bw / 2 - 0.15), gz + 3.3), "iron", bevel=0))
+    for k in range(1, int(gz) + 1):  # 1-stud risers; the top step is level with the gantry deck
         top = float(k)
-        P.append(pb(root, f"Stair{k}", (1.85, 4.0, top), (-16.0 - 1.8 * (k - 0.5), -D / 2 + T + 2.5, top / 2), "iron",
-                    bevel=0.03))
+        P.append(pb(root, f"Stair{k}", (1.85, sw, top), (-16.0 - 1.8 * (k - 0.5), sy, top / 2), "iron", bevel=0.03))
     for s in (-1, 1):
         P += lamp(root, f"Lamp{s:+d}", s * (dw / 2 + 3.0), -D / 2 - 2.0)
     return P
@@ -495,7 +514,8 @@ def foundry_hall(root, rng):
 
 def crane_bay(root, rng):
     """A gantry crane: two portal frames on ground rails (legs climbable: plain faces, with a Note), a walkable
-    4.4-wide girder with handrails, a trolley, hook and load, an operator's cab and ladder rungs up one leg."""
+    7.6-wide girder with handrails (the trolley runs on one side, leaving a 4.7-stud lane past it), a trolley, hook and
+    load, an operator's cab and ladder rungs up one leg."""
     lx, ly, lh = 20.0, 10.0, 23.3  # PROPOSAL
     P = []
     for s in (-1, 1):
@@ -511,18 +531,20 @@ def crane_bay(root, rng):
             P.append(pb(root, f"Brace{s:+d}{t:+d}", (0.8, L, 0.8), (s * lx, t * ly / 2, 1.7 + lh - 6.0), "iron",
                         rot=(-t * math.atan2(12.0, ly), 0, 0), bevel=0.03))
     gt = 1.7 + lh + 2.4  # girder bottom
-    P.append(pb(root, "Girder", (2 * lx + 6.0, 4.4, 2.4), (0, 0, gt + 1.2), "rust", bevel=0.05))
+    gw = 7.6  # the girder's width: the trolley runs on its +y side, a walk lane (4.7 clear) on its -y side
+    P.append(pb(root, "Girder", (2 * lx + 6.0, gw, 2.4), (0, 0, gt + 1.2), "rust", bevel=0.05))
+    hy = gw / 2 - 0.2
     for s in (-1, 1):
-        P.append(pb(root, f"Handrail{s:+d}", (2 * lx + 6.0, 0.25, 0.25), (0, s * 2.0, gt + 2.4 + 3.0), "iron", bevel=0))
+        P.append(pb(root, f"Handrail{s:+d}", (2 * lx + 6.0, 0.25, 0.25), (0, s * hy, gt + 2.4 + 3.0), "iron", bevel=0))
         for i, x in enumerate((-lx - 2.0, -lx / 2, lx / 2, lx + 2.0)):
-            P.append(pb(root, f"Stanchion{s:+d}{i}", (0.25, 0.25, 3.0), (x, s * 2.0, gt + 2.4 + 1.5), "iron", bevel=0))
-    tx = 6.0
-    P.append(pb(root, "Trolley", (5.0, 5.4, 2.4), (tx, 0, gt + 2.4 + 1.2), "iron", bevel=0.06))
-    P.append(pc(root, "Drum", 1.0, 4.0, (tx, 0, gt + 2.4 + 3.4), "iron", rot=(0, math.radians(90), 0), verts=12))
-    P.append(pc(root, "Cable", 0.15, 12.0, (tx, 0, gt - 6.0), "iron", verts=6))
-    P.append(pb(root, "HookBlock", (1.4, 1.4, 1.8), (tx, 0, gt - 12.9), "rust", bevel=0.06))
+            P.append(pb(root, f"Stanchion{s:+d}{i}", (0.25, 0.25, 3.0), (x, s * hy, gt + 2.4 + 1.5), "iron", bevel=0))
+    tx, ty = 6.0, gw / 2 - 1.45
+    P.append(pb(root, "Trolley", (5.0, 2.2, 2.4), (tx, ty, gt + 2.4 + 1.2), "iron", bevel=0.06))
+    P.append(pc(root, "Drum", 1.0, 4.0, (tx, ty, gt + 2.4 + 3.4), "iron", rot=(0, math.radians(90), 0), verts=12))
+    P.append(pc(root, "Cable", 0.15, 12.0, (tx, ty, gt - 6.0), "iron", verts=6))
+    P.append(pb(root, "HookBlock", (1.4, 1.4, 1.8), (tx, ty, gt - 12.9), "rust", bevel=0.06))
     for i in range(2):
-        P.append(pb(root, f"Load{i}", (3.0, 3.0, 3.0), (tx + (i - 0.5) * 3.1, 0, 1.5), "crate", bevel=0.08))
+        P.append(pb(root, f"Load{i}", (3.0, 3.0, 3.0), (tx + (i - 0.5) * 3.1, ty, 1.5), "crate", bevel=0.08))
     P.append(pb(root, "Cab", (3.6, 3.6, 3.4), (-lx + 5.0, -3.6, gt - 1.7), "iron", bevel=0.06))
     P.append(pb(root, "CabGlass", (3.0, 0.3, 1.6), (-lx + 5.0, -5.45, gt - 1.4), "window", bevel=0))
     for i in range(10):  # rungs up the front face of one leg
@@ -546,7 +568,7 @@ def rail_walk(root, rng):
             P.append(pb(root, f"RailPost{s:+d}{i}", (0.35, 0.35, 3.2), (-L / 2 + 2.0 + i * 8.0, s * (Wd / 2 - 0.2),
                                                                          top + 1.6), "iron", bevel=0))
         P.append(pb(root, f"Rail{s:+d}", (L, 0.3, 0.3), (0, s * (Wd / 2 - 0.2), top + 3.3), "iron", bevel=0))
-    lh = top - fh
+    lh = top - 0.6  # the trestles reach up to the deck's underside
     for k, x in enumerate((-16.0, 0.0, 16.0)):
         for s in (-1, 1):
             P.append(pb(root, f"Trestle{k}{s:+d}", (0.9, 0.9, lh), (x, s * 2.4, lh / 2), "iron", bevel=0.03))
@@ -643,24 +665,14 @@ def cover(root, rng):
     return P
 
 
-# ------------------------------------------------------------------ the kit's tables
-# style -> (Roblox prefab kind, function, (w min, w max, d min, d max), terrace: neighbours share walls). PROPOSAL sizes.
-STYLES = {
-    "house": ("House", house, (12, 16, 16, 20), True),
-    "boarding": ("BoardingHouse", boarding, (32, 40, 16, 18), False),
-    "shed": ("Shed", shed, (14, 22, 12, 18), False),
-    "warehouse": ("Warehouse", warehouse, (24, 36, 18, 24), False),
-    "stack": ("Smokestack", stack, (6, 8, 6, 8), False),
-}
-# landmark -> (Roblox prefab kind, function, local footprint [x0, y0, x1, y1] the planners keep clear). PROPOSAL.
-LANDMARKS = {
-    "practice_court": ("PracticeCourt", practice_court, (-20, -20, 20, 20)),
-    "foundry_hall": ("FoundryHall", foundry_hall, (-49, -35, 49, 33)),
-    "crane_bay": ("CraneBay", crane_bay, (-24, -16, 24, 16)),
-    "rail_walk": ("RailWalk", rail_walk, (-23, -5, 43, 5)),
-    "underworks": ("Underworks", underworks, (-8, -8, 8, 8)),
-    "canteen": ("Canteen", canteen, (-13, -12, 13, 12)),
-    "market_stall": ("MarketStall", market_stall, (-5, -4, 5, 3)),
-}
-COVER = ("Cover", cover, (-3, -3, 3, 3))
-LAMP_FOOT = (-0.8, -0.8, 0.8, 0.8)
+# ------------------------------------------------------------------ the kit's tables (data from kitspec.py)
+_SPEC = kitspec.KITS["railtown"]
+_FN = {"house": house, "boarding": boarding, "shed": shed, "warehouse": warehouse, "stack": stack,
+       "practice_court": practice_court, "foundry_hall": foundry_hall, "crane_bay": crane_bay, "rail_walk": rail_walk,
+       "underworks": underworks, "canteen": canteen, "market_stall": market_stall}
+# style -> (Roblox prefab kind, function, (w min, w max, d min, d max), terrace)
+STYLES = {k: (v["kind"], _FN[k], v["size"], v["terrace"]) for k, v in _SPEC["styles"].items()}
+# landmark -> (Roblox prefab kind, function, local footprint [x0, y0, x1, y1] the planners keep clear)
+LANDMARKS = {k: (v["kind"], _FN[k], v["foot"]) for k, v in _SPEC["landmarks"].items()}
+COVER = (_SPEC["cover"]["kind"], cover, _SPEC["cover"]["foot"])
+LAMP_FOOT = _SPEC["lamp"]["foot"]

@@ -403,6 +403,124 @@ def test_merge():
     check("rects tile the cells exactly", ok and seen == cells)
 
 
+# ------------------------------------------------------------------ placement (the style kits' planners; Task 10)
+def _flat_district(raw, style, D, poly=None, storeys=(2, 3)):
+    """The Testbed reduced to a flat plane, the main road and one district (default: a 220-stud south frontage)."""
+    L = copy.deepcopy(raw)
+    L["Heights"] = [{"Kind": "plane", "Y": 4}]
+    L["Districts"] = [{"Id": "long", "Poly": poly or [[-110, -60], [110, -60], [110, -12], [-110, -12]],
+                       "Style": style, "Density": D, "Storeys": list(storeys)}]
+    L["Routes"] = [r for r in L["Routes"] if r["Id"] == "main"]
+    L["Landmarks"] = []
+    L["Markers"] = [m for m in L["Markers"] if m["Tag"] in ("RenseiArea", "EdgeGap")]
+    return L
+
+
+def _row(plan):
+    """Buildings along one straight frontage, sorted along it: [(start, end, plan entry)], plus the gaps."""
+    th = plan[0]["theta"]
+    ax = (math.cos(th), math.sin(th))
+    rows = sorted(((b["x"] * ax[0] + b["z"] * ax[1] - b["w"] / 2, b["x"] * ax[0] + b["z"] * ax[1] + b["w"] / 2, b)
+                   for b in plan), key=lambda r: r[0])
+    return rows, [q[0] - p[1] for p, q in zip(rows, rows[1:])]
+
+
+def test_placement():
+    from region_builder import heightfield as HF, kitspec, placement as PL, schema
+    with open(TESTBED, encoding="utf-8") as f:
+        raw = json.load(f)
+    # the storey cap the kit's part budget is checked at
+    check("Storeys are capped at schema.MAX_STOREYS = 4", schema.MAX_STOREYS == 4)
+    bad = copy.deepcopy(raw)
+    bad["Districts"][0]["Storeys"] = [2, 5]
+    r, m, msgs = raises_schema(schema, bad, "Storeys")
+    check("Storeys above the cap raise", r and m, msgs)
+
+    # the Testbed plan (stages builds exactly this: positions guarded here and by blender_check)
+    L = schema.load(TESTBED)
+    G = HF.sample(L, cell=4)
+    plan = PL.plan_buildings(L, G)
+    got = sorted((b["id"], b["x"], b["z"], round(b["theta"], 4), b["w"], b["d"], b["storeys"], b["party"]) for b in plan)
+    check("the Testbed plan: 3 houses where they stood before the move",
+          got == [("row_0", -56.0, -50.5, 3.1416, 16, 17, 3, ""), ("row_1", -88.0, -51.5, 3.1416, 12, 19, 3, "R"),
+                  ("row_2", -101.0, -51.5, 3.1416, 14, 19, 2, "L")], got)
+    check("plans are deterministic", [b["seed"] for b in PL.plan_buildings(L, G)] == [b["seed"] for b in plan])
+
+    # every style on a long flat frontage: coverage rises with Density, alleys >= 4, <= 3 in a row, no overlaps,
+    # 2 studs clear of the road, inside the district
+    for style in kitspec.KITS["railtown"]["styles"]:
+        cov, ok_gap, ok_run, ok_overlap, ok_clear, ok_det = [], True, True, True, True, True
+        for D in (0.3, 0.6, 0.9, 1.0):
+            Ls = _flat_district(raw, f"railtown.{style}", D)
+            check(f"{style} D{D}: the synthetic layout is valid", not schema.validate(Ls), schema.validate(Ls))
+            Gs = HF.sample(Ls, cell=4)
+            p = PL.plan_buildings(Ls, Gs)
+            ok_det &= [(b["x"], b["w"], b["seed"]) for b in p] == [(b["x"], b["w"], b["seed"])
+                                                                   for b in PL.plan_buildings(Ls, Gs)]
+            if not p:
+                cov.append(0.0)
+                continue
+            rows, gaps = _row(p)
+            cov.append(sum(b["w"] for b in p) / 220)
+            ok_gap &= all(abs(g) < 1e-6 or g >= PL.ALLEY - 1e-6 for g in gaps)
+            run_ = 1
+            for g in gaps:
+                run_ = run_ + 1 if abs(g) < 1e-6 else 1
+                ok_run &= run_ <= 3
+            ok_overlap &= not any(PL._quads_overlap(a["body"], b["body"]) for i, a in enumerate(p) for b in p[i + 1:])
+            road = Ls["Routes"][0]
+            ok_clear &= all(PL._quad_line_dist(b["clear"], road["Line"]) >= road["Width"] / 2 + PL.CLEAR - 1e-6
+                            for b in p)
+        check(f"{style}: frontage coverage rises with Density", cov[0] < cov[-1] and all(
+            a <= b + 1e-9 for a, b in zip(cov, cov[1:])), [round(c, 3) for c in cov])
+        check(f"{style}: neighbours share a wall or stand an alley (4+) apart", ok_gap)
+        check(f"{style}: no more than 3 in a row without an alley", ok_run)
+        check(f"{style}: no two buildings overlap", ok_overlap)
+        check(f"{style}: 2 studs clear of the road (overhangs and fittings included)", ok_clear)
+        check(f"{style}: plans are deterministic", ok_det)
+    Ls = _flat_district(raw, "railtown.house", 1.0)
+    p = PL.plan_buildings(Ls, HF.sample(Ls, cell=4))
+    check("houses at Density 1 cover most of a clear frontage", sum(b["w"] for b in p) / 220 > 0.8,
+          sum(b["w"] for b in p) / 220)
+
+    # a diagonal frontage: the buildings turn to face out of it (its outward normal), toward the road
+    poly = [[-110, -80], [-40, -10], [-20, -30], [-90, -100]]
+    Ls = _flat_district(raw, "railtown.house", 0.7, poly=poly)
+    fr = PL.frontages(Ls, Ls["Districts"][0])
+    p = PL.plan_buildings(Ls, HF.sample(Ls, cell=4))
+    ok = bool(p) and len(fr) == 1
+    for b in p:
+        front = (math.sin(b["theta"]), -math.cos(b["theta"]))  # local -y in the region
+        ok &= abs(front[0] - fr[0]["n"][0]) < 1e-9 and abs(front[1] - fr[0]["n"][1]) < 1e-9
+        ok &= all(PL._inside(poly, x, z) or PL._quad_point_dist(poly, x, z) < 1e-6 for x, z in b["body"])
+    check("a diagonal frontage: buildings face its normal and stand in the district", ok,
+          ([(round(b["x"], 1), round(b["z"], 1), round(math.degrees(b["theta"]), 1)) for b in p], fr))
+
+    # the stoop: every riser 1 stud or less, the top one (from the door step) and the last (onto the ground) included
+    ok = True
+    for step in ((0.8, 1.2), (1.4, 3.6), (0.6, 0.2)):
+        for floor in (4, 4.3, 5, 7.5, 10, 10.5, 16):
+            for ground in (3, 4, 4.4):
+                if ground > floor:
+                    continue
+                tops = PL.stoop_tops(step, floor, ground)
+                chain = [floor + step[0]] + tops + [ground]
+                ok &= all(0 < a - b <= 1 + 1e-9 for a, b in zip(chain, chain[1:])) or (
+                    not tops and floor + step[0] - ground <= 1 + 1e-9)
+    check("stoop risers are 1 stud or less, the top one included", ok)
+    check("no door, no stoop", PL.stoop_tops(None, 10, 4) == [])
+
+    # edges: the EdgeGaps open the band and nothing else does
+    blocks = PL.plan_edges(L)
+    gaps = [m["Box"] for m in L["Markers"] if m["Tag"] == "EdgeGap"]
+    inside = [b for b in blocks for (x0, _, z0), (x1, _, z1) in gaps
+              if min(b[3], x1) - max(b[1], x0) > 1e-6 and min(b[4], z1) - max(b[2], z0) > 1e-6]
+    check("no edge block stands in an EdgeGap", blocks and not inside, inside)
+    check("the edge blocks are at most EDGE_SEG long",
+          all(max(b[3] - b[1], b[4] - b[2]) <= PL.EDGE_SEG + 1e-6 or min(b[3] - b[1], b[4] - b[2]) > PL.EDGE_BAND
+              for b in blocks))
+
+
 def main():
     L = G = None
     try:
@@ -425,6 +543,10 @@ def main():
         test_merge()
     except Exception:
         check("merge module", False, traceback.format_exc())
+    try:
+        test_placement()
+    except Exception:
+        check("placement module", False, traceback.format_exc())
     print(f"PASS {len(PASSES)} / FAIL {len(FAILS)}")
     sys.exit(1 if FAILS else 0)
 

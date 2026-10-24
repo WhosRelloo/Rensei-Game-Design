@@ -42,6 +42,9 @@ MARKER_ATTRS = {
     "RenseiTrial": ("TrialId",),
 }
 MAX_BUDGET = 90000  # the world spec's ceiling for any region (spec §3.6)
+# the tallest a district's buildings may be: the kit's part counts are checked at this cap (<= about 150 parts per
+# building; blender_check builds every style at it). PROPOSAL
+MAX_STOREYS = 4
 
 # Every top-level key a region file may have; any other key is an error (it catches typos). A later task that adds a
 # top-level key to the region file must add it here, or every file carrying it will fail to load.
@@ -202,7 +205,7 @@ def validate(data):
         c.need(d, "Style", _str, w, "a style name")
         c.need(d, "Density", lambda v: _num(v) and 0 <= v <= 1, w, "a number in 0..1")
         c.need(d, "Storeys", lambda v: isinstance(v, list) and len(v) == 2 and all(_int(s) for s in v)
-               and 1 <= v[0] <= v[1], w, "[min, max] whole storeys, 1 <= min <= max")
+               and 1 <= v[0] <= v[1] <= MAX_STOREYS, w, f"[min, max] whole storeys, 1 <= min <= max <= {MAX_STOREYS}")
 
     # Routes
     rs = c.items(data, "Routes")

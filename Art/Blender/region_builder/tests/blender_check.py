@@ -343,6 +343,7 @@ def kit_main():
     from mathutils import Vector
     from region_builder import build, schema, heightfield as HF, stages as ST
     from region_builder import kits
+    from region_builder import placement as PL
 
     layout = schema.load(os.path.join(REPO, "Art", "Regions", "Testbed", "layout.json"))
     grid = HF.sample(layout, cell=build.CELL)
@@ -408,6 +409,24 @@ def kit_main():
             if r.location.z < max(gys) - 1e-4 or low > min(gys) + 1e-4:
                 bad.append((r.name, round(r.location.z, 2), max(gys), round(low, 2), min(gys)))
     check("buildings, landmarks and cover sit on the ground (floor >= highest ground, base <= lowest)", not bad, bad[:8])
+    # stoops: from the kit's door step down to the street, every riser 1 stud or less (the top one included)
+    from region_builder import kitspec, placement as PL
+    bad, nst = [], 0
+    for r in bld:
+        step = kitspec.piece(r["rs_style"])[3].get("step")
+        if not step:
+            continue
+        x0, y0, x1, y1 = r["rs_body"]
+        lo = PL._ground_stats(grid, r.location.x, r.location.y, r.rotation_euler.z,
+                              PL.front_strip({"step": step}, x1 - x0, y1 - y0))[0]
+        tops = sorted((o.matrix_world.translation.z + o["rs_size"][2] / 2 for o in r.children
+                       if "Stoop" in o.name.split("_")[-1]), reverse=True)
+        nst += len(tops)
+        chain = [r.location.z + step[0]] + tops + [lo]
+        if any(a_ - b_ > 1 + 1e-6 for a_, b_ in zip(chain, chain[1:])):
+            bad.append((r.name, [round(c, 2) for c in chain]))
+    INFO["stoop_steps"] = nst
+    check("stoop risers are 1 stud or less, from the door step to the street", not bad, bad)
     # buildings face a route: a ray from the front face, straight out, meets a route corridor within FRONT_REACH
     bad = []
     for r in bld:
@@ -416,7 +435,7 @@ def kit_main():
         f = M.to_3x3() @ Vector((0, -1, 0))
         p0 = M @ Vector(((x0 + x1) / 2, y0, 0))
         hit = False
-        for k in range(int(ST.FRONT_REACH * 2) + 1):
+        for k in range(int(PL.FRONT_REACH * 2) + 1):
             x, z = p0.x + f.x * k * 0.5, p0.y + f.y * k * 0.5
             if any(_route_dist(rt, x, z) <= rt["Width"] / 2 for rt in corr if rt["Kind"] in ("public", "quiet", "road")):
                 hit = True
@@ -538,37 +557,65 @@ def kit_main():
     def in_gap(x, z):
         return any(g["Box"][0][0] <= x <= g["Box"][1][0] and g["Box"][0][2] <= z <= g["Box"][1][2] for g in gaps_)
     hw, hd = layout["Footprint"][0] / 2, layout["Footprint"][1] / 2
-    perim = []
-    for k in range(int(2 * hw / 2) + 1):
-        x = -hw + 3 + (2 * hw - 6) * k / int(2 * hw / 2)
-        perim += [(x, -hd + 3), (x, hd - 3)]
-    for k in range(int(2 * hd / 2) + 1):
-        z = -hd + 3 + (2 * hd - 6) * k / int(2 * hd / 2)
-        perim += [(-hw + 3, z), (hw - 3, z)]
-    open_, short, blocked = [], [], []
-    for x, z in perim:
-        cov_ = [b for b in boxes if b[0] - 1e-6 <= x <= b[1] + 1e-6 and b[2] - 1e-6 <= z <= b[3] + 1e-6]
-        if in_gap(x, z):
-            if cov_:
-                blocked.append((round(x, 1), round(z, 1)))
-        elif not cov_:
-            open_.append((round(x, 1), round(z, 1)))
-        elif max(b[4] for b in cov_) < ST.ground_y(grid, x, z) + 24 - 1e-6:
-            short.append((round(x, 1), round(z, 1), max(b[4] for b in cov_), ST.ground_y(grid, x, z)))
-    INFO["edge_samples"] = len(perim)
-    check("the edge ridges close the footprint's edge except at EdgeGaps", eparts and not open_, open_[:8])
-    check("the edge ridges stand 24+ studs over the ground (PROPOSAL)", not short, short[:6])
+    from region_builder import placement as PL
+    B = PL.EDGE_BAND
+
+    def covering(x, z):
+        return [b for b in boxes if b[0] - 1e-6 <= x <= b[1] + 1e-6 and b[2] - 1e-6 <= z <= b[3] + 1e-6]
+
+    # inward profiles every 2 studs round the perimeter (the corner squares excluded: the other side's profiles cover
+    # their faces): h(t) = the highest edge top at inset t. Each profile must be covered from the footprint edge to one
+    # inner face, every covered inset within 1 stud of the crest (no tread to rest on), and the inner face at least
+    # EDGE_HEIGHT (80, PROPOSAL: the owner's Lindenmoor rule) over the highest ground in the 4 studs beside it
+    sides = {"N": ((1, 0), (0, 1), (0, -hd), hw), "S": ((1, 0), (0, -1), (0, hd), hw),
+             "W": ((0, 1), (1, 0), (-hw, 0), hd), "E": ((0, 1), (-1, 0), (hw, 0), hd)}
+    open_, short, treads, blocked, nprof = [], [], [], [], 0
+    for side, ((ux, uz), (nx, nz), (ox, oz), half) in sides.items():
+        a = -half + B + 1
+        while a <= half - B - 1 + 1e-9:
+            bx, bz = ox + ux * a, oz + uz * a
+            prof = []
+            for k in range(1, int((B + 4) / 0.25) + 1):
+                t = k * 0.25
+                c = covering(bx + nx * t, bz + nz * t)
+                prof.append((t, max(b[4] for b in c) if c else None))
+            gap = in_gap(bx + nx * (B / 2), bz + nz * (B / 2))
+            covered = [(t, h) for t, h in prof if h is not None]
+            nprof += 1
+            if gap:
+                if covered:
+                    blocked.append((side, round(a, 1)))
+            elif not covered or covered[0][0] > 0.25 + 1e-9:
+                open_.append((side, round(a, 1)))
+            else:
+                face = max(t for t, h in covered)
+                if any(h is None for t, h in prof if t <= face):
+                    open_.append((side, round(a, 1), "hole"))
+                crest = max(h for t, h in covered)
+                low = [(t, h) for t, h in covered if h < crest - 1 - 1e-6]
+                if low:
+                    treads.append((side, round(a, 1), low[0], crest))
+                hface = dict(covered)[face]
+                beside = max(ST.ground_y(grid, bx + nx * (face + d), bz + nz * (face + d)) for d in (0.5, 1, 2, 3, 4))
+                if hface < beside + PL.EDGE_HEIGHT - 1e-6:
+                    short.append((side, round(a, 1), round(hface, 1), beside))
+            a += 2
+    INFO["edge_profiles"] = nprof
+    check("the edge walls close the footprint's edge except at EdgeGaps", eparts and nprof > 400 and not open_,
+          open_[:8])
+    check("each edge wall's inner face stands 80+ studs over the ground beside it (PROPOSAL, owner's rule)",
+          not short, short[:6])
+    check("no tread on an edge wall's climbable face (nothing more than 1 stud below the crest)", not treads,
+          treads[:6])
     check("nothing of the edges stands in an EdgeGap", not blocked, blocked[:6])
     bad = []
-    for o, b in zip(eparts, boxes):  # each ridge's bottom tier reaches the lowest ground under it (nothing floats)
-        if "Base" not in o.name.split("_")[-1]:
-            continue
+    for o, b in zip(eparts, boxes):  # each wall reaches the lowest ground under it (nothing floats)
         n = 8
         lo = min(ST.ground_y(grid, b[0] + 0.01 + (b[1] - b[0] - 0.02) * i / n, b[2] + 0.01 + (b[3] - b[2] - 0.02) * j / n)
                  for i in range(n + 1) for j in range(n + 1))
         if b[5] > lo + 1e-6:
             bad.append((o.name, round(b[5], 2), lo))
-    check("each edge ridge's base reaches the lowest ground under it", eparts and not bad, bad[:4])
+    check("each edge wall reaches the lowest ground under it", eparts and not bad, bad[:4])
 
     # ---- EdgeGap is consumed: no part, no export row
     check("no part carries an EdgeGap tag", not any("EdgeGap" in tags_of(o) for o in s.objects))
@@ -602,8 +649,9 @@ def kit_main():
                                                   "practice_court", "rail_walk", "underworks"],
           (sorted(kits.railtown.STYLES), sorted(kits.railtown.LANDMARKS)))
     check("every kit piece builds parts", gal and all(n > 0 for n in gal.values()), gal)
-    check("every style is under 150 parts at its largest (PROPOSAL)", styles and all(gal[k] < 150 for k in styles),
-          {k: gal[k] for k in styles})
+    from region_builder import schema as SC
+    check(f"every style is at most 150 parts at its largest and the storey cap ({SC.MAX_STOREYS}) (PROPOSAL)",
+          styles and all(gal[k] <= 150 for k in styles), {k: gal[k] for k in styles})
     gs = [o for o in s.objects if o.type == "MESH" and o.get("rs_gallery")]
     kinds = {o.get("rs_kind") for o in gs}
     check("kit parts are Blocks, Cylinders and Wedges", kinds <= {"Block", "Cylinder", "Wedge"}, kinds)
@@ -618,6 +666,65 @@ def kit_main():
     gird = [o for o in gs if o.get("rs_gallery") == "railtown.crane_bay" and "Girder" in o.name]
     check("the crane bay's girder is walkable (4+ studs wide, level)",
           gird and any(o["rs_size"][1] >= 4 and abs(o.matrix_world.to_euler().x) < 1e-6 for o in gird))
+    bpy.context.view_layer.update()
+
+    def piece_parts(name):
+        root = next(o for o in s.objects if o.get("rs_gallery") == name and not o.parent)
+        return root, [o for o in root.children if o.type == "MESH" and o.get("rs_kind")]
+
+    def aabb(o):
+        pts = [o.matrix_world @ Vector(c) for c in o.bound_box]
+        return [min(p[k] for p in pts) for k in range(3)], [max(p[k] for p in pts) for k in range(3)]
+
+    def hits(parts, root, lo, hi, eps=1e-3):
+        """Parts whose box meets a body box given in the root's frame (touching doesn't count)."""
+        L0 = [lo[k] + root.location[k] for k in range(3)]
+        L1 = [hi[k] + root.location[k] for k in range(3)]
+        out = []
+        for o in parts:
+            a0, a1 = aabb(o)
+            if all(a0[k] < L1[k] - eps and a1[k] > L0[k] + eps for k in range(3)):
+                out.append(o.name.split("_")[-1])
+        return out
+
+    def floor_under(parts, root, x, y, z):
+        return any(abs(aabb(o)[1][2] - (z + root.location[2])) < 0.06 and aabb(o)[0][0] <= x + root.location[0]
+                   <= aabb(o)[1][0] and aabb(o)[0][1] <= y + root.location[1] <= aabb(o)[1][1] for o in parts)
+
+    # the foundry hall: a 4-wide, 5-tall body walks from the stair top and from the bridge onto the gantries
+    hall, hp = piece_parts("railtown.foundry_hall")
+    gz = 14.0
+    walks = {"stair -> west gantry": ((-45.4, -29.5, gz + 0.05), (-38.5, -25.5, gz + 5.05), (-43.5, -27.5)),
+             "bridge -> west gantry": ((-45.4, -8.0, gz + 0.05), (-34.0, -4.0, gz + 5.05), (-43.5, -6.0)),
+             "bridge -> east gantry": ((34.0, -8.0, gz + 0.05), (45.4, -4.0, gz + 5.05), (43.5, -6.0))}
+    bad = {}
+    for name, (lo, hi, (fx, fy)) in walks.items():
+        h = hits(hp, hall, lo, hi)
+        if h or not floor_under(hp, hall, fx, fy, gz):
+            bad[name] = (h[:6], floor_under(hp, hall, fx, fy, gz))
+    check("foundry hall: a 4 x 5 body passes from the stair and the bridge onto the gantries", not bad, bad)
+    # the crane girder: a 4-wide lane runs its whole length past the trolley
+    crane, cp = piece_parts("railtown.crane_bay")
+    gird = next(o for o in cp if "Girder" in o.name)
+    top = aabb(gird)[1][2] - crane.location[2]
+    lanes = [c / 10 for c in range(-30, 31)
+             if not hits(cp, crane, (-22.0, c / 10 - 2, top + 0.05), (22.0, c / 10 + 2, top + 5.05))]
+    INFO["crane_lanes"] = (min(lanes), max(lanes)) if lanes else None
+    check("crane bay: a 4-wide, 5-tall lane runs the whole girder past the trolley", bool(lanes), INFO["crane_lanes"])
+    # the rail walk's trestles carry the deck
+    rwr, rwp = piece_parts("railtown.rail_walk")
+    deck = next(o for o in rwp if o.name.endswith("_Deck"))
+    tr = [o for o in rwp if "Trestle" in o.name]
+    check("rail walk: the trestles reach the deck's underside",
+          tr and all(abs(aabb(o)[1][2] - aabb(deck)[0][2]) < 1e-3 for o in tr),
+          [(round(aabb(o)[1][2], 3), round(aabb(deck)[0][2], 3)) for o in tr[:2]])
+    # the warehouse: the load-door lintels clear the pilasters (no coplanar overlap)
+    wr, wp = piece_parts("railtown.warehouse")
+    lin = [o for o in wp if "LoadLintel" in o.name]
+    pil = [o for o in wp if "PilasterF" in o.name]
+    over = [(a.name.split("_")[-1], b.name.split("_")[-1]) for a in lin for b in pil
+            if all(aabb(a)[0][k] < aabb(b)[1][k] - 1e-4 and aabb(a)[1][k] > aabb(b)[0][k] + 1e-4 for k in range(3))]
+    check("warehouse: the load-door lintels don't overlap the pilasters", lin and not over, over)
     bpy.ops.wm.revert_mainfile()
     check("the saved Testbed file is the full build", not bpy.data.is_dirty
           and len(build.parts_of(bpy.context.scene)) == out["parts"], len(build.parts_of(bpy.context.scene)))
