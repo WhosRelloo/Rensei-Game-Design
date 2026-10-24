@@ -249,17 +249,12 @@ def village_ground_checks(P):
     hit = sorted(foot & built)
     check("no new ground on a village Ground part's footprint", bool(foot) and not hit,
           f"{len(hit)} cells, e.g. {[E.cell_center(i, j) for i, j in hit[:4]]}")
-    # every Keep cell is footprint, or village terrain outside the Keep Rects: no blanket ring, no bare Adit rect cells
-    rects = [k["Rect"] for k in P.layout.get("Keep", []) if "Rect" in k]
-    extra = []
-    for i in range(N):
-        for j in range(N):
-            if P.keep[i][j] and (i, j) not in foot:
-                x, z = E.cell_center(i, j)
-                if not V.has(x, z) or any(E.in_rect(r, x, z) for r in rects):
-                    extra.append((x, z))
-    check("every Keep cell is a footprint cell or village terrain outside the Keep Rects", not extra,
-          f"{len(extra)} cells, e.g. {extra[:4]}")
+    # Keep is exactly the footprint (Rulings 14, 15): no kept cell without village ground anywhere (interior included),
+    # and no footprint cell left to new ground
+    extra = [E.cell_center(i, j) for i in range(N) for j in range(N) if P.keep[i][j] and (i, j) not in foot]
+    missed = [E.cell_center(i, j) for (i, j) in foot if 0 <= i < N and 0 <= j < N and not P.keep[i][j]]
+    check("every Keep cell is a footprint cell", not extra, f"{len(extra)} cells, e.g. {extra[:4]}")
+    check("every footprint cell is kept", not missed, f"{len(missed)} cells, e.g. {missed[:4]}")
     # the seam: along the whole village boundary (cells whose 3 x 3 neighbourhood mixes Keep and new ground), every cell
     # has village ground (footprint: Ye's Ground and HalvardsAdit parts) or new ground, the Adit hill included.
     band = bare = 0

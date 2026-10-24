@@ -292,7 +292,8 @@ SURVEY = os.path.join(REPO, "Art", "Studio", "Regions", "Lindenmoor", "ye_survey
 
 def ground_footprint(path=SURVEY):
     """The village Ground parts' footprint in Ye, measured by survey_ye.lua (GroundFootprint): the set of (i, j) 4-stud
-    world cells whose centre lies inside any World.Map.Ground BasePart's XZ box (world AABB). Raises if it is missing."""
+    world cells whose centre lies inside any World.Map.Ground or World.Map.HalvardsAdit BasePart's XZ box (world AABB;
+    World.Map.Lindenmoor is not counted: its NorthRoad and HubRoad are retired). Raises if it is missing."""
     with open(path, encoding="utf-8") as f:
         runs = json.load(f).get("GroundFootprint")
     if not runs:

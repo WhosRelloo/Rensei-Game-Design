@@ -175,8 +175,9 @@ def village_preview():
                 continue
             x, z = EP.cell_center(i, j)
             if any(EP.in_rect(r, x, z) for r in rects):
-                if (i, j) in foot:  # the Adit hill (kept only where its parts are): drawn from the field
-                    top[i][j] = max(1, round(P.h0[i][j]))
+                if (i, j) in foot:  # the Adit rect (kept only where its parts are): village terrain where the village
+                    # has a sample (the rect overlaps the village at x 270..346), else the field (the hill itself)
+                    top[i][j] = max(1, round(V.height(x, z) if V.has(x, z) else P.h0[i][j]))
                     mt[i][j] = "lm_moss"
             elif (i, j) in foot:
                 top[i][j] = max(1, round(V.height(x, z)))  # V.height falls back to the nearest village sample
