@@ -216,6 +216,7 @@ end
 -- ------------------------------------------------------------------ undo (also the rollback of a failed apply)
 local function undo(strict)
 	local B = backupFolder(false)
+	if strict and EX:GetAttribute("LindenmoorRoadCut") then error("undo road_cut.lua first") end
 	if strict and not EX:GetAttribute(FLAG) and not B then error("regrade_seam undo: nothing is applied") end
 	if strict and EX:GetAttribute("LindenmoorSeamPits") then error("regrade_seam undo: undo seam_pits.lua first") end
 	local n = { destroyed = 0, restored = 0, returned = 0 }
