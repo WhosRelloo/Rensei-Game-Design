@@ -2,6 +2,10 @@
 -- The fixture finds clear, flat ground near the Lindenmoor square by raycasting, puts three test posts there 40 studs
 -- apart, and removes everything afterwards (posts, rigs, the clock hold, the moved player). The service's own 1 Hz
 -- loop keeps running during the tests; it reads the same held hour, so it agrees with the hand-called Step().
+-- Task 6: fleeing fights (a held hour, a Shelter post 30 studs off, NoiseService.Emit), the witness tag, and talk
+-- (Talk / LastLine): greeting by standing (Reputation.PlaceStanding patched), the rumour step, the clue line, the
+-- passing remark. Patches and injected data are put back in the same test, with no yield while any of the player's
+-- own data is swapped.
 local SSS = game:GetService("ServerScriptService")
 local CollectionService = game:GetService("CollectionService")
 local TS = require(SSS.TownsfolkService)
@@ -9,6 +13,13 @@ local WorldClock = require(SSS.WorldClock)
 local Customization = require(game.ReplicatedStorage.Modules.Data.Rensei.Customization)
 local Player = game.Players:GetPlayers()[1]
 local Managers = game.ReplicatedStorage.Modules.Managers
+local Rensei = game.ReplicatedStorage.Modules.Data.Rensei
+local TownsfolkLogic = require(Rensei.TownsfolkLogic)
+local Reputation = require(Rensei.Reputation)
+local Deeds = require(Rensei.Deeds)
+local NoiseService = require(SSS.NoiseService)
+local QuestService = require(SSS.QuestService)
+local PS = require(SSS.ProgressionService)
 
 local GAP = 40 -- studs between the test posts (the brief)
 
@@ -110,6 +121,25 @@ end
 
 local function Stand(PostPart) return (PostPart.CFrame * CFrame.new(0, 3, 0)).Position end
 local function Flat(V) return Vector3.new(V.X, 0, V.Z).Unit end
+
+-- Task 6: the test player beside the line (20 studs off the middle post): near enough that townsfolk walk, out of
+-- their way, and more than PassRadius from every post
+local function BesideLine(Posts)
+	local C = Player.Character
+	C:PivotTo(CFrame.new(Stand(Posts.B) + Posts.B.CFrame.LookVector * 20))
+	C.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
+	task.wait(0.2)
+end
+
+-- Task 6: QuestService.Signal swapped for a recorder while Body runs (no real quest progress), then put back
+local function RecordSignals(Body)
+	local Real = QuestService.Signal
+	local Calls = {}
+	QuestService.Signal = function(P, Kind, Target) table.insert(Calls, {P, Kind, Target}) end
+	local Ok, Err = pcall(Body, Calls)
+	QuestService.Signal = Real
+	if not Ok then error(Err, 0) end
+end
 
 -- fix round 1: a townsperson has no WCS character yet (Task 6b), and DamageManager used to throw on one, aborting the
 -- whole sweep. Puts a townsperson beside the training Dummy in World.Live, runs Body(Rig, Dummy, Attacker) with the
@@ -292,6 +322,195 @@ return {
 			T.Eq(Count(), Before, "spawns nothing")
 			T.Eq(TS.Get(Good.Id), nil, "not even the valid one")
 			T.Eq(TS.LoadRegion("Test", {Good, 5}), false, "a non-table entry is refused, not thrown")
+		end)
+	end,
+	-- Task 6: a fight nearby sends them to the nearest shelter (Fleeing, then Sheltering, curled up, no Talk); calm
+	-- again CalmSeconds after the last combat sound, they walk back to their post
+	FleesOnCombatNoiseAndReturns = function(T)
+		Fixture(T, function(Posts, Ids, Spawned)
+			local WasCalm = TS.CalmSeconds
+			local Ok, Err = pcall(function()
+				WorldClock.Hold(8)
+				-- a Shelter post 30 studs along the line from A (the fixture checked that ground is flat)
+				local Along = (Posts.B.Position - Posts.A.Position).Unit
+				local ShelterId = "TF_Shelter_" .. math.random(1e6)
+				local SPos = Posts.A.Position + Along * 30
+				local Shelter = Post(ShelterId, CFrame.lookAt(SPos, SPos + Posts.A.CFrame.LookVector), "Shelter")
+				task.wait()
+				local D = Def({{0, 24, Ids.A}})
+				local Rig = TS.Spawn(D, "Test")
+				table.insert(Spawned, D.Id)
+				BesideLine(Posts)
+				TS.CalmSeconds = 2
+				T.True(Rig.HumanoidRootPart.TalkPrompt.Enabled, "the Talk prompt is on at the post")
+				local Before = select(3, TS.LastLine(D.Id))
+				NoiseService.Emit(Rig.HumanoidRootPart.Position + Vector3.new(5, 0, 0), "Hit", nil)
+				TS.Step()
+				T.Eq(TS.State(D.Id), "Fleeing", "a hit 5 studs off: fleeing")
+				local Line, Kind, N = TS.LastLine(D.Id)
+				T.Eq(Kind, "Flee", "a Flee line")
+				T.True(N == Before + 1 and table.find(TownsfolkLogic.Chatter.Flee, Line) ~= nil, "one of the Flee lines: " .. tostring(Line))
+				T.Eq(Rig.HumanoidRootPart.TalkPrompt.Enabled, false, "no talking while fleeing")
+				T.Eq(Rig.Humanoid.WalkSpeed, TS.FleeSpeed, "runs at FleeSpeed")
+				local T0 = os.clock()
+				while os.clock() - T0 < 10 and TS.State(D.Id) ~= "Sheltering" do task.wait(0.1) end
+				local Took = os.clock() - T0
+				T.Eq(TS.State(D.Id), "Sheltering", "sheltering within 10 s")
+				print(("[Townsfolk] fled 30 studs in %.1f s"):format(Took))
+				T.True((Rig.HumanoidRootPart.Position - Stand(Shelter)).Magnitude < 1.5, "at the shelter")
+				T.Eq(Rig:GetAttribute("IdleAnim"), "NPC_CurledUp", "curled up")
+				T.Eq(Rig.HumanoidRootPart.TalkPrompt.Enabled, false, "no talking while sheltering")
+				T.Eq(TS.Talk(Player, D.Id), nil, "Talk says nothing while sheltering")
+				-- calm: back to the post within 2 + 15 s
+				T0 = os.clock()
+				local SawReturn = false
+				while os.clock() - T0 < 17 and not (TS.State(D.Id) == "AtPost" and (Rig.HumanoidRootPart.Position - Stand(Posts.A)).Magnitude < 1) do
+					TS.Step()
+					if select(2, TS.LastLine(D.Id)) == "Return" then SawReturn = true end
+					task.wait(0.25)
+				end
+				T.Eq(TS.State(D.Id), "AtPost", "back at the post within 17 s")
+				T.True((Rig.HumanoidRootPart.Position - Stand(Posts.A)).Magnitude < 1, "on its own post")
+				T.True(SawReturn, "a Return line on the way back")
+				T.Eq(Rig:GetAttribute("IdleAnim"), D.Idle, "its own idle again")
+				T.True(Rig.HumanoidRootPart.TalkPrompt.Enabled, "the Talk prompt is back")
+				T.Eq(Rig.Humanoid.WalkSpeed, TS.WalkSpeed, "strolling again")
+				-- a sound that isn't a fight (footsteps) or is out of range changes nothing
+				NoiseService.Emit(Rig.HumanoidRootPart.Position + Vector3.new(3, 0, 0), 9, nil)
+				NoiseService.Emit(Rig.HumanoidRootPart.Position + Vector3.new(20 + TS.FleeMargin + 5, 0, 0), "Hit", nil)
+				T.Eq(TS.State(D.Id), "AtPost", "footsteps and far fights don't scare them")
+			end)
+			TS.CalmSeconds = WasCalm
+			if not Ok then error(Err, 0) end
+		end)
+	end,
+
+	-- Task 6: townsfolk are witnesses (PerceptionService tracks them)
+	WitnessTagged = function(T)
+		Fixture(T, function(Posts, Ids, Spawned)
+			WorldClock.Hold(8)
+			local D = Def({{0, 24, Ids.A}})
+			local Rig = TS.Spawn(D, "Test")
+			table.insert(Spawned, D.Id)
+			task.wait(0.1)
+			T.True(CollectionService:HasTag(Rig, "RenseiWatcher"), "tagged RenseiWatcher")
+			T.True(require(SSS.PerceptionService).Tracks(Rig), "PerceptionService registered it")
+		end)
+	end,
+
+	-- Task 6: the first line is the greeting for the player's standing tier with the townsperson's faction here
+	TalkGreetsByStanding = function(T)
+		Fixture(T, function(Posts, Ids, Spawned)
+			WorldClock.Hold(8)
+			local D = Def({{0, 24, Ids.A}})
+			local Rig = TS.Spawn(D, "Test")
+			table.insert(Spawned, D.Id)
+			local Prompt = Rig.HumanoidRootPart:FindFirstChild("TalkPrompt")
+			T.True(Prompt ~= nil and Prompt:IsA("ProximityPrompt"), "a TalkPrompt on the root")
+			T.Eq(Prompt.ActionText, "Talk") T.Eq(Prompt.ObjectText, D.Name) T.Eq(Prompt.MaxActivationDistance, 10)
+			T.Eq(Rig:GetAttribute("DialogueId"), nil, "no DialogueId: not the dialogue box")
+			local Real = Reputation.PlaceStanding
+			local Ok, Err = pcall(function()
+				RecordSignals(function(Calls)
+					Reputation.PlaceStanding = function() return {Townsfolk = 70} end
+					local Text, Kind = TS.Talk(Player, D.Id)
+					Reputation.PlaceStanding = Real
+					T.Eq(Kind, "Greeting")
+					T.Eq(Text, TownsfolkLogic.Greeting("Honoured", D), "70 with the Townsfolk: Honoured")
+					T.Eq(TS.LastLine(D.Id), TownsfolkLogic.Greeting("Honoured", D), "LastLine")
+					T.True(#Calls >= 1 and Calls[1][1] == Player and Calls[1][2] == "Talk" and Calls[1][3] == D.Id, "QuestService.Signal(Player, \"Talk\", Id)")
+				end)
+			end)
+			Reputation.PlaceStanding = Real
+			if not Ok then error(Err, 0) end
+		end)
+	end,
+
+	-- Task 6: greeting -> a rumour the region has heard -> the job line -> greeting -> (rumour told) the job line
+	RumourIsTheSecondLine = function(T)
+		Fixture(T, function(Posts, Ids, Spawned)
+			WorldClock.Hold(8)
+			local D = Def({{0, 24, Ids.A}})
+			TS.Spawn(D, "Test")
+			table.insert(Spawned, D.Id)
+			Deeds.__test_t6_rumour = {Text = "Kicked over a market stall", Standing = {}, Scope = "Local"}
+			local M = PS.GetData(Player).Morality
+			local Saved = M.News
+			local Lines = {}
+			local Ok, Err = pcall(function()
+				RecordSignals(function()
+					-- (no yield from here until News is put back)
+					M.News = table.clone(Saved or {})
+					table.insert(M.News, {At = os.time() + 100000, Place = "Test", Deed = "__test_t6_rumour", Heard = {"Townsfolk"}})
+					for I = 1, 5 do Lines[I] = {TS.Talk(Player, D.Id)} end
+					M.News = Saved
+				end)
+			end)
+			M.News = Saved
+			Deeds.__test_t6_rumour = nil
+			if not Ok then error(Err, 0) end
+			T.Eq(Lines[1][2], "Greeting", "1: greeting")
+			T.Eq(Lines[2][2], "Rumour", "2: a rumour")
+			T.Eq(Lines[2][1], "They say you kicked over a market stall.", "the deed, about the listener")
+			T.Eq(Lines[3][2], "Job", "3: the job line") T.Eq(Lines[3][1], D.JobLine)
+			T.Eq(Lines[4][2], "Greeting", "4: greeting again")
+			T.Eq(Lines[5][2], "Job", "5: the rumour was told already: the job line")
+		end)
+	end,
+
+	-- Task 6: on the clue's quest stage the clue line comes first, then QuestService.Signal(Player, "Signal", ...)
+	ClueLineOnTheStage = function(T)
+		Fixture(T, function(Posts, Ids, Spawned)
+			WorldClock.Hold(8)
+			local D = Def({{0, 24, Ids.A}})
+			D.Clue = {Quest = "__t6_quest", Stage = 2, Text = "I saw a cart by the gate after dark.", Signal = "__t6_signal"}
+			TS.Spawn(D, "Test")
+			table.insert(Spawned, D.Id)
+			local Data = PS.GetData(Player)
+			local Ok, Err = pcall(function()
+				RecordSignals(function(Calls)
+					-- (no yield from here until the quest entry is removed)
+					Data.Quests.Active.__t6_quest = {Stage = 1, Progress = {}}
+					local _, K1 = TS.Talk(Player, D.Id)
+					Data.Quests.Active.__t6_quest.Stage = 2
+					local Text, K2 = TS.Talk(Player, D.Id)
+					Data.Quests.Active.__t6_quest = nil
+					T.Eq(K1, "Greeting", "another stage: the usual rotation")
+					T.Eq(K2, "Clue") T.Eq(Text, D.Clue.Text)
+					local Got = false
+					for _, C in ipairs(Calls) do if C[2] == "Signal" and C[3] == "__t6_signal" then Got = true end end
+					T.True(Got, "the clue's signal")
+				end)
+			end)
+			Data.Quests.Active.__t6_quest = nil
+			if not Ok then error(Err, 0) end
+		end)
+	end,
+
+	-- Task 6: a player first coming within PassRadius gets one remark, and not again within PassEvery
+	PassChatterOnce = function(T)
+		Fixture(T, function(Posts, Ids, Spawned)
+			WorldClock.Hold(8)
+			local D = Def({{0, 24, Ids.A}})
+			local Rig = TS.Spawn(D, "Test")
+			table.insert(Spawned, D.Id)
+			local C = Player.Character
+			local Root = C.HumanoidRootPart
+			Root.Anchored = true -- (held where it is put)
+			local Far = Stand(Posts.A) + Posts.A.CFrame.LookVector * 30
+			local NearBy = Stand(Posts.A) + Posts.A.CFrame.LookVector * 8
+			C:PivotTo(CFrame.new(Far)) TS.Step()
+			local N0 = select(3, TS.LastLine(D.Id))
+			C:PivotTo(CFrame.new(NearBy)) TS.Step()
+			local Line, Kind, N1 = TS.LastLine(D.Id)
+			T.Eq(Kind, "Pass", "a passing remark")
+			T.True(N1 == N0 + 1 and table.find(TownsfolkLogic.Chatter.Pass, Line) ~= nil, "one Pass line: " .. tostring(Line))
+			TS.Step()
+			T.Eq(select(3, TS.LastLine(D.Id)), N1, "nothing more while still near")
+			C:PivotTo(CFrame.new(Far)) TS.Step()
+			C:PivotTo(CFrame.new(NearBy)) TS.Step()
+			T.Eq(select(3, TS.LastLine(D.Id)), N1, "not again within PassEvery")
+			T.True(Rig.Parent ~= nil)
 		end)
 	end,
 }

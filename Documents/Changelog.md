@@ -2,6 +2,36 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
+## 2026-10-23 — Region Foundation Tasks 3-6: townsfolk who keep to their day, walk through crowds, run from fights and talk
+
+Towns get ordinary people: each one has a job, a place to be at each hour, and something to say. Built in Ye. Ye has no townsfolk roster yet, so **nobody new appears in Ye**: the first real townsfolk come with Foundry Yard's roster (the Foundry plan). Until then everything below runs in the tests. Backups are in `ServerStorage.RenseiBackups["Pre-RegionFoundation_2026-10-23"]`. Every number and every line of speech is a **PROPOSAL**.
+
+- **Townsfolk talk (Task 6).** Your choice: their words appear in a speech bubble over their head, in the Special Elite typewriter font, with no reply choices. The bubble is the dialogue's own choice plate, stretched to fit the text. It fades in and out and is replaced when they say something new. Walk up and press **Talk**. Each time you talk to the same person they say the next thing:
+  - a greeting that depends on your standing with their faction in this region (Hostile to Honoured);
+  - a rumour from around town that you haven't heard from them yet (skipped when there isn't one);
+  - what they do for a living;
+  - then the greeting again.
+
+  If you're at the right step of a quest they know something about, they give you that clue first. Talking to them also counts for "talk to" quest steps. They also speak up on their own:
+  - a passing remark when you first come near (at most once every 5 minutes each);
+  - sometimes a word when they set off for their next place;
+  - a shout when they run from a fight;
+  - a remark when they come back.
+- **Rumours (Tasks 3 and 6).** What a town is talking about is what has happened there, plus word of your deeds that has travelled in from elsewhere: "They say someone struck a townsperson." The newest comes first, and each story is told once. They name the person the way *you* know them: their name once you've identified them, their journal number ("Subject 03") before that, otherwise "someone". If it was you: "They say you ...". Where you were born is never gossip.
+- **Fights (Task 6).** A fight nearby (a hit, an alchemy cast or a gunshot within earshot plus 20 studs) sends townsfolk running to the nearest shelter that nobody else has taken. They run at a player's walking speed, don't give way to anyone, and curl up there. With no shelter nearby they curl up where they stand. 20 seconds after the last sound of fighting they walk back to wherever their day has them. You can't talk to them while they're running or hiding. They can't be hurt yet: that's the next task, 6b.
+- **Their day (Tasks 4 and 5).** Each townsperson has a schedule of places by the hour (work, a seat, a counter, home), checked when the town loads: a gap in the day, a missing place, two people sharing one spot, an empty or broken time slot, or an unknown nation or faction refuses the whole roster with a clear message. They wear their own nation's clothes (owner: "Townsfolk should have their nation's clothing on"). When nobody is near they're held still at their place, which costs nothing. They're witnesses for the stealth and crime systems.
+- **Walking through crowds (Task 5b).** Owner: "I don't want them to walk through each other." They follow smoothed paths that prefer streets, step around each other and around players (passing on the right), queue at doors and give way there, back out of narrow alleys, wait for a taken spot, re-plan round new obstacles, and turn smoothly with a walk that matches their speed. Someone running from a fight has right of way: anyone in their path steps aside at once. In the doorway test the runner goes through first without ever stopping (38 studs in about 3.4 s).
+- **Tests (Ye; one Play session, after every fix):**
+  - Play_Boot 2/2, Play_Rumours 3/3, Play_Townsfolk 12/12 (twice), Play_TownsfolkCrowd 13/13, Play_Stealth 9/9, Play_Heat 8/8, Play_Morality 3/3;
+  - Test_TownsfolkLogic 7/7 (Edit);
+  - the new talk, fleeing and rumour tests failed before the change;
+  - checked in a Play client: the bubble appears over the head in Special Elite with the right text, grows to four lines for a long rumour, and is gone after its time.
+  - The owner's save was restored after every Play session and the test hook removed.
+- **For the owner:**
+  - **look at a bubble in Play once** (the test tool's screenshots can't show bubbles);
+  - publish `RenseiServer`, `Modules` and `Remotes` from Ye (Remotes has a new `TownsfolkSay`);
+  - the new `TownsfolkClient` script in `StarterPlayer.StarterPlayerScripts` is plain (not a package): Foundry Yard gets its copy with the Foundry plan.
+
 ## 2026-10-23 — Lindenmoor expansion in Blender (owner-approved layout; not in Studio yet)
 
 Lindenmoor is planned and built in Blender at its full 2,048 × 2,048 footprint, around the finished village. It follows page 3 of the Regional Map Design Brief. **Nothing changed in Ye**: the import waits until the hub graybox has moved out (the owner's choice: "Plan as if it's gone") and is coordinated by the main session. Design: `Documents/specs/2026-10-23-lindenmoor-expansion-design.md`. What was built, the renders and the import steps are in `Documents/Lindenmoor Kit.md`, "Expansion (Blender)". Every number is a **PROPOSAL**.
@@ -17,6 +47,7 @@ Lindenmoor is planned and built in Blender at its full 2,048 × 2,048 footprint,
   - the north road and the rails side by side to tunnel portals in a north-east gap (the owner's choice: "Together, NE corner").
 - **Edges:** natural edges with no invisible walls. The forested ridges end in a sheer crag that's too tall to climb out of.
 - **Size:** 39,190 parts (expansion ceiling 42,000; place ceiling 80,000).
+- **Owner, after the build:** "Start importing after the townspeople tasks are done", with the region-foundation import tools (Tasks 9, 11 and 12). The hub's trainers and trial sites move into the new map onto reserved spots, so their questlines keep working.
 - **Orientation finding:** the brief reads correctly with drawing-down = +Z (Ye's north). The region-builds spec's "drawing top = +Z" rule is mirrored for Ye.
 - **Files:**
   - `Art/Regions/Lindenmoor/layout.json` and `water.json`;

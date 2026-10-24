@@ -9,6 +9,8 @@
 --   * dash / roll 10 (CharacterHandler), melee hit 20 (HitListeners, here), alchemy cast 30 (AlchemyService;
 --     Agents hear it x2), gunshot 60 (the Shoot request).
 -- A player's own last sound is shown on their eye sigil: character attributes Noise (radius) and NoiseAt.
+-- Listen(Fn) (Region Foundation Task 6): Fn(Position, Radius, Kind, Source) runs on every Emit, after the NPCs have
+-- heard it, each in a pcall; it returns a function that stops listening. TownsfolkService uses it to flee fights.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -24,6 +26,16 @@ NoiseService.LandSpeed = 45 -- studs/s downward: a landing loud enough to hear (
 
 NoiseService.Log = nil -- tests: set to a table to collect every {Kind, Radius, Position, Heard}
 
+local Listeners = {}
+function NoiseService.Listen(Fn)
+	assert(type(Fn) == "function", "NoiseService.Listen: Fn must be a function")
+	table.insert(Listeners, Fn)
+	return function()
+		local I = table.find(Listeners, Fn)
+		if I then table.remove(Listeners, I) end
+	end
+end
+
 function NoiseService.Emit(Position, KindOrRadius, Source)
 	if typeof(Position) ~= "Vector3" then return 0 end
 	local Kind = type(KindOrRadius) == "string" and KindOrRadius or nil
@@ -35,6 +47,12 @@ function NoiseService.Emit(Position, KindOrRadius, Source)
 	end
 	local Heard = require(ServerScriptService.PerceptionService).Hear(Position, Radius, Kind, Source)
 	if NoiseService.Log then table.insert(NoiseService.Log, {Kind = Kind, Radius = Radius, Position = Position, Heard = Heard}) end
+	if #Listeners > 0 then
+		for _, Fn in ipairs(table.clone(Listeners)) do -- (a copy: a listener may stop listening while it runs)
+			local Ok, Err = pcall(Fn, Position, Radius, Kind, Source)
+			if not Ok then warn("NoiseService: a listener failed:", Err) end
+		end
+	end
 	return Heard
 end
 

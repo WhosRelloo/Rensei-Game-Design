@@ -3,7 +3,8 @@
 -- walking lives here, behind two calls; TownsfolkService calls only WalkTo and Place.
 --   * Mover.WalkTo(Rig, TargetCFrame, Opts) -> Handle
 --       Walks the rig to TargetCFrame (a standing CFrame: root position + facing). Opts (all optional): Speed (default
---       Humanoid.WalkSpeed), Agent (CreatePath params, default Mover.Agent), OnDone(Result) where Result is
+--       Humanoid.WalkSpeed; Mover.UrgentSpeed when Urgent), Agent (CreatePath params, default Mover.Agent), Urgent (Task 6:
+--       someone running from a fight, see 4b), OnDone(Result) where Result is
 --       "arrived" | "failed" | "cancelled". Handle: {Status = "walking" | Result, Cancel = function(self)}; a newer
 --       WalkTo / Place on the same rig cancels the older walk. "failed" leaves the rig standing where it is (the caller
 --       decides); an error inside a walk ends it "failed" with the rig held still, upright.
@@ -13,7 +14,8 @@
 --   * Mover.Handle(Rig) -> the walk in progress (debug), or nil.
 --   * Mover.P99StepMs() -> the 99th-percentile steering tick of the last 1000 (sorted on demand).
 --   * Mover.Stats() -> {Walkers, StepMs, MaxStepMs, HeartbeatMs, Ticks, PeakWalkers, Yields, Replans, Sidesteps,
---       Fails, Arrivals, PostWaits, Detours}; Mover.ResetStats(). StepMs = average time of one steering tick (all walkers).
+--       Fails, Arrivals, PostWaits, Detours, GiveWays (yields to urgent walkers, also counted in Yields)};
+--       Mover.ResetStats(). StepMs = average time of one steering tick (all walkers).
 --
 -- How a walk works (Task 5b; every number below is a PROPOSAL):
 --   1. Path planning: PathfindingService with Mover.Agent (radius 2.5, height 5.5, no jumping or climbing, a
@@ -37,6 +39,11 @@
 --      the one with the lower priority (further from its goal, then the higher Id) steps back and to its right; in an
 --      alley with no room to the side it backs out along its own breadcrumbs until there is. It waits until the other
 --      has gone past it (along the way it wants to go), then carries on.
+--   4b. Urgent walkers (Task 6: fleeing a fight; not polite): an urgent walker never gives way to a normal one, runs
+--      at UrgentSpeed (16), side-steps only for a closer miss (UrgentClearance), keeps a narrower lane and hard gap,
+--      and has priority over every normal walker. A normal walker with an urgent one coming at it (ahead of it in its
+--      lane, within GiveWayDist) steps aside AT ONCE, the same way it gives way in a door, and waits until it has
+--      gone past. Two urgent walkers settle a head-on block between them by the usual priority.
 --   5. Re-planning: Path.Blocked ahead, or a wall appearing between the walker and its next waypoint, re-plans from
 --      where it stands. Stuck (under 0.5 studs of progress in 1.5 s, not just queueing behind someone moving): step
 --      sideways, then re-plan; the 4th time without real progress in between, the walk ends "failed".
@@ -86,7 +93,7 @@ Mover.ContactGap = 2.4 -- a walker only stops for a body standing still closer t
 Mover.DodgeGain = 1.2 -- side-step strength (x walk speed)
 Mover.PushGain = 1.5 -- separation strength (x walk speed)
 Mover.Blend = 0.5 -- steering smoothing per tick (0..1, higher = snappier)
-Mover.SlowRadius = 4 -- slows down over the last studs to the goal
+Mover.SlowRadius = 4 -- slows down over the last studs to the goal (at a stroll, 8; faster walkers start further out)
 Mover.MinSpeed = 1.5 -- never slower than this while still walking
 Mover.Reach = 2 -- a waypoint counts as reached this close
 Mover.ArriveDist = 0.5 -- then the final turn onto the post starts
@@ -127,6 +134,12 @@ Mover.WaitSide = 1.5 -- the waiting spot: this far clear of the occupant's shoul
 Mover.WaitMax = 5 -- s: re-check the post at least this often...
 Mover.WaitCap = 20 -- s: ...and give up ("failed") after this long
 Mover.WalkDesign = (Loco.Design and Loco.Design.Walk) or 12 -- the shared walk is designed at this ground speed
+-- urgent walkers (Task 6, header 4b; PROPOSALS)
+Mover.UrgentSpeed = 16 -- running from a fight (a player's walk speed)
+Mover.UrgentClearance = 2.5 -- side-steps only for a closer miss than this (normal: Clearance 4)
+Mover.UrgentLane = 2.4 -- only a body this close to its line holds it up (normal: LaneWidth 3.6 / ContactGap 2.4)
+Mover.UrgentHardGap = 2.2 -- never closer than this to a moving body (normal: HardGap 2.8): brushing past is fine
+Mover.GiveWayDist = 14 -- a normal walker this close ahead of an urgent one, in its lane, steps aside at once
 
 local UP = Vector3.new(0, 1, 0)
 local LIFT = 3 -- R6 root height above the ground
@@ -136,12 +149,13 @@ local List = {} -- walking handles, in start order
 local Tracks = {} -- [Rig] = walk AnimationTrack | false
 local OthersGoalNear, WaitSpot -- (defined with the waiting logic below)
 local Seq = 0
+local UrgentCount = 0 -- urgent walkers walking (counted each tick; header 4b)
 
 local Stats
 function Mover.ResetStats()
 	Stats = {Ticks = 0, Ms = 0, MaxMs = 0, Heartbeats = 0, HeartbeatMs = 0, PeakWalkers = 0, Yields = 0, Replans = 0,
 		Sidesteps = 0, Fails = 0, Arrivals = 0, PostWaits = 0, Detours = 0, Plans = 0, PlanMs = 0, MaxPlanMs = 0,
-		MaxPlanFrameMs = 0, Routes = 0, RouteMs = 0, MaxRouteMs = 0, WorstTick = "", Times = {}, TimeAt = 0}
+		MaxPlanFrameMs = 0, Routes = 0, RouteMs = 0, MaxRouteMs = 0, WorstTick = "", Times = {}, TimeAt = 0, GiveWays = 0}
 end
 Mover.ResetStats()
 
@@ -156,7 +170,7 @@ function Mover.Stats()
 		Plans = Stats.Plans, PlanMs = Stats.Plans > 0 and Stats.PlanMs / Stats.Plans or 0, MaxPlanMs = Stats.MaxPlanMs,
 		MaxPlanFrameMs = Stats.MaxPlanFrameMs, Routes = Stats.Routes,
 		RouteMs = Stats.Routes > 0 and Stats.RouteMs / Stats.Routes or 0, MaxRouteMs = Stats.MaxRouteMs,
-		WorstTick = Stats.WorstTick,
+		WorstTick = Stats.WorstTick, GiveWays = Stats.GiveWays,
 	}
 end
 
@@ -782,6 +796,7 @@ local function Arrive(H)
 end
 
 local function HasPriority(A, B)
+	if (A.Urgent == true) ~= (B.Urgent == true) then return A.Urgent == true end -- (header 4b: urgent first)
 	local Ra, Rb = A.RemainDist or math.huge, B.RemainDist or math.huge
 	if math.abs(Ra - Rb) > 0.5 then return Ra < Rb end
 	if A.Id ~= B.Id then return A.Id < B.Id end
@@ -802,7 +817,8 @@ local function Avoid(H, P, Desired, Dir, Reach, NearGoal)
 	local Right = RightOf(Dir)
 	local Lateral, Push, FwdCap = 0, Vector3.zero, math.huge
 	local Hard = nil -- moving bodies inside HardGap: {unit direction to it, weight}
-	local Clear = Mover.Clearance
+	local Urgent = H.Urgent == true
+	local Clear = Urgent and Mover.UrgentClearance or Mover.Clearance
 	local SenseSq = Mover.SenseRadius * Mover.SenseRadius
 	for _, B in ipairs(Bodies) do
 		local BP = B.Pos
@@ -826,7 +842,10 @@ local function Avoid(H, P, Desired, Dir, Reach, NearGoal)
 				-- may be 3 studs apart). Only where there is room to pass: in a door or a narrow lane there isn't, and
 				-- the walker queues instead (2), which ends in one of the two giving way (header, 4).
 				local NoRoom = false
-				if CD < Clear and (Along > -1 or Tc > 0.05) and not (NearGoal and Still) then
+				-- (an urgent walker doesn't dodge a walker that is giving way: that one is getting out of its way, so it
+				-- follows it (2) until it has stepped aside, rather than swerving into whatever is beside a door)
+				local GivingWay = Urgent and BO ~= nil and BO.Mode == "yield"
+				if CD < Clear and (Along > -1 or Tc > 0.05) and not (NearGoal and Still) and not GivingWay then
 					local Lat = C:Dot(Right)
 					local Way = math.abs(Lat) > 0.3 and -math.sign(Lat) or 1 -- head-on: pass on the right
 					local Need = math.max(0, Mover.LaneWidth - math.abs(Lat)) * (Still and 1 or 0.5) + 1 -- (1: half a torso)
@@ -843,8 +862,10 @@ local function Avoid(H, P, Desired, Dir, Reach, NearGoal)
 				-- straight line. A body standing still only counts if the walker would touch it (the side-step above
 				-- gives it a wider berth where there's room; posts may be 3 studs apart)
 				local Off = Along <= Reach and math.abs(Side) or (D - Dir * Reach).Magnitude
-				-- (no room to side-step only stops it for someone moving: one standing still is passed if it won't be touched)
-				if Along > 0 and ((NoRoom and not Still) or Off < (Still and Mover.ContactGap or Mover.LaneWidth)) then
+				-- (no room to side-step only stops it for someone moving: one standing still is passed if it won't be touched;
+				-- an urgent walker only stops for a body right on its line: the others give way)
+				local Lane = Urgent and Mover.UrgentLane or (Still and Mover.ContactGap or Mover.LaneWidth)
+				if Along > 0 and ((NoRoom and not Still and not Urgent) or Off < Lane) then
 					local Pace = math.max(0, BV:Dot(Dir))
 					local Cap = Pace + math.max(0, Along - Mover.StopGap) * 2
 					if Cap < FwdCap then
@@ -858,7 +879,7 @@ local function Avoid(H, P, Desired, Dir, Reach, NearGoal)
 				if Dist < Sep then Push -= D / Dist * ((Sep - Dist) / Sep) end
 				-- 4) this close: never step any closer, whatever the other rules want (someone moving: HardGap; someone
 				-- standing: ContactGap, so posts 3 studs apart can still be reached)
-				local Floor = Still and Mover.ContactGap or Mover.HardGap
+				local Floor = Still and Mover.ContactGap or (Urgent and Mover.UrgentHardGap or Mover.HardGap)
 				if Dist < Floor + 0.4 then
 					Hard = Hard or {}
 					table.insert(Hard, {D / Dist, math.clamp((Floor + 0.4 - Dist) / 0.4, 0, 1)})
@@ -1312,6 +1333,13 @@ local function StepOne(H, Dt, Now)
 	H.RemainDist = Remain
 
 	if H.Wi == N and DN < Mover.ArriveDist then Arrive(H) return end
+	-- (Task 6) ran past the end at speed (someone fleeing): it has arrived; the arrival turn puts it on the spot
+	if H.Wi == N and N >= 2 and DN < 3 then
+		local Prev = Wps[N - 1]
+		local Seg = Flat(Next - Prev)
+		local L = Seg.Magnitude
+		if L > 0.01 and Flat(P - Prev):Dot(Seg) / L > L then Arrive(H) return end
+	end
 
 	-- the last stretch runs past someone standing still (a post among others' posts): take a local route round them
 	if H.Wi == N and DN < Mover.LocalReach and Now >= (H.ApproachCheck or 0) then
@@ -1342,7 +1370,7 @@ local function StepOne(H, Dt, Now)
 		end
 	end
 
-	local Want = math.max(Mover.MinSpeed, H.Speed * math.min(1, Remain / Mover.SlowRadius))
+	local Want = math.max(Mover.MinSpeed, H.Speed * math.min(1, Remain / (Mover.SlowRadius * math.max(1, H.Speed / 8))))
 	local Look = Flat(Root.CFrame.LookVector)
 	if Look.Magnitude > 1e-3 then -- facing well away from the way to go: turn first, then walk (eased, not stopped)
 		Want *= math.clamp(Look.Unit:Dot(Dir) + 0.3, 0.15, 1)
@@ -1351,7 +1379,31 @@ local function StepOne(H, Dt, Now)
 	Move(H, Steer)
 	if Steer.Magnitude <= 1.5 then FaceToward(H, Dir) end -- (turning on the spot towards the way to go)
 
-	-- narrow spots: blocked head-on with another walker -> the lower priority yields
+	-- an urgent walker coming at this one (header 4b): step aside at once, as in a door, until it has gone past
+	if not H.Urgent and UrgentCount > 0 and Now >= (H.YieldCooldown or 0) then
+		for _, O in ipairs(List) do
+			if O ~= H and O.Urgent and O.Status == "walking" and O.Root and O.Root.Parent and O.Mode ~= "arrive" then
+				local OP = O.Root.Position
+				local D = Flat(P - OP) -- from the urgent walker to this one
+				local Dist = D.Magnitude
+				if Dist > 1e-3 and Dist <= Mover.GiveWayDist and math.abs(OP.Y - P.Y) < 6
+					and D:Dot(O.Dir) > 0 and math.abs(D:Dot(RightOf(O.Dir))) < Mover.LaneWidth then
+					local Toward = -D / Dist
+					H.YieldPath, H.YieldIdx, H.YieldStepUntil = YieldPath(H, P, Toward), 1, Now + 3
+					H.YieldDir, H.YieldFrom = Toward, P
+					H.Mode, H.YieldTo, H.YieldT0, H.Settled = "yield", O, Now, false
+					H.YieldLast, H.Grow = Dist, 0
+					H.Yields += 1
+					Stats.Yields += 1
+					Stats.GiveWays += 1
+					return
+				end
+			end
+		end
+	end
+
+	-- narrow spots: blocked head-on with another walker -> the lower priority yields (an urgent walker never yields
+	-- to a normal one: HasPriority puts urgent first)
 	-- "slow" = no progress along the way at BlockedSpeed on average since the last real progress (jostling against
 	-- a jamb jitters the speed, but it isn't getting anywhere)
 	local Ref = H.SlowRef
@@ -1425,6 +1477,8 @@ local function Tick(Dt)
 			B.Pos = nil
 		end
 	end
+	UrgentCount = 0
+	for _, H in ipairs(List) do if H.Urgent and H.Status == "walking" then UrgentCount += 1 end end
 	local Slowest, SlowestMs, SlowestMode, SumMs, Count = nil, 0, "", 0, 0
 	for _, H in ipairs(table.clone(List)) do
 		if H.Status == "walking" then
@@ -1481,7 +1535,8 @@ function Mover.WalkTo(Rig, TargetCFrame, Opts)
 	Seq += 1
 	H.Root, H.Humanoid, H.Seq = Root, Humanoid, Seq
 	H.Id = tostring(Rig:GetAttribute("TownsfolkId") or Rig.Name)
-	H.Speed = Opts.Speed or Humanoid.WalkSpeed
+	H.Urgent = Opts.Urgent == true
+	H.Speed = Opts.Speed or (H.Urgent and Mover.UrgentSpeed) or Humanoid.WalkSpeed
 	H.Agent = Opts.Agent or Mover.Agent
 	H.Goal = TargetCFrame.Position - Vector3.new(0, LIFT, 0) -- the ground under the standing root
 	H.Steer = Vector3.zero

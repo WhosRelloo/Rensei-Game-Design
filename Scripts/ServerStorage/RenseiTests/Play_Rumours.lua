@@ -34,17 +34,23 @@ return {
 	end,
 	-- Region Foundation Task 3: HeardIn reads the news that reached a region, newest first, at most N.
 	-- The entries are given out of order on purpose (across players they arrive unsorted).
+	-- Task 6: it also reads deeds done in the region itself (Places[Region].Known, at the earliest faction's time), lists
+	-- each (subject, text) once, at its newest, and leaves origin (Birth) deeds out. News and Places are swapped for
+	-- test data and put back with no yield in between (nothing else can read them meanwhile).
 	HeardInFiltersAndSorts = function(T)
 		Deeds.__test_heard_a = {Text = "Test: heard deed A", Standing = {}, Scope = "Local"}
 		Deeds.__test_heard_b = {Text = "Test: heard deed B", Standing = {}, Scope = "Local"}
+		Deeds.__test_heard_c = {Text = "Test: done here C", Standing = {}, Scope = "Local"}
+		Deeds.__test_heard_born = {Text = "Test: born here", Standing = {}, Scope = "Public", Birth = true}
 		local M = PS.GetData(Player).Morality
-		local Saved = M.News
+		local Saved, SavedPlaces = M.News, M.Places
 		local Ok, Err = pcall(function()
 			M.News = {
 				{At = 100, Place = "Foundry", Deed = "__test_heard_a", Heard = {"Townsfolk"}},
 				{At = 300, Place = "Foundry", Deed = "__test_heard_b", Heard = {"Authority"}},
 				{At = 200, Place = "City", Deed = "__test_heard_a", Heard = {"Authority"}},
 			}
+			M.Places = {City = {Known = {}}}
 			local Got = RumourService.HeardIn("Foundry", 3)
 			T.Eq(#Got, 2, "only the Foundry news")
 			T.Eq(Got[1].At, 300, "newest first")
@@ -54,10 +60,24 @@ return {
 			T.Eq(Got[2].Text, "Test: heard deed A", "deed text")
 			T.Eq(#RumourService.HeardIn("Foundry", 1), 1, "at most N")
 			T.Eq(#RumourService.HeardIn("Ishval"), 0, "nothing reached Ishval")
+			-- deeds done in the Foundry itself
+			M.Places = {Foundry = {Known = {
+				__test_heard_c = {Townsfolk = 250, Authority = 150}, -- the earliest faction's time: 150
+				__test_heard_a = {Townsfolk = 50}, -- also arrived as news at 100: listed once, at 100
+				__test_heard_born = {Townsfolk = 400}, -- origin deeds are never rumours
+				__test_no_such_deed = {Townsfolk = 500}, -- no reason line: left out
+			}}}
+			Got = RumourService.HeardIn("Foundry", 5)
+			local Line = {}
+			for I, R in ipairs(Got) do Line[I] = R.Text .. "@" .. R.At end
+			T.Eq(table.concat(Line, ", "), "Test: heard deed B@300, Test: done here C@150, Test: heard deed A@100",
+				"news and local deeds, newest first, each once, no origin deed")
 		end)
-		M.News = Saved
+		M.News, M.Places = Saved, SavedPlaces
 		Deeds.__test_heard_a = nil
 		Deeds.__test_heard_b = nil
+		Deeds.__test_heard_c = nil
+		Deeds.__test_heard_born = nil
 		if not Ok then error(Err, 0) end
 	end,
 	ReportNeedsAWitness = function(T)

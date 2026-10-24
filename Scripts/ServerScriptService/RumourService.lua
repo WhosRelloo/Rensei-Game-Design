@@ -72,23 +72,46 @@ local function OnRecorded(Player, DeedId, Def, Info)
 	if M then Core.Spawn(M, DeedId, Info.Region, Info.Strength, Clock()) end
 end
 
--- HeardIn (region builds spec §5): the latest word that reached Region, across everyone in this server.
--- Rumour state is per player (Data.Morality.News), so this reads each player's news. Read-only.
+-- HeardIn (region builds spec §5): the latest word in Region, across everyone in this server, newest first, at
+-- most N: {{At, Text, Subject}, ...}. Rumour state is per player, so this reads each player's Morality. Read-only.
+--   * word that reached Region from elsewhere (Data.Morality.News);
+--   * (Task 6 ruling) deeds done in Region itself: they land there at once and write no News, but they are what the
+--     town talks about. Read from Morality.Places[Region].Known (deed -> faction -> time heard); At is the earliest
+--     time any faction there knew it.
+-- Only deeds with a reason line (Deeds[Id].Text); origin (Birth) deeds are never rumours. The same deed lands once
+-- per faction, so each (Subject, Text) is listed once, at its newest.
 function RumourService.HeardIn(Region, N)
 	local All = {}
+	local function Add(At, Def, P)
+		if type(At) == "number" and type(Def) == "table" and type(Def.Text) == "string" and not Def.Birth then
+			table.insert(All, {At = At, Text = Def.Text, Subject = P})
+		end
+	end
 	for _, P in ipairs(Players:GetPlayers()) do
 		local D = ProgressionService.GetData(P)
-		local News = D and D.Morality and D.Morality.News
-		for _, A in ipairs(News or {}) do
-			local Def = Deeds[A.Deed]
-			if A.Place == Region and Def and Def.Text then
-				table.insert(All, {At = A.At, Text = Def.Text, Subject = P})
+		local M = D and D.Morality
+		for _, A in ipairs(M and M.News or {}) do
+			if A.Place == Region then Add(A.At, Deeds[A.Deed], P) end
+		end
+		local Place = M and type(M.Places) == "table" and M.Places[Region]
+		for DeedId, Heard in pairs(type(Place) == "table" and type(Place.Known) == "table" and Place.Known or {}) do
+			local At = nil
+			for _, T in pairs(type(Heard) == "table" and Heard or {}) do
+				if type(T) == "number" and (At == nil or T < At) then At = T end
 			end
+			Add(At, Deeds[DeedId], P)
 		end
 	end
 	table.sort(All, function(a, b) return a.At > b.At end)
-	local Out = {}
-	for i = 1, math.min(N or 3, #All) do Out[i] = All[i] end
+	local Out, Seen = {}, {}
+	for _, R in ipairs(All) do
+		if #Out >= (N or 3) then break end
+		local Key = tostring(R.Subject.UserId) .. "|" .. R.Text
+		if not Seen[Key] then
+			Seen[Key] = true
+			table.insert(Out, R)
+		end
+	end
 	return Out
 end
 

@@ -24,7 +24,22 @@
 --     PlaceRadius (nobody sees a teleport); otherwise it tries the walk again every RetryDelay seconds.
 --   * Collision: the rigs are in the "Townsfolk" collision group (created if missing), which collides with Default
 --     and with itself: townsfolk don't pass through each other or through players.
---   * States: AtPost, Walking, Asleep; Fleeing and Sheltering are reserved for later tasks (Step leaves them alone).
+--   * States: AtPost, Walking, Asleep, Fleeing, Sheltering.
+--   * Fights (Task 6): a combat sound (NoiseService.Listen: Hit, Cast, Gunshot) within its radius + FleeMargin of a
+--     townsperson sends them running (Mover Urgent: never gives way, FleeSpeed) to the nearest Shelter post nobody
+--     else has taken (state Fleeing), where they curl up (Sheltering, idle NPC_CurledUp). With no Shelter post, or if
+--     the run fails, they curl up where they stand. CalmSeconds after the last combat sound in that range, Step sends
+--     them back to their schedule. The Talk prompt is off while they flee or shelter.
+--   * Talk (Task 6; owner 2026-10-23: speech over their heads in Special Elite, no reply choices): a TalkPrompt on
+--     the root. Talk(Player, Id) signals the quest "Talk", then says ONE line (TownsfolkLogic.NextTalk): the clue line
+--     while the player is on Def.Clue's quest stage (then signals Def.Clue.Signal), otherwise that player's rotation
+--     with this townsperson: greeting by standing tier -> a rumour they haven't heard from them (RumourService.HeardIn)
+--     -> the job line -> greeting... The rotation lives in memory only. No DialogueService: townsfolk carry no
+--     DialogueId.
+--   * Say(Id, Text): Remotes.TownsfolkSay:FireClient(Player, Rig, Text, Seconds) to every player within SayRadius;
+--     TownsfolkClient draws the bubble. LastLine(Id) -> Text, Kind, Count (tests).
+--   * Chatter (TownsfolkLogic.Chatter): Pass (a player first comes within PassRadius; once per player per PassEvery),
+--     Shift (the schedule moves them on; ShiftChance), Flee (running for shelter), Return (coming back).
 local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -36,6 +51,9 @@ local TownsfolkLogic = require(Rensei.TownsfolkLogic)
 local Townsfolk = require(Rensei.Townsfolk)
 local Customization = require(Rensei.Customization)
 local AppearanceService = require(ServerScriptService.AppearanceService)
+local Reputation = require(Rensei.Reputation)
+local Factions = require(Rensei.Factions)
+local Deeds = require(Rensei.Deeds)
 local WorldClock = require(ServerScriptService.WorldClock)
 local Mover = require(script.Mover)
 
@@ -45,6 +63,17 @@ TownsfolkService.WalkSpeed = 8 -- PROPOSAL: an unhurried stroll (players walk 16
 TownsfolkService.GenderTries = 64 -- seeds tried to find a look of Def.Look.Gender
 TownsfolkService.PlaceRadius = 60 -- PROPOSAL (Task 5b): a failed walk is placed at its post only with no player this close
 TownsfolkService.RetryDelay = 5 -- PROPOSAL (Task 5b): ...otherwise the walk is tried again after this many seconds
+-- Task 6 (all PROPOSALS)
+TownsfolkService.FleeSpeed = 16 -- running for shelter
+TownsfolkService.FleeMargin = 20 -- a combat sound within its radius + this many studs sends them running
+TownsfolkService.CalmSeconds = 20 -- back to the day this long after the last combat sound in that range
+TownsfolkService.FleeKinds = {Hit = true, Cast = true, Gunshot = true} -- combat sounds (Rensei.Perception.Sounds)
+TownsfolkService.SayRadius = 100 -- players this close see the bubble
+TownsfolkService.PassRadius = 12 -- a player first coming this close gets a passing remark...
+TownsfolkService.PassEvery = 300 -- ...at most once per player per townsperson in this many seconds
+TownsfolkService.ShiftChance = 0.5 -- a remark when the schedule moves them on
+TownsfolkService.TalkRange = 10 -- the Talk prompt's reach
+TownsfolkService.Rng = Random.new()
 
 local POST_TAG = "RenseiPost"
 local FOLK_TAG = "RenseiTownsfolk"
@@ -52,7 +81,10 @@ local WATCHER_TAG = "RenseiWatcher"
 local LIFT = CFrame.new(0, 3, 0) -- R6 root height above the post
 
 local Posts = {} -- [PostId] = BasePart
-local Folk = {} -- [Id] = {Id, Def, Region, Rig, Root, Humanoid, Post, Target, State, Walk (Mover handle)}
+-- [Id] = {Id, Def, Region, Rig, Root, Humanoid, Post, Target, State, Walk (Mover handle), Prompt, Shelter (PostId while
+-- fleeing / sheltering), LastNoise (os.clock), Talks ([UserId] = rotation state), PassAt / Close ([UserId])}
+local Folk = {}
+local LastLines = {} -- [Id] = {Text, Kind, N}
 local Warned = {} -- [key] = true: warn once
 TownsfolkService.Posts = Posts
 
@@ -98,10 +130,13 @@ local function IdleFor(Def, Post)
 	return TownsfolkLogic.KindIdles[Kind] or Def.Idle or TownsfolkLogic.KindIdles.Home
 end
 
+local function Calm(State) return State ~= "Fleeing" and State ~= "Sheltering" end
+
 local function SetState(F, State)
 	if F.State == State then return end
 	F.State = State
 	F.Rig:SetAttribute("TownsfolkState", State)
+	if F.Prompt then F.Prompt.Enabled = Calm(State) end -- (no talking while they run or hide)
 end
 
 -- held still at a post with its idle (used on arrival, when placed while asleep, and when a walk fails)
@@ -160,6 +195,150 @@ local function Walk(F, PostId)
 	end})
 	if H.Status == "walking" then F.Walk = H elseif H.Status ~= "cancelled" then Done(H.Status) end
 end
+
+-- ===== speech (Task 6) =====
+local SayRemote
+function TownsfolkService.Say(Id, Text, Kind)
+	local F = Folk[Id]
+	if not F or not F.Rig.Parent or type(Text) ~= "string" or Text == "" then return false end
+	local Prev = LastLines[Id]
+	LastLines[Id] = {Text = Text, Kind = Kind, N = (Prev and Prev.N or 0) + 1}
+	if not (SayRemote and SayRemote.Parent) then
+		local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
+		SayRemote = Remotes and Remotes:FindFirstChild("TownsfolkSay")
+	end
+	if not SayRemote then WarnOnce("remote", "Remotes.TownsfolkSay is missing - townsfolk lines aren't shown") return true end
+	local Seconds = TownsfolkLogic.SpeechSeconds(Text)
+	for _, P in ipairs(Players:GetPlayers()) do
+		local R = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+		if R and (R.Position - F.Root.Position).Magnitude <= TownsfolkService.SayRadius then
+			SayRemote:FireClient(P, F.Rig, Text, Seconds)
+		end
+	end
+	return true
+end
+
+-- the last line a townsperson said: Text, Kind, how many lines it has said (tests)
+function TownsfolkService.LastLine(Id)
+	local L = LastLines[Id]
+	if not L then return nil, nil, 0 end
+	return L.Text, L.Kind, L.N
+end
+
+local function Chat(F, Kind)
+	local Line = TownsfolkLogic.Chat(Kind, TownsfolkService.Rng)
+	if Line then TownsfolkService.Say(F.Id, Line, Kind) end
+end
+
+-- how Listener knows Subject, for a rumour: IdentityService's label (the name once identified, "Subject 03" before),
+-- "someone" without a record
+local function NameOf(Listener, Subject)
+	if typeof(Subject) ~= "Instance" then return "someone" end
+	local Ok, Label = pcall(function() return require(ServerScriptService.IdentityService).LabelFor(Listener, Subject) end)
+	if not Ok or type(Label) ~= "string" or Label == "" or Label == "Unknown subject" then return "someone" end
+	return Label
+end
+
+-- Player talks to townsperson Id: one line over their head. Returns Text, Kind (nil while they flee or shelter).
+function TownsfolkService.Talk(Player, Id)
+	local F = Folk[Id]
+	if not F or not F.Rig.Parent or not Calm(F.State) then return nil end
+	local Def = F.Def
+	local QuestService = require(ServerScriptService.QuestService)
+	local SOk, SErr = pcall(QuestService.Signal, Player, "Talk", Def.Id)
+	if not SOk then warn("TownsfolkService: Talk signal failed:", SErr) end
+	local Data = require(ServerScriptService.ProgressionService).GetData(Player)
+	-- the clue line: while the player is on the clue's quest, at its stage
+	local Clue, OnClue = Def.Clue, false
+	if type(Clue) == "table" and Data and type(Data.Quests) == "table" and type(Data.Quests.Active) == "table" then
+		local Q = Data.Quests.Active[Clue.Quest]
+		OnClue = type(Q) == "table" and (Clue.Stage == nil or Q.Stage == Clue.Stage)
+	end
+	-- standing with their faction in this region
+	local Tier = "Neutral"
+	if Data and type(Data.Morality) == "table" then
+		local Standing = Reputation.PlaceStanding(Data.Morality, Deeds, F.Region) or {}
+		Tier = Factions.TierOf(Standing[Def.Faction] or 0)
+	end
+	-- what the region has heard (each (subject, deed) once; worded for this listener)
+	local HOk, Heard = pcall(function() return require(ServerScriptService.RumourService).HeardIn(F.Region, 3) end)
+	if not HOk then warn("TownsfolkService: HeardIn failed:", Heard) Heard = {} end
+	local Rumours = TownsfolkLogic.Rumours(Heard, Player, function(Subject) return NameOf(Player, Subject) end)
+	F.Talks = F.Talks or {}
+	local State = F.Talks[Player.UserId] or {}
+	F.Talks[Player.UserId] = State
+	local Kind, Text = TownsfolkLogic.NextTalk(Def, State, {Tier = Tier, Rumours = Rumours, Clue = OnClue})
+	TownsfolkService.Say(Id, Text, Kind)
+	if Kind == "Clue" and Clue.Signal ~= nil then
+		local COk, CErr = pcall(QuestService.Signal, Player, "Signal", Clue.Signal)
+		if not COk then warn("TownsfolkService: clue signal failed:", CErr) end
+	end
+	return Text, Kind
+end
+
+-- ===== fights (Task 6) =====
+-- the nearest Shelter post nobody else is running to or hiding at (else the nearest one)
+local function NearestShelter(F)
+	local Taken = {}
+	for _, O in pairs(Folk) do
+		if O ~= F and O.Shelter then Taken[O.Shelter] = true end
+	end
+	local Best, BestD, Any, AnyD
+	for Id, P in pairs(Posts) do
+		if P.Parent and P:GetAttribute("Kind") == "Shelter" then
+			local D = (P.Position - F.Root.Position).Magnitude
+			if not Any or D < AnyD then Any, AnyD = Id, D end
+			if not Taken[Id] and (not Best or D < BestD) then Best, BestD = Id, D end
+		end
+	end
+	return Best or Any
+end
+
+-- curls up where it stands (no shelter post, or the run failed)
+local function Cower(F)
+	if not F.Rig.Parent then return end
+	local L = F.Root.CFrame.LookVector
+	local Flat = Vector3.new(L.X, 0, L.Z)
+	Mover.Place(F.Rig, CFrame.lookAt(F.Root.Position, F.Root.Position + (Flat.Magnitude > 1e-3 and Flat or Vector3.new(0, 0, -1))))
+	F.Walk, F.RetryAt = nil, nil
+	F.Rig:SetAttribute("IdleAnim", TownsfolkLogic.KindIdles.Shelter)
+	SetState(F, "Sheltering")
+end
+
+local function Flee(F)
+	F.Shelter = NearestShelter(F)
+	F.Target, F.RetryAt = nil, nil -- (so the schedule walks them back to wherever they are due once it's calm)
+	F.Rig:SetAttribute("IdleAnim", nil)
+	SetState(F, "Fleeing")
+	Chat(F, "Flee")
+	local Post = F.Shelter and Posts[F.Shelter]
+	if not Post then Cower(F) return end
+	local H
+	H = Mover.WalkTo(F.Rig, StandAt(Post), {Speed = TownsfolkService.FleeSpeed, Urgent = true, OnDone = function(Result)
+		if Result == "cancelled" or H == nil or F.Walk ~= H then return end
+		F.Walk = nil
+		if Result == "arrived" and F.Shelter and Posts[F.Shelter] then Settle(F, F.Shelter, "Sheltering") else Cower(F) end
+	end})
+	if H.Status == "walking" then F.Walk = H elseif H.Status ~= "cancelled" then Cower(F) end
+end
+
+-- NoiseService.Listen: a combat sound in range sends every calm townsperson there running; any in range keeps them
+-- hiding (LastNoise)
+local function OnNoise(Position, Radius, Kind)
+	if not TownsfolkService.FleeKinds[Kind] or typeof(Position) ~= "Vector3" then return end
+	local Reach = (tonumber(Radius) or 0) + TownsfolkService.FleeMargin
+	local Now = os.clock()
+	for Id, F in pairs(Folk) do
+		if F.Rig.Parent and F.Root.Parent and (F.Root.Position - Position).Magnitude <= Reach then
+			F.LastNoise = Now
+			if Calm(F.State) then
+				local Ok, Err = pcall(Flee, F)
+				if not Ok then WarnOnce("flee " .. Id, Id, "couldn't flee:", Err) end
+			end
+		end
+	end
+end
+TownsfolkService.OnNoise = OnNoise -- (tests)
 
 -- ===== the rig =====
 local function Look(Def)
@@ -223,6 +402,7 @@ function TownsfolkService.Despawn(Id)
 	local F = Folk[Id]
 	if not F then return end
 	Folk[Id] = nil
+	LastLines[Id] = nil
 	if F.Walk then F.Walk:Cancel() end
 	if F.Rig.Parent then F.Rig:Destroy() end
 end
@@ -254,8 +434,22 @@ function TownsfolkService.Spawn(Def, Region)
 	pcall(Root.SetNetworkOwner, Root, nil)
 	Mover.Place(Rig, StandAt(Post)) -- held still at the post (root anchored)
 	local F = {Id = Def.Id, Def = Def, Region = Region, Rig = Rig, Root = Root, Humanoid = Humanoid,
-		Post = PostId, Target = PostId, State = "AtPost"}
+		Post = PostId, Target = PostId, State = "AtPost", Talks = {}, PassAt = {}, Close = {}}
 	Folk[Def.Id] = F
+	-- Talk (Task 6): the same prompt as DialogueService's NPCs (drawn in Rensei's art by Modules.UI.PromptUI)
+	local Prompt = Instance.new("ProximityPrompt")
+	Prompt.Name = "TalkPrompt"
+	Prompt.ActionText = "Talk"
+	Prompt.ObjectText = Def.Name or Def.Id
+	Prompt.MaxActivationDistance = TownsfolkService.TalkRange
+	Prompt.RequiresLineOfSight = false
+	Prompt.Style = Enum.ProximityPromptStyle.Custom
+	Prompt.Parent = Root
+	Prompt.Triggered:Connect(function(Player)
+		local Ok, Err = pcall(TownsfolkService.Talk, Player, Def.Id)
+		if not Ok then warn("TownsfolkService: Talk failed:", Err) end
+	end)
+	F.Prompt = Prompt
 	Rig.Destroying:Once(function()
 		if Folk[Def.Id] == F then Folk[Def.Id] = nil end
 		if F.Walk then F.Walk:Cancel() end
@@ -283,10 +477,13 @@ end
 -- One update for every townsperson (the 1 Hz loop calls it; tests call it directly). Never yields.
 function TownsfolkService.Step(Hour)
 	Hour = Hour or WorldClock.Now()
-	local Roots = {}
+	local Roots, Who = {}, {}
 	for _, P in ipairs(Players:GetPlayers()) do
 		local R = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
-		if R then table.insert(Roots, R.Position) end
+		if R then
+			table.insert(Roots, R.Position)
+			table.insert(Who, P)
+		end
 	end
 	local Radius = TownsfolkService.SleepRadius
 	local function Near(Pos)
@@ -300,7 +497,30 @@ function TownsfolkService.Step(Hour)
 			Folk[Id] = nil
 			return
 		end
-		if F.State == "Fleeing" or F.State == "Sheltering" then return end
+		if F.State == "Fleeing" then
+			-- watchdog: running with no run in progress (it ended without settling) -> curl up where it is
+			if not (F.Walk and F.Walk.Status == "walking") then Cower(F) end
+			return
+		end
+		local Back = false
+		if F.State == "Sheltering" then
+			if os.clock() - (F.LastNoise or 0) <= TownsfolkService.CalmSeconds then return end
+			-- calm again: back to the day (the schedule below walks them to the post they're due at, or places them)
+			F.Shelter = nil
+			Back = true
+			SetState(F, "AtPost")
+			Chat(F, "Return")
+		end
+		-- a passing remark: a player first comes within PassRadius (once per player per PassEvery)
+		for I, R in ipairs(Roots) do
+			local Key = Who[I].UserId
+			local Close = (R - F.Root.Position).Magnitude <= TownsfolkService.PassRadius
+			if Close and not F.Close[Key] and os.clock() - (F.PassAt[Key] or -math.huge) >= TownsfolkService.PassEvery then
+				F.PassAt[Key] = os.clock()
+				Chat(F, "Pass")
+			end
+			F.Close[Key] = Close or nil
+		end
 		if F.State == "Walking" and not (F.Walk and F.Walk.Status == "walking") then
 			if F.RetryAt then
 				-- a failed walk with a player near: try again (or place it, once nobody is near)
@@ -320,10 +540,14 @@ function TownsfolkService.Step(Hour)
 			if not Post then
 				WarnOnce("post " .. tostring(Want), Id, "is due at missing post", Want)
 			elseif Here or Near(Post.Position) then
+				local Shift = not Back and F.Target ~= nil
 				Walk(F, Want)
+				if Shift and TownsfolkService.Rng:NextNumber() < TownsfolkService.ShiftChance then Chat(F, "Shift") end
 			else
 				Settle(F, Want, "Asleep") -- (cancels a walk in progress)
 			end
+		elseif Back then
+			Settle(F, Want, Here and "AtPost" or "Asleep") -- (it sheltered at its own post: just its idle back)
 		elseif F.State == "Asleep" and Here then
 			SetState(F, "AtPost") -- already at the right post
 		elseif F.State == "AtPost" and not Here then
@@ -345,6 +569,12 @@ function TownsfolkService.Start()
 	CollectionService:GetInstanceRemovedSignal(POST_TAG):Connect(RemovePost)
 	-- (World.Live.Townsfolk is made on the first spawn, not here: CharacterHandler's start-up loop over World.Live's
 	-- children sets up every non-enemy child as a training dummy, so an empty folder made at boot could reach it)
+	require(ServerScriptService.NoiseService).Listen(OnNoise)
+	Players.PlayerRemoving:Connect(function(Player)
+		for _, F in pairs(Folk) do
+			F.Talks[Player.UserId], F.PassAt[Player.UserId], F.Close[Player.UserId] = nil, nil, nil
+		end
+	end)
 	local Here = require(ServerScriptService.TravelService).Here()
 	local Roster = Townsfolk.Regions[Here]
 	if Roster then TownsfolkService.LoadRegion(Here, Roster) end

@@ -268,6 +268,56 @@ return {
 		end)
 	end,
 
+	-- Task 6: an urgent walker (fleeing a fight) and a normal one meet at the 5-wide door. The normal one is nearer the
+	-- door (it would get there first); the urgent one, running at 16, goes through first, never gives way, and never
+	-- waits; the normal one steps aside at once and then carries on. Both walks are driven straight through the Mover.
+	UrgentPassesFirst = function(T)
+		Fixture(T, "Urgent", function(Ctx)
+			Ctx.Wall(0, -51.25, 2, 97.5) -- the same door as Doorway: z = -2.5 to +2.5 in the wall at x = 0
+			Ctx.Wall(0, 51.25, 2, 97.5)
+			local W = Ctx.Walkers({{From = {-7, 0}, To = {16, 0}}, {From = {22, 0}, To = {-16, 0}}})
+			local Normal, Urgent = W[1], W[2]
+			local S0 = Mover.Stats()
+			local function Goal(X) local P = Ctx.At(X, 0) + Vector3.new(0, 3, 0) return CFrame.lookAt(P, P + Vector3.new(X > 0 and 1 or -1, 0, 0)) end
+			local Done, At = {}, {}
+			local T0 = os.clock()
+			local HN = Mover.WalkTo(Normal.Rig, Goal(16), {Speed = 8, OnDone = function(R) Done.N, At.N = R, os.clock() - T0 end})
+			local HU = Mover.WalkTo(Urgent.Rig, Goal(-16), {Urgent = true, OnDone = function(R) Done.U, At.U = R, os.clock() - T0 end})
+			T.Eq(Urgent.Rig.Humanoid.WalkSpeed, 16, "an urgent walker runs at 16 by default")
+			local Cross = {} -- when each crossed the door (x = 0)
+			local Min, StillU, StillMax, Last = math.huge, 0, 0, T0
+			while os.clock() - T0 < 25 and not (Done.N and Done.U) do
+				task.wait(0.1)
+				local Now = os.clock()
+				local Dt = Now - Last
+				Last = Now
+				local PN, PU = Normal.Rig.HumanoidRootPart.Position, Urgent.Rig.HumanoidRootPart.Position
+				Min = math.min(Min, (PN - PU).Magnitude)
+				if not Cross.N and PN.X - Ctx.O.X > 0 then Cross.N = Now - T0 end
+				if not Cross.U and PU.X - Ctx.O.X < 0 then Cross.U = Now - T0 end
+				-- waiting: the urgent walker standing still (under 2 studs/s) once it got going, before its arrival turn
+				local V = Urgent.Rig.HumanoidRootPart.AssemblyLinearVelocity
+				if not Done.U and HU.Mode ~= "arrive" and Now - T0 > 1 and Vector3.new(V.X, 0, V.Z).Magnitude < 2 then
+					StillU += Dt
+					StillMax = math.max(StillMax, StillU)
+				else
+					StillU = 0
+				end
+			end
+			local S1 = Mover.Stats()
+			print(("[Crowd] UrgentPassesFirst: through the door: urgent %.2f s, normal %.2f s; urgent %s at %.1f s, normal %s at %.1f s; closest %.2f, urgent longest stop %.2f s, urgent yields %d, give-ways %d"):format(
+				Cross.U or -1, Cross.N or -1, tostring(Done.U), At.U or -1, tostring(Done.N), At.N or -1, Min, StillMax, HU.Yields or 0, S1.GiveWays - S0.GiveWays))
+			T.Eq(Done.U, "arrived", "the urgent walker arrives")
+			T.Eq(Done.N, "arrived", "the normal walker arrives too")
+			T.True(Cross.U ~= nil and Cross.N ~= nil and Cross.U < Cross.N, ("the urgent one goes through the door first (%.2f vs %.2f)"):format(Cross.U or -1, Cross.N or -1))
+			T.Eq(HU.Yields or 0, 0, "the urgent walker never gives way")
+			T.True(StillMax < 0.3, ("the urgent walker never waits (longest stop %.2f s)"):format(StillMax))
+			T.True((At.U or 99) < 38 / 16 + 2, ("the urgent walker runs the 38 studs in about the time it takes at 16 (%.1f s)"):format(At.U or -1))
+			T.True(S1.GiveWays - S0.GiveWays >= 1, "the normal walker stepped aside for it")
+			T.True(Min >= 2.0, ("they never overlap (closest %.2f)"):format(Min))
+		end)
+	end,
+
 	-- 8 walkers from a 30-stud ring to 8 posts 3 studs apart near the centre
 	Converging = function(T)
 		Fixture(T, "Converging", function(Ctx)

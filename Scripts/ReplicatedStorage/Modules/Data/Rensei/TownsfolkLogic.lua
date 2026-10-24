@@ -1,6 +1,10 @@
 -- TownsfolkLogic (region builds spec §5, Region Foundation plan Task 4): pure rules for townsfolk. No Instances.
 -- The roster format lives in Rensei.Townsfolk; a townsperson's Schedule is a list of {From, To, PostId} in
 -- world-clock hours (0-24). A slot covers From <= h < To, wrapping past midnight when From > To.
+-- The FIRST matching slot wins: PostAt walks the slots in order and returns the first that covers the hour, so in a
+-- schedule whose slots overlap, the earlier slot hides the later one for the overlap.
+-- Task 6 adds talk: the rotation of what a townsperson says (NextTalk), rumour lines (Rumours / RumourLine) and the
+-- ambient chatter lists (Chatter / Chat). Every line and number here is a PROPOSAL.
 local Factions = require(script.Parent.Factions)
 local Customization = require(script.Parent.Customization)
 
@@ -14,8 +18,8 @@ local function Covers(S, H)
 end
 L.Covers = Covers
 
--- The post this schedule puts its townsperson at, at hour Hour. A schedule that leaves a gap (Validate
--- rejects those) falls back to its last slot's post.
+-- The post this schedule puts its townsperson at, at hour Hour (the first matching slot wins). A schedule that
+-- leaves a gap (Validate rejects those) falls back to its last slot's post.
 function L.PostAt(Schedule, Hour)
 	Hour = Hour % 24
 	for _, S in ipairs(Schedule) do
@@ -67,22 +71,30 @@ function L.Validate(Roster, PostIds)
 		if not Shaped then Err(D.Id, "no schedule") end
 		for I, S in ipairs(Shaped and Schedule or {}) do
 			if type(S) ~= "table" then S = {} end
-			if type(S[1]) ~= "number" or type(S[2]) ~= "number" or S[1] < 0 or S[1] > 24 or S[2] < 0 or S[2] > 24 then
+			local From, To = S[1], S[2]
+			-- (NaN fails every comparison, so it is checked for explicitly: From ~= From)
+			if type(From) ~= "number" or type(To) ~= "number" or From ~= From or To ~= To or From < 0 or From > 24 or To < 0 or To > 24 then
 				Err(D.Id, "slot " .. I .. " needs hours between 0 and 24")
 				Shaped = false
+			elseif From == To then
+				Err(D.Id, "slot " .. I .. " is empty (from " .. tostring(From) .. " to " .. tostring(To) .. "); use {0, 24, ...} for all day")
 			end
 			if not PostIds[S[3]] then Err(D.Id, "missing post " .. tostring(S[3])) end
 		end
 		if Shaped then
 			-- Slots are half-open, so any gap starts exactly where some slot ends: checking every slot's
-			-- end catches gaps of any length, fractional hours included.
+			-- end catches gaps of any length, fractional hours included. Each uncovered hour is reported once.
+			local Told = {}
 			for _, S in ipairs(Schedule) do
 				local Ends = S[2] % 24
 				local Covered = false
 				for _, Other in ipairs(Schedule) do
 					if Covers(Other, Ends) then Covered = true break end
 				end
-				if not Covered then Err(D.Id, "nothing scheduled from hour " .. tostring(Ends)) end
+				if not Covered and not Told[Ends] then
+					Told[Ends] = true
+					Err(D.Id, "nothing scheduled from hour " .. tostring(Ends))
+				end
 			end
 		end
 	end
@@ -93,7 +105,7 @@ function L.Validate(Roster, PostIds)
 	for _, D in ipairs(Roster) do
 		if type(D) ~= "table" or type(D.Schedule) ~= "table" then continue end
 		for _, S in ipairs(D.Schedule) do
-			if type(S) ~= "table" or type(S[1]) ~= "number" or type(S[2]) ~= "number" or S[3] == nil then continue end
+			if type(S) ~= "table" or type(S[1]) ~= "number" or type(S[2]) ~= "number" or S[1] ~= S[1] or S[2] ~= S[2] or S[3] == nil then continue end
 			local function Add(From, To)
 				if To <= From then return end
 				Spans[S[3]] = Spans[S[3]] or {}
@@ -116,6 +128,87 @@ function L.Validate(Roster, PostIds)
 		end
 	end
 	return #Errs == 0, Errs
+end
+
+-- ===== talk (Task 6; owner 2026-10-23: speech bubbles over their heads, no reply choices) =====
+-- What a townsperson says when a player talks to them, in this order:
+--   1. the clue line, while the player is on Def.Clue.Quest at Def.Clue.Stage (it doesn't move the rotation);
+--   2. otherwise the next step of that player's rotation: greeting (by standing tier) -> a rumour the player hasn't
+--      heard from this townsperson yet (the step is skipped when there is none) -> the job line -> greeting again.
+-- State is the per (player, townsperson) memory {Step, Heard}; the caller keeps it (in memory only).
+-- Ctx = {Tier = standing tier name, Rumours = L.Rumours(...) (newest first), Clue = true when the player is on the
+-- clue's quest stage}. Returns Kind ("Clue" | "Greeting" | "Rumour" | "Job"), Text.
+L.TalkOrder = {"Greeting", "Rumour", "Job"}
+function L.NextTalk(Def, State, Ctx)
+	Ctx = Ctx or {}
+	local Clue = Def and Def.Clue
+	if Ctx.Clue and type(Clue) == "table" and type(Clue.Text) == "string" then return "Clue", Clue.Text end
+	State.Heard = State.Heard or {}
+	for _ = 1, #L.TalkOrder do
+		State.Step = (State.Step or 0) % #L.TalkOrder + 1
+		local Kind = L.TalkOrder[State.Step]
+		if Kind == "Greeting" then
+			return Kind, L.Greeting(Ctx.Tier, Def)
+		elseif Kind == "Rumour" then
+			for _, R in ipairs(Ctx.Rumours or {}) do
+				if not State.Heard[R.Key] then
+					State.Heard[R.Key] = true
+					return Kind, R.Text
+				end
+			end
+		elseif Kind == "Job" and type(Def.JobLine) == "string" and Def.JobLine ~= "" then
+			return Kind, Def.JobLine
+		end
+	end
+	return "Greeting", L.Greeting(Ctx.Tier, Def) -- (unreachable: the greeting step always speaks)
+end
+
+-- A deed's Text is a capitalised reason line ("Struck a townsperson"); a rumour says it about someone:
+-- "They say <subject> struck a townsperson." When the listener is the subject: "They say you struck a townsperson."
+-- (PROPOSAL wording). A third-person line swaps the reason line's "you'd" / "your" (written to the player) for
+-- "they'd" / "their".
+local function LowerFirst(Text) return Text:sub(1, 1):lower() .. Text:sub(2) end
+function L.RumourLine(Subject, Text, IsListener)
+	local Body = LowerFirst((tostring(Text):gsub("[%.%s]+$", "")))
+	if IsListener then return "They say you " .. Body .. "." end
+	Body = Body:gsub("%f[%a]you'd%f[%A]", "they'd"):gsub("%f[%a]your%f[%A]", "their")
+	return "They say " .. tostring(Subject) .. " " .. Body .. "."
+end
+
+-- RumourService.HeardIn entries ({At, Text, Subject}, newest first) -> the lines a townsperson can pass on to
+-- Listener: {{Key, Text}, ...}, one per (Subject, Text) (the same deed lands once per faction, so it can repeat).
+-- NameOf(Subject) -> how the listener knows the subject ("someone" when they don't).
+function L.Rumours(Heard, Listener, NameOf)
+	local Out, Seen = {}, {}
+	for _, H in ipairs(Heard or {}) do
+		local Subject = H.Subject
+		local Who = typeof(Subject) == "Instance" and Subject:IsA("Player") and Subject.UserId or tostring(Subject)
+		local Key = tostring(Who) .. "|" .. tostring(H.Text)
+		if H.Text and not Seen[Key] then
+			Seen[Key] = true
+			local Mine = Subject ~= nil and Subject == Listener
+			local Name = (not Mine and NameOf and NameOf(Subject)) or "someone"
+			table.insert(Out, {Key = Key, Text = L.RumourLine(Name, H.Text, Mine)})
+		end
+	end
+	return Out
+end
+
+-- How long a line stays over their head (seconds). PROPOSAL.
+function L.SpeechSeconds(Text) return 3 + 0.05 * #tostring(Text or "") end
+
+-- Ambient chatter (PROPOSAL lines): Pass (a player first comes near), Shift (the schedule moves them on), Flee (a
+-- fight nearby: running for shelter), Return (calm again, back to the day).
+L.Chatter = {
+	Pass = {"Mind how you go.", "Keep well.", "Don't see many new faces round here.", "Busy day, this.", "Watch your pockets in a crowd."},
+	Shift = {"Right, that's me done here.", "Time I moved on.", "Off I go, then.", "Where does the day go?"},
+	Flee = {"Fighting! Get inside!", "Not again - run!", "Someone fetch the Authority!", "Get away from here!"},
+	Return = {"Is it over?", "Seems quiet now.", "Back to it, I suppose.", "That was too close."},
+}
+function L.Chat(Kind, Rng)
+	local List = L.Chatter[Kind]
+	if not List or #List == 0 then return nil end
+	return List[Rng and Rng:NextInteger(1, #List) or math.random(#List)]
 end
 
 return L
