@@ -212,8 +212,13 @@ L.Chatter = {
 
 -- Task 6b: where a hurt townsperson runs. Shelters = {{Id = PostId, Pos = Vector3}, ...}; of the N (default 3)
 -- nearest At, the one farthest from From (the attacker). Ties go to the lower Id. nil when there are none.
-function L.AwayShelter(Shelters, At, From, N)
-	local List = table.clone(Shelters or {})
+-- MaxDist (optional; Lindenmoor import Task 8 fix round 3): only shelters within this many studs of At count (nil when
+-- none is: the caller curls up where it stands).
+function L.AwayShelter(Shelters, At, From, N, MaxDist)
+	local List = {}
+	for _, S in ipairs(Shelters or {}) do
+		if not MaxDist or (S.Pos - At).Magnitude <= MaxDist then table.insert(List, S) end
+	end
 	table.sort(List, function(A, B)
 		local DA, DB = (A.Pos - At).Magnitude, (B.Pos - At).Magnitude
 		if DA ~= DB then return DA < DB end

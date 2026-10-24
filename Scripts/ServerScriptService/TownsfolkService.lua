@@ -101,6 +101,8 @@ TownsfolkService.MaxHealth = 100
 TownsfolkService.HelpRadius = 30 -- a player hits a townsperson: everyone else this close runs too...
 TownsfolkService.HelpChance = 0.5 -- ...and this share of them shouts a Help line
 TownsfolkService.ShelterChoices = 3 -- a hurt townsperson runs to the shelter farthest from the attacker of this many nearest
+TownsfolkService.ShelterRadius = 150 -- PROPOSAL (Lindenmoor import Task 8 fix round 3): only a shelter this close is run to,
+-- whether fleeing a fight or hurt; with none this close they curl up where they stand (no 800-stud sprint to the mill)
 TownsfolkService.HurtMax = 5 -- s: the longest a hurt townsperson waits for the hit's stun / pin to end before it runs
 TownsfolkService.KnockedSeconds = 30 -- knocked at 0 health; left alone this long, they get up...
 TownsfolkService.RecoverShare = 0.3 -- ...with this share of their health, and run for shelter
@@ -416,7 +418,8 @@ function TownsfolkService.Talk(Player, Id)
 end
 
 -- ===== fights (Task 6) =====
--- the nearest Shelter post nobody else is running to or hiding at (else the nearest one)
+-- the nearest Shelter post within ShelterRadius nobody else is running to or hiding at (else the nearest one within it;
+-- nil when none is)
 local function NearestShelter(F)
 	local Taken = {}
 	for _, O in pairs(Folk) do
@@ -426,6 +429,7 @@ local function NearestShelter(F)
 	for Id, P in pairs(Posts) do
 		if P.Parent and P:GetAttribute("Kind") == "Shelter" then
 			local D = (P.Position - F.Root.Position).Magnitude
+			if D > TownsfolkService.ShelterRadius then continue end
 			if not Any or D < AnyD then Any, AnyD = Id, D end
 			if not Taken[Id] and (not Best or D < BestD) then Best, BestD = Id, D end
 		end
@@ -446,13 +450,13 @@ local function Cower(F)
 end
 
 -- (Task 6b) the shelter a townsperson runs to from an attacker at From: the farthest from it of the ShelterChoices
--- nearest (TownsfolkLogic.AwayShelter)
+-- nearest within ShelterRadius (TownsfolkLogic.AwayShelter)
 local function AwayShelter(F, From)
 	local List = {}
 	for Id, P in pairs(Posts) do
 		if P.Parent and P:GetAttribute("Kind") == "Shelter" then table.insert(List, {Id = Id, Pos = P.Position}) end
 	end
-	return TownsfolkLogic.AwayShelter(List, F.Root.Position, From, TownsfolkService.ShelterChoices)
+	return TownsfolkLogic.AwayShelter(List, F.Root.Position, From, TownsfolkService.ShelterChoices, TownsfolkService.ShelterRadius)
 end
 
 -- runs for shelter: away from From (an attacker's position, Task 6b) when given, else to the nearest free one.

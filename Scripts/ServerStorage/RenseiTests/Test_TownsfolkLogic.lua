@@ -125,6 +125,10 @@ return {
 		T.Eq(L.AwayShelter(List, Vector3.new(40, 0, 0), Vector3.new(36, 0, 0)), "behind", "the farthest of the 3 nearest")
 		T.Eq(L.AwayShelter(List, Vector3.new(40, 0, 0), Vector3.new(36, 0, 0), 2), "far", "of the 2 nearest")
 		T.Eq(L.AwayShelter({S("b", 10), S("a", -10)}, Vector3.zero, Vector3.new(0, 0, 5)), "a", "a tie: the lower id")
+		-- Lindenmoor import Task 8 fix round 3: only shelters within MaxDist count
+		T.Eq(L.AwayShelter(List, Vector3.new(40, 0, 0), Vector3.new(36, 0, 0), 3, 100), "behind", "beyond (260) is out of reach anyway")
+		T.Eq(L.AwayShelter(List, Vector3.new(40, 0, 0), Vector3.new(36, 0, 0), 3, 50), "far", "behind (80) out of reach: far")
+		T.Eq(L.AwayShelter(List, Vector3.new(40, 0, 0), Vector3.new(36, 0, 0), 3, 20), nil, "none in reach")
 		T.Eq(L.AwayShelter({}, Vector3.zero, Vector3.zero), nil, "no shelters")
 		T.Eq(L.AwayShelter(nil, Vector3.zero, Vector3.zero), nil)
 	end,

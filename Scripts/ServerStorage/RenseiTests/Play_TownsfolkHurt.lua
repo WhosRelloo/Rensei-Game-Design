@@ -437,6 +437,27 @@ return {
 		end)
 	end,
 
+	-- Lindenmoor import Task 8 fix round 3: the only shelter is out of reach (ShelterRadius): a hurt townsperson curls up
+	-- where it stands instead of sprinting to it (the region's own shelters are farther still from the village square)
+	HurtNoShelterInReachCowers = function(T)
+		Fixture(T, function(X)
+			X.Post("ShelterOut", 40 + TS.ShelterRadius + 40, "Shelter")
+			local V, Rig = X.Folk("V", 40)
+			X.Stand(36)
+			task.wait(0.2)
+			local At = Rig.HumanoidRootPart.Position
+			T.Eq(X.Swing()[Rig], "Hit", "the swing lands")
+			T.Eq(TS.State(V.Id), "Hurt", "hurt")
+			local Done = WaitFor(TS.HurtMax + 1, function() return TS.State(V.Id) ~= "Hurt" end)
+			T.True(Done, "not left in Hurt")
+			T.Eq(TS.State(V.Id), "Sheltering", "curled up")
+			T.Eq(TS.ShelterOf(V.Id), nil, "no shelter run to")
+			T.Eq(Rig:GetAttribute("IdleAnim"), "NPC_CurledUp")
+			local Moved = (Rig.HumanoidRootPart.Position - At) * Vector3.new(1, 0, 1)
+			T.True(Moved.Magnitude < 4, ("where it stands (moved %.1f studs)"):format(Moved.Magnitude))
+		end)
+	end,
+
 	-- one melee sweep through a townsperson and an enemy side by side damages both, with no errors
 	SweepStillHitsEnemies = function(T)
 		Fixture(T, function(X)
