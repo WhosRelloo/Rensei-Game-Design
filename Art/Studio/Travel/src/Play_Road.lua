@@ -8,6 +8,10 @@
 -- same passage (the same legs, turned a quarter and moved), so the fixed spots below are written in Lindenmoor's frame
 -- and mapped onto this place's road through its mouth (Map; the identity in Ye), and the place's own names come from
 -- TravelService.Here() and the threshold's To.
+-- Lindenmoor import Task 7 (2026-10-24): Ye's North Road is now the expansion's north-east road (two straight legs from
+-- (686, 661), built by setup.lua), no longer the same shape as Foundry's. The Lindenmoor frame is gone: every fixed spot
+-- is read from the built road itself (its RoadPoint attachments by S, its leg boxes, encounters and threshold), so the
+-- suite follows any road setup builds and can't drift from it again.
 local SSS = game.ServerScriptService
 local CS = game:GetService("CollectionService")
 local ROUTE = "RoadLindenmoorFoundry"
@@ -42,30 +46,20 @@ local function RoadPoints()
 	return Out
 end
 
--- Task 11: Lindenmoor's frame -> this place. Lindenmoor's mouth (the first RoadPoint, measured) is at (8, 1, -270), the
--- road leaving along +X; here the first RoadPoint gives the mouth and the way out (U), with V = U turned as +Z is from +X.
-local L_MOUTH = Vector3.new(8, 1, -270)
-local FrameO, FrameU, FrameV
-local function Frame()
-	if not FrameO then
-		local First = RoadPoints()[1][2]
-		FrameO, FrameU = First.Position, (First.LookVector * Vector3.new(1, 0, 1)).Unit
-		FrameV = Vector3.new(-FrameU.Z, 0, FrameU.X)
+-- Task 7: the spots come from the road. The RoadPoint nearest S studs from the mouth (its CFrame faces the way out).
+local function Pt(S)
+	local Best, BD = nil, math.huge
+	for _, Pt in ipairs(RoadPoints()) do
+		if math.abs(Pt[1] - S) < BD then Best, BD = Pt[2], math.abs(Pt[1] - S) end
 	end
-	return FrameO, FrameU, FrameV
+	return Best
 end
-local function MapDir(D) -- a Lindenmoor direction, here
-	local _, U, V = Frame()
-	return U * D.X + Vector3.yAxis * D.Y + V * D.Z
-end
-local function Map(P) -- a Lindenmoor position, here
-	local O = Frame()
-	return O + MapDir(P - L_MOUTH)
-end
-local function Unmap(P) -- a position here, in Lindenmoor's frame
-	local O, U, V = Frame()
-	local D = P - O
-	return L_MOUTH + Vector3.new(D:Dot(U), D.Y, D:Dot(V))
+local function RoadY() return RoadPoints()[1][2].Position.Y end
+local function Level(V) return Vector3.new(V.X, 0, V.Z).Unit end
+-- the mouth (the first RoadPoint) and the way out there
+local function Mouth()
+	local F = RoadPoints()[1][2]
+	return F.Position, Level(F.LookVector)
 end
 
 -- a living character to test with
@@ -117,12 +111,6 @@ local function ThresholdS(Th)
 	return Best
 end
 
--- park P off the passage, on the hub road beside its mouth
-local function OffRoad(P)
-	Stand(P, Map(Vector3.new(-1, 0.1, -262)), MapDir(Vector3.new(0, 0, 1)))
-	task.wait(0.3)
-end
-
 -- the passage's leg boxes by Leg, and its last leg
 local function Legs()
 	local Out, N = {}, 0
@@ -153,27 +141,66 @@ local function FirstS(L)
 	end
 	return Best
 end
--- the ground at (X, Z): the first solid, collidable, visible surface down from above the banks and trees
+-- the ground at (X, Z): the first solid, collidable, visible surface down from above the banks and trees (Task 7:
+-- heights from the road's own level, not fixed)
 local function Ground(X, Z, C)
 	local Params = RaycastParams.new()
 	Params.FilterType = Enum.RaycastFilterType.Exclude
 	local Skip = {C}
+	for _, Pl in ipairs(game.Players:GetPlayers()) do if Pl.Character then table.insert(Skip, Pl.Character) end end
+	local Y = RoadY()
 	for _ = 1, 16 do
 		Params.FilterDescendantsInstances = Skip
-		local Hit = workspace:Raycast(Vector3.new(X, 90, Z), Vector3.new(0, -180, 0), Params)
+		local Hit = workspace:Raycast(Vector3.new(X, Y + 90, Z), Vector3.new(0, -180, 0), Params)
 		if not Hit then break end
 		local I = Hit.Instance
-		if I.CanCollide and I.CanTouch and I.Transparency < 1 and Hit.Position.Y < 20 then return Hit.Position end -- (not a canopy)
+		if I.CanCollide and I.CanTouch and I.Transparency < 1 and Hit.Position.Y < Y + 19 then return Hit.Position end -- (not a canopy)
 		table.insert(Skip, I)
 	end
-	return Vector3.new(X, 4, Z)
-end
--- Task 11: the ground at Lindenmoor-frame (X, Z), here
-local function GroundL(X, Z, C)
-	local W = Map(Vector3.new(X, 1, Z))
-	return Ground(W.X, W.Z, C)
+	return Vector3.new(X, Y, Z)
 end
 local function Flat(V) return Vector3.new(V.X, 0, V.Z).Magnitude end
+
+-- Task 7: the spot behind the mouth, 6 studs past the end of every leg box (off the passage), on the ground there;
+-- Beyond = further back still (e.g. out of an encounter's ClearRadius)
+local function OffSpot(Beyond)
+	local RS = require(SSS.RoadService)
+	local M, U = Mouth()
+	local K = 2
+	while K < 200 and RS.PassageAt(M - U * K + Vector3.new(0, 3, 0)) ~= nil do K += 2 end
+	local Q = M - U * (K + 6 + (Beyond or 0))
+	return Ground(Q.X, Q.Z)
+end
+-- park P off the passage, on the ground behind its mouth
+local function OffRoad(P)
+	local _, U = Mouth()
+	Stand(P, OffSpot(), U)
+	task.wait(0.3)
+end
+-- Task 7: the nearest spot off every passage from Pos (searched round it in 2-stud rings, 10 degrees apart), and how
+-- far it is
+local function NearestOff(Pos)
+	local RS = require(SSS.RoadService)
+	for D = 2, 120, 2 do
+		for A = 0, 350, 10 do
+			local Q = Pos + Vector3.new(math.cos(math.rad(A)) * D, 0, math.sin(math.rad(A)) * D)
+			if RS.PassageAt(Q + Vector3.new(0, 3, 0)) == nil then return Q, D end
+		end
+	end
+	return nil, math.huge
+end
+-- the leg of the RoadPoint nearest S (the leg box it hangs under)
+local function LegOfS(S)
+	local Best, BD = nil, math.huge
+	for _, P in ipairs(CS:GetTagged("RenseiRoadPassage")) do
+		if P:IsDescendantOf(workspace) and P:GetAttribute("Route") == ROUTE then
+			for _, A in ipairs(P:GetChildren()) do
+				if A.Name == "RoadPoint" and math.abs(A:GetAttribute("S") - S) < BD then Best, BD = P:GetAttribute("Leg"), math.abs(A:GetAttribute("S") - S) end
+			end
+		end
+	end
+	return Best
+end
 
 local function Rig(Name, Pos)
 	local D = Instance.new("HumanoidDescription")
@@ -356,9 +383,17 @@ return {
 		local Old = PartyService.Get
 		local Made, Fakes = {}, {}
 		local Ok, Err = pcall(function()
-			local Mid = Encounter(1)
-			local Road = RoadUnder(Mid, 12)
-			local Dir = Mid.CFrame.LookVector
+			-- Task 7: on the road where a spot off the passage is nearest (the leg boxes are axis-aligned, so beside a
+			-- slanting leg the passage reaches well past the road), between 24 studs in and 70 before the threshold
+			local ThS = ThresholdS(Tagged("RenseiRoadThreshold"))
+			local Road, Dir, OffAt, OffD = nil, nil, nil, math.huge
+			for _, Pt in ipairs(RoadPoints()) do
+				if Pt[1] >= 24 and Pt[1] <= ThS - 70 then
+					local Q, D = NearestOff(Pt[2].Position)
+					if D < OffD then Road, Dir, OffAt, OffD = Pt[2].Position, Level(Pt[2].LookVector), Q, D end
+				end
+			end
+			T.True(OffD < RS.GatherRadius - 2, ("a spot off the passage within reach (%.0f studs)"):format(OffD))
 			Stand(P, Road, Dir)
 			task.wait(0.3)
 			-- fix round 2: a member must also have walked to the last legs (LastLeg - 1 or on); the stand-ins' walks are
@@ -376,7 +411,7 @@ return {
 			local Far = Member("Far", Road + Dir * 60, true)
 			local Down = Member("Down", Road - Dir * 15, true)
 			Down.Character:SetAttribute("Knocked", true)
-			local Off = Member("OffRoad", Road + MapDir(Vector3.new(0, 0, -30)), true) -- 30 away, in the fields south of the passage
+			local Off = Member("OffRoad", OffAt, true) -- near, just off the passage (beside its boxes)
 			local Dropped = Member("Teleported", Road - Dir * 20, false) -- on the passage and near, but not walking it
 			local LegBack = Member("OneLegBack", Road + Dir * 10, true, Last - 1) -- a leg behind, near: goes
 			local Lagging = Member("Lagging", Road - Dir * 8, true, Last - 2) -- near by distance, but two legs back
@@ -448,7 +483,11 @@ return {
 			T.True(RS.Force == true, "no second roll this crossing")
 			RS.Force = nil
 			-- nobody near for ClearAfter: they go (removed, no reward)
-			Stand(P, Map(Vector3.new(-1, 0.1, -150)), MapDir(Vector3.new(0, 0, 1))) -- 100+ studs away up the hub road
+			-- Task 7: off the road behind its mouth, ClearRadius + 60 or more from the encounter
+			local Away, B = OffSpot(), 0
+			while Flat(Away - E.Position) < RS.ClearRadius + 60 and B < 200 do B += 10 Away = OffSpot(B) end
+			Stand(P, Away, -Dir)
+			T.True(Flat(Away - E.Position) >= RS.ClearRadius + 60, ("waiting %.0f studs away"):format(Flat(Away - E.Position)))
 			t0 = os.clock()
 			local Gone = false
 			while not Gone and os.clock() - t0 < 5 do
@@ -545,44 +584,72 @@ return {
 			return Was
 		end
 		local Ok, Err = pcall(function()
+			-- Task 7: the overlap of leg boxes 1 and 2 at the first bend (the boxes are axis-aligned in the world), and spots
+			-- round it: 6 studs outside each of its corners and edge middles (Out) and 6 inside (In), on ground near the road's
+			-- level (not up a hill or down a gorge)
 			local B = Legs()
-			local function Box(L) -- leg L's (axis-aligned) box in Lindenmoor's frame: centre, size (Task 11)
-				local _, U, V = Frame()
-				local S = B[L].Size
-				return Unmap(B[L].Position), Vector3.new(math.abs(U.X) * S.X + math.abs(U.Z) * S.Z, S.Y, math.abs(V.X) * S.X + math.abs(V.Z) * S.Z)
+			local Lo1, Hi1 = B[1].Position - B[1].Size / 2, B[1].Position + B[1].Size / 2
+			local Lo2, Hi2 = B[2].Position - B[2].Size / 2, B[2].Position + B[2].Size / 2
+			local OLo = Vector3.new(math.max(Lo1.X, Lo2.X), 0, math.max(Lo1.Z, Lo2.Z))
+			local OHi = Vector3.new(math.min(Hi1.X, Hi2.X), 0, math.min(Hi1.Z, Hi2.Z))
+			T.True(OHi.X - OLo.X > 12 and OHi.Z - OLo.Z > 12, "legs 1 and 2 overlap at the bend")
+			local Mid = (OLo + OHi) / 2
+			local function Set(Pos) -- the legs Pos (a spot on the ground) is in, as a set
+				local Out = {}
+				for L in (LegsAt(Pos + Vector3.new(0, 3, 0)) .. "+"):gmatch("(%d+)%+") do Out[tonumber(L)] = true end
+				return Out
 			end
-			local Lo = function(L) local Ce, S = Box(L) return Ce - S / 2 end
-			local Hi = function(L) local Ce, S = Box(L) return Ce + S / 2 end
-			-- 1. the inner corner of the bend, where boxes 1, 2 and 3 meet: hop down into it off the bank above
-			local CX = (math.max(Lo(1).X, Lo(2).X, Lo(3).X) + math.min(Hi(1).X, Hi(2).X, Hi(3).X)) / 2
-			local CZ = (math.max(Lo(1).Z, Lo(2).Z, Lo(3).Z) + math.min(Hi(1).Z, Hi(2).Z, Hi(3).Z)) / 2
-			OffRoad(P)
-			Stand(P, GroundL(CX + 12, CZ + 12, C), MapDir(Vector3.new(-1, 0, -1))) -- up beside it, in box 2 or 3 but not 1
-			task.wait(0.5)
-			T.True(not LegsAt(Root()):find("1"), "up on the bank: off leg 1 (" .. LegsAt(Root()) .. ")")
-			T.True(RS.Walking(P, ROUTE) == nil, "and not walking")
-			Stand(P, GroundL(CX, CZ, C), MapDir(Vector3.new(-1, 0, -1)))
-			task.wait(0.6)
-			T.Eq(LegsAt(Root()), "1+2+3", "down in the corner, in legs 1, 2 and 3")
-			T.True(RS.Walking(P, ROUTE) == nil, "no walk starts there (was leg " .. tostring(RS.Walking(P, ROUTE)) .. ")")
-			local Was = OnAndIn(FirstS(3))
-			T.True(Was, "walked on into the threshold")
-			T.True(not RS.OnRoad(P) and not Got, "from the corner: no crossing")
-			T.True(RS.Walking(P, ROUTE) == nil, "and still no walk")
-			-- 2. legs 1 and 2 overlap before the bend: walk into it from the fields
-			local FX = (math.max(Lo(1).X, Lo(2).X) + Lo(3).X) / 2
-			local FZ = math.max(Lo(1).Z, Lo(2).Z) + 8
-			OffRoad(P)
-			Stand(P, GroundL(FX, FZ - 10, C), MapDir(Vector3.new(0, 0, 1))) -- in the fields, just off the passage
-			task.wait(0.5)
-			T.Eq(LegsAt(Root()), "", "in the fields: off the passage")
-			Stand(P, GroundL(FX, FZ, C), MapDir(Vector3.new(0, 0, 1)))
-			task.wait(0.6)
-			T.Eq(LegsAt(Root()), "1+2", "in legs 1 and 2")
-			T.True(RS.Walking(P, ROUTE) == nil, "no walk starts there (was leg " .. tostring(RS.Walking(P, ROUTE)) .. ")")
-			Was = OnAndIn(FirstS(2))
-			T.True(Was, "walked on into the threshold")
-			T.True(not RS.OnRoad(P) and not Got, "from the fields: no crossing")
+			local Cands = {}
+			for _, SX in ipairs({-1, 0, 1}) do
+				for _, SZ in ipairs({-1, 0, 1}) do
+					if SX ~= 0 or SZ ~= 0 then
+						local EX = SX == 0 and Mid.X or (SX < 0 and OLo.X or OHi.X)
+						local EZ = SZ == 0 and Mid.Z or (SZ < 0 and OLo.Z or OHi.Z)
+						local Out, In = Ground(EX + SX * 6, EZ + SZ * 6, C), Ground(EX - SX * 6, EZ - SZ * 6, C)
+						if math.abs(Out.Y - RoadY()) < 8 and math.abs(In.Y - RoadY()) < 8 then
+							table.insert(Cands, {Out = Out, In = In, Dir = Vector3.new(-SX, 0, -SZ).Unit, OutL = Set(Out), InL = Set(In)})
+						end
+					end
+				end
+			end
+			local function Pick(Want) for _, K in ipairs(Cands) do if Want(K) then return K end end return nil end
+			local function Top(Set) local N = 0 for L in pairs(Set) do N = math.max(N, L) end return N end
+			-- 1. into the bend from beside it (in a later leg's box but not leg 1's): no walk starts there
+			local K = Pick(function(K) return not K.OutL[1] and next(K.OutL) ~= nil and K.InL[1] and K.InL[2] end)
+			T.True(K ~= nil, "a spot beside the bend, off leg 1")
+			if K then
+				OffRoad(P)
+				Stand(P, K.Out, K.Dir) -- beside it, in leg 2 (or later) but not 1
+				task.wait(0.5)
+				T.True(not Set(Root() - Vector3.new(0, 3, 0))[1], "beside the bend: off leg 1 (" .. LegsAt(Root()) .. ")")
+				T.True(RS.Walking(P, ROUTE) == nil, "and not walking")
+				Stand(P, K.In, K.Dir)
+				task.wait(0.6)
+				local Here = Set(Root() - Vector3.new(0, 3, 0))
+				T.True(Here[1] and Here[2], "in the bend, in legs 1 and 2 (" .. LegsAt(Root()) .. ")")
+				T.True(RS.Walking(P, ROUTE) == nil, "no walk starts there (was leg " .. tostring(RS.Walking(P, ROUTE)) .. ")")
+				local Was = OnAndIn(FirstS(Top(K.InL)))
+				T.True(Was, "walked on into the threshold")
+				T.True(not RS.OnRoad(P) and not Got, "from beside the bend: no crossing")
+				T.True(RS.Walking(P, ROUTE) == nil, "and still no walk")
+			end
+			-- 2. into the bend from the fields (off every passage)
+			K = Pick(function(K) return next(K.OutL) == nil and K.InL[1] and K.InL[2] end)
+			T.True(K ~= nil, "a spot in the fields beside the bend")
+			if K then
+				OffRoad(P)
+				Stand(P, K.Out, K.Dir) -- in the fields, just off the passage
+				task.wait(0.5)
+				T.Eq(LegsAt(Root()), "", "in the fields: off the passage")
+				Stand(P, K.In, K.Dir)
+				task.wait(0.6)
+				local Here = Set(Root() - Vector3.new(0, 3, 0))
+				T.True(Here[1] and Here[2], "in legs 1 and 2 (" .. LegsAt(Root()) .. ")")
+				T.True(RS.Walking(P, ROUTE) == nil, "no walk starts there (was leg " .. tostring(RS.Walking(P, ROUTE)) .. ")")
+				local Was = OnAndIn(FirstS(Top(K.InL)))
+				T.True(Was, "walked on into the threshold")
+				T.True(not RS.OnRoad(P) and not Got, "from the fields: no crossing")
+			end
 			-- 3. a walk from the mouth: the legs in order, one at a time, then it crosses
 			OffRoad(P)
 			local Seen = {}
@@ -597,9 +664,10 @@ return {
 			task.wait(0.3)
 			local L = RS.Walking(P, ROUTE)
 			if L and L ~= Seen[#Seen] then table.insert(Seen, L) end
-			local Steps = true -- 1, 2, 3 ... with none skipped (the threshold's edge is in legs 4 and 5)
+			local Steps = true -- 1, 2, 3 ... with none skipped, up to the leg of the threshold's edge (Task 7: read, not fixed)
 			for I, L in ipairs(Seen) do if L ~= I then Steps = false end end
-			T.True(Steps and #Seen >= 4, "from the mouth: the legs one by one (" .. table.concat(Seen, ",") .. ")")
+			local Want = LegOfS(ThS - 16)
+			T.True(Steps and #Seen >= Want, "from the mouth: the legs one by one (" .. table.concat(Seen, ",") .. "; to leg " .. tostring(Want) .. ")")
 			task.wait(0.7)
 			C.Humanoid:MoveTo(RoadUnder(Th, 13) + Th.CFrame.LookVector * (Th.Size.Z / 2 + 2))
 			local t0 = os.clock()
@@ -734,13 +802,16 @@ return {
 		local Conn = TS.Arrived.Event:Connect(function(Who) if Who == P then Got = true end end)
 		local Ok, Err = pcall(function()
 			OffRoad(P)
-			Stand(P, Map(Vector3.new(30, 1, -270)), MapDir(Vector3.new(1, 0, 0))) -- on the passage, 22 in from its mouth
+			local In = Pt(22) -- on the passage, about 22 in from its mouth (Task 7: its RoadPoint)
+			Stand(P, In.Position, In.LookVector)
 			task.wait(1)
 			T.Eq(RS.PassageAt(C.HumanoidRootPart.Position), ROUTE, "on the passage")
 			T.Eq(RS.Walking(P, ROUTE), 1, "walking it")
-			C.Humanoid:MoveTo(Map(Vector3.new(-2, 0.1, -268))) -- back out onto the hub road
+			local Out = OffSpot() -- back out, off the passage behind its mouth
+			C.Humanoid:MoveTo(Out)
 			local t0 = os.clock()
-			while RS.PassageAt(C.HumanoidRootPart.Position) and os.clock() - t0 < 5 do task.wait(0.1) end
+			local Limit = Flat(Out - C.HumanoidRootPart.Position) / C.Humanoid.WalkSpeed + 4
+			while RS.PassageAt(C.HumanoidRootPart.Position) and os.clock() - t0 < Limit do task.wait(0.1) end
 			T.True(RS.PassageAt(C.HumanoidRootPart.Position) == nil, "walked back off it")
 			task.wait(1)
 			T.True(not RS.OnRoad(P) and not Got, "nothing happened")
