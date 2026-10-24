@@ -12,6 +12,7 @@ Every number here is a **PROPOSAL** unless it is quoted from the brief or the ow
 - **Enemies:** "A few in the underworks". There are four Grunt spawns in the underworks tunnel and none in the town above.
 - **The east (after the first renders):** "Fill the empty east first, and remember to place things for the movement and combat we currently have in game". See "Movement and combat" below.
 - **Renders:** approved ("Approved", 2026-10-24) for a later Studio import.
+- **The import:** "Keep the Foundry import as it is; I'll save the place in Studio." (owner, 2026-10-24, after the real swap). The owner saves the place.
 
 ## Frame
 

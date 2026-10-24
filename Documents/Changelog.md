@@ -28,6 +28,8 @@ On the owner's request ("Import Foundry Yard into the Foundry Yard place"), the 
 - **Known failures:** Travel 5/7 and RideEvents 8/9, only the known Cabin/Second ticket in the owner's save.
 - **Test fixes:** `Play_Station` and `Play_Road` (`Art/Studio/Travel/src`) now read a setup-built station and a shorter first road leg. Nothing changes in Ye.
 
+**Owner:** "Keep the Foundry import as it is; I'll save the place in Studio."
+
 **Next:**
 - the owner saves the place;
 - Brannoc and the forge rooms move from Ye (that touches Ye);
