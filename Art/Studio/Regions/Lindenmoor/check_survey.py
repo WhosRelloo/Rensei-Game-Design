@@ -92,7 +92,6 @@ def main(path):
                     else:
                         info(f"village area {a['AreaName']} (vol {va:.0f}) overlaps new area {nname} (vol {vb:.0f}); "
                              f"smallest wins: {a['AreaName'] if va < vb else nname}")
-                        PASS += 1
 
     # 6. pad fit
     pads = {l["Id"]: l for l in L["Landmarks"] if "reserve" in l["Kind"]}
@@ -115,7 +114,8 @@ def main(path):
 
     # 7. arrivals
     rs = [a for a in S["Arrivals"] if a["Point"] == "RoadStart"]
-    check(len(rs) == 1 and "World.Map.Lindenmoor.NorthRoad" in rs[0]["Path"], f"RoadStart arrivals {rs}")
+    under = lambda p: p.split("Workspace.", 1)[-1].startswith("World.Map.Lindenmoor.NorthRoad.")
+    check(len(rs) == 1 and under(rs[0]["Path"]), f"RoadStart arrivals {rs}")
     pf = [a for a in S["Arrivals"] if a["Point"] == "Platform"]
     check(len(pf) == 1, f"Platform arrivals {len(pf)} != 1: {pf}")
 
