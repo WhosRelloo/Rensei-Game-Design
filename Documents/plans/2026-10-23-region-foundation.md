@@ -731,7 +731,7 @@ Roblox's `PathfindingService` plans only around static geometry. It knows nothin
   "Routes": [
     {"Id": "main", "Kind": "public", "Width": 12, "Line": [[-120, 0], [120, 0]]},
     {"Id": "alley", "Kind": "quiet", "Width": 6, "Line": [[-75, -40], [-75, 0]]},
-    {"Id": "climb", "Kind": "public", "Width": 8, "Line": [[-40, -40], [-20, -20]]}
+    {"Id": "climb", "Kind": "public", "Width": 8, "Line": [[-40, -40], [-4, -4]]}
   ],
   "Landmarks": [{"Id": "court", "Kind": "railtown.practice_court", "At": [0, 40], "Yaw": 0}],
   "Markers": [
