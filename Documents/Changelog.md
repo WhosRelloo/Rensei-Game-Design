@@ -4,6 +4,22 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-24 — Region Foundation final fix pass: ready for the Lindenmoor import into Ye
+
+The final whole-branch review found five things that would have gone wrong in the Ye import. They are fixed in the tools and the docs; no game script and nothing in Ye changed.
+- **The road's position (docs).** `setup.lua`'s `ORIGIN` for Lindenmoor is `(0, 0, 0)`, not `(0, 4, -650)`: Lindenmoor's marker attributes are in world studs. Water is the opposite case: its boxes must be village-local. Both docs now say when `ORIGIN` is non-zero, and `bundle_setup.py` sets it without editing `setup.lua`.
+- **Trainer spots.** `setup.lua` and the schema skip the five `TrainerSpot` markers (listed in the summary); other unknown pieces are still refused.
+- **Invisible walls.** Region marker parts (the huge area boxes, posts, clues) no longer collide, and can't be queried or touched, so they no longer block climbs, NPC sight or projectiles. Only `RenseiLedge` (query) and `RenseiStationGate` (touch) keep one, because their services need it.
+- **Walk-through decoration.** The walk-through lists are per region; Lindenmoor's import keeps the village's own (verge stones, crops, tufts, vines, lanterns).
+- **The dry run** now checks the keep list like the real run and lists exactly which map children would be moved and kept.
+- **Also:** `finish.lua` and `restore.lua` record their swap for Studio's Undo; a "Rolling back" section and the hub-pieces rule in the Lindenmoor checklist; the stale "Importing later" steps rewritten; direction words made consistent (+Z is north in Ye); the two old station scripts marked historical.
+- **New smoke test (Foundry only):** `Art/Studio/Regions/smoke.py` imports the Testbed into Foundry Yard for real, plays it (`Play_RegionSmoke` 6/6: areas, rays across area faces, climbs refused on edges and area faces, a lamp on the clock, the clue prompt), builds a road with `setup.lua`, restores, and checks Foundry is exactly as before (it was).
+- **Tests:** `region_builder/tests/run.py` 216/216; `test_kit.py` 72/72; Lindenmoor's and the train's kit outputs unchanged; the contract test on live Foundry 93/93.
+
+### Discord announcement
+
+Hold: not live yet.
+
 ## 2026-10-24 — Region Foundation complete (Task 13): what it built, and the final test run
 
 The Region Foundation is done: the shared pieces every new region map needs, built and reviewed task by task from 2026-10-23 to 2026-10-24 (Tasks 1–12; each has its own entry below). Next, in the order you set: the **Lindenmoor expansion import into Ye**, then the **Foundry Yard plan**, then the **gun and swimming reworks**. Every number in the work is a **PROPOSAL** unless you chose it.
