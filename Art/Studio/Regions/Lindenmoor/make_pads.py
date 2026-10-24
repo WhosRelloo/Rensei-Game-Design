@@ -58,7 +58,8 @@ LIFT_CLEAR = 0.05  # a lifted item's lowest point ends this far above the planne
 # pads.json "Inputs" (Ruling 18): bundle_prep.py refuses to bundle if any of these changed since make_pads.py ran
 INPUTS = ["Art/Studio/Regions/Lindenmoor/ye_survey.json", "Art/Studio/Regions/Lindenmoor/lift_items.json",
           "Art/Regions/Lindenmoor/layout.json", "Art/Blender/lindenmoor/expansion_plan.py",
-          "Art/Studio/Regions/Lindenmoor/pad_layout.py", "Art/Studio/Regions/Lindenmoor/make_pads.py"]
+          "Art/Studio/Regions/Lindenmoor/pad_layout.py", "Art/Studio/Regions/Lindenmoor/make_pads.py",
+          "Art/Blender/lindenmoor/terrain_studio.json"]  # the village heights behind plan()'s keep mask and seam
 
 
 def file_hash(rel):
