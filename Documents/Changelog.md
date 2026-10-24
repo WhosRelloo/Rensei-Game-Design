@@ -4,6 +4,29 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-23 — Region Foundation Task 9: the builder makes ground, roads and markers in Blender
+
+The region builder now builds a region's ground in Blender from its region file, ready for the later export to Studio. **Nothing changed in Studio.** The test region (Testbed) builds to 455 parts against a 12,000-part budget. Code: `Art/Blender/region_builder/` (`materials.py`, `stages.py`, `build.py`). Renders: `Documents/images/Regions/Testbed/`. Every number and colour below is a **PROPOSAL**.
+
+- **Ground:** stepped ground in 1-stud steps, in 64 × 64-stud tiles, the same blocky style as Lindenmoor. Each tile has flat top slabs, side blocks down to the lowest neighbour (no gaps), and ramps where a road climbs gently.
+- **Roads:** main roads are paved with kerbs, and quiet lanes are cinder. Where a road climbs more than 4 studs in 8, it gets stairs: one stud per step, sitting exactly on the ground steps. Rail routes get rails.
+- **Markers:** townsfolk posts, clues, area names and the station and road pieces are invisible, non-colliding parts carrying the game's tags and settings. They travel to Studio in a new export column. Existing exports (Lindenmoor, the train) are byte-for-byte unchanged, and the Studio import kit now accepts a marker with no settings instead of failing.
+- **Colours and textures:**
+  - Each region gets its own materials from a rail-town palette (soot, iron, furnace brick, ember).
+  - A material can name a texture from the owner's texture pack; Studio uses that image, and Blender shows the flat colour.
+- **Water:** the builder records exactly the cells that are still under water, for Studio to fill with real water.
+- **Safety:**
+  - The builder starts from an empty Blender file and refuses to run over unsaved work.
+  - It saves only its own region file and never touches the Lindenmoor files.
+  - Saved region `.blend` files are now ignored by git.
+- **Budget:** a region over its part budget is flagged, and must not be exported.
+- **Renders:** an aerial and a street view per district and landmark.
+- **Tests:** the Blender check passes 44/44 and the core tests 70/70.
+
+### Discord announcement
+
+Hold: not live yet. This is behind-the-scenes map tooling; there's nothing for players to see until the first new region ships.
+
 ## 2026-10-23 — Region Foundation Task 8: the region file and the map-builder core
 
 The first piece of the tool that builds every region in Blender. Each region is now described by one file, `Art/Regions/<Region>/layout.json`, which gives:
