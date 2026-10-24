@@ -293,6 +293,45 @@ def test_travel_markers(schema, raw):
              "needs At")
     bad_case("an empty Route raises", 3, lambda mk: mk["Attr"].update(Route=""), "Attr.Route must be a non-empty string")
     bad_case("a RenseiMarker outside the footprint raises", 5, lambda mk: mk.update(At=[-26, 0, 300]), "outside the footprint")
+    # fix round 1: the road's distances, and one arrival / one station per Route
+    check("road_length matches Passage's sampled length (Foundry's South Road: 382)",
+          abs(schema.road_length(json.loads(TRAVEL_MARKERS[6]["Attr"]["Legs"])) - 381.94) < 0.01)
+    bad_case("RoadStart at the Threshold raises", 6, lambda mk: mk["Attr"].update(RoadStart=359), "Attr.RoadStart")
+    bad_case("a Threshold past the road's end raises", 6, lambda mk: mk["Attr"].update(Threshold=400), "the road's length")
+    bad_case("a negative RoadStart raises", 6, lambda mk: mk["Attr"].update(RoadStart=-1), "0 <= Attr.RoadStart")
+    bad_case("a non-bool RoadPassage Arrival raises", 6, lambda mk: mk["Attr"].update(Arrival="no"), "Attr.Arrival must be")
+
+    def with_second(change):
+        data = copy.deepcopy(raw)
+        data["Markers"] += copy.deepcopy(TRAVEL_MARKERS)
+        change(data["Markers"])
+        return data
+
+    def road2(ms, arrival):
+        mk = copy.deepcopy(TRAVEL_MARKERS[6])
+        mk["Attr"].update(Route="RoadTwo", Name="RoadTwo")
+        if arrival is not None:
+            mk["Attr"]["Arrival"] = arrival
+        ms.append(mk)
+
+    r, m, msgs = raises_schema(schema, with_second(lambda ms: road2(ms, None)), "RoadStart arrival")
+    check("two RoadPassages that both lay a RoadStart raise", r and m, msgs)
+    r, m, msgs = raises_schema(schema, with_second(lambda ms: road2(ms, False)), "RoadStart arrival")
+    check("a second RoadPassage with Arrival = false loads", not r, msgs)
+
+    def station2(ms, route, arrival):
+        mk = copy.deepcopy(TRAVEL_MARKERS[0])
+        mk["Attr"].update(Route=route, TrackX=60)
+        if arrival is not None:
+            mk["Attr"]["Arrival"] = arrival
+        ms.append(mk)
+
+    r, m, msgs = raises_schema(schema, with_second(lambda ms: station2(ms, "Other", None)), "Platform arrival")
+    check("two Stations that both lay a Platform arrival raise", r and m, msgs)
+    r, m, msgs = raises_schema(schema, with_second(lambda ms: station2(ms, "Other", False)), "Station")
+    check("a second Station (another Route) with Arrival = false loads", not r, msgs)
+    r, m, msgs = raises_schema(schema, with_second(lambda ms: station2(ms, "LindenmoorFoundry", False)), "two Station markers")
+    check("two Stations for one Route raise", r and m, msgs)
 
 
 # ------------------------------------------------------------------ heightfield

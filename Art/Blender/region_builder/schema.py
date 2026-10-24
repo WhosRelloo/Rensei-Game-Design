@@ -5,7 +5,7 @@ At is [x, y, z], where y = 0 means "on the ground" (the builder snaps it). A Rec
 
 load(path) returns the parsed dict, with optional fields filled in (box Edge 0, Yaw 0, Attr {}), or raises
 SchemaError(messages) listing every problem found. No bpy; standard library only."""
-import json, re
+import json, math, re
 
 HEIGHT_KINDS = ("plane", "box", "ridge", "cut", "water")
 ROUTE_KINDS = ("public", "quiet", "rail", "under", "ledge", "road")
@@ -61,7 +61,8 @@ TRAVEL_PIECES = {
 TRAVEL_OPTIONAL = {
     "Station": {"Arrival": "bool"},  # false: no Platform arrival (a second station; one Platform arrival per place)
     "Gate": {"Sign": "str"},
-    "RoadPassage": {"Name": "str", "FloorY": "num", "Cut": "num", "High": "num", "Gate": "num", "Fence": "json",
+    # Arrival false: no RoadStart arrival (a second road; one RoadStart arrival per place)
+    "RoadPassage": {"Arrival": "bool", "Name": "str", "FloorY": "num", "Cut": "num", "High": "num", "Gate": "num", "Fence": "json",
                     "Skip": "json", "Clip": "json"},
 }
 CLIP_KEYS = ("MinX", "MaxX", "MinZ", "MaxZ")
@@ -235,6 +236,50 @@ def _travel_marker(c, w, m, attr):
     for key in attr:
         if key != "Piece" and key not in need and key not in opt:
             c.err(w, f"unknown Attr.{key} (a {piece} takes {', '.join(list(need) + list(opt)) or 'none'})")
+    if piece == "RoadPassage" and _num(attr.get("RoadStart")) and _num(attr.get("Threshold"))             and isinstance(attr.get("Legs"), str):
+        try:
+            legs = json.loads(attr["Legs"])
+        except ValueError:
+            legs = None
+        if legs is not None and not _json_shape("Legs", legs):
+            length = road_length(legs)
+            if not (0 <= attr["RoadStart"] < attr["Threshold"] <= length):
+                c.err(w, f"needs 0 <= Attr.RoadStart ({attr['RoadStart']}) < Attr.Threshold ({attr['Threshold']}) <= the "
+                         f"road's length ({length:.1f})")
+
+
+def road_length(legs):
+    """The road's length as travel_pieces' Passage samples its centre line (lines exact, arcs as chords about 2 long);
+    setup.lua's roadLength is the same."""
+    pts = []
+    for li, g in enumerate(legs):
+        if g[0] == "line":
+            n = max(1, math.ceil(math.hypot(g[3] - g[1], g[4] - g[2]) / 2))
+            leg = [(g[1] + (g[3] - g[1]) * i / n, g[2] + (g[4] - g[2]) * i / n) for i in range(n + 1)]
+        else:
+            a1, a2 = math.radians(g[4]), math.radians(g[5])
+            n = max(1, math.ceil(abs(a2 - a1) * g[3] / 2))
+            leg = [(g[1] + g[3] * math.cos(a1 + (a2 - a1) * i / n), g[2] + g[3] * math.sin(a1 + (a2 - a1) * i / n))
+                   for i in range(n + 1)]
+        pts += leg[1:] if li > 0 else leg
+    return sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(pts, pts[1:]))
+
+
+def _travel_set(c, markers):
+    """One per place (TravelService.ArrivalPoint / StationService.TrainOf take the first match): at most one Station
+    and one RoadPassage that lay an arrival (Attr.Arrival not false), and one Station per Route. A kept map beside the
+    region (e.g. Lindenmoor's village) is checked by setup.lua in Studio, which sees the whole place."""
+    st = [m["Attr"] for m in markers if m.get("Tag") == "RenseiMarker" and isinstance(m.get("Attr"), dict)
+          and m["Attr"].get("Piece") == "Station"]
+    rd = [m["Attr"] for m in markers if m.get("Tag") == "RenseiMarker" and isinstance(m.get("Attr"), dict)
+          and m["Attr"].get("Piece") == "RoadPassage"]
+    if sum(1 for a in st if a.get("Arrival") is not False) > 1:
+        c.err("Markers", "more than one Station lays a Platform arrival: set Attr.Arrival = false on all but one")
+    if sum(1 for a in rd if a.get("Arrival") is not False) > 1:
+        c.err("Markers", "more than one RoadPassage lays a RoadStart arrival: set Attr.Arrival = false on all but one")
+    routes = [a.get("Route") for a in st if isinstance(a.get("Route"), str)]
+    for r in sorted({r for r in routes if routes.count(r) > 1}):
+        c.err("Markers", f"two Station markers for Route {r!r}")
 
 
 def validate(data):
@@ -384,6 +429,7 @@ def validate(data):
                 c.err(w, f"duplicate PostId {pid!r}")
             else:
                 posts.add(pid)
+    _travel_set(c, [m for m in data["Markers"] if isinstance(m, dict)] if isinstance(data.get("Markers"), list) else [])
     return c.errs
 
 
