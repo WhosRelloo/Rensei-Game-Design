@@ -4,6 +4,45 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-24 — Region Foundation Task 11: importing a region into any place, safely
+
+A region built in Blender can now be imported into any Studio place. The tool builds it in a staging folder, checks it, and swaps it in only when you confirm, with an undo and a restore. It was tested in Foundry Yard, which ended exactly as it started each time. **Ye was not touched.** Tools:
+- `Art/Studio/Regions/kit.py`;
+- the templates `finish_region.lua.tmpl`, `restore_region.lua.tmpl` and `unstrip_region.lua.tmpl`;
+- the shared `Art/Studio/Lindenmoor/studio_kit.py`.
+
+- **How an import works.**
+  1. `python -I Art/Studio/Regions/kit.py <Region>` writes chunk scripts and the files `expected.json`, `finish.lua`, `restore.lua` and `unstrip.lua`.
+  2. Running the chunks builds the region into `ServerStorage.RegionStaging`. Nothing is in the live map yet.
+  3. **A dry run** (`DryRun` set on the staging folder) compares the build against what's expected: part counts, every tag (townsfolk posts, clues, areas, ledges, `RenseiNoGrip` on the edges), materials and texture images. Then it removes everything it made and reports.
+  4. **A real run** happens only when the staging folder carries `Confirm = "<Region>"`. It refuses, before changing anything, if:
+     - the checks fail;
+     - it's the wrong place;
+     - something listed to keep isn't there;
+     - today's backup already exists.
+- **What a real run does.** It moves the map's other pieces into a dated backup and puts the new region under `World.Map.<MapChild>`. Then it fills the water and applies the texture-pack images.
+  - Pieces listed in `KeepMapChildren` stay exactly where they are, with all their tags. That's how Lindenmoor's village stays when its expansion goes into Ye beside it, as `World.Map.LindenmoorExpansion`.
+  - Backed-up pieces have their tags set aside, so the game no longer treats the old markers as live (old area names, for example).
+  - If anything goes wrong partway, everything is put back as it was.
+- **Restore.**
+  - `restore.lua` puts the old map back, with its tags, water and texture settings.
+  - It never deletes the imported map. That moves to its own backup, so anything you built in it after the import is kept.
+  - `unstrip.lua` re-tags any piece you drag out of a backup.
+- **Texture-pack images.** A material that names a pack image becomes a Roblox MaterialVariant. Your own variants with the same name are backed up and are never deleted.
+- **Collision.** Region parts named Glass or Glow are walk-through. Kerbs, crates and walls stay solid; Lindenmoor and the train keep their own rules.
+- **Lights:** furnace and tunnel lights stay on by day. Only street lamps follow the day and night.
+- **Unchanged:** Lindenmoor's and the train's existing imports are byte-for-byte the same, and their stored outputs were regenerated once with today's tool.
+- **Tests:**
+  - the kit's own tests pass 47/47, and the region tests 156/156;
+  - in Foundry: the dry run, five refusals that change nothing, a real import and restore, a forced error that rolls back, and a Ye-like layout with a kept "village". All left Foundry as it started.
+- **Before the Lindenmoor import:**
+  - Lindenmoor's water file needs converting to the new format;
+  - the village, trains and hub pieces must be separate top-level map pieces in Ye.
+
+### Discord announcement
+
+Hold: not live yet. This is behind-the-scenes map tooling; there's nothing for players to see until the first new region ships.
+
 ## 2026-10-24 — Region Foundation Task 10b: ungrippable map edges
 
 Your choice: "Ungrippable edges". The climb leap (Space+W) gains 12 studs for little stamina, so a base player can climb about 123 studs from a running jump, and a fully upgraded one about 207. No sensible wall height keeps them in. Instead, edge cliffs and walls keep their look, but carry a new tag, `RenseiNoGrip`, that nothing can grab. There are still no invisible walls. Built in Ye; backups are in `ServerStorage.RenseiBackups["Pre-RegionFoundation_2026-10-23"]` (`*_task10b`). Every number is a **PROPOSAL**.
