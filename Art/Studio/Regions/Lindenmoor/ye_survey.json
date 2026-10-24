@@ -1,0 +1,1345 @@
+{
+ "GroundParts": 16351,
+ "GroundInInfillSample": [
+  {
+   "Path": "Workspace.World.Map.Ground.Cave.CaveStone",
+   "Size": [
+    64,
+    4,
+    4
+   ],
+   "Pos": [
+    300,
+    -2,
+    -298
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    4
+   ],
+   "Pos": [
+    -334,
+    15,
+    -958
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    12
+   ],
+   "Pos": [
+    334,
+    17,
+    -390
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    4
+   ],
+   "Pos": [
+    334,
+    14,
+    -962
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    8
+   ],
+   "Pos": [
+    -334,
+    21,
+    -388
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    14,
+    4
+   ],
+   "Pos": [
+    334,
+    16,
+    -474
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    16
+   ],
+   "Pos": [
+    334,
+    17,
+    -896
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    4
+   ],
+   "Pos": [
+    -334,
+    10,
+    -586
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    4
+   ],
+   "Pos": [
+    334,
+    -1,
+    -878
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    8
+   ],
+   "Pos": [
+    -334,
+    13,
+    -856
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    4
+   ],
+   "Pos": [
+    334,
+    16,
+    -398
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    16
+   ],
+   "Pos": [
+    -334,
+    21,
+    -576
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    4
+   ],
+   "Pos": [
+    -334,
+    16,
+    -898
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    4
+   ],
+   "Pos": [
+    -334,
+    19,
+    -634
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    4
+   ],
+   "Pos": [
+    334,
+    -5,
+    -758
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    16,
+    4
+   ],
+   "Pos": [
+    -334,
+    17,
+    -706
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    4
+   ],
+   "Pos": [
+    -334,
+    14,
+    -754
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    8
+   ],
+   "Pos": [
+    -334,
+    21,
+    -468
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    4
+   ],
+   "Pos": [
+    334,
+    3,
+    -478
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    4
+   ],
+   "Pos": [
+    -334,
+    -1,
+    -698
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    4
+   ],
+   "Pos": [
+    -334,
+    6,
+    -454
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    4
+   ],
+   "Pos": [
+    334,
+    14,
+    -862
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    4
+   ],
+   "Pos": [
+    -334,
+    12,
+    -894
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    4
+   ],
+   "Pos": [
+    -334,
+    19,
+    -734
+   ]
+  },
+  {
+   "Path": "Workspace.World.Map.Ground.Sides.Side",
+   "Size": [
+    4,
+    12,
+    4
+   ],
+   "Pos": [
+    334,
+    13,
+    -858
+   ]
+  }
+ ],
+ "MapChildren": [
+  {
+   "Box": [
+    [
+     -338.7,
+     0,
+     -62.5
+    ],
+    [
+     292.4,
+     2,
+     410.4
+    ]
+   ],
+   "Class": "Folder",
+   "Name": "AlchemistSpawns",
+   "Parts": 5
+  },
+  {
+   "Name": "Lindenmoor",
+   "Box": [
+    [
+     -380.6,
+     -9,
+     -2691.5
+    ],
+    [
+     374.9,
+     424.1,
+     -90.6
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    -2.8,
+    207.6,
+    -1391.1
+   ],
+   "Parts": 12398
+  },
+  {
+   "Name": "Ground",
+   "Box": [
+    [
+     -336,
+     -30,
+     -984
+    ],
+    [
+     532,
+     50,
+     -296
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    98,
+    10,
+    -640
+   ],
+   "Parts": 16351
+  },
+  {
+   "Name": "HalvardsAdit",
+   "Box": [
+    [
+     285,
+     -5,
+     -725
+    ],
+    [
+     515,
+     55,
+     -595
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    400,
+    25,
+    -660
+   ],
+   "Parts": 2637
+  },
+  {
+   "Name": "BurnedLaboratory",
+   "Box": [
+    [
+     162.3,
+     0,
+     -26
+    ],
+    [
+     206.3,
+     20,
+     10
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    184.3,
+    10,
+    -8
+   ],
+   "Parts": 38
+  },
+  {
+   "Name": "FoundryYard",
+   "Box": [
+    [
+     -48,
+     0,
+     166
+    ],
+    [
+     48,
+     44,
+     264
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    0,
+    22,
+    215
+   ],
+   "Parts": 60
+  },
+  {
+   "Name": "SilentObservatory",
+   "Box": [
+    [
+     246.8,
+     0,
+     107.6
+    ],
+    [
+     290.8,
+     22,
+     151.6
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    268.8,
+    11,
+    129.6
+   ],
+   "Parts": 36
+  },
+  {
+   "Name": "UnstableQuarry",
+   "Box": [
+    [
+     -237.5,
+     0,
+     52.5
+    ],
+    [
+     -162.5,
+     8,
+     127.5
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    -200,
+    4,
+    90
+   ],
+   "Parts": 10
+  },
+  {
+   "Name": "SilentForge",
+   "Box": [
+    [
+     182,
+     0,
+     300
+    ],
+    [
+     226,
+     21.4,
+     336
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    204,
+    10.7,
+    318
+   ],
+   "Parts": 29
+  },
+  {
+   "Name": "GaleFloor",
+   "Box": [
+    [
+     336.3,
+     0,
+     93.6
+    ],
+    [
+     408.3,
+     12,
+     165.6
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    372.3,
+    6,
+    129.6
+   ],
+   "Parts": 10
+  },
+  {
+   "Name": "Wall",
+   "Box": [
+    [
+     -24,
+     0,
+     44
+    ],
+    [
+     24,
+     40,
+     48
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    0,
+    20,
+    46
+   ],
+   "Parts": 3
+  },
+  {
+   "Name": "Curve",
+   "Box": [
+    [
+     5.6,
+     0,
+     3.9
+    ],
+    [
+     95.4,
+     40,
+     93.7
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    59,
+    20,
+    56.7
+   ],
+   "Parts": 7
+  },
+  {
+   "Name": "Hill",
+   "Box": [
+    [
+     -89.1,
+     -16.3,
+     -48
+    ],
+    [
+     -31.1,
+     23.7,
+     0
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    -60.1,
+    3.7,
+    -24
+   ],
+   "Parts": 3
+  },
+  {
+   "Name": "Step",
+   "Box": [
+    [
+     -52,
+     0,
+     8
+    ],
+    [
+     -36,
+     3,
+     24
+    ]
+   ],
+   "Class": "Part",
+   "Pivot": [
+    -44,
+    1.5,
+    16
+   ],
+   "Parts": 1
+  },
+  {
+   "Name": "CrackedFootbridge",
+   "Box": [
+    [
+     -160,
+     0,
+     73
+    ],
+    [
+     -100,
+     20,
+     107
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    -130,
+    10,
+    90
+   ],
+   "Parts": 17
+  },
+  {
+   "Name": "FrozenStation",
+   "Box": [
+    [
+     -400.9,
+     -0.7,
+     -80
+    ],
+    [
+     -354.5,
+     20,
+     -43.6
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    -377.7,
+    9.6,
+    -61.8
+   ],
+   "Parts": 30
+  },
+  {
+   "Name": "Wall",
+   "Box": [
+    [
+     51.6,
+     0,
+     -15.5
+    ],
+    [
+     55.6,
+     40,
+     16.5
+    ]
+   ],
+   "Class": "Part",
+   "Pivot": [
+    53.6,
+    20,
+    0.5
+   ],
+   "Parts": 1
+  },
+  {
+   "Name": "ForgeFloor",
+   "Box": [
+    [
+     241.3,
+     0,
+     279.8
+    ],
+    [
+     314.3,
+     10,
+     352.8
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    277.8,
+    5,
+    316.3
+   ],
+   "Parts": 10
+  },
+  {
+   "Name": "Baseplate",
+   "Box": [
+    [
+     -1024,
+     -16,
+     -1024
+    ],
+    [
+     1024,
+     0,
+     1024
+    ]
+   ],
+   "Class": "Part",
+   "Pivot": [
+    0,
+    -8,
+    0
+   ],
+   "Parts": 1
+  },
+  {
+   "Name": "LedgeCourse",
+   "Box": [
+    [
+     -244,
+     0,
+     218.5
+    ],
+    [
+     -180,
+     30,
+     265.9
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    -212,
+    15,
+    242.2
+   ],
+   "Parts": 21
+  },
+  {
+   "Name": "AshPit",
+   "Box": [
+    [
+     149.1,
+     -0.1,
+     -105.6
+    ],
+    [
+     220.4,
+     10.1,
+     -34.8
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    184.7,
+    5,
+    -70.2
+   ],
+   "Parts": 10
+  },
+  {
+   "Name": "FrozenChamber",
+   "Box": [
+    [
+     -333.9,
+     0,
+     -192.1
+    ],
+    [
+     -261.9,
+     9,
+     -120.1
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    -297.9,
+    4.5,
+    -156.1
+   ],
+   "Parts": 10
+  },
+  {
+   "Name": "TrainingGround",
+   "Box": [
+    [
+     36.5,
+     0,
+     -22.5
+    ],
+    [
+     39.5,
+     3.3,
+     -19.5
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    38,
+    1.7,
+    -21
+   ],
+   "Parts": 2
+  }
+ ],
+ "GroundInInfill": 417,
+ "Areas": [
+  {
+   "Top": "Lindenmoor",
+   "Path": "Workspace.World.Map.Lindenmoor.Areas.Gorge LookoutArea",
+   "AreaName": "Gorge Lookout",
+   "Box": [
+    [
+     186,
+     -5,
+     -554
+    ],
+    [
+     300,
+     85,
+     -480
+    ]
+   ]
+  },
+  {
+   "Top": "Lindenmoor",
+   "Path": "Workspace.World.Map.Lindenmoor.Areas.Workshop HillArea",
+   "AreaName": "Workshop Hill",
+   "Box": [
+    [
+     140,
+     -5,
+     -800
+    ],
+    [
+     260,
+     85,
+     -662
+    ]
+   ]
+  },
+  {
+   "Top": "SilentObservatory",
+   "Path": "Workspace.World.Map.SilentObservatory.Silent ObservatoryArea",
+   "AreaName": "Silent Observatory",
+   "Box": [
+    [
+     246.8,
+     0,
+     107.6
+    ],
+    [
+     290.8,
+     22,
+     151.6
+    ]
+   ]
+  },
+  {
+   "Top": "CrackedFootbridge",
+   "Path": "Workspace.World.Map.CrackedFootbridge.Cracked FootbridgeArea",
+   "AreaName": "Cracked Footbridge",
+   "Box": [
+    [
+     -160,
+     0,
+     73
+    ],
+    [
+     -100,
+     20,
+     107
+    ]
+   ]
+  },
+  {
+   "Top": "Lindenmoor",
+   "Path": "Workspace.World.Map.Lindenmoor.Areas.LindenmoorArea",
+   "AreaName": "Lindenmoor",
+   "Box": [
+    [
+     -235,
+     -5,
+     -662
+    ],
+    [
+     240,
+     85,
+     -555
+    ]
+   ]
+  },
+  {
+   "Top": "HalvardsAdit",
+   "Path": "Workspace.World.Map.HalvardsAdit.Halvard's AditArea",
+   "AreaName": "Halvard's Adit",
+   "Box": [
+    [
+     285,
+     -5,
+     -725
+    ],
+    [
+     515,
+     55,
+     -595
+    ]
+   ]
+  },
+  {
+   "Top": "Lindenmoor",
+   "Path": "Workspace.World.Map.Lindenmoor.Areas.Bramble HollowArea",
+   "AreaName": "Bramble Hollow",
+   "Box": [
+    [
+     190,
+     -5,
+     -908
+    ],
+    [
+     262,
+     85,
+     -845
+    ]
+   ]
+  },
+  {
+   "Top": "Lindenmoor",
+   "Path": "Workspace.World.Map.Lindenmoor.Areas.LindenmoorArea",
+   "AreaName": "Lindenmoor",
+   "Box": [
+    [
+     -235,
+     -5,
+     -725
+    ],
+    [
+     140,
+     85,
+     -662
+    ]
+   ]
+  },
+  {
+   "Top": "FrozenStation",
+   "Path": "Workspace.World.Map.FrozenStation.Frozen Research StationArea",
+   "AreaName": "Frozen Research Station",
+   "Box": [
+    [
+     -400.9,
+     0,
+     -80
+    ],
+    [
+     -354.5,
+     20,
+     -43.6
+    ]
+   ]
+  },
+  {
+   "Top": "SilentForge",
+   "Path": "Workspace.World.Map.SilentForge.Silent ForgeArea",
+   "AreaName": "Silent Forge",
+   "Box": [
+    [
+     182,
+     1.4,
+     300
+    ],
+    [
+     226,
+     21.4,
+     336
+    ]
+   ]
+  },
+  {
+   "Top": "FoundryYard",
+   "Path": "Workspace.World.Map.FoundryYard.AreaVolume",
+   "AreaName": "Foundry Yard",
+   "Box": [
+    [
+     -46,
+     0,
+     168
+    ],
+    [
+     46,
+     30,
+     262
+    ]
+   ]
+  },
+  {
+   "Top": "BurnedLaboratory",
+   "Path": "Workspace.World.Map.BurnedLaboratory.BurnedLabArea",
+   "AreaName": "Burned Laboratory",
+   "Box": [
+    [
+     162.3,
+     0,
+     -26
+    ],
+    [
+     206.3,
+     20,
+     10
+    ]
+   ]
+  },
+  {
+   "Top": "Lindenmoor",
+   "Path": "Workspace.World.Map.Lindenmoor.Areas.Mill Creek BridgeArea",
+   "AreaName": "Mill Creek Bridge",
+   "Box": [
+    [
+     -30,
+     -5,
+     -555
+    ],
+    [
+     30,
+     85,
+     -515
+    ]
+   ]
+  },
+  {
+   "Top": "Lindenmoor",
+   "Path": "Workspace.World.Map.Lindenmoor.Areas.Cypress RidgeArea",
+   "AreaName": "Cypress Ridge",
+   "Box": [
+    [
+     -332,
+     -5,
+     -980
+    ],
+    [
+     332,
+     85,
+     -908
+    ]
+   ]
+  },
+  {
+   "Top": "Lindenmoor",
+   "Path": "Workspace.World.Map.Lindenmoor.Areas.Lindenmoor StationArea",
+   "AreaName": "Lindenmoor Station",
+   "Box": [
+    [
+     -300,
+     -5,
+     -710
+    ],
+    [
+     -235,
+     85,
+     -590
+    ]
+   ]
+  }
+ ],
+ "Arrivals": [
+  {
+   "Point": "Platform",
+   "Path": "World.Map.Lindenmoor.Arrival_Platform"
+  },
+  {
+   "Point": "RoadStart",
+   "Path": "World.Map.Lindenmoor.NorthRoad.Arrival_RoadStart"
+  },
+  {
+   "Point": "NorthGate",
+   "Path": "World.Map.Lindenmoor.Arrival_NorthGate"
+  }
+ ],
+ "BufferStops": [
+  {
+   "Pivot": [
+    -270,
+    9.6,
+    -369
+   ],
+   "Path": "World.Map.Lindenmoor.Station.BufferStop"
+  },
+  {
+   "Pivot": [
+    -270,
+    9.6,
+    -891
+   ],
+   "Path": "World.Map.Lindenmoor.Station.BufferStop"
+  }
+ ],
+ "Trainers": [
+  {
+   "Class": "Model",
+   "DialogueId": "trainer_wind",
+   "Pivot": [
+    44,
+    3,
+    12
+   ],
+   "Path": "Workspace.World.NPCs.Alchemy Trainers.Wind Alchemist"
+  },
+  {
+   "Class": "Model",
+   "DialogueId": "trainer_metal",
+   "Pivot": [
+    44,
+    3,
+    24
+   ],
+   "Path": "Workspace.World.NPCs.Alchemy Trainers.Metal Alchemist"
+  },
+  {
+   "Class": "Model",
+   "DialogueId": "trainer_flame",
+   "Pivot": [
+    44,
+    3,
+    -24
+   ],
+   "Path": "Workspace.World.NPCs.Alchemy Trainers.Flame Alchemist"
+  },
+  {
+   "Class": "Model",
+   "DialogueId": "trainer_earth",
+   "Pivot": [
+    44,
+    3,
+    0
+   ],
+   "Path": "Workspace.World.NPCs.Alchemy Trainers.Earth Alchemist"
+  },
+  {
+   "Class": "Model",
+   "DialogueId": "trainer_ice",
+   "Pivot": [
+    44,
+    3,
+    -12
+   ],
+   "Path": "Workspace.World.NPCs.Alchemy Trainers.Ice Alchemist"
+  }
+ ],
+ "Baseplate": {
+  "Size": [
+   2048,
+   16,
+   2048
+  ],
+  "Pos": [
+   0,
+   -8,
+   0
+  ]
+ },
+ "Spawns": [
+  {
+   "Top": "Lindenmoor",
+   "Path": "Workspace.World.Map.Lindenmoor.Camp.BanditSpawn_2",
+   "Name": "BanditSpawn_2",
+   "EnemyType": "Grunt",
+   "Pos": [
+    230,
+    8.5,
+    -889
+   ]
+  },
+  {
+   "Top": "AlchemistSpawns",
+   "Path": "Workspace.World.Map.AlchemistSpawns.StoneAlchemist_CrackedFootbridge",
+   "Name": "StoneAlchemist_CrackedFootbridge",
+   "EnemyType": "StoneAlchemist",
+   "Pos": [
+    -88,
+    1,
+    98
+   ]
+  },
+  {
+   "Top": "AlchemistSpawns",
+   "Path": "Workspace.World.Map.AlchemistSpawns.GaleAlchemist_SilentObservatory",
+   "Name": "GaleAlchemist_SilentObservatory",
+   "EnemyType": "GaleAlchemist",
+   "Pos": [
+    291.4,
+    1,
+    82.6
+   ]
+  },
+  {
+   "Top": "",
+   "Path": "Workspace.World.EnemySpawns.GruntSpawn",
+   "Name": "GruntSpawn",
+   "EnemyType": "Grunt",
+   "Pos": [
+    26.5,
+    0.5,
+    -70
+   ]
+  },
+  {
+   "Top": "",
+   "Path": "Workspace.World.EnemySpawns.GruntSpawn",
+   "Name": "GruntSpawn",
+   "EnemyType": "Grunt",
+   "Pos": [
+    -16.8,
+    0.5,
+    -70
+   ]
+  },
+  {
+   "Top": "Lindenmoor",
+   "Path": "Workspace.World.Map.Lindenmoor.Camp.BanditSpawn_1",
+   "Name": "BanditSpawn_1",
+   "EnemyType": "Grunt",
+   "Pos": [
+    215,
+    8.5,
+    -887
+   ]
+  },
+  {
+   "Top": "AlchemistSpawns",
+   "Path": "Workspace.World.Map.AlchemistSpawns.WardAlchemist_SilentForge",
+   "Name": "WardAlchemist_SilentForge",
+   "EnemyType": "WardAlchemist",
+   "Pos": [
+    290.5,
+    0.5,
+    409.4
+   ]
+  },
+  {
+   "Top": "",
+   "Path": "Workspace.World.EnemySpawns.AditScavengerSpawn2",
+   "Name": "AditScavengerSpawn2",
+   "EnemyType": "AditScavenger",
+   "Pos": [
+    476,
+    3.5,
+    -640
+   ]
+  },
+  {
+   "Top": "AlchemistSpawns",
+   "Path": "Workspace.World.Map.AlchemistSpawns.FrostAlchemist_FrozenStation",
+   "Name": "FrostAlchemist_FrozenStation",
+   "EnemyType": "FrostAlchemist",
+   "Pos": [
+    -337.7,
+    1,
+    -61.5
+   ]
+  },
+  {
+   "Top": "",
+   "Path": "Workspace.World.EnemySpawns.AditScavengerSpawn1",
+   "Name": "AditScavengerSpawn1",
+   "EnemyType": "AditScavenger",
+   "Pos": [
+    470,
+    3.5,
+    -684
+   ]
+  },
+  {
+   "Top": "",
+   "Path": "Workspace.World.EnemySpawns.EliteSpawn",
+   "Name": "EliteSpawn",
+   "EnemyType": "Elite",
+   "Pos": [
+    0,
+    0.5,
+    -124.1
+   ]
+  },
+  {
+   "Top": "AlchemistSpawns",
+   "Path": "Workspace.World.Map.AlchemistSpawns.FieldAlchemist_BurnedLab",
+   "Name": "FieldAlchemist_BurnedLab",
+   "EnemyType": "FieldAlchemist",
+   "Pos": [
+    235.8,
+    1.5,
+    -8
+   ]
+  }
+ ],
+ "TerrainParts": 1,
+ "Retire": [
+  {
+   "Path": "World.Map.Lindenmoor.NorthRoad",
+   "Class": "Model",
+   "Parts": 1044
+  },
+  {
+   "Path": "World.Map.Lindenmoor.HubRoad",
+   "Class": "Model",
+   "Parts": 3
+  },
+  {
+   "Path": "World.Map.Lindenmoor.Station.BufferStop",
+   "Pivot": [
+    -270,
+    9.6,
+    -369
+   ],
+   "Class": "Part"
+  }
+ ],
+ "InfillCells": 10863,
+ "Parts": 31998
+}
