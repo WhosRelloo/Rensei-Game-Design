@@ -15,9 +15,12 @@
 --   4. moves World.EnemySpawns.EliteSpawn to its Bramble Woods spot (Ruling 8; PROPOSAL);
 --   5. stands each trainer (World.NPCs["Alchemy Trainers"], by DialogueId trainer_<element>) on its TrainerSpot,
 --      feet on the ground, facing the spot's Yaw (0 = -Z: into the training field, per the spec);
---   6. sets World.Map's LindenmoorPrep = "applied".
+--   6. lifts every other item outside World.Map (workspace root, World.NPCs / EnemySpawns / Live ...) that stands on
+--      the expansion's new ground (pads.json Lift, from lift_survey.lua + make_pads.py: Ruling 17): its lowest point
+--      goes to the highest planned top under its XZ box + 0.05, if it is below that. The summary lists each lift;
+--   7. sets World.Map's LindenmoorPrep = "applied".
 --   Every moved instance records its old CFrame (Parts) or pivot (Models) in PrepFrom, a 12-number CFrame string.
--- undo (refused unless applied): moves every World instance with PrepFrom back and clears it, returns every backup
+-- undo (refused unless applied): moves every workspace instance with PrepFrom back and clears it, returns every backup
 --   child to its FromPath parent and clears it, deletes the backup folder, clears LindenmoorPrep.
 -- Both modes check everything before changing anything, journal each change, and roll the journal back if any
 -- step errors. They return one summary line (" OK:", "REFUSED:" or "FAILED").
@@ -106,6 +109,36 @@ local function namedChildren(parent, name)
 end
 local function backupsFolder() return SS:FindFirstChild("RenseiBackups") end
 
+-- LIFT WALK BEGIN (lift_survey.lua carries an identical copy)
+local function liftCandidates()
+	local out = {}
+	local function walk(node)
+		for _, c in ipairs(node:GetChildren()) do
+			if c:IsA("PVInstance") then
+				if not (c:IsA("Terrain") or c:IsA("Camera")) then table.insert(out, c) end
+			elseif #c:GetChildren() > 0 then
+				walk(c)
+			end
+		end
+	end
+	local World = workspace:FindFirstChild("World")
+	for _, c in ipairs(workspace:GetChildren()) do
+		if c == World then
+			for _, w in ipairs(World:GetChildren()) do
+				if w.Name ~= "Map" then
+					if w:IsA("PVInstance") then table.insert(out, w) else walk(w) end
+				end
+			end
+		elseif c:IsA("PVInstance") then
+			if not (c:IsA("Terrain") or c:IsA("Camera")) then table.insert(out, c) end
+		elseif c.Name ~= "Cameras" and #c:GetChildren() > 0 then
+			walk(c)
+		end
+	end
+	return out
+end
+-- LIFT WALK END
+
 -- ---------------------------------------------------------------- journal
 local journal = {}
 local function did(undoFn) table.insert(journal, undoFn) end
@@ -131,6 +164,8 @@ local function waypoint()
 end
 
 local moved, retired, trainers, restored = 0, 0, 0, 0
+local lifted = {} -- "path y old -> new" (lowest point), for the summary
+local LIFT_CLEAR = 0.05 -- Ruling 17 (make_pads.py's LIFT_CLEAR)
 local function moveTo(inst, cf)
 	local old = pivotOf(inst)
 	assert(inst:GetAttribute("PrepFrom") == nil, inst:GetFullName() .. " already has PrepFrom")
@@ -149,7 +184,7 @@ local function planApply()
 	if Map:GetAttribute("LindenmoorPrep") ~= nil then return nil, "World.Map already has LindenmoorPrep = " .. tostring(Map:GetAttribute("LindenmoorPrep")) end
 	local rb = backupsFolder()
 	if rb and rb:FindFirstChild(BACKUP) then return nil, "ServerStorage.RenseiBackups." .. BACKUP .. " already exists" end
-	for _, d in ipairs(World:GetDescendants()) do
+	for _, d in ipairs(workspace:GetDescendants()) do
 		if d:GetAttribute("PrepFrom") ~= nil or d:GetAttribute("FromPath") ~= nil then
 			return nil, d:GetFullName() .. " already carries PrepFrom / FromPath"
 		end
@@ -249,6 +284,31 @@ local function planApply()
 		table.insert(W.trainers, { inst = m, spot = spot })
 	end
 	if #W.trainers ~= 5 then return nil, #W.trainers .. " trainers, expected 5" end
+
+	-- Ruling 17: items outside World.Map on the expansion's new ground (pads.json Lift). Every candidate the prep
+	-- doesn't already move must be in pads.json (same path, pivot within 0.5), or the list is stale.
+	local planned = {}
+	for _, i in ipairs(W.retire) do planned[i] = true end
+	for _, w in ipairs(W.blocks) do
+		for _, i in ipairs(w.riders) do planned[i] = true end
+	end
+	for _, t in ipairs(W.trainers) do planned[t.inst] = true end
+	planned[W.elite] = true
+	W.lift = {}
+	for _, c in ipairs(liftCandidates()) do
+		if not planned[c] then
+			local p, hit, n = c:GetPivot().Position, nil, 0
+			for _, e in ipairs(PADS.Lift) do
+				if e.Path == c:GetFullName() and (Vector3.new(e.Pivot[1], e.Pivot[2], e.Pivot[3]) - p).Magnitude <= 0.5 then
+					hit, n = e, n + 1
+				end
+			end
+			if n ~= 1 then
+				return nil, string.format("%s at %s: %d pads.json Lift entries (re-run lift_survey.lua, then make_pads.py)", c:GetFullName(), tostring(p), n)
+			end
+			if hit.Top ~= nil then table.insert(W.lift, { inst = c, top = hit.Top }) end
+		end
+	end
 	return W
 end
 
@@ -316,7 +376,17 @@ local function doApply(W)
 		trainers += 1
 	end
 
-	-- 6. done
+	-- 6. lift what the new ground would bury (Ruling 17): lowest point to the planned top + LIFT_CLEAR
+	for _, l in ipairs(W.lift) do
+		local base = boxOf({ l.inst })[2]
+		local want = l.top + LIFT_CLEAR
+		if base < want then
+			moveTo(l.inst, pivotOf(l.inst) + Vector3.new(0, want - base, 0))
+			table.insert(lifted, string.format("%s y %.2f -> %.2f", l.inst:GetFullName(), base, want))
+		end
+	end
+
+	-- 7. done
 	did(function() Map:SetAttribute("LindenmoorPrep", nil) end)
 	Map:SetAttribute("LindenmoorPrep", "applied")
 end
@@ -328,7 +398,7 @@ local function planUndo()
 	local bk = rb and rb:FindFirstChild(BACKUP)
 	if not bk then return nil, "no ServerStorage.RenseiBackups." .. BACKUP end
 	local W = { bk = bk, moves = {}, back = {} }
-	for _, d in ipairs(World:GetDescendants()) do
+	for _, d in ipairs(workspace:GetDescendants()) do
 		local s = d:GetAttribute("PrepFrom")
 		if s ~= nil then
 			if type(s) ~= "string" then return nil, d:GetFullName() .. ": PrepFrom is not a string" end
@@ -391,7 +461,7 @@ end
 journal = {}
 waypoint()
 if MODE == "apply" then
-	return string.format("LindenmoorPrep apply OK: moved %d, retired %d, trainers %d (blocks %d, spawns %d, elite 1)",
-		moved, retired, trainers, #W.blocks, #W.spawns)
+	return string.format("LindenmoorPrep apply OK: moved %d, retired %d, trainers %d (blocks %d, spawns %d, elite 1, lifted %d)%s",
+		moved, retired, trainers, #W.blocks, #W.spawns, #lifted, #lifted > 0 and ("\n  lifted: " .. table.concat(lifted, "\n  lifted: ")) or "")
 end
 return string.format("LindenmoorPrep undo OK: moved back %d, restored %d, trainers %d", moved, restored, trainers)

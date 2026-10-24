@@ -35,18 +35,26 @@ local function fmt(n)
 end
 local function snapshot()
 	local rows = {}
+	local function add(d)
+		local row = d:GetFullName() .. "|" .. d.ClassName
+		if d:IsA("PVInstance") then
+			local c = { d:GetPivot():GetComponents() }
+			for i = 1, 12 do c[i] = fmt(c[i]) end
+			row ..= "|" .. table.concat(c, ",")
+		end
+		table.insert(rows, row)
+	end
 	for _, r in ipairs(ROOTS) do
 		local root = World:FindFirstChild(r)
 		if root then
-			for _, d in ipairs(root:GetDescendants()) do
-				local row = d:GetFullName() .. "|" .. d.ClassName
-				if d:IsA("PVInstance") then
-					local c = { d:GetPivot():GetComponents() }
-					for i = 1, 12 do c[i] = fmt(c[i]) end
-					row ..= "|" .. table.concat(c, ",")
-				end
-				table.insert(rows, row)
-			end
+			for _, d in ipairs(root:GetDescendants()) do add(d) end
+		end
+	end
+	-- Ruling 17: everything else in workspace the lift step may touch (not World, the camera or terrain)
+	for _, c in ipairs(workspace:GetChildren()) do
+		if c ~= World and not c:IsA("Camera") and not c:IsA("Terrain") then
+			add(c)
+			for _, d in ipairs(c:GetDescendants()) do add(d) end
 		end
 	end
 	table.sort(rows)
@@ -125,6 +133,29 @@ local function pads()
 	end
 	return t
 end
+local byName -- full name -> every PVInstance with it (names repeat, e.g. the two Power Lines; names hold dots,
+-- e.g. "Emotes,etc.", so paths are matched whole, never split)
+local function findAll(path)
+	if not byName then
+		byName = {}
+		for _, d in ipairs(workspace:GetDescendants()) do
+			if d:IsA("PVInstance") then
+				local f = d:GetFullName()
+				byName[f] = byName[f] or {}
+				table.insert(byName[f], d)
+			end
+		end
+	end
+	return byName[path] or {}
+end
+local function liftItem(e) -- the instance for a pads.json Lift entry: same path, same XZ (a lift moves only in Y)
+	local hit, n = nil, 0
+	for _, c in ipairs(findAll(e.Path)) do
+		local p = c:GetPivot().Position
+		if math.abs(p.X - e.Pivot[1]) <= 0.5 and math.abs(p.Z - e.Pivot[3]) <= 0.5 then hit, n = c, n + 1 end
+	end
+	return n == 1 and hit or nil
+end
 local function overlapXZ(a, b) return a[1] < b[4] and b[1] < a[4] and a[3] < b[6] and b[3] < a[6] end
 
 -- ---------------------------------------------------------------- 1. snapshot and the "before" values
@@ -144,6 +175,13 @@ for _, s in ipairs(Map.AlchemistSpawns:GetChildren()) do pre.spawns[s.Name] = s.
 for _, s in ipairs(ES:GetChildren()) do
 	if s.Name == "EliteSpawn" then pre.elite = s.CFrame end
 	if string.find(s.Name, "^AditScavengerSpawn") then pre.adit[s.Name] = s.CFrame end
+end
+pre.lift = {}
+for _, e in ipairs(PADS and PADS.Lift or {}) do
+	if e.Top ~= nil then
+		local m = liftItem(e)
+		if check(m ~= nil, "lift item not found before apply: " .. e.Path) then pre.lift[e] = { inst = m, low = boxOf({ m })[2], pivot = m:GetPivot() } end
+	end
 end
 
 -- ---------------------------------------------------------------- 2. apply
@@ -281,6 +319,23 @@ if applied then
 		end
 	end
 	check(trainers == 5, trainers .. " trainers placed, expected 5")
+
+	-- Ruling 17: nothing on the new ground is left below its planned top; items already above it did not move
+	for e, p0 in pairs(pre.lift) do
+		local m = p0.inst
+		local low, pv = boxOf({ m })[2], m:GetPivot()
+		local want = e.Top + 0.05
+		check(low >= want - 0.001, string.format("%s lowest %.2f, below the planned top %.2f + 0.05", e.Path, low, e.Top))
+		if p0.low < want - 0.001 then
+			check(near(low, want, 0.01), string.format("%s lifted to %.3f, expected %.3f", e.Path, low, want))
+			check(near(pv.X, p0.pivot.X, 0.001) and near(pv.Z, p0.pivot.Z, 0.001), e.Path .. " moved sideways")
+			check(type(m:GetAttribute("PrepFrom")) == "string", e.Path .. " lifted without PrepFrom")
+			table.insert(notes, string.format("lifted %s: lowest y %.2f -> %.2f", e.Path, p0.low, low))
+		else
+			check(pv == p0.pivot and m:GetAttribute("PrepFrom") == nil, e.Path .. " moved, though already above the ground")
+			table.insert(notes, string.format("not lifted (already above) %s: lowest y %.2f, top %.2f", e.Path, low, e.Top))
+		end
+	end
 end
 
 -- ---------------------------------------------------------------- 4. undo
@@ -294,7 +349,7 @@ end
 check(Map:GetAttribute("LindenmoorPrep") == nil, "LindenmoorPrep still set")
 check(not (SS:FindFirstChild("RenseiBackups") and SS.RenseiBackups:FindFirstChild(BACKUP)), "backup folder left behind")
 local stray = 0
-for _, d in ipairs(World:GetDescendants()) do
+for _, d in ipairs(workspace:GetDescendants()) do
 	if d:GetAttribute("PrepFrom") ~= nil or d:GetAttribute("FromPath") ~= nil then stray += 1 end
 end
 check(stray == 0, stray .. " instances still carry PrepFrom / FromPath")

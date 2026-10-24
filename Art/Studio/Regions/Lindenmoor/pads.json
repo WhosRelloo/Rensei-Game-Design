@@ -600,7 +600,342 @@
    "Count": 2
   }
  ],
- "Info": {
-  "SpawnLocationGroundY": 4.0
- }
+ "Lift": [
+  {
+   "Path": "Workspace.World.Live.Dummy",
+   "Class": "Model",
+   "Pivot": [
+    0,
+    3,
+    20.03
+   ],
+   "Top": null,
+   "Why": "moved by the prep"
+  },
+  {
+   "Path": "Workspace.World.Live.Perfect Parry",
+   "Class": "Model",
+   "Pivot": [
+    -16.12,
+    3,
+    20.03
+   ],
+   "Top": null,
+   "Why": "moved by the prep"
+  },
+  {
+   "Path": "Workspace.World.Live.Blocking",
+   "Class": "Model",
+   "Pivot": [
+    7.89,
+    3,
+    20.03
+   ],
+   "Top": null,
+   "Why": "moved by the prep"
+  },
+  {
+   "Path": "Workspace.World.Live.Parry",
+   "Class": "Model",
+   "Pivot": [
+    -8.12,
+    3,
+    20.03
+   ],
+   "Top": null,
+   "Why": "moved by the prep"
+  },
+  {
+   "Path": "Workspace.World.EnemySpawns.AditScavengerSpawn2",
+   "Class": "Part",
+   "Pivot": [
+    476,
+    3.5,
+    -640
+   ],
+   "Top": null,
+   "Why": "on no new-ground cell"
+  },
+  {
+   "Path": "Workspace.World.EnemySpawns.AditScavengerSpawn1",
+   "Class": "Part",
+   "Pivot": [
+    470,
+    3.5,
+    -684
+   ],
+   "Top": null,
+   "Why": "on no new-ground cell"
+  },
+  {
+   "Path": "Workspace.World.EnemySpawns.EliteSpawn",
+   "Class": "Part",
+   "Pivot": [
+    0,
+    0.5,
+    -124.08
+   ],
+   "Top": null,
+   "Why": "moved by the prep"
+  },
+  {
+   "Path": "Workspace.World.EnemySpawns.GruntSpawn",
+   "Class": "Part",
+   "Pivot": [
+    26.52,
+    0.5,
+    -70
+   ],
+   "Top": null,
+   "Why": "moved by the prep"
+  },
+  {
+   "Path": "Workspace.World.EnemySpawns.GruntSpawn",
+   "Class": "Part",
+   "Pivot": [
+    -16.75,
+    0.5,
+    -70
+   ],
+   "Top": null,
+   "Why": "moved by the prep"
+  },
+  {
+   "Path": "Workspace.World.NPCs.Alchemy Trainers.Wind Alchemist",
+   "Class": "Model",
+   "Pivot": [
+    44,
+    3,
+    12
+   ],
+   "Top": null,
+   "Why": "moved by the prep"
+  },
+  {
+   "Path": "Workspace.World.NPCs.Alchemy Trainers.Metal Alchemist",
+   "Class": "Model",
+   "Pivot": [
+    44,
+    3,
+    24
+   ],
+   "Top": null,
+   "Why": "moved by the prep"
+  },
+  {
+   "Path": "Workspace.World.NPCs.Alchemy Trainers.Flame Alchemist",
+   "Class": "Model",
+   "Pivot": [
+    44,
+    3,
+    -24
+   ],
+   "Top": null,
+   "Why": "moved by the prep"
+  },
+  {
+   "Path": "Workspace.World.NPCs.Alchemy Trainers.Earth Alchemist",
+   "Class": "Model",
+   "Pivot": [
+    44,
+    3,
+    0
+   ],
+   "Top": null,
+   "Why": "moved by the prep"
+  },
+  {
+   "Path": "Workspace.World.NPCs.Alchemy Trainers.Ice Alchemist",
+   "Class": "Model",
+   "Pivot": [
+    44,
+    3,
+    -12
+   ],
+   "Top": null,
+   "Why": "moved by the prep"
+  },
+  {
+   "Path": "Workspace.World.NPCs.Placeholder NPC",
+   "Class": "Model",
+   "Pivot": [
+    -41.5,
+    0,
+    -28
+   ],
+   "Top": null,
+   "Why": "moved by the prep"
+  },
+  {
+   "Path": "Workspace.World.NPCs.Mirra",
+   "Class": "Model",
+   "Pivot": [
+    17.87,
+    0.2,
+    188.39
+   ],
+   "Top": null,
+   "Why": "moved by the prep"
+  },
+  {
+   "Path": "Workspace.World.NPCs.Foreman Brask",
+   "Class": "Model",
+   "Pivot": [
+    0.39,
+    0.2,
+    176.13
+   ],
+   "Top": null,
+   "Why": "moved by the prep"
+  },
+  {
+   "Path": "Workspace.World.NPCs.Lise",
+   "Class": "Model",
+   "Pivot": [
+    10.39,
+    0.2,
+    240.13
+   ],
+   "Top": null,
+   "Why": "moved by the prep"
+  },
+  {
+   "Path": "Workspace.World.NPCs.Tobin",
+   "Class": "Model",
+   "Pivot": [
+    -17.63,
+    0.2,
+    189.82
+   ],
+   "Top": null,
+   "Why": "moved by the prep"
+  },
+  {
+   "Path": "Workspace.World.NPCs.Drillmaster Vask",
+   "Class": "Model",
+   "Pivot": [
+    -24,
+    0,
+    14
+   ],
+   "Top": null,
+   "Why": "moved by the prep"
+  },
+  {
+   "Path": "Workspace.NEW RENSEI ANIMS.Emotes,etc.",
+   "Class": "Model",
+   "Pivot": [
+    -14.33,
+    99.94,
+    12.69
+   ],
+   "Top": 4.0,
+   "Why": "already above",
+   "Base": 96.94
+  },
+  {
+   "Path": "Workspace.Realistic  well",
+   "Class": "Model",
+   "Pivot": [
+    0.05,
+    9.57,
+    -649.94
+   ],
+   "Top": null,
+   "Why": "on no new-ground cell"
+  },
+  {
+   "Path": "Workspace.StarterCharacterMeca arm2",
+   "Class": "Model",
+   "Pivot": [
+    259.85,
+    3,
+    403.8
+   ],
+   "Top": 4.0,
+   "Why": "lift 4.05",
+   "Base": 0
+  },
+  {
+   "Path": "Workspace.StarterCharacterMeca arm",
+   "Class": "Model",
+   "Pivot": [
+    241.31,
+    2.88,
+    400
+   ],
+   "Top": 4.0,
+   "Why": "lift 4.05",
+   "Base": 0
+  },
+  {
+   "Path": "Workspace.Dummy",
+   "Class": "Model",
+   "Pivot": [
+    -14.33,
+    94.94,
+    12.69
+   ],
+   "Top": 4.0,
+   "Why": "already above",
+   "Base": 91.94
+  },
+  {
+   "Path": "Workspace.SpawnLocation",
+   "Class": "SpawnLocation",
+   "Pivot": [
+    0,
+    0.5,
+    0
+   ],
+   "Top": 4.0,
+   "Why": "lift 4.05",
+   "Base": 0
+  },
+  {
+   "Path": "Workspace.Carry & Grip Stuff",
+   "Class": "Model",
+   "Pivot": [
+    25,
+    3,
+    -0.1
+   ],
+   "Top": 4.0,
+   "Why": "lift 4.05",
+   "Base": 0
+  },
+  {
+   "Path": "Workspace.Power Line",
+   "Class": "Model",
+   "Pivot": [
+    -218.07,
+    41.75,
+    -721.19
+   ],
+   "Top": null,
+   "Why": "on no new-ground cell"
+  },
+  {
+   "Path": "Workspace.Windmill",
+   "Class": "Model",
+   "Pivot": [
+    -62.66,
+    43.36,
+    -875.67
+   ],
+   "Top": null,
+   "Why": "on no new-ground cell"
+  },
+  {
+   "Path": "Workspace.Power Line",
+   "Class": "Model",
+   "Pivot": [
+    261.3,
+    41.75,
+    -632.8
+   ],
+   "Top": null,
+   "Why": "on no new-ground cell"
+  }
+ ]
 }

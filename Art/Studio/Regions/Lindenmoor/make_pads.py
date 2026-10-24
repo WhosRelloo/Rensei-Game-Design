@@ -18,6 +18,8 @@ pads.json (all world studs):
     "Spawns": {AlchemistSpawns child: {"Pad", "Site", "XZ": [x, z], "DY", "Pulled", "Nudged"}}
     "EliteSpawn": {"XZ": [x, z], "DY", "Near": [x, z]}     (Ruling 8; PROPOSAL)
     "Retire": [{"Path", "Near"?: [x, y, z], "Within"?, "Count"}]
+    "Lift": [{"Path", "Class", "Pivot", "Top", "Why"}]   (Ruling 17: items outside World.Map on new ground; Top null =
+            stays put. Inputs: lift_items.json from lift_survey.lua; re-run both if Ye's items change.)
 """
 import json, math, os, sys
 
@@ -49,6 +51,8 @@ RIDERS = {
                        "Live/Dummy", "Live/Perfect Parry", "Live/Blocking", "Live/Parry"],
 }
 RETIRE_BUFFER = [-270, 10, -369]  # the BufferStop to retire (the one at z -891 stays)
+LIFT_ITEMS = os.path.join(HERE, "lift_items.json")  # lift_survey.lua's output (Ruling 17)
+LIFT_CLEAR = 0.05  # a lifted item's lowest point ends this far above the planned ground top (Ruling 17)
 
 
 def _r(v, n=2):
@@ -202,9 +206,50 @@ def build():
     out["Retire"] = [{"Path": r["Path"], **({"Near": RETIRE_BUFFER, "Within": 5} if r["Path"].endswith("BufferStop") else {}),
                       "Count": 1} for r in S["Retire"]]
     out["Retire"].append({"Path": "World.EnemySpawns.GruntSpawn", "Count": 2})  # Ruling 8: replaced by the expansion's
-    # report-only extras (not used by prep_ye.lua)
-    out["Info"] = {"SpawnLocationGroundY": E.ground_y(P, 0, 0)}
+    out["Lift"] = lift_entries(P, out)
     return out
+
+
+def lift_entries(P, out):
+    """Ruling 17: every item outside World.Map (lift_items.json, from lift_survey.lua) whose XZ box lies on cells the
+    plan fills with new ground gets "Top": the highest planned top there (a cell's top, or a route ribbon's surface
+    via ground_y at the cell centre). prep_ye.lua lifts its lowest point to Top + LIFT_CLEAR if it is below that.
+    Items the prep already moves ("Moved") and items on no new-ground cell (kept village / Adit ground, or nothing
+    planned) get Top null and stay put."""
+    with open(LIFT_ITEMS, encoding="utf-8") as f:
+        items = json.load(f)
+    moved = {"Workspace.World.EnemySpawns.EliteSpawn", "Workspace.World.EnemySpawns.GruntSpawn"}
+    for blocks in (v["Blocks"] for k, v in out.items() if k.startswith("res_")):
+        for b in blocks:
+            for r in b["Riders"]:
+                moved.add("Workspace.World." + r.replace("/", "."))
+    rows = []
+    for it in items:
+        e = {"Path": it["Path"], "Class": it["Class"], "Pivot": it["Pivot"], "Top": None, "Why": ""}
+        rows.append(e)
+        if it["Path"] in moved or it["Path"].startswith("Workspace.World.NPCs.Alchemy Trainers."):
+            e["Why"] = "moved by the prep"
+            continue
+        b = it["Box"]
+        if not b:
+            e["Why"] = "no parts"
+            continue
+        i0, j0 = E.cell_of(b[0] + 0.01, b[2] + 0.01)
+        i1, j1 = E.cell_of(b[3] - 0.01, b[5] - 0.01)
+        top = None
+        for i in range(max(0, i0), min(E.N - 1, i1) + 1):
+            for j in range(max(0, j0), min(E.N - 1, j1) + 1):
+                if P.top[i][j] is None:  # kept village / Adit ground, or no ground planned
+                    continue
+                t = max(float(P.top[i][j]), E.ground_y(P, *E.cell_center(i, j)))
+                top = t if top is None else max(top, t)
+        if top is None:
+            e["Why"] = "on no new-ground cell"
+            continue
+        e["Top"] = top
+        e["Base"] = b[1]
+        e["Why"] = "lift %.2f" % (top + LIFT_CLEAR - b[1]) if b[1] < top + LIFT_CLEAR else "already above"
+    return rows
 
 
 def main(argv):
@@ -227,7 +272,8 @@ def main(argv):
     for k, v in out["Spawns"].items():
         print("spawn", k, v)
     print("elite", out["EliteSpawn"])
-    print("info", out["Info"])
+    for e in out["Lift"]:
+        print("lift", e["Path"], e["Pivot"], e["Top"], e["Why"])
     return 0
 
 
