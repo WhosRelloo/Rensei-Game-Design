@@ -93,14 +93,14 @@ The Lindenmoor farmhouse kit stays as it is.
 ### 3.4 Markers and tags
 Markers carry the World Plan 1 tags already in use, plus new ones:
 
-- **World Plan 1:** `RenseiArrival`, `RenseiPlatformTrain`, `RenseiClerk`, `RenseiDepartureBoard`, `RenseiStationGate`, `RenseiFreightYard`, `RenseiWatcher` (spawn spot), `RenseiRoadPassage`, `RenseiThreshold`, `RenseiEncounter`.
+- **World Plan 1:** `RenseiArrival`, `RenseiPlatformTrain`, `RenseiTicketClerk`, `RenseiDepartureBoard`, `RenseiStationGate`, `RenseiFreightYard`, `RenseiWatcher` (spawn spot), `RenseiRoadPassage`, `RenseiRoadThreshold`, `RenseiRoadEncounter`.
 - **Places:** `RenseiArea` (areas with `AreaName`).
 - **Movement:** `RenseiLedge` and the other movement tags.
 - **Enemies:** `RenseiEnemySpawn`.
 - **New:**
   - `RenseiPost`: a townsfolk post, with attributes `PostId`, `Kind` (Work / Seat / Counter / Home / Shelter) and `Facing`.
   - `RenseiClue`: a clue point, with `ClueId`.
-  - `RenseiTrialDoor`: a trial room entrance, with `Trial`.
+  - `RenseiTrial`: a trial room entrance, with `TrialId` (the tag TrialService reads).
 
 ### 3.5 Export, import and setup in Studio
 - **Export:** reused. `export.py` writes `layout.json`, and `studio_kit.py` writes the chunked Lua and the expected counts. It is generalized to take a region name.
