@@ -234,6 +234,8 @@ if __name__ == "__main__":
 > - Keep `expansion_tests`' flat-and-clear reserved-spot checks passing.
 > - After the rebuild, `check_survey.py` must PASS its pad checks.
 >
+> **(e) Share the keep mask** (Task 1 review, Minor 1). Factor the Keep mask into `expansion_plan.keep_mask(...)` and use it from both `plan()` and `check_survey.py`'s `infill_runs()`. Then re-stamp the survey's Infill runs and update the hard-coded 10,863 cell count in `test_check_survey.py`.
+>
 > **(d) A new pad for the test arena** (owner: "Keep it in the map"; Ruling 5). Add a `lindenmoor.reserve` landmark `res_test_arena` in North Meadows near the practice yard, clear of routes, the training field and the ridge marker, with radius about 122 (PROPOSAL: `arrange()` radius + 6). The practice yard pad keeps `LedgeCourse` only.
 >
 > **The rebuild.** Re-run every stage the pad change affects: ground, fields, trees, landmarks and markers. Re-render the aerial view and the views that show a changed pad. The owner sees that seven clearings grew slightly; send them the aerial. Keep the part count at or under 42,000.
@@ -358,7 +360,7 @@ if __name__ == "__main__":
   - `kit.py` (reads the region file's `KeepMapChildren`, `MapChild` and `NoCollide`; see `Documents/Region Builder.md` §4).
 - **Produces:**
   - **The import scripts** in `Art/Studio/Regions/Lindenmoor/import/`: `chunk_NN.lua`, `expected.json`, `finish.lua`, `restore.lua` and `unstrip.lua`.
-  - **`KeepMapChildren`** = every current `World.Map` child name. Hub pieces are already relocated by Task 5, and stay Map children, so nothing is moved into the import's backup. The list is: `["Lindenmoor","Ground","HalvardsAdit","Baseplate","AlchemistSpawns","BurnedLaboratory","AshPit","FrozenStation","FrozenChamber","CrackedFootbridge","UnstableQuarry","SilentObservatory","GaleFloor","SilentForge","ForgeFloor","FoundryYard","LedgeCourse","Wall","Curve","Hill","Step","TrainingGround"]`. Use Task 1's survey for the exact names.
+  - **`KeepMapChildren`** = every current `World.Map` child name. There are 23 children, with `Wall` appearing twice; use the survey's names. Hub pieces are already relocated by Task 5, and stay Map children, so nothing is moved into the import's backup. The list is: `["Lindenmoor","Ground","HalvardsAdit","Baseplate","AlchemistSpawns","BurnedLaboratory","AshPit","FrozenStation","FrozenChamber","CrackedFootbridge","UnstableQuarry","SilentObservatory","GaleFloor","SilentForge","ForgeFloor","FoundryYard","LedgeCourse","Wall","Curve","Hill","Step","TrainingGround"]`. Use Task 1's survey for the exact names.
   - **`MapChild`** = `"LindenmoorExpansion"`.
   - **`PlaceId`** = 106992859583940.
 
@@ -392,7 +394,8 @@ if __name__ == "__main__":
 
 > **Amendment from Task 1's survey (controller Ruling 4, 2026-10-24).** Pieces are placed **by slot**, not by keeping today's relative layout. `pads.json` comes from `Art/Studio/Regions/Lindenmoor/pad_layout.arrange(...)`: each piece's slot offset from its pad centre, plus each pad's ground height. Each Map child goes to its pad centre plus its slot offset; its lowest point goes to the pad's height.
 > - **Practice yard and test arena (owner, 2026-10-24: keep the test arena in the map; Ruling 5):** `res_practice_yard` holds `LedgeCourse` only. A new pad, `res_test_arena` (added by Task 2), holds the test arena (both `Wall`s, `Curve`, `Hill`, `Step`, `TrainingGround`) as one block that keeps its internal layout.
-> - **`AlchemistSpawns` children** move by their own site's offset.
+> - **`AlchemistSpawns` children** move by their own site's offset. A spawn that would land outside its pad is pulled in along its direction to the pad radius − 8 (PROPOSAL; Ruling 7).
+> - **`World.EnemySpawns` on the old hub** (Ruling 8): back up and retire the two `GruntSpawn`s, since the expansion's six Grunt spawns replace them. Move the `EliteSpawn` to a clear spot in Bramble Woods near the expansion's Grunt spawns (PROPOSAL). Both are reversible through `PrepFrom` and the backup.
 > - **This supersedes** "the group's XZ centre goes to the pad's (x, z)" below.
 
 **Files:**
