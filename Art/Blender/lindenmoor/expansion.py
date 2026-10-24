@@ -1095,12 +1095,26 @@ SHOTS = {  # name: (camera x, z, height above ground, target x, z, height above 
     "north_meadows": (250, 480, 10, 90, 720, 0, 22),
     "northeast_gap": (712, 760, 8, 792, 968, 10, 26),
 }
+CHECK_SHOTS = {  # Task 2 part B check views (PROPOSAL framing): the grown pads, the seam and the creek joints
+    "pad_burned_laboratory": (790, -790, 150, 864, -905, 0, 22),
+    "pad_frozen_station": (-620, 630, 80, -760, 760, 0, 22),
+    "pad_cracked_footbridge": (720, -580, 90, 860, -700, 0, 22),
+    "pad_silent_observatory": (-560, 400, 80, -700, 520, 0, 22),
+    "pad_silent_forge": (560, 790, 110, 560, 900, 0, 22),
+    "pad_foundry_graybox": (300, 770, 110, 300, 880, 0, 22),
+    "pads_test_arena_and_practice_yard": (260, -20, 140, 50, 140, 0, 20),
+    "seam_south": (-40, -950, 45, -260, -984, 0, 24),
+    "seam_north": (120, -240, 50, -120, -300, 0, 22),
+    "seam_adit": (600, -800, 90, 430, -680, 0, 22),
+    "east_creek_mouth": (420, -490, 40, 334, -552, 0, 24),
+    "west_channel": (-430, -460, 40, -340, -520, 0, 24),
+}
 
 
 def camera(name):
     s = bpy.data.scenes[SCENE]
     c = C("Lighting")
-    cx, cz, ch, tx, tz, th, lens = SHOTS[name]
+    cx, cz, ch, tx, tz, th, lens = SHOTS[name] if name in SHOTS else CHECK_SHOTS[name]
     cam = bpy.data.objects.get(f"Cam_X_{name}")
     if not cam:
         cd = bpy.data.cameras.new(f"Cam_X_{name}")
@@ -1151,7 +1165,9 @@ def _flip(path, axis):
     bpy.data.images.remove(img)
 
 
-def render(name, samples=40, res=(1920, 1080)):
+def render(name, samples=40, res=(1920, 1080), tag=""):
+    """Render one shot (SHOTS, CHECK_SHOTS or "map") to RENDERS. tag (e.g. "v2") goes into the file name, so a re-render
+    never overwrites the approved originals."""
     s = bpy.data.scenes[SCENE]
     os.makedirs(RENDERS, exist_ok=True)
     s.render.resolution_x, s.render.resolution_y = res
@@ -1165,7 +1181,7 @@ def render(name, samples=40, res=(1920, 1080)):
         s.render.resolution_x = s.render.resolution_y = 2048
     else:
         camera(name)
-    path = os.path.join(RENDERS, f"Lindenmoor expansion - {name.replace('_', ' ')}.png")
+    path = os.path.join(RENDERS, f"Lindenmoor expansion{' ' + tag if tag else ''} - {name.replace('_', ' ')}.png")
     s.render.filepath = path
     s.render.image_settings.file_format = "PNG"
     bpy.ops.render.render(write_still=True, scene=s.name)
@@ -1173,11 +1189,11 @@ def render(name, samples=40, res=(1920, 1080)):
     return path
 
 
-def render_all(names=None, samples=40):
+def render_all(names=None, samples=40, tag=""):
     out = []
     for n in names or (["map"] + list(SHOTS)):
         t = time.time()
-        out.append((render(n, samples), round(time.time() - t, 1)))
+        out.append((render(n, samples, tag=tag), round(time.time() - t, 1)))
     return out
 
 
