@@ -12,7 +12,7 @@
     "Hub pieces (owner, 2026-10-23: 'Move them into the new map'): the five alchemy trainers stand at the TrainerSpot markers in the training field, and each trial site with its arena moves to a lindenmoor.reserve landmark (a flat, clear pad of Radius studs; Holds says what goes there). They move on again when their regions are built. Each piece's footprint must be measured in Ye at import and checked against its pad. The hub's bandit spawns are replaced by the Grunt spawns below.",
     "Import timing (owner, 2026-10-23): start importing after the townsfolk tasks are done, with the region-foundation import tools (Tasks 9, 11, 12), not a one-off import.",
     "Exits (owner, 2026-10-23): the north road and the station line leave together through one gap in the north-east rim. The road passage moves there (RenseiMarker Piece RoadPassage below); today's NorthRoad passage at world (8..275, -293..-125) is retired at import. The rails continue from today's north buffer stop (world (-270, -369), removed at import).",
-    "Extensions to the Task 8 schema used here: top-level Materials, Keep and Infill; cut and water shapes may take Line + Width (a channel; cut also Bank, a sloped margin) instead of Rect, and channel water becomes one rotated terrain-water box per segment (water.json); box Crag (an uneven inner face and crest: Y range, extra Depth, Cell size); district Style lindenmoor.patchwork (hedged, walled and fenced crop fields); optional route field Bridges; landmark fields Variant, Face, Size, Span, Length, Y, Radius, Holds; Heights kinds are the Task 8 five only."
+    "Extensions to the Task 8 schema used here: top-level Materials, Keep and Infill; cut and water shapes may take Line + Width (a channel; cut also Bank, a sloped margin) instead of Rect, and channel water becomes terrain water: expansion.py writes one segment per channel leg to water_segments.json (world studs), and water_convert.py turns those into kit.py's axis-aligned, village-local boxes in water.json; box Crag (an uneven inner face and crest: Y range, extra Depth, Cell size); district Style lindenmoor.patchwork (hedged, walled and fenced crop fields); optional route field Bridges; landmark fields Variant, Face, Size, Span, Length, Y, Radius, Holds; Heights kinds are the Task 8 five only."
   ],
   "Materials": {
     "lm_moss":       {"Material": "Grass",       "Color": "#4a6232", "Blender": "LM_GrassGround"},
@@ -54,7 +54,7 @@
     "water_note": "Water stays Roblox terrain water (SwimService reads it); its colour is Ye's existing Terrain.WaterColor, unchanged."
   },
   "Keep": [
-    {"Id": "village_ground", "Source": "Art/Blender/lindenmoor/terrain_studio.json", "Note": "every 4-stud cell within 4 studs of a non-empty terrain_studio cell (8-stud grid; world = local + (0, 4, -650)): about x -332..344, z -990..-298. ground.lua only made parts where that terrain existed."},
+    {"Id": "village_ground", "Source": "Art/Blender/lindenmoor/terrain_studio.json", "Note": "every 4-stud cell within 4 studs of a non-empty terrain_studio cell (8-stud grid; world = local + (0, 4, -650)): about x -332..344, z -990..-298, then grown by one more 4-stud cell all round (expansion_plan.keep_mask, Task 2: World.Map.Ground has parts in that ring). ground.lua only made parts where that terrain existed."},
     {"Id": "adit_hill", "Rect": [270, -744, 532, -576], "Note": "the Adit cave voxel box x 280..524, z -734..-586 (adit_dress.lua:86-87) plus its stone shell"}
   ],
   "Infill": {"Rect": [-392, -1004, 532, -288], "Note": "ground.lua's scan box (X0, Z0, X1, Z1). Cells inside it but outside Keep are built new (the creek's run east to the gorge, the thin west, south and north strips). Before import, confirm in Studio that World.Map.Ground has no parts in those cells."},
@@ -143,13 +143,14 @@
     {"Id": "signal_box", "Kind": "lindenmoor.signal_box", "At": [660, 830], "Face": [690, 860]},
     {"Id": "road_gate", "Kind": "lindenmoor.road_gate", "At": [686, 661], "Face": [790, 860]},
     {"Id": "tunnel_portals", "Kind": "lindenmoor.tunnel_portals", "At": [785, 1000], "Yaw": 0},
-    {"Id": "res_burned_laboratory", "Kind": "lindenmoor.reserve", "At": [820, -945], "Radius": 38, "Holds": "Burned Laboratory (Flame site) and the Ash Pit arena, moved from the hub"},
-    {"Id": "res_frozen_station", "Kind": "lindenmoor.reserve", "At": [-760, 760], "Radius": 50, "Holds": "Frozen Research Station (Ice site) and the Frozen Chamber, moved from the hub"},
-    {"Id": "res_cracked_footbridge", "Kind": "lindenmoor.reserve", "At": [860, -700], "Radius": 50, "Holds": "Cracked Footbridge (Earth site) and the Unstable Quarry, moved from the hub"},
-    {"Id": "res_silent_observatory", "Kind": "lindenmoor.reserve", "At": [-700, 520], "Radius": 45, "Holds": "Silent Observatory (Wind site) and the Gale Floor, moved from the hub"},
-    {"Id": "res_silent_forge", "Kind": "lindenmoor.reserve", "At": [560, 900], "Radius": 45, "Holds": "Silent Forge (Metal site) and the Forge Floor, until they move to Foundry Yard"},
-    {"Id": "res_foundry_graybox", "Kind": "lindenmoor.reserve", "At": [300, 880], "Radius": 50, "Holds": "Ye's small Foundry Yard graybox and its NPCs, only if it is still in Ye at import"},
-    {"Id": "res_practice_yard", "Kind": "lindenmoor.reserve", "At": [-20, 60], "Radius": 50, "Holds": "the LedgeCourse (with the FoundationRun world challenge) and the test arena"}
+    {"Id": "res_burned_laboratory", "Kind": "lindenmoor.reserve", "At": [864, -905], "Radius": 75.4, "Holds": "Burned Laboratory (Flame site) and the Ash Pit arena, moved from the hub. Radius = pad_layout.arrange() + 6 (Task 2); moved 59.5 studs from (820, -945) to clear the south crag and the bramble path"},
+    {"Id": "res_frozen_station", "Kind": "lindenmoor.reserve", "At": [-760, 760], "Radius": 77.0, "Holds": "Frozen Research Station (Ice site) and the Frozen Chamber, moved from the hub"},
+    {"Id": "res_cracked_footbridge", "Kind": "lindenmoor.reserve", "At": [860, -700], "Radius": 85.0, "Holds": "Cracked Footbridge (Earth site) and the Unstable Quarry, moved from the hub"},
+    {"Id": "res_silent_observatory", "Kind": "lindenmoor.reserve", "At": [-700, 520], "Radius": 76.0, "Holds": "Silent Observatory (Wind site) and the Gale Floor, moved from the hub"},
+    {"Id": "res_silent_forge", "Kind": "lindenmoor.reserve", "At": [560, 900], "Radius": 76.7, "Holds": "Silent Forge (Metal site) and the Forge Floor, until they move to Foundry Yard"},
+    {"Id": "res_foundry_graybox", "Kind": "lindenmoor.reserve", "At": [300, 880], "Radius": 74.6, "Holds": "Ye's small Foundry Yard graybox and its NPCs, only if it is still in Ye at import"},
+    {"Id": "res_practice_yard", "Kind": "lindenmoor.reserve", "At": [-20, 60], "Radius": 50, "Holds": "the LedgeCourse (with the FoundationRun world challenge); the test arena has its own pad, res_test_arena"},
+    {"Id": "res_test_arena", "Kind": "lindenmoor.reserve", "At": [104, 184], "Radius": 108.3, "Holds": "the test arena (Wall x2, Curve, Hill, Step, TrainingGround), kept together as one block (owner: 'Keep it in the map'; Ruling 5). Spot (PROPOSAL) and Radius = pad_layout.arrange() + 6 (Task 2)"}
   ],
   "Markers": [
     {"Tag": "RenseiMarker", "At": [686, 0, 661], "Attr": {"Piece": "RoadPassage", "Route": "RoadLindenmoorFoundry", "To": "Foundry", "RoadName": "The North Road",

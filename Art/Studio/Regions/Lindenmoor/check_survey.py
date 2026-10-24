@@ -160,20 +160,19 @@ def main(path, layout=LAYOUT):
 
 def infill_runs():
     """The layout's Infill cells (4-stud world cells in Infill.Rect that are not Keep), as column runs
-    [x0, z0, z1]: cells x0..x0+4 by z0..z1 (z1 exclusive). Keep = expansion_plan.py's keep mask: village terrain
-    (terrain_studio.json, within half an 8-stud step of the cell centre) or a Keep Rect (the Adit hill)."""
+    [x0, z0, z1]: cells x0..x0+4 by z0..z1 (z1 exclusive). Keep = expansion_plan.keep_mask(), the plan's own mask:
+    village terrain grown by one cell, plus the Keep Rects (the Adit hill)."""
     sys.path.insert(0, os.path.join(REPO, "Art", "Blender", "lindenmoor"))
     import expansion_plan as E  # pure Python, no bpy
     L = E.load(LAYOUT)
-    V = E.Village()
+    keep = E.keep_mask(L, E.Village())
     R = L["Infill"]["Rect"]
-    rects = [k["Rect"] for k in L["Keep"] if "Rect" in k]
     runs = []
     for x0 in range(R[0], R[2], E.CELL):
         start = None
         for z0 in range(R[1], R[3] + E.CELL, E.CELL):
-            x, z = x0 + E.CELL / 2, z0 + E.CELL / 2
-            free = z0 < R[3] and not V.has(x, z) and not any(E.in_rect(r, x, z) for r in rects)
+            i, j = E.cell_of(x0 + E.CELL / 2, z0 + E.CELL / 2)
+            free = z0 < R[3] and not keep[i][j]
             if free and start is None:
                 start = z0
             elif not free and start is not None:

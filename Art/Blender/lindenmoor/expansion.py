@@ -176,11 +176,11 @@ def village_preview():
                 top[i][j] = max(1, round(P.h0[i][j]))  # the Adit hill: not in terrain_studio.json; drawn from the field
                 mt[i][j] = "lm_moss"
     tops, sides = EP.merge_ground(top, mt)
-    for (i, j, w, d, y, m) in tops:
+    for (i, j, w, d, y, m, _) in tops:
         X0, Z0 = -EP.HALF + EP.CELL * i, -EP.HALF + EP.CELL * j
         o = box(f"VG_T{i}_{j}", (w * 4, d * 4, 1), EP.to_blender(X0 + w * 2, y - 0.5, Z0 + d * 2), M[MATKEY[m]], c, bevel=0)
         o["rs_skip"] = True
-    for (i, j, w, d, lo, hi) in sides:
+    for (i, j, w, d, lo, hi, _) in sides:
         X0, Z0 = -EP.HALF + EP.CELL * i, -EP.HALF + EP.CELL * j
         o = box(f"VG_S{i}_{j}", (w * 4, d * 4, hi - lo), EP.to_blender(X0 + w * 2, (hi + lo) / 2, Z0 + d * 2), M["side"], c, bevel=0)
         o["rs_skip"] = True
@@ -211,17 +211,21 @@ def ground():
         return tiles[key]
 
     n = 0
-    for (i, j, w, d, y, m) in P.tops:
+    for (i, j, w, d, y, m, crag) in P.tops:
         rt = tile(i, j)
         X0, Z0 = -EP.HALF + EP.CELL * i, -EP.HALF + EP.CELL * j
         b = Vector(EP.to_blender(X0 + w * 2, y - 0.5, Z0 + d * 2)) - rt.location
-        pb(rt, f"T{i}_{j}", (w * 4, d * 4, 1), tuple(b), M[MATKEY[m]], bevel=0)
+        o = pb(rt, f"T{i}_{j}", (w * 4, d * 4, 1), tuple(b), M[MATKEY[m]], bevel=0)
+        if crag:
+            o["rs_tags"] = "RenseiNoGrip"  # the edge crag is ungrippable (export field 16; owner: no invisible walls)
         n += 1
-    for (i, j, w, d, lo, hi) in P.sides:
+    for (i, j, w, d, lo, hi, crag) in P.sides:
         rt = tile(i, j)
         X0, Z0 = -EP.HALF + EP.CELL * i, -EP.HALF + EP.CELL * j
         b = Vector(EP.to_blender(X0 + w * 2, (hi + lo) / 2, Z0 + d * 2)) - rt.location
-        pb(rt, f"S{i}_{j}", (w * 4, d * 4, hi - lo), tuple(b), M["side"], bevel=0)
+        o = pb(rt, f"S{i}_{j}", (w * 4, d * 4, hi - lo), tuple(b), M["side"], bevel=0)
+        if crag:
+            o["rs_tags"] = "RenseiNoGrip"  # the crag's climbable inner face
         n += 1
     return n
 

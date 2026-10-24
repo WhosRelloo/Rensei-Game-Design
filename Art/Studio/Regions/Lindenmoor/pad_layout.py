@@ -25,7 +25,7 @@ PADS = {
     "res_silent_forge": [("SilentForge", ["SilentForge"]), ("ForgeFloor", ["ForgeFloor"])],
     "res_foundry_graybox": [("FoundryYard", ["FoundryYard"])],
     "res_practice_yard": [("LedgeCourse", ["LedgeCourse"])],
-    "res_test_arena": [(ARENA, ARENA_MEMBERS)],  # Task 2 adds this reserve landmark to the layout
+    "res_test_arena": [(ARENA, ARENA_MEMBERS)],  # its reserve landmark was added to the layout by Task 2
 }
 
 # AlchemistSpawns child name suffix (after the last "_") -> its site block (names measured in Ye, 2026-10-24)

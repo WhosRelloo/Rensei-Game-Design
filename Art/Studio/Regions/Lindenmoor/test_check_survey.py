@@ -18,7 +18,7 @@ def child(name, x=0, z=0, half=5, parts=10, cls="Model"):
 
 
 def layout(arena_radius=50):
-    """The real layout, plus res_test_arena (Ruling 5) if Task 2 hasn't added it yet."""
+    """The real layout (Task 2 added res_test_arena, Ruling 5; a stand-in is appended only if it is missing)."""
     with open(LAYOUT, encoding="utf-8") as f:
         L = json.load(f)
     if not any(lm["Id"] == "res_test_arena" for lm in L["Landmarks"]):
@@ -115,7 +115,7 @@ class CheckSurvey(unittest.TestCase):
         import check_survey
         runs = check_survey.infill_runs()
         cells = sum((r[2] - r[1]) // 4 for r in runs)
-        self.assertEqual(cells, 10863)  # of 41,349 cells in the Infill rect; the rest are Keep
+        self.assertEqual(cells, 10227)  # of 41,349 cells in the Infill rect; the rest are Keep (widened one cell, Task 2)
         for x0, z0, z1 in runs:
             self.assertTrue(-392 <= x0 < 532 and -1004 <= z0 < z1 <= -288)
 
@@ -151,7 +151,7 @@ class CheckSurvey(unittest.TestCase):
     def test_pad_too_small_fails(self):
         s = good()  # one Wall grows to 120 x 120, so the arena block (alone on its pad) is 120 x 120: radius 84.9
         big_wall(s)
-        code, out = self.run_checker(s)
+        code, out = self.run_checker(s, set_radius(layout(), "res_test_arena", 50))
         self.assertEqual(code, 1, out)
         self.assertIn("FAIL: res_test_arena: pad 50 too small: needed radius 84.9; needed + 6 = 90.9", out)
         self.assertNotIn("res_practice_yard", out)
@@ -279,11 +279,11 @@ class CheckSurvey(unittest.TestCase):
         code, out = self.run_checker(s)
         self.assertEqual(code, 1, out)
         self.assertIn("FAIL: alchemist spawn OddAlchemist_Nowhere: no site for its name", out)
-        s = good()  # far from its site: pulled in, reported as INFO, still passes
+        s = good()  # far from its site: pulled in to the forge pad's radius 76.7 - 8, reported as INFO, still passes
         s["AlchemistSpawns"][4]["Pos"] = [300, 1, 400]
         code, out = self.run_checker(s)
         self.assertEqual(code, 0, out)
-        self.assertIn("INFO: alchemist spawn WardAlchemist_SilentForge pulled in to 37.0 on res_silent_forge", out)
+        self.assertIn("INFO: alchemist spawn WardAlchemist_SilentForge pulled in to 68.7 on res_silent_forge", out)
         s = good()
         del s["AlchemistSpawns"]
         code, out = self.run_checker(s)

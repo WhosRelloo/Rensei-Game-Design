@@ -1,5 +1,12 @@
-"""Lindenmoor water: channel segments (world studs) -> kit.py's water.json (village-local axis-aligned Rects).
-finish.lua adds the export origin back, so this subtracts it. PROPOSAL: 2-stud cells (spill <= ~15% on diagonals)."""
+"""Lindenmoor water: water_segments.json (world studs) -> kit.py's water.json (village-local axis-aligned Rects).
+finish.lua adds the export origin back, so this subtracts it.
+
+A channel segment {Id, From, To, Width, Top, Bed} is a capsule: the plan carves its bed where poly_dist <= Width/2,
+round ends included. The converter fills the cell-sized squares whose centres lie in that capsule and merges them into
+rects. Spill is measured against the capsule's own area, L * W + pi * (W / 2)^2 (controller Ruling 10), not L * W,
+which leaves out the round caps. PROPOSAL: 2-stud cells; spill <= 15% (diagonals are the worst case).
+A Rect entry {Id, Rect: [x0, z0, x1, z1], Top, Bed} is already axis-aligned: it passes through, shifted into the
+village frame."""
 import json, math, os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))  # Art/Blender
@@ -16,6 +23,11 @@ def seg_dist(px, pz, ax, az, bx, bz):
 def convert(segments, cell=2):
     boxes = []
     for s in segments:
+        if "Rect" in s:
+            x0, z0, x1, z1 = s["Rect"]
+            boxes.append({"Id": s["Id"], "Rect": [x0 - ORIGIN[0], z0 - ORIGIN[2], x1 - ORIGIN[0], z1 - ORIGIN[2]],
+                          "Top": round(s["Top"] - ORIGIN[1], 3), "Bed": round(s["Bed"] - ORIGIN[1], 3)})
+            continue
         (ax, az), (bx, bz), r = s["From"], s["To"], s["Width"] / 2
         x0, x1 = math.floor((min(ax, bx) - r) / cell), math.ceil((max(ax, bx) + r) / cell)
         z0, z1 = math.floor((min(az, bz) - r) / cell), math.ceil((max(az, bz) + r) / cell)

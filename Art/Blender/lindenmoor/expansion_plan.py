@@ -176,14 +176,15 @@ class Village:
 
 # ------------------------------------------------------------------ the height field (shapes only)
 def shape_height(layout, x, z, skip=()):
-    """Heights shapes in order (Task 8 semantics). Returns (y, flat) where flat = no noise belongs here."""
-    h, flat = 0.0, False
+    """Heights shapes in order (Task 8 semantics). Returns (y, flat, crag): flat = no noise belongs here; crag = a box's
+    Crag branch set the height (the edge crag, tagged RenseiNoGrip; a later shape that sets the height clears it)."""
+    h, flat, crag = 0.0, False, False
     for s in layout["Heights"]:
         k = s["Kind"]
         if s.get("Id") in skip:
             continue
         if k == "plane":
-            h = s["Y"]
+            h, crag = s["Y"], False
         elif k == "box" and "Crag" in s:
             # an edge crag: the inner face juts in and out by up to Depth, the crest varies over Y, in Cell blocks
             cg = s["Crag"]
@@ -192,34 +193,35 @@ def shape_height(layout, x, z, skip=()):
             n1 = 0.5 + 0.5 * (0.7 * vnoise(bx, bz, 64, 11) + 0.3 * _hash(int(bx // c), int(bz // c), 12))
             n2 = 0.5 + 0.5 * (0.6 * vnoise(bx, bz, 96, 13) + 0.4 * _hash(int(bx // c), int(bz // c), 14))
             if rect_dist(s["Rect"], x, z) <= cg.get("Depth", 0) * max(0.0, min(1.0, n1)):
-                h, flat = round(cg["Y"][0] + (cg["Y"][1] - cg["Y"][0]) * max(0.0, min(1.0, n2))), True
+                h, flat, crag = round(cg["Y"][0] + (cg["Y"][1] - cg["Y"][0]) * max(0.0, min(1.0, n2))), True, True
         elif k == "box":
             d = rect_dist(s["Rect"], x, z)
             E = s.get("Edge", 0)
             if d == 0:
-                h = s["Y"]
+                h, crag = s["Y"], False
                 if E == 0:
                     flat = True
             elif E > 0 and d < E:
-                h = lerp(s["Y"], h, d / E)
+                h, crag = lerp(s["Y"], h, d / E), False
         elif k == "ridge":
             d, _, _ = poly_dist(s["Line"], x, z)
             if d < s["Width"]:
-                h = max(h, lerp(s["Y"], h, d / s["Width"]))
+                y = max(h, lerp(s["Y"], h, d / s["Width"]))
+                h, crag = y, crag and y == h
         elif k == "cut":
             if "Line" in s:
                 d, _, _ = poly_dist(s["Line"], x, z)
                 hw, B = s["Width"] / 2, s.get("Bank", 0)
                 if d <= hw:
-                    h, flat = s["Y"], True
+                    h, flat, crag = s["Y"], True, False
                 elif B and d < hw + B:
-                    h = lerp(s["Y"], h, smooth((d - hw) / B))
+                    h, crag = lerp(s["Y"], h, smooth((d - hw) / B)), False
             elif in_rect(s["Rect"], x, z):
-                h, flat = s["Y"], True
+                h, flat, crag = s["Y"], True, False
         elif k == "water":
             if ("Line" in s and poly_dist(s["Line"], x, z)[0] <= s["Width"] / 2) or ("Rect" in s and in_rect(s["Rect"], x, z)):
-                h, flat = s["Bed"], True
-    return h, flat
+                h, flat, crag = s["Bed"], True, False
+    return h, flat, crag
 
 
 def noise(x, z):
@@ -285,25 +287,47 @@ def _bridge_t(route, x, z, pad=0.0):
     return False
 
 
+KEEP_WIDEN = 1  # cells: Keep grows this far past the village terrain (Task 2, Ruling 3; PROPOSAL)
+
+
+def keep_mask(layout, village, widen=KEEP_WIDEN):
+    """The Keep mask, an N x N bool grid of 4-stud world cells where nothing new is built: village terrain
+    (terrain_studio.json, within half an 8-stud step of the cell centre) grown by `widen` cells in all eight directions,
+    plus each Keep Rect (the Adit hill) as it is. The growth clears the 417 village Ground parts Task 1's survey found
+    just outside the old mask (all within one cell of it). Shared by plan() and check_survey.py's infill_runs()."""
+    rects = [k["Rect"] for k in layout.get("Keep", []) if "Rect" in k]
+    has = [[False] * N for _ in range(N)]
+    keep = [[False] * N for _ in range(N)]
+    for i in range(N):
+        x = -HALF + CELL * i + CELL / 2
+        for j in range(N):
+            z = -HALF + CELL * j + CELL / 2
+            has[i][j] = village.has(x, z)
+            keep[i][j] = has[i][j] or any(in_rect(r, x, z) for r in rects)
+    for i in range(N):
+        for j in range(N):
+            if has[i][j]:
+                for a in range(max(0, i - widen), min(N, i + widen + 1)):
+                    for b in range(max(0, j - widen), min(N, j + widen + 1)):
+                        keep[a][b] = True
+    return keep
+
+
 def plan(layout=None, village=None, trees=True):
     L = layout or load()
     V = village or Village()
     P = Plan()
     P.layout, P.village = L, V
-    adit = [k["Rect"] for k in L.get("Keep", []) if "Rect" in k]
 
-    # 1. keep mask (existing village ground) and the seam source heights
-    keep = [[False] * N for _ in range(N)]
+    # 1. keep mask (existing village ground, widened) and the seam source heights
+    keep = keep_mask(L, V)
     vsrc = [[None] * N for _ in range(N)]
     for i in range(N):
         x = -HALF + CELL * i + CELL / 2
         for j in range(N):
             z = -HALF + CELL * j + CELL / 2
             if V.has(x, z):
-                keep[i][j] = True
                 vsrc[i][j] = V.height(x, z)
-            elif any(in_rect(r, x, z) for r in adit):
-                keep[i][j] = True
     # seam: multi-source BFS from the village cells (not the Adit hill), up to SEAM studs
     seamd = [[None] * N for _ in range(N)]
     seamh = [[None] * N for _ in range(N)]
@@ -340,11 +364,12 @@ def plan(layout=None, village=None, trees=True):
     # 2. base heights: shapes + noise + seam blend (edge walls, cuts and water untouched)
     h = [[0.0] * N for _ in range(N)]
     flat = [[False] * N for _ in range(N)]
+    crag = [[False] * N for _ in range(N)]  # the edge crag (Task 2: RenseiNoGrip); flat, so later stages leave it be
     for i in range(N):
         x = -HALF + CELL * i + CELL / 2
         for j in range(N):
             z = -HALF + CELL * j + CELL / 2
-            y, fl = shape_height(L, x, z)
+            y, fl, crag[i][j] = shape_height(L, x, z)
             if not fl and y < WALL_Y:
                 y += noise(x, z) * calm(x, z)
             if not fl and y < WALL_Y and seamd[i][j] is not None and seamd[i][j] > 0:
@@ -522,7 +547,8 @@ def plan(layout=None, village=None, trees=True):
         for j in range(N):
             if top[i][j] is not None and top[i][j] < 1:
                 top[i][j] = 1  # the baseplate's top is y 0; every slab is at least 1 thick
-    P.top, P.kind, P.keep, P.res, P.flat = top, kind, keep, res, flat
+    crag = [[crag[i][j] and top[i][j] is not None for j in range(N)] for i in range(N)]
+    P.top, P.kind, P.keep, P.res, P.flat, P.crag = top, kind, keep, res, flat, crag
 
     # 6. materials per cell
     hay = [d["Poly"] for d in L["Districts"] if d["Style"] == "lindenmoor.hayfield"]
@@ -559,7 +585,7 @@ def plan(layout=None, village=None, trees=True):
     P.mat = mat
 
     # 7. merge into top rectangles; sides under each
-    P.tops, P.sides = merge_ground(top, mat)
+    P.tops, P.sides = merge_ground(top, mat, crag)
 
     # 8. water boxes (terrain water in Studio; preview planes in Blender)
     P.water = []
@@ -607,31 +633,34 @@ def ground_y(P, x, z):
     return 4.0
 
 
-def merge_ground(top, mat):
-    """Greedy rectangle merge of equal (top, material) cells (ground.lua's approach), up to MAX_SPAN cells a side.
-    Returns tops [(i0, j0, w, d, y, mat)] and sides [(i0, j0, w, d, bottom, y-1)]."""
+def merge_ground(top, mat, crag=None):
+    """Greedy rectangle merge of equal (top, material, crag) cells (ground.lua's approach), up to MAX_SPAN cells a side.
+    Returns tops [(i0, j0, w, d, y, mat, crag)] and sides [(i0, j0, w, d, bottom, y-1, crag)]: a side belongs to the
+    column (top) whose height it reaches and carries its crag flag. crag: an N x N bool grid (None: no crag)."""
+    cg = crag or [[False] * N for _ in range(N)]
     used = [[False] * N for _ in range(N)]
     tops = []
     for j in range(N):
         for i in range(N):
             if used[i][j] or top[i][j] is None:
                 continue
-            key = (top[i][j], mat[i][j])
+            key = (top[i][j], mat[i][j], cg[i][j])
             w = 1
-            while i + w < N and w < MAX_SPAN and not used[i + w][j] and (top[i + w][j], mat[i + w][j]) == key:
+            while i + w < N and w < MAX_SPAN and not used[i + w][j] and (top[i + w][j], mat[i + w][j], cg[i + w][j]) == key:
                 w += 1
             d = 1
             while j + d < N and d < MAX_SPAN:
-                ok = all(not used[i + a][j + d] and (top[i + a][j + d], mat[i + a][j + d]) == key for a in range(w))
+                ok = all(not used[i + a][j + d] and (top[i + a][j + d], mat[i + a][j + d], cg[i + a][j + d]) == key
+                         for a in range(w))
                 if not ok:
                     break
                 d += 1
             for a in range(w):
                 for b in range(d):
                     used[i + a][j + b] = True
-            tops.append((i, j, w, d, top[i][j], mat[i][j]))
+            tops.append((i, j, w, d, top[i][j], mat[i][j], cg[i][j]))
     sides = []
-    for (i, j, w, d, y, m) in tops:
+    for (i, j, w, d, y, m, c) in tops:
         lo = y - 2
         for a in range(-1, w + 1):
             for b in (-1, d):
@@ -643,7 +672,7 @@ def merge_ground(top, mat):
         if lo >= y - 2 and _min_nb(top, i, j, w, d, y) >= y:
             continue  # no neighbour is lower: nothing shows this side
         if y - 1 - lo > 0.01:
-            sides.append((i, j, w, d, lo, y - 1))
+            sides.append((i, j, w, d, lo, y - 1, c))
     return tops, sides
 
 

@@ -84,15 +84,16 @@ The source of truth is `Art/Regions/Lindenmoor/layout.json`, in world studs (x e
 | Piece (from the hub) | New spot (world x, z) | Pad radius |
 |---|---|---|
 | The five alchemy trainers (Calda, Veyra, Holt, Ansel, Brannoc) | `TrainerSpot` markers along the training field's north edge, (−230..−130, −135), facing into the field | none |
-| Burned Laboratory and the Ash Pit (Flame) | Bramble woods, (820, −945) | 38 |
-| Frozen Research Station and the Frozen Chamber (Ice) | the north-west rim, (−760, 760) | 50 |
-| Cracked Footbridge and the Unstable Quarry (Earth) | the mine plateau, (860, −700) | 50 |
-| Silent Observatory and the Gale Floor (Wind) | the Cypress rim crest, (−700, 520) | 45 |
-| Silent Forge and the Forge Floor (Metal) | the north meadows by the gap, (560, 900), until they move to Foundry Yard | 45 |
-| Ye's small Foundry Yard graybox, if it is still in Ye | (300, 880) | 50 |
-| The LedgeCourse (with the FoundationRun world challenge) and the test arena | a practice yard, (−20, 60) | 50 |
+| Burned Laboratory and the Ash Pit (Flame) | Bramble woods, (864, −905) (moved 59.5 studs from (820, −945), Task 2) | 75.4 |
+| Frozen Research Station and the Frozen Chamber (Ice) | the north-west rim, (−760, 760) | 77.0 |
+| Cracked Footbridge and the Unstable Quarry (Earth) | the mine plateau, (860, −700) | 85.0 |
+| Silent Observatory and the Gale Floor (Wind) | the Cypress rim crest, (−700, 520) | 76.0 |
+| Silent Forge and the Forge Floor (Metal) | the north meadows by the gap, (560, 900), until they move to Foundry Yard | 76.7 |
+| Ye's small Foundry Yard graybox, if it is still in Ye | (300, 880) | 74.6 |
+| The LedgeCourse (with the FoundationRun world challenge) | a practice yard, (−20, 60) | 50 |
+| The test arena (Wall x2, Curve, Hill, Step, TrainingGround, kept as one block; owner 2026-10-24: "Keep it in the map") | North Meadows, north-east of the practice yard, (104, 184) | 108.3 |
 
-- **The pads:** each spot is a `lindenmoor.reserve` landmark: a flat pad with no routes, fields or trees. Blender shows it with survey stakes, which are never exported.
+- **The pads:** each spot is a `lindenmoor.reserve` landmark: a flat pad with no routes, fields or trees. Radii (import plan Task 2, 2026-10-24) are the pieces' measured footprint, laid side by side by `pad_layout.arrange()`, + 6 studs (PROPOSAL). Blender shows it with survey stakes, which are never exported.
 - **At import:** each piece's footprint is measured in Ye and checked against its pad. Each piece is then moved with its `RenseiArea`, spawns and trial markers.
 - **The hub's bandit spawns** are replaced by the expansion's Grunt spawns.
 

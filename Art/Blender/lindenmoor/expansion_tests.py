@@ -152,12 +152,108 @@ def main():
     check("reserved spots flat and clear", not badr, badr)
 
     water_checks(P)
+    crag_checks(L, P)
+    village_ground_checks(P)
 
     b = E.budget(P)
     check("estimated parts within budget", b["total"] <= b["budget"], b)
     print("budget estimate", b)
     print(f"PASS {len(PASSES)} / FAIL {len(FAILS)}")
     return 1 if FAILS else 0
+
+
+def crag_checks(L, P):
+    """The edge crag is ungrippable (Task 2): plan().tops is (i, j, w, d, y, mat, crag) and plan().sides is
+    (i, j, w, d, lo, hi, crag); expansion.ground() tags crag pieces RenseiNoGrip."""
+    N, HALF, CELL = E.N, E.HALF, E.CELL
+    crags = [s for s in L["Heights"] if s["Kind"] == "box" and "Crag" in s]
+    check("four edge crags", sorted(s["Id"] for s in crags) ==
+          ["edge_wall_east", "edge_wall_north", "edge_wall_south", "edge_wall_west"], [s["Id"] for s in crags])
+    seven = all(len(t) == 7 for t in P.tops) and all(len(s) == 7 for s in P.sides)
+    check("tops and sides carry a crag flag (7 fields)", seven, (P.tops[:1], P.sides[:1]))
+    if not seven:
+        return
+    flag = {}
+    for (i, j, w, d, y, m, c) in P.tops:
+        for a in range(w):
+            for b in range(d):
+                flag[(i + a, j + b)] = (c, y)
+    # 1. a top is crag exactly where a Crag box set the cell's height (a merged top never mixes the two); the crag
+    # reaches at most 24 + 18 studs in from the footprint's edge, so cells further in are never crag
+    wrong, ncrag = [], 0
+    for (i, j), (c, y) in flag.items():
+        x, z = E.cell_center(i, j)
+        want = E.shape_height(L, x, z)[2] if abs(x) > HALF - 64 or abs(z) > HALF - 64 else False
+        ncrag += bool(c)
+        if c != want:
+            wrong.append((round(x), round(z), y, c))
+    check("crag tops are exactly the Crag box cells", ncrag > 0 and not wrong, f"{ncrag} crag cells; wrong {wrong[:4]}")
+    # 2. a side belongs to the column whose top it reaches (hi = top - 1) and carries its flag
+    col = {(i, j, w, d): (y, c) for (i, j, w, d, y, m, c) in P.tops}
+    bads = [s for s in P.sides if (s[0], s[1], s[2], s[3]) not in col or s[5] != col[s[:4]][0] - 1 or s[6] != col[s[:4]][1]]
+    check("each side carries its column's crag flag", not bads, bads[:3])
+    # 3. no untagged top reaches the crest band within a Crag box's reach
+    untagged = []
+    for (i, j, w, d, y, m, c) in P.tops:
+        if c or y < E.WALL_Y:
+            continue
+        for a in range(w):
+            for b in range(d):
+                x, z = E.cell_center(i + a, j + b)
+                if any(E.rect_dist(s["Rect"], x, z) <= s["Crag"]["Depth"] + CELL for s in crags):
+                    untagged.append((round(x), round(z), y))
+    check("no untagged crest within a crag's reach", not untagged, untagged[:4])
+    # 4. the climbable inner face is tagged, not just the crest: a tall crag side on every edge
+    tall = {"west": 0, "east": 0, "south": 0, "north": 0}
+    for (i, j, w, d, lo, hi, c) in P.sides:
+        if not c or hi - lo < 80:
+            continue
+        x, z = -HALF + CELL * (i + w / 2), -HALF + CELL * (j + d / 2)
+        tall["west"] += x < -HALF + 64
+        tall["east"] += x > HALF - 64
+        tall["south"] += z < -HALF + 64
+        tall["north"] += z > HALF - 64
+    check("a crag side at least 80 tall on every edge", all(tall.values()), tall)
+
+
+SURVEY = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "Studio", "Regions",
+                                       "Lindenmoor", "ye_survey.json"))
+
+
+def village_ground_checks(P):
+    """Task 2 (Ruling 3): the Keep mask is widened by one cell, so no new ground touches a cell holding a village Ground
+    part (survey_ye.lua's GroundCells: the 4-stud cells holding a World.Map.Ground BasePart's XZ centre in Ye, as
+    column runs [x0, z0, z1], z1 exclusive)."""
+    import json
+    N = E.N
+    # the plan and check_survey.py share one keep mask; it covers every cell next to village terrain
+    V = P.village
+    km = E.keep_mask(P.layout, V) if hasattr(E, "keep_mask") else None
+    check("plan() uses expansion_plan.keep_mask", km is not None and km == P.keep)
+    thin = 0
+    for i in range(N):
+        for j in range(N):
+            if P.keep[i][j]:
+                continue
+            x, z = E.cell_center(i, j)
+            if any(V.has(x + E.CELL * a, z + E.CELL * b) for a in (-1, 0, 1) for b in (-1, 0, 1)):
+                thin += 1
+    check("keep mask widened one cell past the village terrain", thin == 0, f"{thin} unkept cells beside village terrain")
+    try:
+        with open(SURVEY, encoding="utf-8") as f:
+            runs = json.load(f).get("GroundCells")
+    except (OSError, ValueError):
+        runs = None
+    check("survey has the Ground parts' cells (GroundCells)", bool(runs), SURVEY)
+    held = {E.cell_of(x0 + 2, z + 2) for x0, z0, z1 in (runs or []) for z in range(z0, z1, E.CELL)}
+    built = set()
+    for (i, j, w, d, *_) in P.tops:
+        for a in range(w):
+            for b in range(d):
+                built.add((i + a, j + b))
+    hit = sorted(held & built)
+    check("no new ground on a cell holding a village Ground part", bool(held) and not hit,
+          f"{len(hit)} cells, e.g. {[E.cell_center(i, j) for i, j in hit[:4]]}")
 
 
 def water_checks(P):
@@ -170,6 +266,13 @@ def water_checks(P):
     fb = WC.convert([dict(Id="t", From=[0, -650], To=[10, -650], Width=4, Top=5.2, Bed=1)])["Boxes"]
     check("water frame: z near 0", bool(fb) and all(abs(b["Rect"][1]) <= 2.5 and abs(b["Rect"][3]) <= 2.5 for b in fb), fb)
     check("water frame: Top 1.2, Bed -3", bool(fb) and all(b["Top"] == 1.2 and b["Bed"] == -3 for b in fb), fb)
+    # a Rect water shape (layout.json allows Rect or Line) passes through, shifted into the village frame
+    try:
+        rb = WC.convert([dict(Id="pond", Rect=[0, -650, 10, -640], Top=5.2, Bed=1)])["Boxes"]
+    except (KeyError, TypeError) as e:
+        rb = repr(e)
+    check("water Rect entries pass through, frame-shifted",
+          rb == [{"Id": "pond", "Rect": [0, 0, 10, 10], "Top": 1.2, "Bed": -3}], rb)
 
     segs = [w for w in P.water if "From" in w]
     allb = WC.convert(segs)["Boxes"]
@@ -179,16 +282,26 @@ def water_checks(P):
 
     for s in segs:
         (ax, az), (bx, bz) = s["From"], s["To"]
-        miss = [(round(ax + (bx - ax) * t / 49, 1), round(az + (bz - az) * t / 49, 1)) for t in range(50)
-                if not inside(ax + (bx - ax) * t / 49, az + (bz - az) * t / 49)]
-        check(f"water {s['Id']} centreline covered", not miss, miss[:3])
+        # covered across the width, not just along the centreline: offsets up to r - 1.5 (a 2-stud cell's
+        # half-diagonal is 1.41, so the cell holding such a point has its centre within r and is filled)
+        L = math.hypot(bx - ax, bz - az)
+        nx, nz = (-(bz - az) / L, (bx - ax) / L) if L else (0.0, 0.0)
+        reach = max(0.0, s["Width"] / 2 - 1.5)
+        miss = []
+        for t in range(50):
+            for o in (-1, -0.5, 0, 0.5, 1):
+                x = ax + (bx - ax) * t / 49 + nx * o * reach
+                z = az + (bz - az) * t / 49 + nz * o * reach
+                if not inside(x, z):
+                    miss.append((round(x, 1), round(z, 1)))
+        check(f"water {s['Id']} covered across its width", not miss, miss[:3])
         # spill: box area vs the segment's exact area. The channel is a capsule (round ends), as the plan carves its bed
         # (poly_dist <= Width/2) and as the converter fills it, so exact = length x width + pi (width/2)^2; against
         # length x width alone the caps are 19-87% "spill" on every segment, straight ones too. PROPOSAL tolerance 15%.
-        L = math.hypot(bx - ax, bz - az)
         exact = L * s["Width"] + math.pi * (s["Width"] / 2) ** 2
         area = sum((b["Rect"][2] - b["Rect"][0]) * (b["Rect"][3] - b["Rect"][1]) for b in WC.convert([s])["Boxes"])
         check(f"water {s['Id']} spill <= 15%", area <= 1.15 * exact, f"{area} vs {exact:.0f} ({area / exact:.3f}x)")
+        check(f"water {s['Id']} area >= 0.95 x capsule", area >= 0.95 * exact, f"{area} vs {exact:.0f} ({area / exact:.3f}x)")
 
     # kit.py's own rule (Art/Studio/Regions/kit.py: x0 < x1, z0 < z1, Bed < Top)
     bad = [b for b in allb if not (b["Rect"][0] < b["Rect"][2] and b["Rect"][1] < b["Rect"][3] and b["Bed"] < b["Top"])]
