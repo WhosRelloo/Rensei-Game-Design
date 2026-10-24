@@ -179,7 +179,7 @@ The owner's profile was snapshotted when it loaded and restored before Stop. The
 
 ## Expansion (Blender, 2026-10-23): Lindenmoor fills its 2,048 × 2,048 footprint
 
-**Owner:** asked for the Lindenmoor expansion to be built in Blender alongside the region foundation. They approved the layout ("Yes, build it"), chose "Plan as if it's gone" for the hub graybox, and chose "Together, NE corner" for the exits. The design is `Documents/specs/2026-10-23-lindenmoor-expansion-design.md`. It is **Blender only**: nothing has gone into Ye yet. Every number is a **PROPOSAL**.
+**Owner:** asked for the Lindenmoor expansion to be built in Blender alongside the region foundation. They approved the layout ("Yes, build it"), chose "Plan as if it's gone" for the hub graybox, and chose "Together, NE corner" for the exits. The design is `Documents/specs/2026-10-23-lindenmoor-expansion-design.md`. The owner approved the renders on 2026-10-23: "The expansion renders look good. Approved for a later Studio import." It is **Blender only**: nothing has gone into Ye yet. Every number is a **PROPOSAL**.
 
 ![Map](images/Regions/Lindenmoor/Lindenmoor%20expansion%20-%20map.png)
 ![Aerial](images/Regions/Lindenmoor/Lindenmoor%20expansion%20-%20aerial.png)

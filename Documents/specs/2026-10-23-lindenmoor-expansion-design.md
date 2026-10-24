@@ -1,6 +1,6 @@
 # Lindenmoor expansion: design
 
-**Status:** layout approved by the owner on 2026-10-23 ("Yes, build it"). Built in Blender only. Studio import comes later and is coordinated by the main session.
+**Status:** layout approved by the owner on 2026-10-23 ("Yes, build it"), and the renders too ("The expansion renders look good. Approved for a later Studio import."). Built in Blender only. Studio import comes later and is coordinated by the main session.
 
 **Owner's request:** grow Lindenmoor (Ye, placeId 106992859583940) to its full 2,048 × 2,048 footprint around the finished village, following page 3 of the Regional Map Design Brief. This runs in parallel with the region foundation plan.
 
