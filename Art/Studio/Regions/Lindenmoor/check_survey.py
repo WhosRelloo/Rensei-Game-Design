@@ -161,8 +161,8 @@ def main(path, layout=LAYOUT):
 def infill_runs():
     """The layout's Infill cells (4-stud world cells in Infill.Rect that are not Keep), as column runs
     [x0, z0, z1]: cells x0..x0+4 by z0..z1 (z1 exclusive). Keep = expansion_plan.keep_mask(), the plan's own mask:
-    village terrain and the Keep Rects (the Adit hill), plus the village Ground parts' footprint from ye_survey.json's
-    GroundFootprint (Ruling 14). Stamping therefore needs a survey with GroundFootprint; re-run the survey after it."""
+    village terrain outside the Keep Rects, plus the footprint of Ye's Ground and HalvardsAdit parts from
+    ye_survey.json's GroundFootprint (Rulings 14, 15). Stamping therefore needs a survey with GroundFootprint; re-run the survey after it."""
     sys.path.insert(0, os.path.join(REPO, "Art", "Blender", "lindenmoor"))
     import expansion_plan as E  # pure Python, no bpy
     L = E.load(LAYOUT)

@@ -54,7 +54,7 @@
     "water_note": "Water stays Roblox terrain water (SwimService reads it); its colour is Ye's existing Terrain.WaterColor, unchanged."
   },
   "Keep": [
-    {"Id": "village_ground", "Source": "Art/Blender/lindenmoor/terrain_studio.json", "Note": "every 4-stud cell within 4 studs of a non-empty terrain_studio cell (8-stud grid; world = local + (0, 4, -650)): about x -332..344, z -990..-298, plus every cell World.Map.Ground's parts cover in Ye (ye_survey.json GroundFootprint; expansion_plan.keep_mask, Task 2, Ruling 14), less 8 bare village edge cells at z -982 that new ground fills. ground.lua only made parts where that terrain existed."},
+    {"Id": "village_ground", "Source": "Art/Blender/lindenmoor/terrain_studio.json", "Note": "every 4-stud cell within 4 studs of a non-empty terrain_studio cell (8-stud grid; world = local + (0, 4, -650)): about x -332..344, z -990..-298, plus every cell World.Map.Ground's or World.Map.HalvardsAdit's parts cover in Ye (ye_survey.json GroundFootprint; expansion_plan.keep_mask, Task 2, Rulings 14-15), less 11 bare village terrain cells that new ground fills (8 on the south edge row, z -982; 3 at z -590 in the Adit rect). The adit_hill Rect is kept only where it is footprint. ground.lua only made parts where that terrain existed."},
     {"Id": "adit_hill", "Rect": [270, -744, 532, -576], "Note": "the Adit cave voxel box x 280..524, z -734..-586 (adit_dress.lua:86-87) plus its stone shell"}
   ],
   "Infill": {"Rect": [-392, -1004, 532, -288], "Note": "ground.lua's scan box (X0, Z0, X1, Z1). Cells inside it but outside Keep are built new (the creek's run east to the gorge, the thin west, south and north strips). Before import, confirm in Studio that World.Map.Ground has no parts in those cells."},

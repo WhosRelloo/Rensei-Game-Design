@@ -15958,6 +15958,7 @@
    -604
   ]
  ],
+ "AditParts": 2637,
  "MapChildren": [
   {
    "Name": "AlchemistSpawns",
@@ -18082,7 +18083,7 @@
    "Class": "Part"
   }
  ],
- "InfillCells": 10431,
+ "InfillCells": 10840,
  "Areas": [
   {
    "Top": "Lindenmoor",

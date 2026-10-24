@@ -314,29 +314,29 @@ def terrain_mask(layout, village):
 
 
 def keep_mask(layout, village, footprint=None):
-    """The Keep mask, an N x N bool grid of 4-stud world cells where nothing new is built (controller Ruling 14):
-    terrain_mask() plus every cell the village's Ground parts cover in Ye (`footprint`, default ground_footprint()).
-    The footprint adds the cells just outside the terrain mask where Ye's Ground parts reach (Task 1's survey found 417
-    parts centred there) and nothing else, so new ground never lands on old and no blanket ring is left bare.
-    One exception keeps the seam closed: a village terrain cell (not a Keep Rect) that no Ground part covers and that
-    touches a cell outside both the terrain and the footprint is not kept, so new ground fills it at the village's
-    height (8 cells on the village's south edge row, z -982, where Ye's own ground has gaps).
-    Shared by plan() and check_survey.py's infill_runs()."""
+    """The Keep mask, an N x N bool grid of 4-stud world cells where nothing new is built (controller Rulings 14, 15):
+    village terrain cells (terrain_studio.json) outside the Keep Rects, plus every cell Ye's own parts cover
+    (`footprint`, default ground_footprint(): World.Map.Ground and World.Map.HalvardsAdit). A Keep Rect (the Adit hill)
+    is kept only where it is footprint; new ground fills the rest of it. So new ground never lands on old ground, and
+    no kept cell is bare.
+    One exception keeps the seam closed: a village terrain cell that no part covers and that touches an unkept cell is
+    not kept either, so new ground fills it at the village's height (on the village's south edge row, z -982, where
+    Ye's own ground has gaps). Shared by plan() and check_survey.py's infill_runs()."""
     if footprint is None:
         footprint = ground_footprint()
     foot = set(footprint)
     rects = [k["Rect"] for k in layout.get("Keep", []) if "Rect" in k]
-    base = terrain_mask(layout, village)
-    keep = [[base[i][j] or (i, j) in foot for j in range(N)] for i in range(N)]
+    keep = [[False] * N for _ in range(N)]
+    for i in range(N):
+        x = -HALF + CELL * i + CELL / 2
+        for j in range(N):
+            z = -HALF + CELL * j + CELL / 2
+            keep[i][j] = (i, j) in foot or (village.has(x, z) and not any(in_rect(r, x, z) for r in rects))
     out = [row[:] for row in keep]
     for i in range(N):
         for j in range(N):
-            if not keep[i][j] or (i, j) in foot:
-                continue
-            x, z = cell_center(i, j)
-            if any(in_rect(r, x, z) for r in rects):
-                continue
-            if any(not keep[a][b] for a in range(max(0, i - 1), min(N, i + 2)) for b in range(max(0, j - 1), min(N, j + 2))):
+            if keep[i][j] and (i, j) not in foot and any(
+                    not keep[a][b] for a in range(max(0, i - 1), min(N, i + 2)) for b in range(max(0, j - 1), min(N, j + 2))):
                 out[i][j] = False  # bare village edge cell: new ground fills it
     return out
 

@@ -228,7 +228,7 @@ The map is drawn as the brief draws it: north at the bottom, east on the right, 
 - `Art/Regions/Lindenmoor/water.json`: the same water in `kit.py`'s format: axis-aligned `Rect` boxes in the village's local frame (world − (0, 4, −650); `finish.lua` adds the origin back). `Art/Blender/lindenmoor/water_convert.py` makes it from `water_segments.json`: each segment is a capsule, filled with 2-stud cells and merged into rects (spill ≤ 15% of the capsule's area). Re-run the converter after every `water` stage.
 - `Art/Blender/lindenmoor/expansion_plan.py`: the pure planner, with no bpy.
 - `Art/Blender/lindenmoor/expansion_tests.py`: 116 checks on the plan, including:
-  - no ground on the village, nor on any cell a village `Ground` part covers (the Keep mask is the village terrain plus the Ground parts' footprint measured by the Ye survey; `expansion_plan.keep_mask()`, shared with `check_survey.py`);
+  - no ground on the village, nor on any cell a village `Ground` part covers (the Keep mask is the village terrain plus the footprint of Ye's `Ground` and `HalvardsAdit` parts, measured by the Ye survey; the Adit's Keep Rect is kept only where those parts are; `expansion_plan.keep_mask()`, shared with `check_survey.py`);
   - a closed seam: every cell along the village boundary has village ground or new ground;
   - the edge crag's tops and sides flagged `crag` (tagged `RenseiNoGrip`), on every edge;
   - no holes;

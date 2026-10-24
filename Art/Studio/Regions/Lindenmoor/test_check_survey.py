@@ -115,7 +115,7 @@ class CheckSurvey(unittest.TestCase):
         import check_survey
         runs = check_survey.infill_runs()
         cells = sum((r[2] - r[1]) // 4 for r in runs)
-        self.assertEqual(cells, 10431)  # of 41,349 cells in the Infill rect; the rest are Keep (incl. the Ground footprint, Ruling 14)
+        self.assertEqual(cells, 10840)  # of 41,349 cells in the Infill rect; the rest are Keep (terrain + Ground/Adit footprint, Rulings 14-15)
         for x0, z0, z1 in runs:
             self.assertTrue(-392 <= x0 < 532 and -1004 <= z0 < z1 <= -288)
 
