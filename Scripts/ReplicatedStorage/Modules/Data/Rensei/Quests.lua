@@ -144,7 +144,7 @@ return {
 			{Id = "acq_ice", Is = "NotActive"}, {Id = "acq_earth", Is = "NotActive"},
 			{Id = "acq_wind", Is = "NotActive"}, {Id = "acq_metal", Is = "NotActive"}}},
 		Stages = {
-			{Id = "invite", Text = "Go to the burned laboratory east of the training ground.", Objectives = {
+			{Id = "invite", Text = "Go to the burned laboratory in Bramble Woods, the valley's far south-east corner past the mine.", Objectives = {
 				{Id = "lab", Text = "Reach the burned laboratory", Kind = "Visit", Target = "Burned Laboratory"},
 			}},
 			{Id = "fieldwork", Text = "Work out how the laboratory fire happened.", Objectives = {
@@ -157,7 +157,7 @@ return {
 			{Id = "experiment", Text = "Bring the lab's reaction chamber to a clean ignition.", Objectives = {
 				{Id = "chamber", Text = "Run the reaction chamber", Kind = "Minigame", Target = "flame_reaction"},
 			}},
-			{Id = "trial", Text = "Corin Vale is still in the ash pit south of the lab. Stop him.", Objectives = {
+			{Id = "trial", Text = "Corin Vale is still in the ash pit just east of the lab. Stop him.", Objectives = {
 				{Id = "corin", Text = "Face Corin in the ash pit", Kind = "Flag", Target = "Trial_flame_apprentice"},
 			}},
 			{Id = "exam", Text = "Return to Calda and take the examination.", Objectives = {
@@ -176,7 +176,7 @@ return {
 		Description = "Veyra's colleague vanished from a frozen research station. She won't say what she suspects until you've learned to look.",
 		Requires = {NoAffinity = true, Quests = {{Id = "acq_flame", Is = "NotActive"}, {Id = "acq_earth", Is = "NotActive"}, {Id = "acq_wind", Is = "NotActive"}, {Id = "acq_metal", Is = "NotActive"}}},
 		Stages = {
-			{Id = "invite", Text = "Go to the frozen research station west of the training ground.", Objectives = {
+			{Id = "invite", Text = "Go to the frozen research station up on the Cypress ridge rim, at the valley's north-west end.", Objectives = {
 				{Id = "site", Text = "Reach the frozen research station", Kind = "Visit", Target = "Frozen Research Station"},
 			}},
 			{Id = "fieldwork", Text = "Find out what froze the station.", Objectives = {
@@ -189,7 +189,7 @@ return {
 			{Id = "experiment", Text = "Restore the station's pumps without cracking the casings.", Objectives = {
 				{Id = "station", Text = "Work the pump housing", Kind = "Minigame", Target = "ice_phase"},
 			}},
-			{Id = "trial", Text = "Something wakes in the frozen chamber south of the station. Face it.", Objectives = {
+			{Id = "trial", Text = "Something wakes in the frozen chamber east of the station. Face it.", Objectives = {
 				{Id = "foe", Text = "Face the Crystallized Guardian", Kind = "Flag", Target = "Trial_ice_guardian"},
 			}},
 			{Id = "exam", Text = "Return to Veyra and take the examination.", Objectives = {
@@ -208,7 +208,7 @@ return {
 		Description = "A footbridge the village depends on is failing. Holt wants to know why before anyone touches it - including you.",
 		Requires = {NoAffinity = true, Quests = {{Id = "acq_flame", Is = "NotActive"}, {Id = "acq_ice", Is = "NotActive"}, {Id = "acq_wind", Is = "NotActive"}, {Id = "acq_metal", Is = "NotActive"}}},
 		Stages = {
-			{Id = "invite", Text = "Go to the cracked footbridge north-west of the training ground.", Objectives = {
+			{Id = "invite", Text = "Go to the cracked footbridge on the mine plateau, east of the training field across the gorge.", Objectives = {
 				{Id = "site", Text = "Reach the cracked footbridge", Kind = "Visit", Target = "Cracked Footbridge"},
 			}},
 			{Id = "fieldwork", Text = "Find out why the footing is failing.", Objectives = {
@@ -221,7 +221,7 @@ return {
 			{Id = "experiment", Text = "Work out where the bridge needs support.", Objectives = {
 				{Id = "station", Text = "Brace the footing at the survey table", Kind = "Minigame", Target = "earth_loads"},
 			}},
-			{Id = "trial", Text = "The quarry west of the bridge is coming apart, and someone is doing it on purpose. Stop him.", Objectives = {
+			{Id = "trial", Text = "The quarry east of the bridge is coming apart, and someone is doing it on purpose. Stop him.", Objectives = {
 				{Id = "foe", Text = "Face Dask in the unstable quarry", Kind = "Flag", Target = "Trial_earth_quarry"},
 			}},
 			{Id = "exam", Text = "Return to Holt and take the examination.", Objectives = {
@@ -240,7 +240,7 @@ return {
 		Description = "The observatory's machines stopped. Ansel knows why, and won't say. He wants to see if you can work it out from what the air left behind.",
 		Requires = {NoAffinity = true, Quests = {{Id = "acq_flame", Is = "NotActive"}, {Id = "acq_ice", Is = "NotActive"}, {Id = "acq_earth", Is = "NotActive"}, {Id = "acq_metal", Is = "NotActive"}}},
 		Stages = {
-			{Id = "invite", Text = "Go to the silent observatory north-east of the training ground.", Objectives = {
+			{Id = "invite", Text = "Go to the silent observatory on the crest of the Cypress ridge rim, north-west of the training field.", Objectives = {
 				{Id = "site", Text = "Reach the silent observatory", Kind = "Visit", Target = "Silent Observatory"},
 			}},
 			{Id = "fieldwork", Text = "Work out why the observatory stopped.", Objectives = {
@@ -272,7 +272,7 @@ return {
 		Description = "A forge east of the Foundry Yard went cold mid-shift. Brannoc wants the failure understood before a single bolt is turned.",
 		Requires = {NoAffinity = true, Quests = {{Id = "acq_flame", Is = "NotActive"}, {Id = "acq_ice", Is = "NotActive"}, {Id = "acq_earth", Is = "NotActive"}, {Id = "acq_wind", Is = "NotActive"}}},
 		Stages = {
-			{Id = "invite", Text = "Go to the silent forge east of the Foundry Yard.", Objectives = {
+			{Id = "invite", Text = "Go to the silent forge in the north meadows by the gap, just east of the Foundry Yard.", Objectives = {
 				{Id = "site", Text = "Reach the silent forge", Kind = "Visit", Target = "Silent Forge"},
 			}},
 			{Id = "fieldwork", Text = "Find out why the forge's machine failed.", Objectives = {

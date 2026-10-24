@@ -75,7 +75,8 @@ end
 -- Ctx.Witness, else nil (HeatService: an agent who saw it raises Heat at once).
 MoralityService.Recorded = {}
 
--- the region a character stands in (Rensei.Regions; outside every area volume = the City)
+-- the region a character stands in (Rensei.Regions; outside every area volume = Regions.Default: the place's own
+-- region, or its HubLaw entry; in Ye that is Lindenmoor)
 function MoralityService.RegionOf(Character)
 	local Root = Character and Character:FindFirstChild("HumanoidRootPart")
 	if not Root then return Regions.Default end
