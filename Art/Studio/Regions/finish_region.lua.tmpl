@@ -8,12 +8,13 @@
 --   * Confirm = "<Region>": the real run, only in place {{PLACE_ID}}. With neither, it refuses and changes nothing.
 -- The real run refuses, changing nothing, if: the checks fail; this is another place; today's backup
 -- RenseiBackups["Pre-Region_<Region>_<run date>"] exists; workspace.World.Map is missing; a KEEP name is not a
--- World.Map child, or is the region's own name. Then, inside a pcall that rolls everything back on an error:
---   builds Map.<Region> (a Model) from the staged groups; creates the backup; moves every World.Map child not in
---   KEEP into it with its CollectionService tags stripped (kept as JSON in the attribute RegionKitTags, so services
---   reading GetTagged don't see the old map); backs up and swaps any MaterialVariant it replaces; snapshots the
---   terrain under each water box (TerrainRegion) and fills it with water; parents Map.<Region>. Returns a summary
---   naming what was moved and kept. import/restore.lua undoes it.
+-- World.Map child, or is the MapChild. Then, inside a pcall that rolls everything back on an error:
+--   builds Map.{{MAPCHILD_TEXT}} (the MapChild: a Model) from the staged groups; creates the backup; moves every
+--   World.Map child not in KEEP into it with its CollectionService tags stripped (kept as JSON in the attribute
+--   RegionKitTags, so services reading GetTagged don't see the old map; kept children are not touched); backs up
+--   and swaps any MaterialVariant it replaces (tracked by instance: a rollback never marks or moves the owner's
+--   variant); snapshots the terrain under each water box (TerrainRegion) and fills it with water; parents
+--   Map.{{MAPCHILD_TEXT}}. Returns a summary naming what was moved and kept. import/restore.lua undoes it.
 local HS = game:GetService("HttpService")
 local SS = game:GetService("ServerStorage")
 local MS = game:GetService("MaterialService")
@@ -23,7 +24,8 @@ local REGION, PLACE_ID, GENERATED = {{REGION}}, {{PLACE_ID}}, {{GENERATED}}
 local EXPECTED = HS:JSONDecode([==[{{EXPECTED}}]==])
 local WATER = HS:JSONDecode([==[{{WATER}}]==]) -- {Rect = {x0, z0, x1, z1}, Top, Bed} in region coordinates
 local ORIGIN = Vector3.new({{ORIGIN}}) -- the export's origin: region coordinates + ORIGIN = world
-local KEEP = HS:JSONDecode([==[{{KEEP}}]==]) -- World.Map children the real run leaves in place (the region file's Keep)
+local KEEP = HS:JSONDecode([==[{{KEEP}}]==]) -- World.Map children the real run leaves in place (KeepMapChildren)
+local MAPCHILD = {{MAPCHILD}} -- the World.Map child the import builds (the region file's MapChild; default the Region)
 local BNAME = "Pre-Region_" .. REGION .. "_" .. os.date("%Y-%m-%d") -- keyed on the run date
 local LEFT = "nothing changed (ServerStorage.RegionStaging and the kit's MaterialVariants are left in place)"
 
@@ -127,13 +129,14 @@ if Dry then
 	local Ok, Bad, Models, Parts, Tags = pcall(Check)
 	-- always leave the place as it was: the variants this kit made, then the staging folder
 	local Removed, Kept = 0, 0
-	for _, V in ipairs(EXPECTED.variants) do
-		local Have = MS:FindFirstChild(V)
-		if Have and Have:GetAttribute("RegionKitStaged") == REGION then
-			Have:Destroy()
-			Removed += 1
-		elseif Have then
-			Kept += 1
+	for _, C in ipairs(MS:GetChildren()) do
+		if table.find(EXPECTED.variants, C.Name) then
+			if C:GetAttribute("RegionKitStaged") == REGION then
+				C:Destroy()
+				Removed += 1
+			else
+				Kept += 1
+			end
 		end
 	end
 	Stage:Destroy()
@@ -167,7 +170,7 @@ local Map = World and World:FindFirstChild("Map")
 if not Map then return "finish refused: no workspace.World.Map; " .. LEFT end
 local Missing = {}
 for _, N in ipairs(KEEP) do
-	if N == REGION then return "finish refused: KEEP names the region itself (" .. REGION .. "); " .. LEFT end
+	if N == MAPCHILD then return "finish refused: KEEP names the MapChild (" .. MAPCHILD .. "); " .. LEFT end
 	if not Map:FindFirstChild(N) then table.insert(Missing, N) end
 end
 if #Missing > 0 then
@@ -175,7 +178,8 @@ if #Missing > 0 then
 end
 
 local Terrain = workspace.Terrain
-local Journal, Stripped, Added, Snaps, Moved, Kept = {}, {}, {}, {}, {}, {}
+local Journal, Stripped, Snaps, Moved, Kept = {}, {}, {}, {}, {}
+local KitVars, Unmarked = {}, {} -- the kit's MaterialVariant instances; the ones this run unmarked
 local B, Dest, MadeBackups
 local function Move(I, To)
 	table.insert(Journal, {I, I.Parent})
@@ -202,7 +206,7 @@ end
 
 local function Swap()
 	Dest = Instance.new("Model") -- built outside the Map first
-	Dest.Name = REGION
+	Dest.Name = MAPCHILD
 	Dest:SetAttribute("RegionKit", REGION)
 	Dest:SetAttribute("RegionKitBackup", BNAME)
 	for _, G in ipairs(Groups()) do Move(G, Dest) end
@@ -214,6 +218,7 @@ local function Swap()
 	B = Instance.new("Folder")
 	B.Name = BNAME
 	B:SetAttribute("RegionKitRegion", REGION)
+	B:SetAttribute("MapChild", MAPCHILD)
 	B:SetAttribute("CreatedRenseiBackups", MadeBackups == true)
 	B.Parent = Backups
 	local BMap = Folder("Map", B)
@@ -226,24 +231,33 @@ local function Swap()
 			table.insert(Moved, C.Name)
 		end
 	end
+	-- MaterialVariants, by instance: the kit's own (marked RegionKitStaged = REGION) stay; a replacement waiting in
+	-- _Variants goes in and the owner's same-named variant(s) go to the backup
+	for _, C in ipairs(MS:GetChildren()) do
+		if C:GetAttribute("RegionKitStaged") == REGION and table.find(EXPECTED.variants, C.Name) then table.insert(KitVars, C) end
+	end
 	local Wait = Stage:FindFirstChild("_Variants")
 	if Wait then
 		local BVar = Folder("MaterialVariants", B)
 		for _, New in ipairs(Wait:GetChildren()) do
-			local Old = MS:FindFirstChild(New.Name)
-			if Old then
-				Strip(Old)
-				Move(Old, BVar)
+			for _, Old in ipairs(MS:GetChildren()) do
+				if Old.Name == New.Name and not table.find(KitVars, Old) then
+					Strip(Old)
+					Move(Old, BVar)
+				end
 			end
 			Move(New, MS)
+			table.insert(KitVars, New)
 		end
 	end
-	for _, V in ipairs(EXPECTED.variants) do -- the kit's variants now belong to the place; restore.lua removes them
-		local Have = MS:FindFirstChild(V)
-		if Have and Have:GetAttribute("RegionKitStaged") == REGION then
-			table.insert(Added, V)
-			Have:SetAttribute("RegionKitStaged", nil)
-		end
+	local VF = Folder("VariantsAdded", B) -- ObjectValues: restore.lua moves exactly these instances out again
+	for _, V in ipairs(KitVars) do
+		V:SetAttribute("RegionKitStaged", nil)
+		table.insert(Unmarked, V)
+		local Ref = Instance.new("ObjectValue")
+		Ref.Name = V.Name
+		Ref.Value = V
+		Ref.Parent = VF
 	end
 	-- water: snapshot the terrain under each box first (restore pastes it back), then fill
 	local WF = Folder("Water", B)
@@ -265,7 +279,10 @@ local function Swap()
 	B:SetAttribute("WaterBoxes", HS:JSONEncode(Boxes))
 	B:SetAttribute("Moved", HS:JSONEncode(Moved))
 	B:SetAttribute("Kept", HS:JSONEncode(Kept))
-	B:SetAttribute("VariantsAdded", HS:JSONEncode(Added))
+	local DRef = Instance.new("ObjectValue") -- restore.lua finds the import by this, not by name
+	DRef.Name = "MapChildRef"
+	DRef.Value = Dest
+	DRef.Parent = B
 	Move(Dest, Map)
 end
 
@@ -281,10 +298,7 @@ if not SOk then
 			for _, Tag in ipairs(HS:JSONDecode(D:GetAttribute("RegionKitTags"))) do CS:AddTag(D, Tag) end
 			D:SetAttribute("RegionKitTags", nil)
 		end
-		for _, V in ipairs(Added) do
-			local Have = MS:FindFirstChild(V)
-			if Have then Have:SetAttribute("RegionKitStaged", REGION) end
-		end
+		for _, V in ipairs(Unmarked) do V:SetAttribute("RegionKitStaged", REGION) end -- instances, never by name
 		if B then B:Destroy() end
 		if MadeBackups and Backups then Backups:Destroy() end
 		if Dest then Dest:Destroy() end
@@ -296,6 +310,11 @@ if not SOk then
 	return "finish FAILED and rolled back: " .. tostring(SErr) .. "; World.Map, MaterialService and terrain are as they were; " .. LEFT
 end
 Stage:Destroy()
+local function VarNames()
+	local L = {}
+	for _, V in ipairs(KitVars) do table.insert(L, V.Name) end
+	return #L > 0 and table.concat(L, ", ") or "none"
+end
 return ("finish: %s built into workspace.World.Map.%s (%d models, %d parts; tags %s); moved to RenseiBackups.%s: %s; kept: %s; %d tagged instances stripped; MaterialVariants added %s; %d water boxes filled (terrain snapshots in the backup); undo with import/restore.lua")
-	:format(REGION, REGION, Models, Parts, TagText(Tags), BNAME, #Moved > 0 and table.concat(Moved, ", ") or "nothing",
-		#Kept > 0 and table.concat(Kept, ", ") or "nothing", #Stripped, #Added > 0 and table.concat(Added, ", ") or "none", #WATER)
+	:format(REGION, MAPCHILD, Models, Parts, TagText(Tags), BNAME, #Moved > 0 and table.concat(Moved, ", ") or "nothing",
+		#Kept > 0 and table.concat(Kept, ", ") or "nothing", #Stripped, VarNames(), #WATER)

@@ -190,18 +190,28 @@ def test_schema():
     bad["Markers"].append({"Tag": "EdgeGap", "Box": [[-20, 60, -128], [20, 0, -112]]})
     r, m, msgs = raises_schema(schema, bad, "Box")
     check("an EdgeGap with an inside-out Box raises", r and m, msgs)
-    # Keep (Task 11 fix round 1): optional names of World.Map children the Studio import leaves in place
-    check("the Testbed has no Keep (the import keeps nothing)", "Keep" not in raw)
+    # KeepMapChildren / MapChild (Task 11 fix rounds 1-2): the Studio import's kept World.Map children and target
+    check("the Testbed has no KeepMapChildren or MapChild", "KeepMapChildren" not in raw and "MapChild" not in raw)
     good = copy.deepcopy(raw)
-    good["Keep"] = ["Station", "Spawns"]
-    r, m, msgs = raises_schema(schema, good, "Keep")
-    check("a Keep list of names loads", not r, msgs)
+    good["KeepMapChildren"] = ["Testbed", "Spawns"]
+    good["MapChild"] = "TestbedExpansion"
+    r, m, msgs = raises_schema(schema, good, "KeepMapChildren")
+    check("KeepMapChildren (naming the region) with a MapChild loads", not r, msgs)
     for val, why in ((["Station", "Station"], "duplicates"), (["Station", ""], "an empty name"), ("Station", "a string"),
-                     ([3], "a number"), (["Testbed"], "the region's own name")):
+                     ([3], "a number"), (["Testbed"], "the MapChild (the Region name by default)")):
         bad = copy.deepcopy(raw)
-        bad["Keep"] = val
-        r, m, msgs = raises_schema(schema, bad, "Keep")
-        check(f"a Keep with {why} raises", r and m, msgs)
+        bad["KeepMapChildren"] = val
+        r, m, msgs = raises_schema(schema, bad, "KeepMapChildren")
+        check(f"a KeepMapChildren with {why} raises", r and m, msgs)
+    for val in ("", "Two words", "9x", 5):
+        bad = copy.deepcopy(raw)
+        bad["MapChild"] = val
+        r, m, msgs = raises_schema(schema, bad, "MapChild")
+        check(f"a MapChild of {val!r} raises", r and m, msgs)
+    bad = copy.deepcopy(raw)
+    bad["Keep"] = ["Station"]
+    r, m, msgs = raises_schema(schema, bad, "unknown key Keep")
+    check("the old name Keep is not the import setting (unknown key)", r and m, msgs)
     check("the Testbed has an EdgeGap at each end of the main road",
           sum(1 for mk in L["Markers"] if mk["Tag"] == "EdgeGap") == 2, [mk["Tag"] for mk in L["Markers"]])
     return L

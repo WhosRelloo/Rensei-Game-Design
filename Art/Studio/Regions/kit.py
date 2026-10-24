@@ -1,14 +1,18 @@
 """Region kit for Roblox Studio: a thin wrapper around Art/Studio/Lindenmoor/studio_kit.py (Region Foundation Task 11).
 
-python -I Art/Studio/Regions/kit.py <Region> [--date YYYY-MM-DD] [--keep Name1,Name2] [--place <placeId>]
+python -I Art/Studio/Regions/kit.py <Region> [--date YYYY-MM-DD] [--keep Name1,Name2] [--map-child Name] [--place <id>]
   reads  Art/Studio/Regions/<Region>/layout.json   (export.py's output: Region_<Region> exported with origin (0,0,0))
          Art/Regions/<Region>/materials.json        (optional: else studio_kit's built-in table)
          Art/Regions/<Region>/water.json            (optional: terrain water boxes)
-         Art/Regions/<Region>/layout.json           (the region file: PlaceId, Budget and the optional Keep)
-  writes Art/Studio/Regions/<Region>/import/chunk_NN.lua, expected.json, finish.lua and restore.lua (from
-         finish_region.lua.tmpl and restore_region.lua.tmpl).
+         Art/Regions/<Region>/layout.json           (the region file: PlaceId, Budget and the optional
+                                                     KeepMapChildren and MapChild)
+  writes Art/Studio/Regions/<Region>/import/chunk_NN.lua, expected.json, finish.lua, restore.lua and unstrip.lua
+         (from finish_region.lua.tmpl, restore_region.lua.tmpl and unstrip_region.lua.tmpl).
   --date  the generation date written into the headers (default today; the backup is named by the RUN date).
-  --keep  World.Map children the real run leaves in place, added to the region file's Keep.
+  --keep  World.Map children the real run leaves in place, added to the region file's KeepMapChildren. (A region
+          file's top-level "Keep", as in Lindenmoor's, is something else and is ignored here.)
+  --map-child  the World.Map child the import builds (default: the region file's MapChild, else the Region name);
+          Task 12's setup.lua must read the same MapChild.
   --place overrides the region file's PlaceId (a test run of a region in another place).
 
 In Studio (Edit, the region's place): run the chunks in order (they build ServerStorage.RegionStaging), then set ONE
@@ -26,7 +30,8 @@ import studio_kit  # noqa: E402
 from studio_kit import lua_str, long_json  # noqa: E402
 
 TEMPLATES = {"finish.lua": os.path.join(HERE, "finish_region.lua.tmpl"),
-             "restore.lua": os.path.join(HERE, "restore_region.lua.tmpl")}
+             "restore.lua": os.path.join(HERE, "restore_region.lua.tmpl"),
+             "unstrip.lua": os.path.join(HERE, "unstrip_region.lua.tmpl")}
 # Parts whose name contains one of these lose collision in a region run. Only see-through or lit fittings that sit
 # flush on something solid: window panes (*Glass: house/warehouse windows on the wall face, the crane's CabGlass)
 # and lamp heads (*Glow: street-lamp and court lamp glows, the underworks DimGlow in its cage). Kerbs, steps, crates,
@@ -54,12 +59,24 @@ def arg(argv, flag):
 
 
 def keep_list(spec, extra):
-    """The region file's Keep plus --keep (comma-separated, trimmed, empty ones skipped), in order, no repeats."""
-    keep = list(spec.get("Keep") or [])
-    if not all(isinstance(k, str) and k.strip() for k in keep):
-        raise SystemExit(f"Keep must be a list of non-empty names, got {keep!r}")
+    """The region file's KeepMapChildren plus --keep (comma-separated, trimmed, empty ones skipped), in order, no
+    repeats. The top-level "Keep" (Lindenmoor's area objects) is not read."""
+    keep = spec.get("KeepMapChildren") or []
+    if not (isinstance(keep, list) and all(isinstance(k, str) and k.strip() for k in keep)):
+        raise SystemExit(f"KeepMapChildren must be a list of non-empty names, got {keep!r}")
     keep = [k.strip() for k in keep] + studio_kit.split_tags(extra or "")
     return list(dict.fromkeys(keep))
+
+
+def map_child(spec, region, override, keep):
+    """The World.Map child the import builds: --map-child, else the region file's MapChild, else the Region name.
+    It must be a plain name and may not be kept."""
+    child = override or spec.get("MapChild") or region
+    if not (isinstance(child, str) and NAME.fullmatch(child)):
+        raise SystemExit(f"MapChild {child!r}: letters, digits and _ only, starting with a letter")
+    if child in keep:
+        raise SystemExit(f"KeepMapChildren may not name the MapChild ({child}): the import builds World.Map.{child}")
+    return child
 
 
 def fill_template(path, fill):
@@ -91,8 +108,7 @@ def main(argv):
     place = arg(argv, "--place")
     place = int(place) if place is not None else int(spec.get("PlaceId") or 0)
     keep = keep_list(spec, arg(argv, "--keep"))
-    if region in keep:
-        raise SystemExit(f"Keep may not name the region itself ({region}): the import builds World.Map.{region}")
+    child = map_child(spec, region, arg(argv, "--map-child"), keep)
     mats = load(os.path.join(src, "materials.json"))
     water = load(os.path.join(src, "water.json"), {"Boxes": []})
     for w in water.get("Boxes", []):
@@ -111,11 +127,11 @@ def main(argv):
     fill = {"{{REGION}}": lua_str(region), "{{REGION_TEXT}}": region, "{{PLACE_ID}}": str(place),
             "{{GENERATED}}": lua_str(date), "{{GENERATED_TEXT}}": date,
             "{{EXPECTED}}": long_json(exp, sort_keys=True), "{{WATER}}": long_json(water.get("Boxes", []), sort_keys=True),
-            "{{KEEP}}": long_json(keep), "{{ORIGIN}}": ", ".join(repr(float(v)) if isinstance(v, float) else str(v) for v in origin)}
+            "{{KEEP}}": long_json(keep), "{{MAPCHILD}}": lua_str(child), "{{MAPCHILD_TEXT}}": child, "{{ORIGIN}}": ", ".join(repr(float(v)) if isinstance(v, float) else str(v) for v in origin)}
     for name, tmpl in TEMPLATES.items():
         with open(os.path.join(folder, "import", name), "w", encoding="utf-8") as f:
             f.write(fill_template(tmpl, fill))
-    print(f"finish.lua + restore.lua: region {region}, place {place}, generated {date}, keep {keep}; tags {exp['tags']}; "
+    print(f"finish/restore/unstrip.lua: region {region}, place {place}, generated {date}, Map.{child}, keep {keep}; tags {exp['tags']}; "
           f"variants {exp['variantParts']}; water boxes {len(water.get('Boxes', []))}")
     return out
 

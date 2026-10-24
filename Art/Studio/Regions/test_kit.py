@@ -69,11 +69,19 @@ def main(argv):
           v == [{"Name": "RG_T_p", "Base": "Cobblestone", "ColorMap": "rbxassetid://9", "Studs": 8}] and t["RG_T_p"][3] == "RG_T_p", v)
     check("every built-in material is an Enum.Material", all(m[0] in SK.ROBLOX_MATERIALS for m in SK.MATS.values()))
 
-    # Keep
-    check("keep_list: region file + --keep, trimmed, no repeats",
-          kit.keep_list({"Keep": ["Station"]}, " Spawns ,Station,,") == ["Station", "Spawns"], kit.keep_list({"Keep": ["Station"]}, " Spawns ,Station,,"))
+    # KeepMapChildren / MapChild (the top-level "Keep", Lindenmoor's area objects, is not read)
+    check("keep_list: KeepMapChildren + --keep, trimmed, no repeats",
+          kit.keep_list({"KeepMapChildren": ["Station"]}, " Spawns ,Station,,") == ["Station", "Spawns"])
     check("keep_list: none", kit.keep_list({}, None) == [])
-    check("keep_list refuses an empty name", raises(kit.keep_list, {"Keep": [""]}, None))
+    check("keep_list refuses an empty name", raises(kit.keep_list, {"KeepMapChildren": [""]}, None))
+    lind = json.load(open(os.path.join(REPO, "Art", "Regions", "Lindenmoor", "layout.json"), encoding="utf-8"))
+    check("Lindenmoor's own Keep (area objects) is ignored", "Keep" in lind and kit.keep_list(lind, None) == [])
+    check("map_child defaults to the Region", kit.map_child({}, "Testbed", None, []) == "Testbed")
+    check("map_child from the region file", kit.map_child({"MapChild": "TestbedExpansion"}, "Testbed", None, ["Testbed"])
+          == "TestbedExpansion")
+    check("--map-child wins", kit.map_child({"MapChild": "A"}, "Testbed", "B", []) == "B")
+    check("map_child refuses a kept name", raises(kit.map_child, {}, "Testbed", None, ["Testbed"]))
+    check("map_child refuses a bad name", raises(kit.map_child, {"MapChild": "Two words"}, "Testbed", None, []))
 
     with tempfile.TemporaryDirectory() as d:
         # Lindenmoor and the train: the command-line run is unchanged (outputs equal the committed ones)
@@ -114,7 +122,8 @@ def main(argv):
               and "" not in e2["tags"] and " X " not in e2["tags"], e2["tags"])
         # the templates fill completely
         fill = {"{{REGION}}": '"T"', "{{REGION_TEXT}}": "T", "{{PLACE_ID}}": "0", "{{GENERATED}}": '"2026-10-24"',
-                "{{GENERATED_TEXT}}": "2026-10-24", "{{EXPECTED}}": "{}", "{{WATER}}": "[]", "{{KEEP}}": "[]", "{{ORIGIN}}": "0, 0, 0"}
+                "{{GENERATED_TEXT}}": "2026-10-24", "{{EXPECTED}}": "{}", "{{WATER}}": "[]", "{{KEEP}}": "[]", "{{ORIGIN}}": "0, 0, 0",
+                "{{MAPCHILD}}": '"T"', "{{MAPCHILD_TEXT}}": "T"}
         for name, path in kit.TEMPLATES.items():
             check(f"{name} template fills every slot", not raises(kit.fill_template, path, fill))
 

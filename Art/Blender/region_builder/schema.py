@@ -5,7 +5,7 @@ At is [x, y, z], where y = 0 means "on the ground" (the builder snaps it). A Rec
 
 load(path) returns the parsed dict, with optional fields filled in (box Edge 0, Yaw 0, Attr {}), or raises
 SchemaError(messages) listing every problem found. No bpy; standard library only."""
-import json
+import json, re
 
 HEIGHT_KINDS = ("plane", "box", "ridge", "cut", "water")
 ROUTE_KINDS = ("public", "quiet", "rail", "under", "ledge", "road")
@@ -50,9 +50,11 @@ MAX_STOREYS = 4
 # top-level key to the region file must add it here, or every file carrying it will fail to load.
 TOP_KEYS = ("Region", "PlaceId", "Footprint", "Palette", "Heights", "Districts", "Routes", "Landmarks", "Markers",
             "Budget")
-# optional top-level keys. Keep: names of workspace.World.Map children the Studio import's real run leaves in place
-# (Art/Studio/Regions/kit.py fills finish.lua's KEEP from it; Task 11 fix round 1). Absent = keep nothing.
-OPTIONAL_KEYS = ("Keep",)
+# optional top-level keys, read by the Studio import (Art/Studio/Regions/kit.py; Task 11 fix round 2):
+#   KeepMapChildren: names of workspace.World.Map children the real run leaves in place (absent = keep nothing);
+#   MapChild: the World.Map child the import builds (absent = the Region name), e.g. "LindenmoorExpansion" beside
+#   the kept village Map.Lindenmoor. (Lindenmoor's own "Keep", a list of area objects, is a different thing.)
+OPTIONAL_KEYS = ("KeepMapChildren", "MapChild")
 
 
 class SchemaError(Exception):
@@ -164,11 +166,15 @@ def validate(data):
             c.half = (fp[0] / 2, fp[1] / 2)
         else:
             c.err("region", f"Footprint must be [width, depth] in studs, both > 0, got {fp!r}")
-    keep = data.get("Keep")
-    if "Keep" in data and not (isinstance(keep, list) and all(_str(k) for k in keep) and len(set(keep)) == len(keep)):
-        c.err("region", f"Keep must be a list of distinct non-empty names (World.Map children), got {keep!r}")
-    if isinstance(keep, list) and data.get("Region") in keep:
-        c.err("region", f"Keep may not name the region itself ({data.get('Region')!r}): the import builds Map.<Region>")
+    child = data.get("MapChild", data.get("Region"))
+    if "MapChild" in data and not (_str(child) and re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", child)):
+        c.err("region", f"MapChild must be a name of letters, digits and _ (starting with a letter), got {child!r}")
+    keep = data.get("KeepMapChildren")
+    if "KeepMapChildren" in data and not (isinstance(keep, list) and all(_str(k) for k in keep)
+                                          and len(set(keep)) == len(keep)):
+        c.err("region", f"KeepMapChildren must be a list of distinct non-empty names (World.Map children), got {keep!r}")
+    if isinstance(keep, list) and child in keep:
+        c.err("region", f"KeepMapChildren may not name the MapChild ({child!r}): the import builds World.Map.{child}")
     if "Budget" in data and not (_int(data["Budget"]) and 0 < data["Budget"] <= MAX_BUDGET):
         c.err("region", f"Budget must be an integer in 1..{MAX_BUDGET}, got {data['Budget']!r}")
     pal = data.get("Palette")
