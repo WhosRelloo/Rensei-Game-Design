@@ -23,9 +23,13 @@ On the owner's request ("Import Foundry Yard into the Foundry Yard place"), the 
 - **Missing buildings.** The first dry run caught 231 missing buildings, and nothing changed. The region builder numbered building ids per street frontage, so a district facing two streets repeated names, and the import replaced one building with another. Ids now run through the whole district (`placement.plan_buildings`). There are new checks in `tests/run.py` (218/218) and `foundry_check.py` (36/36).
 - **Trees past the wall.** The South Road's passage put trees and ground past the south wall, and an oak reached through the portal. Its `Skip` now reaches past the footprint, and the passage's end-of-road trees honour `Skip` (`travel_pieces.lua`; with no `Skip`, as on Lindenmoor's road, nothing changes). `test_kit.py` passes 72/72.
 
+**Play (hooked; the owner's save restored before Stop; one Play session at a time across Ye and Foundry):**
+- **Passing:** Boot 2/2, Station 20/20, Road 11/11, Gate 13/13, Arrive 5/5.
+- **Known failures:** Travel 5/7 and RideEvents 8/9, only the known Cabin/Second ticket in the owner's save.
+- **Test fixes:** `Play_Station` and `Play_Road` (`Art/Studio/Travel/src`) now read a setup-built station and a shorter first road leg. Nothing changes in Ye.
+
 **Next:**
 - the owner saves the place;
-- a hooked Play run of Foundry's travel suites;
 - Brannoc and the forge rooms move from Ye (that touches Ye);
 - the game data: areas, the townsfolk roster, clues and the shift-ledger quest.
 

@@ -131,6 +131,15 @@ Done in Studio, in the Foundry Yard place (109591196441030), Edit mode, with the
 8. **Spawn:** the old `Spawn` went to the backup with the old map. A new invisible, walk-through `SpawnLocation` named `Spawn` stands on the platform at (−648, 6.9, 360), as a child of `Map.Foundry`.
    - It isn't part of the export, so **re-add it after any re-import**.
 
+9. **Play (hooked, the owner's save restored before Stop).** One Play session ran at a time across both places: Ye was in Edit and carried a PlayLock `Foundry:travel suites` while Foundry ran.
+   - **Passing:** Boot 2/2, Station 20/20, Road 11/11, Gate 13/13, Arrive 5/5.
+   - **Known failures:** Travel 5/7 and RideEvents 8/9 fail only on the known Cabin/Second ticket in the owner's real save, as in Ye.
+   - **Two suites assumed the old map,** and both now read the built station and road (`Art/Studio/Travel/src`). Both changes are installed in Foundry's `RenseiTests`; Ye's behaviour is unchanged.
+     - `Play_Station` now finds a setup-built platform beside the train.
+     - `Play_Road` now steps back to a spot only leg 1 holds (Foundry's first leg is shorter than Lindenmoor's).
+     - Foundry's copy of `Play_Road` was also brought up to the repo's version, which reads its spots from the built road.
+   - Station once failed 4/20 when it ran first in a fresh session; with Boot first, it passed 20/20.
+
 **Not done in this import (next):**
 - **Brannoc's move out of Ye.** This touches Ye, where the other session is working. See note 10 below.
 - **The game data:** areas, roster, clues and the shift-ledger quest.

@@ -396,8 +396,10 @@ local Suite = {
 		local Ok, Err = pcall(function()
 			local Platform = workspace:FindFirstChild("PlatformTrain", true)
 			-- Task 11: Ye's station has a thin PlatformEdge strip; Foundry's placeholder has only the 12-wide Platform
-			-- (World.Map.Foundry.Platform), so stand on its track-side edge, 0.4 in (on Ye's 0.8 strip that is its middle)
-			local Edge = Platform.Parent:FindFirstChild("PlatformEdge") or Platform.Parent.Parent:FindFirstChild("Platform")
+			-- (World.Map.Foundry.Platform), so stand on its track-side edge, 0.4 in (on Ye's 0.8 strip that is its middle).
+			-- A station setup.lua builds from markers (Foundry's region, 2026-10-24) keeps its Platform beside the train.
+			local Edge = Platform.Parent:FindFirstChild("PlatformEdge") or Platform.Parent:FindFirstChild("Platform")
+				or Platform.Parent.Parent:FindFirstChild("Platform")
 			local Side = math.sign(Edge.CFrame:PointToObjectSpace(Platform:GetPivot().Position).X)
 			local EdgeX = Side * math.max(0, Edge.Size.X / 2 - 0.4)
 			local Best, BestD, Stand

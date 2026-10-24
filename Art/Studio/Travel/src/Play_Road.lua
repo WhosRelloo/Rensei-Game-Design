@@ -691,7 +691,11 @@ return {
 			local Pts = {}
 			for _, Pt in ipairs(RoadPoints()) do Pts[Pt[1]] = Pt[2] end
 			OffRoad(P)
-			local Here = Pts[136] -- on leg 1 alone, before the bend
+			-- on leg 1 alone, before the bend: 136 on Lindenmoor's road; a road whose first leg is shorter (Foundry's South
+			-- Road, 2026-10-24: leg 2's box starts at 136) steps back, 8 at a time, to the last spot only leg 1 holds
+			local S0 = 136
+			while S0 > 120 and LegsAt(Pts[S0].Position + Vector3.new(0, 3, 0)) ~= "1" do S0 -= 8 end
+			local Here = Pts[S0]
 			Stand(P, Here.Position, Here.LookVector)
 			task.wait(0.5)
 			T.Eq(LegsAt(C.HumanoidRootPart.Position), "1", "on leg 1 alone")
@@ -699,11 +703,11 @@ return {
 			local Limit = RS.MaxSpeed * RS.Tick * RS.DtCap * 2
 			T.True(Limit > 48 and Limit < 120, ("the most a stalled check allows: %.0f studs"):format(Limit))
 			-- the last check was 3 s ago (a stall) and 48 studs back: kept (the walk is set to leg 2 to tell)
-			RS.SetTrack(P, ROUTE, 2, Pts[88].Position + Vector3.new(0, 3, 0), os.clock() - 3)
+			RS.SetTrack(P, ROUTE, 2, Pts[S0 - 48].Position + Vector3.new(0, 3, 0), os.clock() - 3)
 			task.wait(0.5)
 			T.Eq(RS.Walking(P, ROUTE), 2, "48 studs over a 3 s stall: the walk is kept")
 			-- ... and 120 studs back: once allowed (130 x 3 x 2), now a jump: dropped, and a new walk starts in leg 1
-			RS.SetTrack(P, ROUTE, 2, Pts[16].Position + Vector3.new(0, 3, 0), os.clock() - 3)
+			RS.SetTrack(P, ROUTE, 2, Pts[S0 - 120].Position + Vector3.new(0, 3, 0), os.clock() - 3)
 			task.wait(0.5)
 			T.Eq(RS.Walking(P, ROUTE), 1, "120 studs over a 3 s stall: dropped (a new walk in leg 1)")
 		end)
