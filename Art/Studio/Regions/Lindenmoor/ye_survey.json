@@ -327,509 +327,6 @@
    ]
   }
  ],
- "MapChildren": [
-  {
-   "Box": [
-    [
-     -338.7,
-     0,
-     -62.5
-    ],
-    [
-     292.4,
-     2,
-     410.4
-    ]
-   ],
-   "Class": "Folder",
-   "Name": "AlchemistSpawns",
-   "Parts": 5
-  },
-  {
-   "Name": "Lindenmoor",
-   "Box": [
-    [
-     -380.6,
-     -9,
-     -2691.5
-    ],
-    [
-     374.9,
-     424.1,
-     -90.6
-    ]
-   ],
-   "Class": "Model",
-   "Pivot": [
-    -2.8,
-    207.6,
-    -1391.1
-   ],
-   "Parts": 12398
-  },
-  {
-   "Name": "Ground",
-   "Box": [
-    [
-     -336,
-     -30,
-     -984
-    ],
-    [
-     532,
-     50,
-     -296
-    ]
-   ],
-   "Class": "Model",
-   "Pivot": [
-    98,
-    10,
-    -640
-   ],
-   "Parts": 16351
-  },
-  {
-   "Name": "HalvardsAdit",
-   "Box": [
-    [
-     285,
-     -5,
-     -725
-    ],
-    [
-     515,
-     55,
-     -595
-    ]
-   ],
-   "Class": "Model",
-   "Pivot": [
-    400,
-    25,
-    -660
-   ],
-   "Parts": 2637
-  },
-  {
-   "Name": "BurnedLaboratory",
-   "Box": [
-    [
-     162.3,
-     0,
-     -26
-    ],
-    [
-     206.3,
-     20,
-     10
-    ]
-   ],
-   "Class": "Model",
-   "Pivot": [
-    184.3,
-    10,
-    -8
-   ],
-   "Parts": 38
-  },
-  {
-   "Name": "FoundryYard",
-   "Box": [
-    [
-     -48,
-     0,
-     166
-    ],
-    [
-     48,
-     44,
-     264
-    ]
-   ],
-   "Class": "Model",
-   "Pivot": [
-    0,
-    22,
-    215
-   ],
-   "Parts": 60
-  },
-  {
-   "Name": "SilentObservatory",
-   "Box": [
-    [
-     246.8,
-     0,
-     107.6
-    ],
-    [
-     290.8,
-     22,
-     151.6
-    ]
-   ],
-   "Class": "Model",
-   "Pivot": [
-    268.8,
-    11,
-    129.6
-   ],
-   "Parts": 36
-  },
-  {
-   "Name": "UnstableQuarry",
-   "Box": [
-    [
-     -237.5,
-     0,
-     52.5
-    ],
-    [
-     -162.5,
-     8,
-     127.5
-    ]
-   ],
-   "Class": "Model",
-   "Pivot": [
-    -200,
-    4,
-    90
-   ],
-   "Parts": 10
-  },
-  {
-   "Name": "SilentForge",
-   "Box": [
-    [
-     182,
-     0,
-     300
-    ],
-    [
-     226,
-     21.4,
-     336
-    ]
-   ],
-   "Class": "Model",
-   "Pivot": [
-    204,
-    10.7,
-    318
-   ],
-   "Parts": 29
-  },
-  {
-   "Name": "GaleFloor",
-   "Box": [
-    [
-     336.3,
-     0,
-     93.6
-    ],
-    [
-     408.3,
-     12,
-     165.6
-    ]
-   ],
-   "Class": "Model",
-   "Pivot": [
-    372.3,
-    6,
-    129.6
-   ],
-   "Parts": 10
-  },
-  {
-   "Name": "Wall",
-   "Box": [
-    [
-     -24,
-     0,
-     44
-    ],
-    [
-     24,
-     40,
-     48
-    ]
-   ],
-   "Class": "Model",
-   "Pivot": [
-    0,
-    20,
-    46
-   ],
-   "Parts": 3
-  },
-  {
-   "Name": "Curve",
-   "Box": [
-    [
-     5.6,
-     0,
-     3.9
-    ],
-    [
-     95.4,
-     40,
-     93.7
-    ]
-   ],
-   "Class": "Model",
-   "Pivot": [
-    59,
-    20,
-    56.7
-   ],
-   "Parts": 7
-  },
-  {
-   "Name": "Hill",
-   "Box": [
-    [
-     -89.1,
-     -16.3,
-     -48
-    ],
-    [
-     -31.1,
-     23.7,
-     0
-    ]
-   ],
-   "Class": "Model",
-   "Pivot": [
-    -60.1,
-    3.7,
-    -24
-   ],
-   "Parts": 3
-  },
-  {
-   "Name": "Step",
-   "Box": [
-    [
-     -52,
-     0,
-     8
-    ],
-    [
-     -36,
-     3,
-     24
-    ]
-   ],
-   "Class": "Part",
-   "Pivot": [
-    -44,
-    1.5,
-    16
-   ],
-   "Parts": 1
-  },
-  {
-   "Name": "CrackedFootbridge",
-   "Box": [
-    [
-     -160,
-     0,
-     73
-    ],
-    [
-     -100,
-     20,
-     107
-    ]
-   ],
-   "Class": "Model",
-   "Pivot": [
-    -130,
-    10,
-    90
-   ],
-   "Parts": 17
-  },
-  {
-   "Name": "FrozenStation",
-   "Box": [
-    [
-     -400.9,
-     -0.7,
-     -80
-    ],
-    [
-     -354.5,
-     20,
-     -43.6
-    ]
-   ],
-   "Class": "Model",
-   "Pivot": [
-    -377.7,
-    9.6,
-    -61.8
-   ],
-   "Parts": 30
-  },
-  {
-   "Name": "Wall",
-   "Box": [
-    [
-     51.6,
-     0,
-     -15.5
-    ],
-    [
-     55.6,
-     40,
-     16.5
-    ]
-   ],
-   "Class": "Part",
-   "Pivot": [
-    53.6,
-    20,
-    0.5
-   ],
-   "Parts": 1
-  },
-  {
-   "Name": "ForgeFloor",
-   "Box": [
-    [
-     241.3,
-     0,
-     279.8
-    ],
-    [
-     314.3,
-     10,
-     352.8
-    ]
-   ],
-   "Class": "Model",
-   "Pivot": [
-    277.8,
-    5,
-    316.3
-   ],
-   "Parts": 10
-  },
-  {
-   "Name": "Baseplate",
-   "Box": [
-    [
-     -1024,
-     -16,
-     -1024
-    ],
-    [
-     1024,
-     0,
-     1024
-    ]
-   ],
-   "Class": "Part",
-   "Pivot": [
-    0,
-    -8,
-    0
-   ],
-   "Parts": 1
-  },
-  {
-   "Name": "LedgeCourse",
-   "Box": [
-    [
-     -244,
-     0,
-     218.5
-    ],
-    [
-     -180,
-     30,
-     265.9
-    ]
-   ],
-   "Class": "Model",
-   "Pivot": [
-    -212,
-    15,
-    242.2
-   ],
-   "Parts": 21
-  },
-  {
-   "Name": "AshPit",
-   "Box": [
-    [
-     149.1,
-     -0.1,
-     -105.6
-    ],
-    [
-     220.4,
-     10.1,
-     -34.8
-    ]
-   ],
-   "Class": "Model",
-   "Pivot": [
-    184.7,
-    5,
-    -70.2
-   ],
-   "Parts": 10
-  },
-  {
-   "Name": "FrozenChamber",
-   "Box": [
-    [
-     -333.9,
-     0,
-     -192.1
-    ],
-    [
-     -261.9,
-     9,
-     -120.1
-    ]
-   ],
-   "Class": "Model",
-   "Pivot": [
-    -297.9,
-    4.5,
-    -156.1
-   ],
-   "Parts": 10
-  },
-  {
-   "Name": "TrainingGround",
-   "Box": [
-    [
-     36.5,
-     0,
-     -22.5
-    ],
-    [
-     39.5,
-     3.3,
-     -19.5
-    ]
-   ],
-   "Class": "Model",
-   "Pivot": [
-    38,
-    1.7,
-    -21
-   ],
-   "Parts": 2
-  }
- ],
  "GroundInInfill": 417,
  "Areas": [
   {
@@ -1088,6 +585,785 @@
    ]
   }
  ],
+ "MapChildren": [
+  {
+   "Name": "AlchemistSpawns",
+   "Box": [
+    [
+     -338.7,
+     0,
+     -62.5
+    ],
+    [
+     292.4,
+     2,
+     410.4
+    ]
+   ],
+   "Class": "Folder",
+   "PartBox": [
+    [
+     -338.7,
+     0,
+     -62.5
+    ],
+    [
+     292.4,
+     2,
+     410.4
+    ]
+   ],
+   "Parts": 5
+  },
+  {
+   "Name": "Lindenmoor",
+   "Box": [
+    [
+     -380.6,
+     -9,
+     -2691.5
+    ],
+    [
+     374.9,
+     424.1,
+     -90.6
+    ]
+   ],
+   "PartBox": [
+    [
+     -380.6,
+     -9,
+     -2691.5
+    ],
+    [
+     374.9,
+     424.1,
+     -90.6
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    -2.8,
+    207.6,
+    -1391.1
+   ],
+   "Parts": 12398
+  },
+  {
+   "Name": "Ground",
+   "Box": [
+    [
+     -336,
+     -30,
+     -984
+    ],
+    [
+     532,
+     50,
+     -296
+    ]
+   ],
+   "PartBox": [
+    [
+     -336,
+     -30,
+     -984
+    ],
+    [
+     532,
+     50,
+     -296
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    98,
+    10,
+    -640
+   ],
+   "Parts": 16351
+  },
+  {
+   "Name": "HalvardsAdit",
+   "Box": [
+    [
+     285,
+     -5,
+     -725
+    ],
+    [
+     515,
+     55,
+     -595
+    ]
+   ],
+   "PartBox": [
+    [
+     285,
+     -5,
+     -725
+    ],
+    [
+     515,
+     55,
+     -595
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    400,
+    25,
+    -660
+   ],
+   "Parts": 2637
+  },
+  {
+   "Name": "BurnedLaboratory",
+   "Box": [
+    [
+     162.3,
+     0,
+     -26
+    ],
+    [
+     206.3,
+     20,
+     10
+    ]
+   ],
+   "PartBox": [
+    [
+     162.3,
+     0,
+     -26
+    ],
+    [
+     206.3,
+     20,
+     10
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    184.3,
+    10,
+    -8
+   ],
+   "Parts": 38
+  },
+  {
+   "Name": "FoundryYard",
+   "Box": [
+    [
+     -48,
+     0,
+     166
+    ],
+    [
+     48,
+     44,
+     264
+    ]
+   ],
+   "PartBox": [
+    [
+     -48,
+     0,
+     166
+    ],
+    [
+     48,
+     44,
+     264
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    0,
+    22,
+    215
+   ],
+   "Parts": 60
+  },
+  {
+   "Name": "SilentObservatory",
+   "Box": [
+    [
+     246.8,
+     0,
+     107.6
+    ],
+    [
+     290.8,
+     22,
+     151.6
+    ]
+   ],
+   "PartBox": [
+    [
+     246.8,
+     0,
+     107.6
+    ],
+    [
+     290.8,
+     22,
+     151.6
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    268.8,
+    11,
+    129.6
+   ],
+   "Parts": 36
+  },
+  {
+   "Name": "UnstableQuarry",
+   "Box": [
+    [
+     -237.5,
+     0,
+     52.5
+    ],
+    [
+     -162.5,
+     8,
+     127.5
+    ]
+   ],
+   "PartBox": [
+    [
+     -237.5,
+     0,
+     52.5
+    ],
+    [
+     -162.5,
+     8,
+     127.5
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    -200,
+    4,
+    90
+   ],
+   "Parts": 10
+  },
+  {
+   "Name": "SilentForge",
+   "Box": [
+    [
+     182,
+     0,
+     300
+    ],
+    [
+     226,
+     21.4,
+     336
+    ]
+   ],
+   "PartBox": [
+    [
+     182,
+     0,
+     300
+    ],
+    [
+     226,
+     21.4,
+     336
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    204,
+    10.7,
+    318
+   ],
+   "Parts": 29
+  },
+  {
+   "Name": "GaleFloor",
+   "Box": [
+    [
+     336.3,
+     0,
+     93.6
+    ],
+    [
+     408.3,
+     12,
+     165.6
+    ]
+   ],
+   "PartBox": [
+    [
+     336.3,
+     0,
+     93.6
+    ],
+    [
+     408.3,
+     12,
+     165.6
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    372.3,
+    6,
+    129.6
+   ],
+   "Parts": 10
+  },
+  {
+   "Name": "Wall",
+   "Box": [
+    [
+     -24,
+     0,
+     44
+    ],
+    [
+     24,
+     40,
+     48
+    ]
+   ],
+   "PartBox": [
+    [
+     -24,
+     0,
+     44
+    ],
+    [
+     24,
+     40,
+     48
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    0,
+    20,
+    46
+   ],
+   "Parts": 3
+  },
+  {
+   "Name": "Curve",
+   "Box": [
+    [
+     5.6,
+     0,
+     3.9
+    ],
+    [
+     95.4,
+     40,
+     93.7
+    ]
+   ],
+   "PartBox": [
+    [
+     7.6,
+     0,
+     6.3
+    ],
+    [
+     78.5,
+     40,
+     76.4
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    59,
+    20,
+    56.7
+   ],
+   "Parts": 7
+  },
+  {
+   "Name": "Hill",
+   "Box": [
+    [
+     -89.1,
+     -16.3,
+     -48
+    ],
+    [
+     -31.1,
+     23.7,
+     0
+    ]
+   ],
+   "PartBox": [
+    [
+     -84,
+     -12.7,
+     -48
+    ],
+    [
+     -33.7,
+     16,
+     0
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    -60.1,
+    3.7,
+    -24
+   ],
+   "Parts": 3
+  },
+  {
+   "Name": "Step",
+   "Box": [
+    [
+     -52,
+     0,
+     8
+    ],
+    [
+     -36,
+     3,
+     24
+    ]
+   ],
+   "PartBox": [
+    [
+     -52,
+     0,
+     8
+    ],
+    [
+     -36,
+     3,
+     24
+    ]
+   ],
+   "Class": "Part",
+   "Pivot": [
+    -44,
+    1.5,
+    16
+   ],
+   "Parts": 1
+  },
+  {
+   "Name": "CrackedFootbridge",
+   "Box": [
+    [
+     -160,
+     0,
+     73
+    ],
+    [
+     -100,
+     20,
+     107
+    ]
+   ],
+   "PartBox": [
+    [
+     -160,
+     0,
+     73
+    ],
+    [
+     -100,
+     20,
+     107
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    -130,
+    10,
+    90
+   ],
+   "Parts": 17
+  },
+  {
+   "Name": "FrozenStation",
+   "Box": [
+    [
+     -400.9,
+     -0.7,
+     -80
+    ],
+    [
+     -354.5,
+     20,
+     -43.6
+    ]
+   ],
+   "PartBox": [
+    [
+     -400.9,
+     -0.7,
+     -80
+    ],
+    [
+     -354.5,
+     20,
+     -43.6
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    -377.7,
+    9.6,
+    -61.8
+   ],
+   "Parts": 30
+  },
+  {
+   "Name": "Wall",
+   "Box": [
+    [
+     51.6,
+     0,
+     -15.5
+    ],
+    [
+     55.6,
+     40,
+     16.5
+    ]
+   ],
+   "PartBox": [
+    [
+     51.6,
+     0,
+     -15.5
+    ],
+    [
+     55.6,
+     40,
+     16.5
+    ]
+   ],
+   "Class": "Part",
+   "Pivot": [
+    53.6,
+    20,
+    0.5
+   ],
+   "Parts": 1
+  },
+  {
+   "Name": "ForgeFloor",
+   "Box": [
+    [
+     241.3,
+     0,
+     279.8
+    ],
+    [
+     314.3,
+     10,
+     352.8
+    ]
+   ],
+   "PartBox": [
+    [
+     241.3,
+     0,
+     279.8
+    ],
+    [
+     314.3,
+     10,
+     352.8
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    277.8,
+    5,
+    316.3
+   ],
+   "Parts": 10
+  },
+  {
+   "Name": "Baseplate",
+   "Box": [
+    [
+     -1024,
+     -16,
+     -1024
+    ],
+    [
+     1024,
+     0,
+     1024
+    ]
+   ],
+   "PartBox": [
+    [
+     -1024,
+     -16,
+     -1024
+    ],
+    [
+     1024,
+     0,
+     1024
+    ]
+   ],
+   "Class": "Part",
+   "Pivot": [
+    0,
+    -8,
+    0
+   ],
+   "Parts": 1
+  },
+  {
+   "Name": "LedgeCourse",
+   "Box": [
+    [
+     -244,
+     0,
+     218.5
+    ],
+    [
+     -180,
+     30,
+     265.9
+    ]
+   ],
+   "PartBox": [
+    [
+     -244,
+     0,
+     218.5
+    ],
+    [
+     -180,
+     30,
+     265.9
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    -212,
+    15,
+    242.2
+   ],
+   "Parts": 21
+  },
+  {
+   "Name": "AshPit",
+   "Box": [
+    [
+     149.1,
+     -0.1,
+     -105.6
+    ],
+    [
+     220.4,
+     10.1,
+     -34.8
+    ]
+   ],
+   "PartBox": [
+    [
+     149.1,
+     -0.1,
+     -105.6
+    ],
+    [
+     220.4,
+     10.1,
+     -34.8
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    184.7,
+    5,
+    -70.2
+   ],
+   "Parts": 10
+  },
+  {
+   "Name": "FrozenChamber",
+   "Box": [
+    [
+     -333.9,
+     0,
+     -192.1
+    ],
+    [
+     -261.9,
+     9,
+     -120.1
+    ]
+   ],
+   "PartBox": [
+    [
+     -333.9,
+     0,
+     -192.1
+    ],
+    [
+     -261.9,
+     9,
+     -120.1
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    -297.9,
+    4.5,
+    -156.1
+   ],
+   "Parts": 10
+  },
+  {
+   "Name": "TrainingGround",
+   "Box": [
+    [
+     36.5,
+     0,
+     -22.5
+    ],
+    [
+     39.5,
+     3.3,
+     -19.5
+    ]
+   ],
+   "PartBox": [
+    [
+     36.5,
+     0,
+     -22.5
+    ],
+    [
+     39.5,
+     3.3,
+     -19.5
+    ]
+   ],
+   "Class": "Model",
+   "Pivot": [
+    38,
+    1.7,
+    -21
+   ],
+   "Parts": 2
+  }
+ ],
  "Arrivals": [
   {
    "Point": "Platform",
@@ -1100,6 +1376,84 @@
   {
    "Point": "NorthGate",
    "Path": "World.Map.Lindenmoor.Arrival_NorthGate"
+  }
+ ],
+ "Retire": [
+  {
+   "Path": "World.Map.Lindenmoor.NorthRoad",
+   "Class": "Model",
+   "Parts": 1044
+  },
+  {
+   "Path": "World.Map.Lindenmoor.HubRoad",
+   "Class": "Model",
+   "Parts": 3
+  },
+  {
+   "Path": "World.Map.Lindenmoor.Station.BufferStop",
+   "Pivot": [
+    -270,
+    9.6,
+    -369
+   ],
+   "Class": "Part"
+  }
+ ],
+ "EnemySpawns": [
+  {
+   "EnemyType": "AditScavenger",
+   "Path": "Workspace.World.EnemySpawns.AditScavengerSpawn2",
+   "Name": "AditScavengerSpawn2",
+   "Class": "Part",
+   "Pos": [
+    476,
+    3.5,
+    -640
+   ]
+  },
+  {
+   "EnemyType": "Grunt",
+   "Path": "Workspace.World.EnemySpawns.GruntSpawn",
+   "Name": "GruntSpawn",
+   "Class": "Part",
+   "Pos": [
+    -16.8,
+    0.5,
+    -70
+   ]
+  },
+  {
+   "EnemyType": "Grunt",
+   "Path": "Workspace.World.EnemySpawns.GruntSpawn",
+   "Name": "GruntSpawn",
+   "Class": "Part",
+   "Pos": [
+    26.5,
+    0.5,
+    -70
+   ]
+  },
+  {
+   "EnemyType": "AditScavenger",
+   "Path": "Workspace.World.EnemySpawns.AditScavengerSpawn1",
+   "Name": "AditScavengerSpawn1",
+   "Class": "Part",
+   "Pos": [
+    470,
+    3.5,
+    -684
+   ]
+  },
+  {
+   "EnemyType": "Elite",
+   "Path": "Workspace.World.EnemySpawns.EliteSpawn",
+   "Name": "EliteSpawn",
+   "Class": "Part",
+   "Pos": [
+    0,
+    0.5,
+    -124.1
+   ]
   }
  ],
  "BufferStops": [
@@ -1319,25 +1673,56 @@
   }
  ],
  "TerrainParts": 1,
- "Retire": [
+ "AlchemistSpawns": [
   {
-   "Path": "World.Map.Lindenmoor.NorthRoad",
-   "Class": "Model",
-   "Parts": 1044
+   "EnemyType": "FieldAlchemist",
+   "Class": "Part",
+   "Name": "FieldAlchemist_BurnedLab",
+   "Pos": [
+    235.8,
+    1.5,
+    -8
+   ]
   },
   {
-   "Path": "World.Map.Lindenmoor.HubRoad",
-   "Class": "Model",
-   "Parts": 3
+   "EnemyType": "FrostAlchemist",
+   "Class": "Part",
+   "Name": "FrostAlchemist_FrozenStation",
+   "Pos": [
+    -337.7,
+    1,
+    -61.5
+   ]
   },
   {
-   "Path": "World.Map.Lindenmoor.Station.BufferStop",
-   "Pivot": [
-    -270,
-    9.6,
-    -369
-   ],
-   "Class": "Part"
+   "EnemyType": "StoneAlchemist",
+   "Class": "Part",
+   "Name": "StoneAlchemist_CrackedFootbridge",
+   "Pos": [
+    -88,
+    1,
+    98
+   ]
+  },
+  {
+   "EnemyType": "GaleAlchemist",
+   "Class": "Part",
+   "Name": "GaleAlchemist_SilentObservatory",
+   "Pos": [
+    291.4,
+    1,
+    82.6
+   ]
+  },
+  {
+   "EnemyType": "WardAlchemist",
+   "Class": "Part",
+   "Name": "WardAlchemist_SilentForge",
+   "Pos": [
+    290.5,
+    0.5,
+    409.4
+   ]
   }
  ],
  "InfillCells": 10863,

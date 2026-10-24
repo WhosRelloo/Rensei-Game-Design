@@ -1,6 +1,6 @@
 """Tests for check_survey.py: hand-made surveys in a temporary directory, run through the real checker.
 python -I Art/Studio/Regions/Lindenmoor/test_check_survey.py"""
-import copy, json, os, subprocess, sys, tempfile, unittest
+import copy, json, math, os, subprocess, sys, tempfile, unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CHECKER = os.path.join(HERE, "check_survey.py")
@@ -34,6 +34,13 @@ def set_radius(L, pad, r):
     return L
 
 
+def big_wall(s):
+    """Grow the first Wall to 120 x 120 (the second stays)."""
+    i = next(i for i, c in enumerate(s["MapChildren"]) if c["Name"] == "Wall")
+    s["MapChildren"][i] = child("Wall", 0, 0, 60)
+    return s
+
+
 def good():
     kids = [child("Lindenmoor", 0, -650, 300), child("Ground", 0, -650, 300), child("HalvardsAdit", 400, -660, 100),
             child("Baseplate", 0, 0, 1024, 1, "Part"), child("AlchemistSpawns")]
@@ -48,8 +55,13 @@ def good():
                      {"Point": "Platform", "Path": "Workspace.World.Map.Lindenmoor.Station.Platform"}],
         "Trainers": [{"DialogueId": "trainer_" + e, "Path": "Workspace.World.NPCs.Alchemy Trainers." + e,
                       "Pivot": [0, 3, 0]} for e in ("flame", "ice", "earth", "wind", "metal")],
-        "Retire": [],
+        "Retire": [{"Path": "World.Map.Lindenmoor.NorthRoad"}, {"Path": "World.Map.Lindenmoor.HubRoad"},
+                   {"Path": "World.Map.Lindenmoor.Station.BufferStop", "Pivot": [-270, 9.6, -369]}],
         "Spawns": [],
+        "AlchemistSpawns": [{"Name": n, "Pos": [2, 1, 2]} for n in
+                            ("FieldAlchemist_BurnedLab", "FrostAlchemist_FrozenStation",
+                             "StoneAlchemist_CrackedFootbridge", "GaleAlchemist_SilentObservatory",
+                             "WardAlchemist_SilentForge")],
         "GroundInInfill": 0,
     }
 
@@ -137,8 +149,8 @@ class CheckSurvey(unittest.TestCase):
         self.assertIn("INFO 0", out)
 
     def test_pad_too_small_fails(self):
-        s = good()  # the arena block grows to 120 x 120; beside LedgeCourse 10 x 10: 134 x 120, radius 89.9
-        s["MapChildren"] = [c for c in s["MapChildren"] if c["Name"] != "Wall"] + [child("Wall", 0, 0, 60)]
+        s = good()  # one Wall grows to 120 x 120, so the arena block (alone on its pad) is 120 x 120: radius 84.9
+        big_wall(s)
         code, out = self.run_checker(s)
         self.assertEqual(code, 1, out)
         self.assertIn("FAIL: res_test_arena: pad 50 too small: needed radius 84.9; needed + 6 = 90.9", out)
@@ -173,7 +185,7 @@ class CheckSurvey(unittest.TestCase):
         self.assertIn("FAIL: res_practice_yard: pad 5 too small: needed radius 7.1", out)
         L = set_radius(layout(), "res_test_arena", 100)  # now the 84.9 arena fits
         s = good()
-        s["MapChildren"] = [c for c in s["MapChildren"] if c["Name"] != "Wall"] + [child("Wall", 0, 0, 60)]
+        big_wall(s)
         code, out = self.run_checker(s, L)
         self.assertEqual(code, 0, out)
 
@@ -185,6 +197,98 @@ class CheckSurvey(unittest.TestCase):
         self.assertIn("FAIL: res_test_arena not in the layout's landmarks (or has no Radius); needed radius 7.1; "
                       "needed + 6 = 13.1", out)
         self.assertIn("FAIL 1", out)
+
+    def test_usage_without_args(self):
+        r = subprocess.run([sys.executable, "-I", CHECKER], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("python -I check_survey.py <survey.json>", r.stdout)
+
+    def test_presence(self):
+        for drop, msg in (("Curve", "map child Curve: found 0, expected 1"),
+                          ("Ground", "map child Ground: found 0, expected 1"),
+                          ("AlchemistSpawns", "map child AlchemistSpawns: found 0, expected 1")):
+            s = good()
+            s["MapChildren"] = [c for c in s["MapChildren"] if c["Name"] != drop]
+            code, out = self.run_checker(s)
+            self.assertEqual(code, 1, out)
+            self.assertIn("FAIL: " + msg, out)
+        s = good()  # only one Wall left
+        i = next(i for i, c in enumerate(s["MapChildren"]) if c["Name"] == "Wall")
+        del s["MapChildren"][i]
+        code, out = self.run_checker(s)
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL: map child Wall: found 1, expected 2", out)
+
+    def test_retire(self):
+        s = good()
+        s["Retire"] = [r for r in s["Retire"] if "HubRoad" not in r["Path"]]
+        code, out = self.run_checker(s)
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL: Retire: World.Map.Lindenmoor.HubRoad found 0 times", out)
+        s = good()  # the wrong buffer stop (the one at z -891 must stay)
+        s["Retire"][2]["Pivot"] = [-270, 9.6, -891]
+        code, out = self.run_checker(s)
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL: Retire: 0 BufferStops near", out)
+        s = good()
+        s["Retire"].append(copy.deepcopy(s["Retire"][2]))
+        code, out = self.run_checker(s)
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL: Retire: 2 BufferStops near", out)
+
+    def test_area_outside_map_is_info(self):
+        s = good()
+        s["Areas"].append({"AreaName": "Stray", "Top": "", "Path": "Workspace.Stray",
+                           "Box": [[900, 0, 900], [910, 10, 910]]})
+        code, out = self.run_checker(s)
+        self.assertEqual(code, 0, out)
+        self.assertIn("INFO: area Stray is not under World.Map", out)
+
+    def test_part_box_preferred(self):
+        c = child("FoundryYard", 0, 0, 50)
+        c["PartBox"] = [[-10, 0, -20], [10, 5, 20]]
+        got = pad_layout.pad_pieces([c])["res_foundry_graybox"]
+        self.assertEqual(got[0]["Size"], [20, 40])
+        self.assertEqual(got[0]["Center"], [0.0, 0.0])
+
+    def test_spawn_slots_ward_alchemist(self):
+        # measured in Ye 2026-10-24: SilentForge, ForgeFloor and WardAlchemist_SilentForge
+        kids = [{"Name": "SilentForge", "Box": [[182, 0, 300], [226, 21.4, 336]]},
+                {"Name": "ForgeFloor", "Box": [[241.3, 0, 279.8], [314.3, 10, 352.8]]}]
+        pieces = pad_layout.pad_pieces(kids)
+        sp = [{"Name": "WardAlchemist_SilentForge", "Pos": [290.5, 0.5, 409.4]}]
+        # site slot x = -(44 + 4 + 73) / 2 + 22 = -38.5; offset (86.5, 91.4) -> (48.0, 91.4), 103.2 out
+        e = pad_layout.spawn_slots(sp, pieces, {"res_silent_forge": 76.7})["WardAlchemist_SilentForge"]
+        self.assertEqual((e["Site"], e["Pad"], e["Pulled"]), ("SilentForge", "res_silent_forge", True))
+        self.assertAlmostEqual(math.hypot(*e["Offset"]), 76.7 - 8, places=1)
+        self.assertAlmostEqual(e["Offset"][1] / e["Offset"][0], 91.4 / 48.0, places=2)  # same direction
+        e = pad_layout.spawn_slots(sp, pieces, {"res_silent_forge": 120})["WardAlchemist_SilentForge"]
+        self.assertFalse(e["Pulled"])
+        self.assertEqual(e["Offset"], [48.0, 91.4])
+
+    def test_spawn_names_map_to_sites(self):
+        for n, site in (("FieldAlchemist_BurnedLab", "BurnedLaboratory"), ("FrostAlchemist_FrozenStation", "FrozenStation"),
+                        ("StoneAlchemist_CrackedFootbridge", "CrackedFootbridge"),
+                        ("GaleAlchemist_SilentObservatory", "SilentObservatory"),
+                        ("WardAlchemist_SilentForge", "SilentForge"), ("Foo", None), ("X_Nowhere", None)):
+            self.assertEqual(pad_layout.spawn_site(n), site)
+
+    def test_spawn_checks(self):
+        s = good()
+        s["AlchemistSpawns"].append({"Name": "OddAlchemist_Nowhere", "Pos": [0, 0, 0]})
+        code, out = self.run_checker(s)
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL: alchemist spawn OddAlchemist_Nowhere: no site for its name", out)
+        s = good()  # far from its site: pulled in, reported as INFO, still passes
+        s["AlchemistSpawns"][4]["Pos"] = [300, 1, 400]
+        code, out = self.run_checker(s)
+        self.assertEqual(code, 0, out)
+        self.assertIn("INFO: alchemist spawn WardAlchemist_SilentForge pulled in to 37.0 on res_silent_forge", out)
+        s = good()
+        del s["AlchemistSpawns"]
+        code, out = self.run_checker(s)
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL: survey has no AlchemistSpawns children", out)
 
     def test_missing_site_fails(self):
         s = good()

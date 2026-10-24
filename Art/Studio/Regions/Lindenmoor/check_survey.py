@@ -1,13 +1,21 @@
 """Check a Ye survey (survey_ye.lua's ye_survey.json) against the Lindenmoor expansion plan.
 
-python -I check_survey.py <survey.json> [--layout layout.json]   -> prints FAIL/INFO lines and "PASS n / FAIL n / INFO n"; exits 1 on any FAIL.
+python -I check_survey.py <survey.json> [--layout layout.json]
+    prints FAIL/INFO lines and "PASS n / FAIL n / INFO n"; exits 1 on any FAIL.
+python -I check_survey.py --stamp survey_ye.lua
+    writes the layout's Infill cells into survey_ye.lua.
 
-Checks (plan Task 1): every World.Map child classified; part budget; Baseplate at (0, -8, 0); no Ground parts in the
-layout's Infill cells; village-vs-new RenseiArea overlaps (controller Ruling 1: INFO when the two boxes differ in volume,
-since Task 8 makes the smallest box win; FAIL only on an equal-volume tie, within 1 cubic stud); each relocated group's
-pad's blocks, laid side by side by pad_layout.arrange (Ruling 4), fit its reserve pad (radius from the layout); exactly one RoadStart (under NorthRoad) and one Platform arrival; five trainers in
-World.NPCs.
+Checks (plan Task 1, with controller Rulings 1, 4, 5, 7, 9):
+  1. every World.Map child classified, and every Keep child, arena member (Wall x2) and AlchemistSpawns present;
+  2. part budget; 3. Baseplate at (0, -8, 0); 4. no Ground parts in the layout's Infill cells;
+  5. village-vs-new RenseiArea overlaps: INFO when the boxes differ in volume (Task 8's smallest box wins), FAIL on an
+     equal-volume tie (within 1 cubic stud); an area outside World.Map (Top "") is INFO;
+  6. each pad's blocks, side by side (pad_layout.arrange), fit the layout's reserve Radius; every alchemist spawn maps
+     to a site and its final slot (pulled in if needed) lies on its pad;
+  7. exactly one RoadStart (under NorthRoad) and one Platform arrival; 8. five trainers in World.NPCs;
+  9. Retire holds NorthRoad, HubRoad and exactly one BufferStop within 5 studs of (-270, 10, -369).
 """
+import math
 import json, sys, os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -55,9 +63,13 @@ def main(path, layout=LAYOUT):
     S = json.load(open(path, encoding="utf-8"))
     L = json.load(open(layout, encoding="utf-8"))
 
-    # 1. classification
-    for c in S["MapChildren"]:
-        check(c["Name"] in KEEP | RELOCATE, f"unclassified map child {c['Name']}")
+    # 1. classification and presence
+    names = [c["Name"] for c in S["MapChildren"]]
+    for n in names:
+        check(n in KEEP | RELOCATE, f"unclassified map child {n}")
+    for n in sorted(KEEP | set(pad_layout.ARENA_MEMBERS) | {"AlchemistSpawns"}):
+        want = pad_layout.MEMBER_COUNTS.get(n, 1)
+        check(names.count(n) == want, f"map child {n}: found {names.count(n)}, expected {want}")
 
     # 2. budget
     add = json.load(open(EXPECTED, encoding="utf-8"))["parts"] if os.path.exists(EXPECTED) else EXPORT_PARTS
@@ -74,6 +86,8 @@ def main(path, layout=LAYOUT):
     new = [(m["Attr"]["AreaName"], m["Box"]) for m in L["Markers"] if m["Tag"] == "RenseiArea"]
     for a in S["Areas"]:
         check(a.get("Box"), f"area {a['AreaName']} has no box")
+        if a["Top"] == "":
+            info(f"area {a['AreaName']} is not under World.Map ({a.get('Path')}): neither village nor site")
         if a.get("Box") and a["Top"] in VILLAGE_TOPS:
             for nname, b in new:
                 if overlap(a["Box"], b):
@@ -100,6 +114,23 @@ def main(path, layout=LAYOUT):
         elif got:
             check(r <= pads[pad]["Radius"], f"{pad}: pad {pads[pad]['Radius']} too small: {need}")
 
+    # 6b. alchemist spawns follow their site's slot (Ruling 7)
+    radii = {p: pads[p]["Radius"] for p in pads if "Radius" in pads[p]}
+    spawns = S.get("AlchemistSpawns")
+    check(spawns, "survey has no AlchemistSpawns children")
+    for name, e in pad_layout.spawn_slots(spawns or [], pieces, radii).items():
+        if e["Site"] is None:
+            check(False, f"alchemist spawn {name}: no site for its name (pad_layout.SPAWN_SITES)")
+        elif e["Pad"] is None:
+            check(False, f"alchemist spawn {name}: its site {e['Site']} isn't on any pad")
+        elif e["Offset"] is None:
+            check(False, f"alchemist spawn {name}: pad {e['Pad']} has no Radius in the layout")
+        else:
+            d = math.hypot(*e["Offset"])
+            check(d <= radii[e["Pad"]], f"alchemist spawn {name} at {d:.1f} off pad {e['Pad']} ({radii[e['Pad']]})")
+            if e["Pulled"]:
+                info(f"alchemist spawn {name} pulled in to {d:.1f} on {e['Pad']} (pad {radii[e['Pad']]})")
+
     # 7. arrivals
     rs = [a for a in S["Arrivals"] if a["Point"] == "RoadStart"]
     under = lambda p: p.split("Workspace.", 1)[-1].startswith("World.Map.Lindenmoor.NorthRoad.")
@@ -112,6 +143,16 @@ def main(path, layout=LAYOUT):
     check(len(tr) == 5, f"trainers found: {len(tr)}")
     for t in tr:
         check("World.NPCs." in t["Path"], f"trainer {t['DialogueId']} not in World.NPCs: {t['Path']}")
+
+    # 9. retire targets (Task 5)
+    ret = S.get("Retire", [])
+    paths = [r["Path"] for r in ret]
+    for want in ("World.Map.Lindenmoor.NorthRoad", "World.Map.Lindenmoor.HubRoad"):
+        check(paths.count(want) == 1, f"Retire: {want} found {paths.count(want)} times")
+    stops = [r for r in ret if r["Path"].endswith(".BufferStop") and r.get("Pivot")
+             and math.dist(r["Pivot"], (-270, 10, -369)) <= 5]
+    check(len(stops) == 1 and len(ret) == 3, f"Retire: {len(stops)} BufferStops near (-270, 10, -369), "
+                                            f"{len(ret)} entries: {paths}")
 
     print(f"PASS {PASS} / FAIL {FAIL} / INFO {INFO}")
     return 1 if FAIL else 0
@@ -157,6 +198,9 @@ def stamp(lua_path):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
+        print(__doc__)
+        sys.exit(2)
     if sys.argv[1] == "--stamp":
         stamp(sys.argv[2])
     elif len(sys.argv) > 3 and sys.argv[2] == "--layout":
