@@ -291,18 +291,18 @@ The Region Foundation reused this pipeline for every region. Lindenmoor's own co
 ### Before the import into Ye
 The order after the foundation is: this import first, then the Foundry Yard plan, then the gun and swimming reworks (owner, 2026-10-24: "I want the lindenmoor expansion to go first after foundation"). The village stays at its coordinates, and the expansion goes in around it. Check each item before the import plan is written:
 
-- [ ] **water.json format and frame.** `Art/Regions/Lindenmoor/water.json` uses the expansion's segment format (`{Id, From, To, Width, Top, Bed}`, world studs). `kit.py` needs `{"Boxes": [{"Rect": [x0, z0, x1, z1], "Top", "Bed"}]}`, and `finish.lua` adds the export's origin `(0, 4, -650)` to every box. So the converter must write **village-local** coordinates: world − (0, 4, −650), that is x, z + 650, and Top and Bed − 4. (9 of the 13 segments are diagonal: split them into thin strips, or a rotated box; an axis-aligned bounding box adds about 28% more water. Import-plan work.)
-- [ ] **Keep and MapChild.** Lindenmoor's `layout.json` is not a region-builder file (it has 31 schema errors, and its `Keep` is a list of area objects). Generate the import with `python -I Art/Studio/Regions/kit.py Lindenmoor --keep <village children> --map-child LindenmoorExpansion`, or add `KeepMapChildren` and `MapChild` to the file. Export the expansion scene to `Art/Studio/Regions/Lindenmoor/layout.json`.
-- [ ] **Walk-through decoration.** `kit.py Lindenmoor` uses the village's own walk-through lists by default (`studio_kit.NO_COLLIDE`: `Tuft`, `Crop`, `Vine`, `Lantern`, … and the `EdgeStone` kind), so the 274 verge stones, the crop rows, tufts, vines and lanterns stay walk-through. Check the dry run's "walk-through names [...] kinds [EdgeStone]" line.
-- [ ] **Separate top-level map children.** Check in Studio that the village, its ground, Halvard's Adit dressing and the trains are separate top-level `World.Map` children from the hub graybox. Everything kept must be in `--keep`. **Do a dry run in Ye first and read its keep line:** it lists exactly which `World.Map` children the real run would move into the backup and which it would keep, and fails on a keep name that isn't there (or names `LindenmoorExpansion`). Only the hub graybox children may be on the "move" side.
-- [ ] **The hub pieces and the keep list.** The hub graybox children are **not** kept: the real run moves them into its backup, `RenseiBackups["Pre-Region_Lindenmoor_<date>"]`, tags stripped. Afterwards, place the trainers onto the five `TrainerSpot` markers and each trial site (with its arena, `RenseiArea`, spawns and markers) onto its `lindenmoor.reserve` pad: drag each piece out of the backup into `World.Map`, then run `unstrip.lua` on it (its `PATH`, or the attribute `RegionKitUnstrip = true`) to give its tags back. Measure each footprint against its pad first. **Never publish while a trial site is still in the backup** (out of `workspace`, its trial can't start).
-- [ ] **Retire the old north road.** The expansion moves the road exit to the north-east corner. Before the expansion's `RoadPassage` is built (it carries the RoadStart arrival), retire `Map.Lindenmoor`'s old `NorthRoad` passage and its `RoadStart` arrival, with a backup. `setup.lua` refuses a second RoadStart in the place. Also retire the `HubRoad` strip and the north buffer stop (step 2 above).
+- [x] **water.json format and frame.** *(Done: import plan Task 3, `water_convert.py`; 218 boxes filled by the real run, 2026-10-24.)* `Art/Regions/Lindenmoor/water.json` uses the expansion's segment format (`{Id, From, To, Width, Top, Bed}`, world studs). `kit.py` needs `{"Boxes": [{"Rect": [x0, z0, x1, z1], "Top", "Bed"}]}`, and `finish.lua` adds the export's origin `(0, 4, -650)` to every box. So the converter must write **village-local** coordinates: world − (0, 4, −650), that is x, z + 650, and Top and Bed − 4. (9 of the 13 segments are diagonal: split them into thin strips, or a rotated box; an axis-aligned bounding box adds about 28% more water. Import-plan work.)
+- [x] **Keep and MapChild.** *(Done: import plan Task 4, the region file's `KeepMapChildren` and `MapChild`.)* Lindenmoor's `layout.json` is not a region-builder file (it has 31 schema errors, and its `Keep` is a list of area objects). Generate the import with `python -I Art/Studio/Regions/kit.py Lindenmoor --keep <village children> --map-child LindenmoorExpansion`, or add `KeepMapChildren` and `MapChild` to the file. Export the expansion scene to `Art/Studio/Regions/Lindenmoor/layout.json`.
+- [x] **Walk-through decoration.** *(Checked: the Ye dry run, 2026-10-24.)* `kit.py Lindenmoor` uses the village's own walk-through lists by default (`studio_kit.NO_COLLIDE`: `Tuft`, `Crop`, `Vine`, `Lantern`, … and the `EdgeStone` kind), so the 274 verge stones, the crop rows, tufts, vines and lanterns stay walk-through. Check the dry run's "walk-through names [...] kinds [EdgeStone]" line.
+- [x] **Separate top-level map children.** *(Checked: the Ye dry run's keep line, 2026-10-24: move nothing, keep all 23.)* Check in Studio that the village, its ground, Halvard's Adit dressing and the trains are separate top-level `World.Map` children from the hub graybox. Everything kept must be in `--keep`. **Do a dry run in Ye first and read its keep line:** it lists exactly which `World.Map` children the real run would move into the backup and which it would keep, and fails on a keep name that isn't there (or names `LindenmoorExpansion`). Only the hub graybox children may be on the "move" side.
+- [x] **The hub pieces and the keep list.** *(Superseded, 2026-10-24: every hub piece is kept; `prep_ye.lua` moved them onto their pads before the import, so nothing went into the backup. See "The import into Ye" below.)* The hub graybox children are **not** kept: the real run moves them into its backup, `RenseiBackups["Pre-Region_Lindenmoor_<date>"]`, tags stripped. Afterwards, place the trainers onto the five `TrainerSpot` markers and each trial site (with its arena, `RenseiArea`, spawns and markers) onto its `lindenmoor.reserve` pad: drag each piece out of the backup into `World.Map`, then run `unstrip.lua` on it (its `PATH`, or the attribute `RegionKitUnstrip = true`) to give its tags back. Measure each footprint against its pad first. **Never publish while a trial site is still in the backup** (out of `workspace`, its trial can't start).
+- [x] **Retire the old north road.** *(Done by `prep_ye.lua` apply, 2026-10-24, into `Pre-LindenmoorExpansion_2026-10-24`.)* The expansion moves the road exit to the north-east corner. Before the expansion's `RoadPassage` is built (it carries the RoadStart arrival), retire `Map.Lindenmoor`'s old `NorthRoad` passage and its `RoadStart` arrival, with a backup. `setup.lua` refuses a second RoadStart in the place. Also retire the `HubRoad` strip and the north buffer stop (step 2 above).
 - [ ] **`setup.lua`'s `ORIGIN` is `(0, 0, 0)`** (`bundle_setup.py setup ... --origin 0,0,0`, the default). Lindenmoor's marker attributes are in world studs: the RoadPassage `Legs` start at `[686, 661]`, its marker's own `At`. ORIGIN is non-zero only when marker attributes are in region coordinates. (With `(0, 4, -650)` the road would be built 650 studs off, at z 11..350, 4 studs high, in North Meadows.) Water is the opposite case: see "water.json format and frame".
 - [ ] **TrainerSpot markers.** `setup.lua` skips the five `TrainerSpot` markers and lists them in its summary ("skipped (not travel pieces): TrainerSpot 5"). Any other unknown `Piece` is still refused.
-- [ ] **Watch the first real runs.** `finish.lua`'s real swap and `setup.lua`'s real mode have run for real only in Foundry (the smoke test, 2026-10-24: a Testbed import, played, restored, Foundry left exactly as before). Do the Ye dry run first. `finish.lua` and `restore.lua` record their swap with ChangeHistoryService when Studio allows it; through the Studio bridge, each run is already one Undo step. Check the place-wide one-arrival scan doesn't trip on unrelated duplicates already in Ye.
-- [ ] **No Station marker.** The station stays in the village. The expansion must not carry a `Station` marker, or `setup.lua` refuses a second Platform arrival and platform train.
-- [ ] **`RenseiNoGrip` on the crag.** The crag must carry the tag (on its parts or its model). The import's dry run should show the tag on the crag. Tell the owner first: a boundary vault, or a leap with no hold, can't chain over an all-tagged wall.
-- [ ] **Part budget.** Count Ye's parts in Studio. The estimate is ~30.5k today plus ~40.4k for the expansion, against the place's 80k ceiling. `kit.py` refuses an export over the file's `Budget` (42,000).
+- [ ] **Watch the first real runs.** *(`finish.lua`'s real swap ran in Ye on 2026-10-24, see below; `setup.lua`'s real mode is still to come, import plan Task 7.)* `finish.lua`'s real swap and `setup.lua`'s real mode have run for real only in Foundry (the smoke test, 2026-10-24: a Testbed import, played, restored, Foundry left exactly as before). Do the Ye dry run first. `finish.lua` and `restore.lua` record their swap with ChangeHistoryService when Studio allows it; through the Studio bridge, each run is already one Undo step. Check the place-wide one-arrival scan doesn't trip on unrelated duplicates already in Ye.
+- [x] **No Station marker.** *(Checked: the import carries 6 `RenseiMarker`s, RoadPassage 1 + TrainerSpot 5.)* The station stays in the village. The expansion must not carry a `Station` marker, or `setup.lua` refuses a second Platform arrival and platform train.
+- [x] **`RenseiNoGrip` on the crag.** *(Done: 2,141 tagged crag parts, checked by the dry run and in Ye; the owner chose ungrippable edges.)* The crag must carry the tag (on its parts or its model). The import's dry run should show the tag on the crag. Tell the owner first: a boundary vault, or a leap with no hold, can't chain over an all-tagged wall.
+- [x] **Part budget.** *(Counted 2026-10-24: 71,593 workspace BaseParts after the import, under 80k.)* Count Ye's parts in Studio. The estimate is ~30.5k today plus ~40.4k for the expansion, against the place's 80k ceiling. `kit.py` refuses an export over the file's `Budget` (42,000).
 - [ ] **Open: HubLaw.** This doc's step 7 says to set `Regions.HubLaw` for Ye to Lindenmoor once the hub is gone. But the owner chose "Keep State law" for Ye's unnamed ground (2026-10-23). **Ask the owner before changing it.**
 - [ ] **New areas against the village's.** `WorldService.AreaAt` returns the first tagged match. Check in Studio that the 10 new `RenseiArea` boxes don't overlap the kept village's own areas.
 
@@ -316,9 +316,70 @@ It does **not** bring back what was retired **by hand** before the import: the o
 
 **Before retiring anything**, back each piece up: put a clone in `ServerStorage.RenseiBackups["Pre-LindenmoorExpansion_<date>"]`, keeping its path (e.g. `Lindenmoor/Travel/NorthRoad`), and only then remove the original.
 
+**Superseded for the 2026-10-24 import:** the retired pieces went into the backup through `prep_ye.lua`, so its `undo` replaces step 2 below. Use the order in "The import into Ye" → "Rollback".
+
 **To roll back**, in this order:
 1. Run `restore.lua` (Edit, Ye).
 2. Put the hand-retired pieces back from `Pre-LindenmoorExpansion_<date>`: drag each clone back to its old parent (`NorthRoad` with its `RoadStart` arrival, encounters and threshold; the `HubRoad` strip and sign; the buffer stop). A clone keeps its tags, so nothing needs `unstrip.lua`. Check there is exactly one `RenseiArrival` with `Point = "RoadStart"` in the place.
 3. Hub pieces you already dragged out of the backup onto their pads are no longer in the backup, so `restore.lua` leaves them where they are: move each back to its hub spot by hand (`unstrip.lua` already gave its tags back). Pieces still in the backup come back with `restore.lua`.
 4. Revert any data edits (`Rensei.Regions.Areas`, `HubLaw`, the roster, clue quests).
 5. Re-run the travel suites (Play_Road, Play_Travel) before the owner publishes.
+
+## The import into Ye (2026-10-24, import plan Task 6)
+The expansion is in Ye (placeId 106992859583940) as `World.Map.LindenmoorExpansion`. The owner confirmed the real run in chat: "Yes, import it (Recommended)". Everything ran in Edit through the Studio bridge, and Play was never started. **Don't publish the Ye place until the import plan's Task 9 checkpoint.**
+
+### What ran, in order
+1. **Pre-check:** Ye was in Edit, with no `PlayLock`, no `LindenmoorPrep`, no prep backup and no `RegionStaging`. `World.Map` had 23 children, and the workspace had 31,998 BaseParts.
+2. **`prep_ye.lua` apply.** The bundle was built fresh with `bundle_prep.py prep <out> apply`. Its `PADS_HASH` `ca265648` matches `pads.json`'s sha256.
+   ```
+   LindenmoorPrep apply OK: moved 43, retired 5, trainers 5 (blocks 13, spawns 5, elite 1, lifted 4; pads.json ca265648)
+   ```
+   - **Lifted:** `SpawnLocation`, `StarterCharacterMeca` `arm` and `arm2`, and `Carry & Grip Stuff`, each from y 0.00 to 4.05.
+   - **Retired** into the backup: `NorthRoad`, `HubRoad`, `BufferStop` and two `GruntSpawn`s, 1,050 parts in all.
+3. **Staging:** `import/chunk_01..31.lua`, giving 1,734 models and 40,645 parts. The bridge dropped once, on chunk 13. The chunk had already run, and it was re-run safely.
+4. **Dry run** (`DryRun = true`):
+   ```
+   dry run ok: Lindenmoor: 1734 models, 40645 parts, 15 groups; tags RenseiArea=10 RenseiClue=2 RenseiEnemySpawn=6 RenseiLedge=1 RenseiMarker=6 RenseiNoGrip=2141 RenseiPost=18; markers 42 (0 queryable, 0 touchable); … a real run would move nothing into the backup, keep [all 23, both Walls], and build Map.LindenmoorExpansion | variants 0/0 present …; staging removed
+   ```
+5. **Re-staged:** all 31 chunks ran again.
+6. **Real run** (`Confirm = "Lindenmoor"`):
+   ```
+   finish: Lindenmoor built into workspace.World.Map.LindenmoorExpansion (1734 models, 40645 parts; tags RenseiArea=10 RenseiClue=2 RenseiEnemySpawn=6 RenseiLedge=1 RenseiMarker=6 RenseiNoGrip=2141 RenseiPost=18); moved to RenseiBackups.Pre-Region_Lindenmoor_2026-10-24: nothing; kept: [all 23]; 0 tagged instances stripped; MaterialVariants added none; 218 water boxes filled (terrain snapshots in the backup); undo: the caller's recording (a recording is already open); undo with import/restore.lua
+   ```
+7. **Verified:**
+   - The workspace has **71,593 BaseParts**: 30,948 after the prep plus 40,645.
+   - The expansion's tags equal `expected.json`, with 14 lights.
+   - Terrain reads **Water** at the centrelines of `creek_west_water_1`, `creek_west_water_4`, `gorge_water_3` and `gorge_water_5`.
+   - There are **0** `RoadStart` arrivals in `workspace` (import plan Task 7 builds the new one), and exactly 1 `Platform` arrival.
+   - `RegionStaging` is gone, and `LindenmoorPrep = "applied"`.
+
+### Backups
+- **`ServerStorage.RenseiBackups["Pre-LindenmoorExpansion_2026-10-24"]`** (from `prep_ye.lua`) holds the 5 retired pieces: `NorthRoad`, `HubRoad`, `BufferStop`, and `GruntSpawn` ×2. Each one records its old parent. Every moved instance records its old CFrame in `LindenmoorPrepFrom` (43 instances).
+- **`ServerStorage.RenseiBackups["Pre-Region_Lindenmoor_2026-10-24"]`** (from `finish.lua`) holds no map children, because everything was kept. It does hold the terrain snapshots under the 218 water boxes, and `restore.lua` reads it.
+
+### Seam fillers (Ruling 20)
+Three openings in the **village's** ground faced the new ground. Village side parts stop above the floor, leaving a hollow under the village ground; the new ground doesn't build on village footprint cells, so it can't close them. They are closed by anchored, collidable Slate parts in **`World.Map.LindenmoorExpansion.SeamFillers`**. They sit inside the expansion so that `restore.lua` carries them into the `Post-Region` backup with it. Each part has the attribute `SeamFiller = "Ruling 20"`. Sizes and heights are measured from the live parts.
+
+| Part | Position | Size | Closes |
+|---|---|---|---|
+| `Filler_West` | (−334, 7, −518) | 4 × 12 × 4 | The window in the village's west face at x −336, z −520..−516, y 1..13, under the Side that starts at y 13. Colour `3c3832`. |
+| `Filler_Slit` | (−336.5, 29.05, −507.5) | 1 × 2.3 × 9 | The slit at x −336, z −512..−503, y 28..30, between the village top (28) and the new side's bottom (30). Colour `423c34`. |
+| `Filler_East_A` | (330, 1.5, −554) | 4 × 3 × 4 | The y 0..3 slit under the 18-stud creek bank at x 332, z −556..−552. Colour `484238`. |
+| `Filler_East_B01..B09` | x 331.5, z −551.875 … −549.875 (0.25 steps); y from 0.9 up to 7.67 … 3.42 | 1 × (6.77 … 2.52) × 0.25 each | The face x 332, z −552..−549.75, from the floor up to just under the steep creek-bank ramp. Each slice's top is 0.05 below the ramp's underside, as measured. Colour `484238`. |
+
+**Checked:**
+- Horizontal rays through each opening now stop at the face: 0 of 494 get more than 0.5 stud past it.
+- Downward rays over every filler find the same top surface as without the fillers, and never a filler (300 rays).
+- No road or path part intersects a filler. `Filler_Slit` runs through a village oak's `Trunk` and `Root3` (`OakBig_Rim45`).
+- **Left as it is:** a ~1-stud crack under the ramp edge at z −549.75..−548, y 0.9..2. It sits under the creek water, and a plate there would stand on the open creek-mouth floor.
+
+### Rollback
+In Edit, never in Play:
+1. **`import/restore.lua`.** It moves `LindenmoorExpansion` into `Post-Region_Lindenmoor_<date>`, along with its `SeamFillers` and any `Travel` built by `setup.lua`. It also pastes the terrain back under the water boxes.
+2. **`prep_ye.lua` undo, from a fresh bundle:**
+   ```
+   python -I Art/Studio/Regions/Lindenmoor/bundle_prep.py prep <out.lua> undo
+   python -I Art/Tools/rbxc.py luau "placeId: 106992859583940" Edit @<out.lua>
+   ```
+   It puts the 43 moved instances back where they were, returns the 5 retired pieces to their old parents, deletes `Pre-LindenmoorExpansion_2026-10-24` and clears `LindenmoorPrep`. Afterwards, check that there is exactly one `RenseiArrival` with `Point = "RoadStart"`.
+3. **Re-run the travel suites** (`Play_Road`, `Play_Travel`) before the owner publishes. Also revert any data edits made after the import: `Rensei.Regions.Areas`, `HubLaw`, the roster, and the clue quests.
