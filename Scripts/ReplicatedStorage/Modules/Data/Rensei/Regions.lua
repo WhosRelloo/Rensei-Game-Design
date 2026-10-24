@@ -76,12 +76,12 @@ Regions.Regions = {
 	Corrupted = {Name = "the Corrupted Lands", Factions = {"Circle"}, Hidden = {Circle = true}, Jurisdiction = "None", Safe = false,
 		Links = {{To = "City", Carrier = "Whisper", Minutes = 5}, {To = "North", Carrier = "Gossip", Minutes = 45}, {To = "Aerugo", Carrier = "Gossip", Minutes = 45}}},
 }
--- Outside every area volume: this place's own region (World plan 1 Task 10), except in Ye. Owner ruling 2026-10-23
--- ("Keep State law"): Ye's hub stays the City, State law, exactly as before Task 10, so unlicensed casting there is
--- still a State crime and hub deeds still land in the City. Ye's named Lindenmoor areas (Regions.Areas) and
--- TravelService.Here() (Lindenmoor: the station, rumours by rail, the save's region) are unchanged.
+-- Outside every area volume: this place's own region (World plan 1 Task 10). HubLaw names the region a place's unnamed
+-- ground counts as when that isn't the place's own. Ye: the 2026-10-23 ruling ("Keep State law") kept the hub the
+-- City; with the hub gone into the Lindenmoor expansion, the owner chose Lindenmoor's law for Ye's unnamed ground
+-- (2026-10-24, "Lindenmoor's (Recommended)"; Lindenmoor import Task 8): Militia jurisdiction, deeds land in Lindenmoor.
 local Places = require(script.Parent.Places)
-Regions.HubLaw = {[Places.Regions.Lindenmoor.PlaceId] = "City"} -- [PlaceId] = the region its unnamed ground counts as
+Regions.HubLaw = {[Places.Regions.Lindenmoor.PlaceId] = "Lindenmoor"} -- [PlaceId] = the region its unnamed ground counts as
 Regions.Default = Regions.HubLaw[game.PlaceId] or Places.RegionOf(game.PlaceId) or "City"
 
 -- WorldService area names (AreaName attribute) -> region
@@ -90,6 +90,11 @@ Regions.Areas = {
 	["Lindenmoor"] = "Lindenmoor", ["Cypress Ridge"] = "Lindenmoor", ["Mill Creek Bridge"] = "Lindenmoor",
 	["Workshop Hill"] = "Lindenmoor", ["Lindenmoor Station"] = "Lindenmoor", ["Bramble Hollow"] = "Lindenmoor",
 	["Gorge Lookout"] = "Lindenmoor",
+	-- the Lindenmoor expansion's areas (Lindenmoor import Task 8, 2026-10-24; Art/Regions/Lindenmoor/layout.json)
+	["Outlying Farmsteads"] = "Lindenmoor", ["Mine Approach"] = "Lindenmoor", ["Mill Creek Gorge"] = "Lindenmoor",
+	["East Lookout"] = "Lindenmoor", ["Bramble Woods"] = "Lindenmoor", ["Training Field"] = "Lindenmoor",
+	["Ridge Marker"] = "Lindenmoor", ["North Meadows"] = "Lindenmoor", ["Cypress Ridge Rim"] = "Lindenmoor",
+	["Northeast Gap"] = "Lindenmoor",
 	["Halvard's Adit"] = "Adit",
 	["Frozen Research Station"] = "Wilds", ["Cracked Footbridge"] = "Wilds", ["Burned Laboratory"] = "Wilds",
 	["Silent Forge"] = "Wilds", ["Silent Observatory"] = "Wilds",

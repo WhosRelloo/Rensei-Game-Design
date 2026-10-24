@@ -98,4 +98,10 @@ return {
 		Text = "Eleven years of assay returns, then a last page: \"No. 4 is not ore. The array goes deeper than the mine. They will want it, so I am sealing it.\" The Authority sealed the adit a month later."},
 	adit_visitor_note = {Quest = "forgotten_halvard", Title = "A Visitor's Note", Technique = "Flame",
 		Text = "Recent, in charcoal on the back of an assay slip: \"Ring three answers to fire. Someone has been here before me.\" Scorch marks on the strongbox lock."},
+
+	-- ===== the Lindenmoor expansion's clue markers (Lindenmoor import Task 8, 2026-10-24; PROPOSAL wording) =====
+	lm_ridge_survey = {Quest = "lm_ridge", Title = "Surveyor's Mark",
+		Text = "An arrow cut into the standing stone on the knoll, a row of figures beneath it. The grooves were scrubbed clean recently: someone in Lindenmoor still looks after the mark."},
+	lm_shaft_ore = {Quest = "lm_mine", Title = "Spilled Ore",
+		Text = "Ore lying around a boarded, chained shaft on the mine approach, never loaded. The cart rail still runs up to the boards. The shaft was closed in a hurry."},
 }

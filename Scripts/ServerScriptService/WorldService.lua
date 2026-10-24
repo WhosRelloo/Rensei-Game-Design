@@ -34,10 +34,20 @@ local function Inside(Part, Position)
 	return math.abs(Local.X) <= Half.X and math.abs(Local.Y) <= Half.Y and math.abs(Local.Z) <= Half.Z
 end
 
+-- the area box Position is in. Boxes can nest (Lindenmoor import Task 8: the relocated trial sites keep their own boxes
+-- inside the expansion's big areas, e.g. the Burned Laboratory inside Bramble Woods), so of the boxes that contain it
+-- the smallest volume wins, whatever order they're found in. Only boxes in workspace count (a backup in ServerStorage
+-- keeps its tag).
 function WorldService.AreaAt(Position)
+	local Best, BestVolume
 	for _, Part in ipairs(CollectionService:GetTagged(AREA_TAG)) do
-		if Part:IsA("BasePart") and Inside(Part, Position) then return Part end
+		if Part:IsA("BasePart") and Part:IsDescendantOf(workspace) and Inside(Part, Position) then
+			local Size = Part.Size
+			local Volume = Size.X * Size.Y * Size.Z
+			if not Best or Volume < BestVolume then Best, BestVolume = Part, Volume end
+		end
 	end
+	return Best
 end
 
 local function CheckAreas()

@@ -55,6 +55,34 @@ return {
 		},
 		Rewards = {Exp = 450, Money = 120, Training = {Quest = 1}, Codex = {"Halvard's Adit", "Assay Rings"}},
 	},
+	-- ===== the Lindenmoor expansion's clue markers (Lindenmoor import Task 8, 2026-10-24) =====
+	-- Started by inspecting the clue (Rensei.Investigation StartsQuest; the Evidence objective is caught up at once);
+	-- finished by the townsperson whose Clue line answers it (Rensei.Townsfolk: the line signals the Signal objective).
+	-- PROPOSAL wording and rewards.
+	lm_ridge = {
+		Title = "The Ridge Marker",
+		Category = "Investigation",
+		Description = "A standing stone on a knoll above the training field carries a surveyor's arrow that someone keeps scrubbed clean.",
+		Stages = {
+			{Id = "s1", Text = "Find out who looks after the ridge marker. Someone at the training field might know.", Objectives = {
+				{Id = "mark", Text = "Examine the ridge marker", Kind = "Evidence", Target = "lm_ridge_survey"},
+				{Id = "ask", Text = "Ask at the training field", Kind = "Signal", Target = "lm_ridge_told"},
+			}},
+		},
+		Rewards = {Exp = 60},
+	},
+	lm_mine = {
+		Title = "The Boarded Shaft",
+		Category = "Investigation",
+		Description = "A shaft under the headframe on the mine approach has been boarded and chained, with ore still lying around it.",
+		Stages = {
+			{Id = "s1", Text = "Find out why the shaft was closed. The mine hand might tell you.", Objectives = {
+				{Id = "ore", Text = "Examine the boarded shaft", Kind = "Evidence", Target = "lm_shaft_ore"},
+				{Id = "ask", Text = "Ask the mine hand", Kind = "Signal", Target = "lm_mine_told"},
+			}},
+		},
+		Rewards = {Exp = 60},
+	},
 	chalk_foundry = {
 		Title = "Chalk on the Foundry Wall",
 		Category = "Investigation",

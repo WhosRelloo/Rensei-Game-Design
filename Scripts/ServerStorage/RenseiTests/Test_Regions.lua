@@ -17,22 +17,33 @@ return {
 		T.Eq(Regions.OfArea("Workshop Hill"), "Lindenmoor")
 		T.Eq(Regions.OfArea("Halvard's Adit"), "Adit")
 		T.Eq(Regions.OfArea("Silent Forge"), "Wilds")
-		-- World plan 1 Task 10: outside every area volume is this place's own region; final fix wave (owner ruling
-		-- 2026-10-23, "Keep State law"): except Ye's hub, which stays the City (State law), as before Task 10
+		-- World plan 1 Task 10: outside every area volume is this place's own region. Lindenmoor import Task 8 (owner
+		-- 2026-10-24, "Lindenmoor's (Recommended)"): the hub is gone, so Ye's unnamed ground follows Lindenmoor's law
+		-- (it was the City, State law, under the 2026-10-23 "Keep State law" ruling)
 		local Places = require(game.ReplicatedStorage.Modules.Data.Rensei.Places)
 		local Own = Regions.HubLaw[game.PlaceId] or Places.RegionOf(game.PlaceId) or "City"
 		T.Eq(Regions.OfArea(nil), Own)
 		T.Eq(Regions.OfArea("Somewhere New"), Own)
 		if game.PlaceId == 106992859583940 then
-			T.Eq(Regions.Default, "City", "Ye's hub is the City (State law)")
-			T.Eq(Regions.Regions[Regions.Default].Jurisdiction, "State", "so unlicensed casting there is a State crime")
-			T.Eq(Places.RegionOf(game.PlaceId), "Lindenmoor", "while Ye itself is still Lindenmoor (TravelService.Here)")
+			T.Eq(Regions.Default, "Lindenmoor", "Ye's unnamed ground is Lindenmoor")
+			T.Eq(Regions.Regions[Regions.Default].Jurisdiction, "Militia", "under Lindenmoor's law, not the State's")
+			T.Eq(Places.RegionOf(game.PlaceId), "Lindenmoor", "Ye itself is Lindenmoor (TravelService.Here)")
 		end
-		-- only Ye has the exception: every other region place's unnamed ground is its own region
+		-- only Ye has an entry: every other region place's unnamed ground is its own region
 		for Id, R in pairs(Places.Regions) do
 			if Id ~= "Lindenmoor" then T.Eq(Regions.HubLaw[R.PlaceId], nil, Id .. " has no hub exception") end
 		end
-		T.Eq(Regions.HubLaw[Places.Regions.Lindenmoor.PlaceId], "City", "the one exception: Ye")
+		T.Eq(Regions.HubLaw[Places.Regions.Lindenmoor.PlaceId], "Lindenmoor", "Ye's unnamed ground: Lindenmoor's law")
+	end,
+	-- Lindenmoor import Task 8: the expansion's ten areas are Lindenmoor's
+	ExpansionAreasAreLindenmoor = function(T)
+		for _, Name in ipairs({"Outlying Farmsteads", "Mine Approach", "Mill Creek Gorge", "East Lookout", "Bramble Woods",
+			"Training Field", "Ridge Marker", "North Meadows", "Cypress Ridge Rim", "Northeast Gap"}) do
+			T.Eq(Regions.Areas[Name], "Lindenmoor", Name)
+			T.Eq(Regions.OfArea(Name), "Lindenmoor", Name)
+		end
+		-- the trial sites moved into those areas keep their own region (their smaller boxes win, WorldService.AreaAt)
+		T.Eq(Regions.OfArea("Burned Laboratory"), "Wilds")
 	end,
 	PresenceAndCounts = function(T)
 		T.True(Regions.Present("City", "Authority"))

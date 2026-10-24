@@ -32,6 +32,14 @@ return {
 		adit_ledger = {Title = "Assay Ledger", Evidence = "halvard_ledger", Requires = {Puzzle = "adit_vault"},
 			Text = "A ledger on a lectern, its last page dated the month the adit was sealed.",
 			AfterText = "\"No. 4 is not ore.\"", Locked = "A ledger behind the vault bars."},
+		-- ===== the Lindenmoor expansion's clue markers (Lindenmoor import Task 8, 2026-10-24): RenseiClue parts in
+		-- Map.LindenmoorExpansion. PROPOSAL wording; each starts a short quest a townsperson answers (Rensei.Townsfolk Clue) =====
+		lm_ridge_marker = {Title = "Ridge Marker", Evidence = "lm_ridge_survey", StartsQuest = "lm_ridge",
+			Text = "A standing stone on the knoll, taller than a man, with a cairn of field stones at its foot. A surveyor's arrow is cut into its face, and under it a row of figures. The grooves have been scrubbed clean, and not long ago.",
+			AfterText = "The surveyor's arrow, scrubbed clean. Somebody looks after this stone."},
+		lm_mine_shaft = {Title = "Boarded Shaft", Evidence = "lm_shaft_ore", StartsQuest = "lm_mine",
+			Text = "A shaft under the headframe, planked over and chained shut. Ore lies spilled around the collar where it fell, and the cart rail runs right up to the boards. Whoever closed it didn't stop to tidy up.",
+			AfterText = "The boarded shaft, the ore still lying where it fell."},
 		-- ===== alchemy acquisition: Ice, Earth, Wind, Metal =====
 		ice_floor = {
 			Title = "Floor Ice", Evidence = "uneven_ice", Requires = {Quest = {Id = "acq_ice", StageAtLeast = 2}},
