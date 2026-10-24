@@ -4,6 +4,37 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-23 — Region Foundation Task 8: the region file and the map-builder core
+
+The first piece of the tool that builds every region in Blender. Each region is now described by one file, `Art/Regions/<Region>/layout.json`, which gives:
+- the region's size and colours;
+- its heights: flat ground, raised blocks, ridges, cuts and water;
+- its districts, roads, landmarks and markers (townsfolk posts, clues, area names, and the station and road pieces).
+
+A plain-Python core reads that file and works out the stepped ground the game's maps use. **Nothing changed in Studio or Blender.** Code: `Art/Blender/region_builder/` (`schema.py`, `heightfield.py`, `merge.py`). Every number below is a **PROPOSAL**.
+
+- **Checking the file.** The loader lists every problem in a region file at once, each with where it is: a missing size, a road with one point, a district outside the map, an unknown marker. Markers must use the names the game actually reads; the design spec's four older names are refused, so a wrong one can't import and silently do nothing. The spec now uses the game's names.
+- **The ground.** Heights are worked out on a 4-stud grid in 1-stud steps, the same way Lindenmoor's ground was:
+  - raised blocks blend down over their edge;
+  - ridges fall away to the sides;
+  - cuts sink;
+  - water records its surface and bed.
+
+  Each column reaches down past its lowest neighbour, so no gaps show. Roads and alleys mark their cells, and a road that climbs gets ramps.
+- **Fewer parts.** Equal neighbouring cells merge into rectangles of up to 40 cells a side, as in Lindenmoor.
+- **Water** is kept only where it stands above the ground. Later shapes can raise ground out of it, and no water is filled under it.
+- **A Testbed region**: a small 256 × 256 test map with one of everything.
+- **Speed:** a Foundry-size map (1,536 × 1,536 studs, 147,456 cells) takes about 5.4 seconds.
+- **Plan fixes found on the way:**
+  - The builder's folder is `region_builder/`, because a `regions/` folder would clash with the saved maps' `Regions/` folder on Windows.
+  - The Testbed's dip no longer cuts the main road.
+  - Its climbing road now runs down the slope.
+- **Tests:** `python -I Art/Blender/region_builder/tests/run.py` passes 62/62. The Lindenmoor builder's own checks still pass 60/60.
+
+### Discord announcement
+
+Hold: not live yet. This is behind-the-scenes map tooling; there's nothing for players to see until the first new region ships.
+
 ## 2026-10-23 — Region Foundation Task 7: clues on the map can start quests
 
 Region maps built in Blender can now carry clues: a spot on the map that you inspect, like the existing "Inspect" points. Inspecting one can also start a quest. Built in Ye. No map has clues yet; the first ones come with the region imports.

@@ -818,7 +818,7 @@ Roblox's `PathfindingService` plans only around static geometry. It knows nothin
   - `stages.markers(layout, grid)`: one invisible, non-colliding 2×2×2 part per point marker (or the box size for `Box` markers), with `rs_invisible=True`, `rs_tags=<Tag>`, `rs_attr=json(Attr)`, and the yaw applied. Group `Markers`.
   - `stages.lighting(layout)` and `stages.render(layout, out_dir)`: an aerial view plus one street-level view per district and landmark (EEVEE, 1920×1080), saved as PNGs to `Documents/images/Regions/<Region>/`.
   - `build.run(region, stages="all") -> {"objects": n, "parts": n, "budget": b, "over": bool, "renders": [paths]}`, which reads `Art/Regions/<Region>/layout.json` and saves `Art/Blender/Regions/<Region>.blend`. Over budget, it returns `over=True`, and `export` must not be run.
-  - Roblox water: the builder records water boxes in `Art/Regions/<Region>/water.json`; the Studio setup fills them with terrain water (SwimService reads terrain water).
+  - Roblox water: the builder records water boxes in `Art/Regions/<Region>/water.json`, built from the cells that are still water (`Grid.water_of[i][k]`, merged with `merge.rects`), not the whole Rect, so no water is filled under ground a later shape raised; the Studio setup fills them with terrain water (SwimService reads terrain water).
 
 - [ ] **Step 1: Write the failing check.** Add a Blender-side test script `Art/Blender/region_builder/tests/blender_check.py`, run through `blender_mcpc.py code @...`. It runs `build.run("Testbed", "ground,routes,markers")` and sets `result` to a JSON string with:
   - the Ground part count;
