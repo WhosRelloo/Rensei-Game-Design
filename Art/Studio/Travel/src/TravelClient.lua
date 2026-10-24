@@ -8,7 +8,8 @@
 --   * departure board = the Party Invitation panel (HUD2.Party) on the board's SurfaceGui;
 --   * rail messages   = the game's own toast (HUD2.Notification, through UIState "Toast", as the server's toasts);
 --   * teleport screen = the menus' backdrop (bg) and the area panel (HUD2.NewAreaDiscovered);
---   * roads on foot (Task 8b), below: the area panel as the passage's banner, the ride's black fade as the darkness.
+--   * roads on foot (Task 8b), below: the area panel as the passage's banner, the ride's black fade as the darkness;
+--   * train countdown (2026-10-23) = the toast's plate (HUD2.Notification), small, under the compass.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -96,18 +97,38 @@ task.spawn(function() -- UIState waits for PlayerGui.Uis: don't hold the rest of
 end)
 
 local Busy = false
+-- (2026-10-23, the train countdown below) its own ticket check ("Prices") shares the server's rate limit
+-- (StationService.AskGap, 0.25 s a player): it never goes out within 0.3 s of a request here, and a request here waits
+-- out one that has just gone
+local Querying, QueriedAt, LastAskAt = false, 0, 0
+local ASK_GAP = 0.3 -- StationService.AskGap (0.25) plus slack
 local function Ask(Op, Args)
 	if Busy or not Remote:GetAttribute("Ready") then return false, "The clerk is busy." end
 	Busy = true
+	local T0 = os.clock()
+	while (Querying or os.clock() - QueriedAt < ASK_GAP) and os.clock() - T0 < 3 do task.wait(0.05) end
+	LastAskAt = os.clock()
 	local Mine = {}
 	local Token = Mine
 	task.delay(10, function() if Token == Mine then Busy = false end end) -- never stuck if the server doesn't answer
 	local Ok, A, B = pcall(function() return Remote:InvokeServer(Op, Args) end)
 	Token = nil
 	Busy = false
+	LastAskAt = os.clock()
 	if not Ok then return false, "No answer from the clerk." end
 	return A, B
 end
+
+-- the train countdown's view of the tickets this player holds (the countdown itself is further down)
+local Held = {} -- [RouteId] = true: a ticket held for that line, as the clerk's "Prices" answer last said (Held)
+local CheckAt = 0 -- os.clock() of the countdown's next ticket check
+local function SetHeld(Rows) -- a "Prices" answer: {{Route, Held = class or nil}, ...}
+	table.clear(Held)
+	for _, R in ipairs(Rows) do
+		if type(R) == "table" and type(R.Route) == "string" and R.Held then Held[R.Route] = true end
+	end
+end
+local function CheckSoon(Delay) CheckAt = math.min(CheckAt, os.clock() + (Delay or 0)) end
 
 local function RegionName(Id)
 	return Id and Places.Regions[Id] and Places.Regions[Id].Name or Id or "?"
@@ -319,6 +340,7 @@ local function OpenTickets()
 	if Opening == Wait then Opening = nil end
 	-- the clerk answered: still wanted? (closed, reopened, a ride or road fade, or a road crossing meanwhile)
 	if OpenToken ~= Mine or type(Rows) ~= "table" then return end
+	SetHeld(Rows) -- (the countdown: the clerk's answer is the freshest word on the tickets held)
 	if Fade.BackgroundTransparency < 0.99 or CrossingActive() or not NearClerk() then return end
 	DialogueWindow("Tickets", "Ticket clerk", NearClerk, function(W)
 		local S, Say, Choice, Clear, Fit = W.S, W.Say, W.Choice, W.Clear, W.Fit
@@ -365,7 +387,10 @@ local function OpenTickets()
 				ForChoice()
 				for _, C in ipairs(Travel.ClassOrder) do
 					Choice(("%s - $%d"):format(Travel.Classes[C].Name, Line.Prices[C] or 0), function()
+						local ForMe = For == nil
 						local Ok, Why = Ask("Buy", {Route = Line.Route, Class = C, For = For and For.UserId or nil})
+						if Ok and ForMe then Held[Line.Route] = true end -- the countdown shows at once
+						CheckSoon(0.5)
 						if Window == S then Say(Ok and "Bought. Board when the doors open." or Escape(Why or "Couldn't buy that.")) end
 					end)
 				end
@@ -734,6 +759,221 @@ task.spawn(function()
 	end
 end)
 
+-- ===== the train countdown (2026-10-23, owner: "when players buy a train ticket, they see how much time it has until
+-- it leaves LIVE on their screen") =====
+-- A slim plate under the compass: "Train to <destination> leaves in M:SS", and once the doors open (Travel.BoardingWindow
+-- before departure) "Boarding now — doors close in M:SS" (PROPOSAL wording). It ticks every second on the shared clock
+-- with the timetable maths the server departs on (Travel.NextDeparture: StationService's Clock departs on the same
+-- slots of os.time(); the departure boards use workspace:GetServerTimeNow() too). A missed train rolls on to the next
+-- departure (tickets stay valid). Shown while this player holds a ticket for a line that runs from here (Remotes.Travel
+-- "Lines") and is at the station; hidden while riding (RideStart to the ride's end), with no ticket held, away from the
+-- station, in a menu / a conversation / a cutscene / a road crossing / the ride's fade, and while dead.
+-- The tickets held come from the clerk's own "Prices" answer (its Held per line; no new server code): asked on reaching
+-- the station, after a purchase, a profile sync or a toast (a ticket bought for you), after a ride is cancelled or ends,
+-- and every HELD_POLL seconds while at the station.
+-- Art: the game's own toast plate (HUD2.Notification, cloned) with its own lettering, smaller; UIMotion fades, slides
+-- and pops it in and fades it out. It sits under the compass strip, like the In Combat badge (CombatLogUI), and moves
+-- down under the boss bar, the In Combat badge or a toast that would cover it.
+local GuiService = game:GetService("GuiService")
+local HELD_POLL = 8 -- PROPOSAL: seconds between ticket checks while at the station
+local STATION_REACH = 90 -- PROPOSAL: studs from the clerk, the departure board or the gate that count as the station
+local TRAIN_REACH = 30 -- PROPOSAL: studs from the platform train's box that count as the station
+local CD_GOLD = "#E6CD78" -- the time, in the gold the HUD's popups use
+local Riding = false -- from RideStart until the ride is over (cancelled, or ended and gone)
+local BoardedFor = nil -- {Route, Departs}: the server's "Board" (aboard for that departure)
+local function CheckHeld() -- one "Prices" check, if the remote is free; true when it answered
+	if Querying or Busy or Opening or not Remote:GetAttribute("Ready") then return false end
+	if os.clock() - LastAskAt < ASK_GAP then return false end
+	Querying = true
+	local Ok, Rows = pcall(function() return Remote:InvokeServer("Prices") end)
+	Querying, QueriedAt = false, os.clock()
+	if not (Ok and type(Rows) == "table") then return false end -- ("One moment.": try again shortly)
+	SetHeld(Rows)
+	return true
+end
+task.spawn(function() -- a purchase syncs the profile; a ticket bought for you comes with a toast
+	local Ok, M = pcall(require, ReplicatedStorage.Modules.UI.UIState)
+	if not Ok then return end
+	M.On("Toast", function() CheckSoon(0.5) end)
+	M.Changed:Connect(function() CheckSoon(0.5) end)
+end)
+
+local TrainBoxes, BoxesAt = {}, -math.huge
+local function AtStation()
+	local _, Root = Body()
+	if not Root then return false end
+	local Pos = Root.Position
+	for _, Tag in ipairs({"RenseiTicketClerk", "RenseiDepartureBoard", "RenseiStationGate"}) do
+		for _, P in ipairs(CollectionService:GetTagged(Tag)) do
+			if P:IsA("BasePart") and P:IsDescendantOf(workspace) and (P.Position - Pos).Magnitude <= STATION_REACH then return true end
+		end
+	end
+	if os.clock() - BoxesAt > 5 then -- the platform trains are anchored: their boxes, now and then
+		BoxesAt = os.clock()
+		table.clear(TrainBoxes)
+		for _, T in ipairs(CollectionService:GetTagged("RenseiPlatformTrain")) do
+			if T:IsA("Model") and T:IsDescendantOf(workspace) then
+				local Ok, CF, Size = pcall(function() return T:GetBoundingBox() end)
+				if Ok then table.insert(TrainBoxes, {CF, Size / 2}) end
+			end
+		end
+	end
+	for _, B in ipairs(TrainBoxes) do
+		local L, H = B[1]:PointToObjectSpace(Pos), B[2]
+		local Out = Vector3.new(math.max(math.abs(L.X) - H.X, 0), math.max(math.abs(L.Y) - H.Y, 0), math.max(math.abs(L.Z) - H.Z, 0))
+		if Out.Magnitude <= TRAIN_REACH then return true end
+	end
+	return false
+end
+
+local function CountdownHidden()
+	if Fade.BackgroundTransparency < 0.99 or CrossingActive() then return true end
+	local Uis = LiveUis()
+	for _, Name in ipairs({"bg", "Dialogue"}) do -- a menu's backdrop, a real conversation
+		local G = Uis and Uis:FindFirstChild(Name)
+		if G and G.Visible then return true end
+	end
+	local Cam = workspace.CurrentCamera
+	if Cam and Cam.CameraType == Enum.CameraType.Scriptable then return true end -- cutscenes
+	local Hum = Body()
+	return not Hum or Hum.Health <= 0
+end
+
+local CdGui, CdHolder, CdPlate, CdAspect, CdY
+local function BuildCountdown()
+	local P = Template("HUD2.Notification")
+	if not (P and P:FindFirstChild("Head")) then
+		if P then P:Destroy() end
+		return false
+	end
+	CdGui = Instance.new("ScreenGui")
+	CdGui.Name, CdGui.ResetOnSpawn, CdGui.IgnoreGuiInset, CdGui.DisplayOrder = "TrainCountdown", false, true, 5 -- (as the compass)
+	CdGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	-- where the plate sits (layout only, transparent); UIMotion slides the plate itself inside it
+	CdHolder = Instance.new("Frame")
+	CdHolder.Name, CdHolder.BackgroundTransparency, CdHolder.AnchorPoint = "Holder", 1, Vector2.new(0.5, 0)
+	CdHolder.Position, CdHolder.Size = UDim2.new(0.5, 0, 0, 42), UDim2.fromOffset(400, 27)
+	CdHolder.Parent = CdGui
+	local A = P:FindFirstChildOfClass("UIAspectRatioConstraint")
+	CdAspect = A and A.AspectRatio or 14.842
+	P.Name, P.AnchorPoint, P.Position, P.Size, P.Visible = "Plate", Vector2.new(0.5, 0), UDim2.fromScale(0.5, 0), UDim2.fromScale(1, 1), false
+	P.Head.Size = UDim2.fromScale(0.78, 0.66) -- PROPOSAL: the line between the plate's end ornaments (the toast's is narrower)
+	SetText(P, "Head", "")
+	P.Parent = CdHolder
+	CdGui.Parent = Player:WaitForChild("PlayerGui")
+	CdPlate = P
+	return true
+end
+
+-- the plate's top (screen pixels): under the compass strip (CompassUI: top 6, 32 tall; 12 with the compass off), as
+-- the In Combat badge sits; under the boss bar (HUDUI's BossBarBottom), the badge, or a toast that would cover it
+local function CountdownY(H)
+	local Y = Player:GetAttribute("ShowCompass") == false and 12 or 42
+	local Boss = Player:GetAttribute("BossBarBottom")
+	if type(Boss) == "number" then Y = math.max(Y, Boss + 6) end
+	local PG = Player:FindFirstChild("PlayerGui")
+	local Log = PG and PG:FindFirstChild("CombatLog")
+	local Badge = Log and Log:FindFirstChild("Badge")
+	if Badge and Badge:IsA("GuiObject") and Badge.Visible then Y += 74 end -- (the badge is 72 tall, at this same top)
+	local Uis = LiveUis()
+	local HUD2 = Uis and Uis:FindFirstChild("HUD2")
+	local Toast = HUD2 and HUD2:FindFirstChild("Notification")
+	if Toast and Toast.Visible and Uis.Enabled then
+		-- where the toast comes to rest (its authored place, not mid-slide)
+		local Inset = Uis.IgnoreGuiInset and 0 or GuiService:GetGuiInset().Y
+		local Top = HUD2.AbsolutePosition.Y + Inset + Toast.Position.Y.Scale * HUD2.AbsoluteSize.Y
+		if Top < Y + H and Top + Toast.AbsoluteSize.Y > Y then Y = math.ceil(Top + Toast.AbsoluteSize.Y + 4) end
+	end
+	return Y
+end
+
+local function Layout()
+	local VW = CdGui.AbsoluteSize.X
+	if VW < 1 then return end
+	local W = math.floor(math.min(math.clamp(VW * 0.3, 340, 460), VW - 32)) -- PROPOSAL: 30% of the screen, 340-460 px
+	local H = math.floor(W / CdAspect)
+	if CdHolder.Size.X.Offset ~= W then CdHolder.Size = UDim2.fromOffset(W, H) end
+	local Y = CountdownY(H)
+	if Y ~= CdY then
+		CdY = Y
+		if CdPlate.Visible then
+			TweenService:Create(CdHolder, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Position = UDim2.new(0.5, 0, 0, Y)}):Play()
+		else
+			CdHolder.Position = UDim2.new(0.5, 0, 0, Y)
+		end
+	end
+end
+
+local function ShowCountdown(On)
+	local M = Motion()
+	if not M then CdPlate.Visible = On return end
+	if On then
+		M.Fade(CdPlate, true, 0.25)
+		M.SlideIn(CdPlate, 0, -20)
+		M.Pop(CdPlate, 0.85)
+	else
+		M.Fade(CdPlate, false, 0.3)
+	end
+end
+
+local function MinSec(S)
+	S = math.max(0, math.floor(S))
+	return ("%d:%02d"):format(S // 60, S % 60)
+end
+
+-- what the plate says now (nil: nothing to show). Exposed for tests on the Player as attribute TrainCountdown.
+local function CountdownText(Now)
+	local Route, Departs
+	for RouteId in string.gmatch(Remote:GetAttribute("Lines") or "", "[^,]+") do
+		if Held[RouteId] then
+			local D = Travel.NextDeparture(RouteId, Now)
+			-- aboard: hold the departure boarded for through the second the server takes to depart (no flash of the
+			-- next train's time before RideStart)
+			local B = BoardedFor
+			if B and B.Route == RouteId and Now >= B.Departs and Now < B.Departs + 3 then D = B.Departs end
+			if D and (not Departs or D < Departs) then Route, Departs = RouteId, D end
+		end
+	end
+	if not Route then return nil end
+	local Left = Departs - Now
+	if Left <= Travel.BoardingWindow then
+		return ('Boarding now — doors close in <font color="%s">%s</font>'):format(CD_GOLD, MinSec(Left))
+	end
+	return ('Train to %s leaves in <font color="%s">%s</font>'):format(Escape(RegionName(Travel.Other(Route, Here))), CD_GOLD, MinSec(Left))
+end
+
+task.spawn(function()
+	if not BuildCountdown() then return end
+	local Shown, LastText, WasAt, Warned = false, nil, false, false
+	while true do
+		task.wait(0.25)
+		local Ok, Err = pcall(function()
+			local At = AtStation()
+			if At and not WasAt then CheckSoon(0) end -- reached the station (or arrived): ask at once
+			WasAt = At
+			if At and os.clock() >= CheckAt then
+				CheckAt = os.clock() + (CheckHeld() and HELD_POLL or 1)
+			end
+			local Text = CountdownText(workspace:GetServerTimeNow())
+			local Want = Text ~= nil and At and not Riding and not CountdownHidden()
+			if Want and Text ~= LastText then
+				LastText = Text
+				SetText(CdPlate, "Head", Text)
+			end
+			if RunService:IsStudio() then Player:SetAttribute("TrainCountdown", Want and Text or nil) end
+			Layout()
+			if Want ~= Shown then
+				Shown = Want
+				ShowCountdown(Want)
+			end
+		end)
+		if not Ok and not Warned then
+			Warned = true
+			warn("[TravelClient] countdown: " .. tostring(Err))
+		end
+	end
+end)
+
 Event.OnClientEvent:Connect(function(Kind, Data)
 	Data = type(Data) == "table" and Data or {}
 	if Kind == "Crossing" then
@@ -749,14 +989,20 @@ Event.OnClientEvent:Connect(function(Kind, Data)
 	elseif Kind == "Board" then
 		local Left = math.max(0, math.floor((Data.Departs or 0) - workspace:GetServerTimeNow()))
 		Toast(("All aboard. Departs in %d:%02d."):format(Left // 60, Left % 60))
+		if type(Data.Route) == "string" and type(Data.Departs) == "number" then BoardedFor = {Route = Data.Route, Departs = Data.Departs} end
 	elseif Kind == "RideStart" then
 		CloseTickets()
+		Riding = true -- (the countdown hides for the ride)
 		task.spawn(Ride, Data.Seconds or 50, Data.Route)
 	elseif Kind == "RideEnd" then
 		TeleportScreen(Data.Dest or RegionName(Travel.Other(Data.Route, Here)))
 		if Scenery then Scenery:Destroy() Scenery = nil end
 		task.delay(3, function() FadeTo(1, 0.5) end) -- Studio loopback (or a failed hop): fade back in
+		task.delay(4, function() Riding = false CheckSoon(0) end) -- (still here: the ticket was used, or kept)
 	elseif Kind == "RideCancel" then
+		Riding = false
+		BoardedFor = nil
+		CheckSoon(1)
 		task.delay(0.8, function()
 			if Scenery then Scenery:Destroy() Scenery = nil end
 			FadeTo(1, 0.3)
@@ -764,6 +1010,7 @@ Event.OnClientEvent:Connect(function(Kind, Data)
 		if type(Data.Text) == "string" then Toast(Data.Text) end
 	elseif Kind == "Message" then
 		-- nothing more to show: StationService sends these same words as the game's toast (UIService.Notify)
+		CheckSoon(1) -- (put back on the platform: the ticket is kept)
 	end
 end)
 
