@@ -4,6 +4,33 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-24 — Region Foundation Task 12: stations and roads built from map markers
+
+A region's map can now carry markers for its station, ticket booth, departure board, papers gate, railing, freight yard and road passage. One script builds the real pieces from them, the same pieces World Plan 1 built by hand in Foundry Yard. Tested in Foundry Yard, which was left exactly as it started; **Ye was not touched.** Code:
+- `Art/Studio/Regions/travel_pieces.lua`, the builders taken from `station_foundry.lua`, which stays unchanged;
+- `setup.lua`, with `bundle_setup.py` to bundle it;
+- `Test_SetupContract.lua`;
+- the marker rules in `Art/Blender/region_builder/schema.py`.
+
+- **How it works.** `setup.lua` reads every `RenseiMarker` under `World.Map.<MapChild>`, the same map folder the region import uses, and builds the pieces into its `Travel` folder.
+  - It checks every marker before building anything, and builds everything or nothing.
+  - Running it again rebuilds `Travel`. A hand-made `Travel` is backed up the first time.
+- **One of each per place.** The game uses the first arrival point and the first train it finds for a route, so setup refuses to build a second platform arrival, road start or train for a route that the place already has anywhere.
+  - For Lindenmoor's expansion this means no station marker, since the village keeps its station.
+  - The village's old north road and its road start must be retired, with a backup, before the expansion's new north-east road is built.
+- **Same as the hand-built station.** In a test build from markers, every piece matched Foundry's live station to the stud, except that the ride train now sits relative to its platform (the game only uses that offset).
+- **Checks.** The contract test checks every rule the travel system relies on: trains, booths, boards, gates, the freight yard, arrivals, road passages and areas. Live Foundry passes 93/93. The test only runs on a folder explicitly marked `TEST`.
+- **Tests:**
+  - the region tests pass 202/202;
+  - the synthetic station passes 90/90;
+  - two roads, the second without a road start, pass 113/113;
+  - an expansion-style folder beside a copy of Foundry's map passes 12/12;
+  - every refusal left `Travel` unchanged.
+
+### Discord announcement
+
+Hold: not live yet. This is behind-the-scenes map tooling; there's nothing for players to see until the first new region ships.
+
 ## 2026-10-24 — Region Foundation Task 11: importing a region into any place, safely
 
 A region built in Blender can now be imported into any Studio place. The tool builds it in a staging folder, checks it, and swaps it in only when you confirm, with an undo and a restore. It was tested in Foundry Yard, which ended exactly as it started each time. **Ye was not touched.** Tools:
