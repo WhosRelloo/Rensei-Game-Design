@@ -2,6 +2,12 @@
 
 Owner's to-do list, in the owner's words. The order is the owner's, and none of it is started.
 
+## Order after the region foundation (owner, 2026-10-24)
+"I want the lindenmoor expansion to go first after foundation."
+1. **Lindenmoor expansion import into Ye** (owner: "The Lindenmoor expansion is gonna go in Ye"). The village stays where it is; the hub's trainers and trial sites move onto their reserved spots; the cliff gets `RenseiNoGrip`. Steps: `Documents/Lindenmoor Kit.md`, "Expansion (Blender)".
+2. **The Foundry Yard plan** (the first full region).
+3. **The gun class rework and the swimming revamp** (below), still after all the Foundry tasks.
+
 ## Next, right after World Plan 1 (owner, 2026-10-21 and 2026-10-23)
 - [ ] **Build every region in Blender** (owner, 2026-10-23): "Here's a PDF of all of the region layouts, I want all of them built in blender once all tasks are complete." The brief is `Documents/Rensei-Regional-Map-Design-Brief.pdf` (9 pages: world connections, shared rules, then one page per region). Seven places:
 
