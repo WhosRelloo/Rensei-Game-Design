@@ -16,22 +16,22 @@ local Player = game.Players:GetPlayers()[1]
 local SITES = {Vector3.new(-700, 300, 700), Vector3.new(700, 300, 700), Vector3.new(-700, 300, -3300)}
 local FLOOR = 200
 
-local function Site()
+local function Site(Size)
 	for _, C in ipairs(SITES) do
-		if #workspace:GetPartBoundsInBox(CFrame.new(C + Vector3.new(0, 30, 0)), Vector3.new(FLOOR + 20, 80, FLOOR + 20)) == 0 then return C end
+		if #workspace:GetPartBoundsInBox(CFrame.new(C + Vector3.new(0, 30, 0)), Vector3.new(Size + 20, 80, Size + 20)) == 0 then return C end
 	end
 	return nil
 end
 
 local function Flat(V) return Vector3.new(V.X, 0, V.Z) end
 
--- builds the fixture, runs Body(Ctx), and always cleans up
-local function Fixture(T, Name, Body)
-	local O = Site()
+-- builds the fixture (a FloorSize x FloorSize floor, default FLOOR), runs Body(Ctx), and always cleans up
+local function Fixture(T, Name, Body, FloorSize)
+	FloorSize = FloorSize or FLOOR
+	local O = Site(FloorSize)
 	T.True(O ~= nil, "an empty spot for the test floor")
 	local Folder = Instance.new("Folder")
 	Folder.Name = "CrowdTest_" .. Name
-	Folder.Parent = workspace
 	local Ground = O.Y + 1
 	local Ids, Extra = {}, {}
 	local WasHeld, WasHour = WorldClock.IsHeld(), WorldClock.Now()
@@ -170,20 +170,23 @@ local function Fixture(T, Name, Body)
 		return R
 	end
 
-	-- the test player stands still in a far corner of the floor: near enough that townsfolk walk (not asleep), far
-	-- enough that it is in nobody's way
-	pcall(function()
+	-- everything from here on is inside the pcall, so a failure anywhere still cleans up
+	local Ok, Err = pcall(function()
+		Folder.Parent = workspace
+		-- the test player stands still in a far corner of the floor: near enough that townsfolk walk (not asleep),
+		-- far enough that it is in nobody's way
 		if Root then
 			Root.Anchored = true
-			C:PivotTo(CFrame.new(O + Vector3.new(FLOOR / 2 - 8, 4, FLOOR / 2 - 8)))
+			C:PivotTo(CFrame.new(O + Vector3.new(FloorSize / 2 - 8, 4, FloorSize / 2 - 8)))
 		end
+		workspace:SetAttribute("RenseiCrowdTest", Name)
+		local Floor = Ctx.Part(O, Vector3.new(FloorSize, 2, FloorSize), {Color = Color3.fromRGB(110, 110, 105)})
+		Floor.Name = "Floor"
+		task.wait(0.5) -- the navmesh picks up the new floor
+		Body(Ctx)
 	end)
-	workspace:SetAttribute("RenseiCrowdTest", Name)
-	local Floor = Ctx.Part(O, Vector3.new(FLOOR, 2, FLOOR), {Color = Color3.fromRGB(110, 110, 105)})
-	Floor.Name = "Floor"
-	task.wait(0.5) -- the navmesh picks up the new floor
-	local Ok, Err = pcall(Body, Ctx)
 	workspace:SetAttribute("RenseiCrowdTest", nil)
+	workspace:SetAttribute("RenseiCrowdPhase", nil)
 	for _, Id in ipairs(Ids) do pcall(TS.Despawn, Id) end
 	for _, M in ipairs(Extra) do pcall(function() M:Destroy() end) end
 	pcall(function() Folder:Destroy() end)
@@ -356,6 +359,105 @@ return {
 		end)
 	end,
 
+	-- (fix round 1) an alley 5 wide and 20 long, the only way through a wall across the floor: two walkers swap through
+	-- it. No room to step aside inside, so the one that gives way backs out along its own trail.
+	Alley = function(T)
+		Fixture(T, "Alley", function(Ctx)
+			Ctx.Wall(0, -51.25, 20, 97.5) -- alley from x = -10 to 10, z = -2.5 to 2.5; the wall reaches the floor's edges
+			Ctx.Wall(0, 51.25, 20, 97.5)
+			local W = Ctx.Walkers({{From = {-20, 0}, To = {20, 0}}, {From = {20, 0}, To = {-20, 0}}})
+			local S0 = Mover.Stats()
+			Ctx.Go()
+			local R = Ctx.Track(W, 45, 2.2)
+			local S1 = Mover.Stats()
+			Say("Alley", "closest %.2f, arrived %s s, yields %d, replans %d, sidesteps %d, fails %d", R.Min, Arrivals(R),
+				S1.Yields - S0.Yields, S1.Replans - S0.Replans, S1.Sidesteps - S0.Sidesteps, S1.Fails - S0.Fails)
+			T.True(R.All and R.Last <= 40, "both arrive within 40 s (" .. Arrivals(R) .. ")")
+			T.Eq(S1.Fails - S0.Fails, 0, "no walk failed")
+			T.True(R.Min >= 2.2, ("roots never closer than 2.2 (closest %.2f)"):format(R.Min))
+			T.True(S1.Yields - S0.Yields >= 1, "one gave way")
+		end)
+	end,
+
+	-- (fix round 1) planning cost: a 300-stud walk across an open plaza, then the same through a slalom of walls
+	PlanCost = function(T)
+		Fixture(T, "PlanCost", function(Ctx)
+			local W = Ctx.Walkers({{From = {-150, 0}, To = {150, 0}}})
+			local Rig = W[1].Rig
+			Rig:SetAttribute("IdleAnim", nil)
+			local Target = CFrame.lookAt(W[1].End, W[1].End + Vector3.new(1, 0, 0))
+			local function PlanOnce()
+				Mover.ResetStats()
+				local H = Mover.WalkTo(Rig, Target, {Speed = 8})
+				local T0 = os.clock()
+				while os.clock() - T0 < 15 and not H.Waypoints and H.Status == "walking" do task.wait(0.05) end
+				local S = Mover.Stats()
+				local Raw, Kept = H.RawWaypoints or -1, H.Waypoints and #H.Waypoints or -1
+				Mover.Place(Rig, Rig.HumanoidRootPart.CFrame) -- (stop: only the plan is measured)
+				Rig:PivotTo(CFrame.new(Ctx.At(-150, 0) + Vector3.new(0, 3, 0)))
+				return S, Raw, Kept, H
+			end
+			local S1, Raw1, Kept1, H1 = PlanOnce()
+			-- a slalom: walls across the way every 30 studs, open at alternate ends
+			for I = -4, 4 do
+				local X = I * 30
+				Ctx.Wall(X, I % 2 == 0 and -26 or 26, 2, 68)
+			end
+			task.wait(1) -- (the navmesh takes the walls in)
+			local S2, Raw2, Kept2, H2 = PlanOnce()
+			Say("PlanCost", "open 300 studs: raw %d -> %d waypoints, PlanMs %.2f (max %.2f, max in one frame %.2f); slalom: raw %d -> %d waypoints, PlanMs %.2f (max %.2f, max in one frame %.2f)",
+				Raw1, Kept1, S1.PlanMs, S1.MaxPlanMs, S1.MaxPlanFrameMs, Raw2, Kept2, S2.PlanMs, S2.MaxPlanMs, S2.MaxPlanFrameMs)
+			T.True(H1.Waypoints ~= nil and H2.Waypoints ~= nil, "both planned")
+			T.True(Raw2 > Kept2 and Kept2 >= 9, "the slalom keeps a turn per wall (" .. Kept2 .. " of " .. Raw2 .. ")")
+			T.True(S1.MaxPlanMs <= 25 and S2.MaxPlanMs <= 25, ("a 300-stud plan's own work stays under 25 ms (%.2f, %.2f)"):format(S1.MaxPlanMs, S2.MaxPlanMs))
+			T.True(S2.MaxPlanFrameMs <= Mover.PlanBudgetMs + 3, ("...spread over frames (at most %.2f ms in one)"):format(S2.MaxPlanFrameMs))
+		end, 340)
+	end,
+
+	-- (fix round 1) local routes among props: 12 walkers to a row of posts 3 apart, across 200 crates
+	PropDense = function(T)
+		Fixture(T, "PropDense", function(Ctx)
+			local Rand = Random.new(5)
+			local Posts = {}
+			for I = 0, 5 do
+				for _, Z in ipairs({-1.5, 1.5}) do table.insert(Posts, {-7.5 + I * 3, Z}) end
+			end
+			local function Angle(P) return math.atan2(P[2], P[1]) end
+			table.sort(Posts, function(A, B) return Angle(A) < Angle(B) end)
+			local List = {}
+			for I = 1, 12 do
+				local A = -math.pi + (I - 0.5) * math.pi / 6
+				local function R1(V) return math.floor(V * 10 + 0.5) / 10 end
+				table.insert(List, {From = {R1(math.cos(A) * 30), R1(math.sin(A) * 30)}, To = Posts[I]})
+			end
+			local Crates = 0
+			while Crates < 200 do
+				local X, Z = Rand:NextNumber(-34, 34), Rand:NextNumber(-34, 34)
+				local Ok = math.abs(X) > 13 or math.abs(Z) > 9 -- (a clear ring round the posts, so every post can be reached)
+				for _, W in ipairs(List) do
+					if (Vector2.new(X, Z) - Vector2.new(W.From[1], W.From[2])).Magnitude < 4 then Ok = false end
+				end
+				if Ok then
+					Ctx.Part(Ctx.At(X, Z) + Vector3.new(0, 1, 0), Vector3.new(2, 2, 2), {Material = Enum.Material.WoodPlanks,
+						Color = Color3.fromRGB(140, 100, 60), Orientation = Vector3.new(0, Rand:NextNumber(0, 90), 0)})
+					Crates += 1
+				end
+			end
+			task.wait(1) -- (the navmesh takes the crates in)
+			local W = Ctx.Walkers(List)
+			Mover.ResetStats()
+			Ctx.Go()
+			local R = Ctx.Track(W, 60, 2.2)
+			local S = Mover.Stats()
+			Say("PropDense", "200 crates, 12 walkers: arrived %d/12 by %.1f s, closest %.2f, worst pair under 2.2 for %.2f s; StepMs %.3f (max %.3f), worst tick %s; local routes %d (avg %.2f ms, max %.2f ms), detours %d; plans %d, PlanMs avg %.2f max %.2f, max planning in one frame %.2f ms; yields %d, replans %d, fails %d",
+				Count(R.Arrived), R.Last, R.Min, R.MaxBelow, S.StepMs, S.MaxStepMs, S.WorstTick, S.Routes, S.RouteMs, S.MaxRouteMs,
+				S.Detours, S.Plans, S.PlanMs, S.MaxPlanMs, S.MaxPlanFrameMs, S.Yields, S.Replans, S.Fails)
+			T.True(R.All, "all 12 arrive (" .. Arrivals(R) .. ")")
+			T.Eq(S.Fails, 0, "no walk failed")
+			T.True(S.StepMs <= 1.5, ("average steering step %.3f ms <= 1.5"):format(S.StepMs))
+		end)
+	end,
+
 	-- 20 walkers crossing a plaza in interleaved, opposite lanes: the steering stays cheap
 	Performance = function(T)
 		Fixture(T, "Performance", function(Ctx)
@@ -366,15 +468,34 @@ return {
 				table.insert(List, {From = {27, Z - 2}, To = {-27, Z}})
 			end
 			local W = Ctx.Walkers(List)
-			Ctx.Go()
 			Mover.ResetStats()
+			Ctx.Go() -- (20 plans start in the same frame)
+			-- the average step counts only the ticks while all 20 steer (sampled: between two samples that both saw 20)
+			local FullMs, FullTicks, Sampling = 0, 0, true
+			task.spawn(function()
+				local Prev = Mover.Stats()
+				while Sampling do
+					task.wait(0.1)
+					local Cur = Mover.Stats()
+					if Prev.Walkers == 20 and Cur.Walkers == 20 then
+						FullMs += Cur.TotalMs - Prev.TotalMs
+						FullTicks += Cur.Ticks - Prev.Ticks
+					end
+					Prev = Cur
+				end
+			end)
 			local R = Ctx.Track(W, 45, 2.2)
+			Sampling = false
 			local S = Mover.Stats()
-			Say("Performance", "StepMs avg %.3f (max %.3f, per Heartbeat %.4f) over %d ticks, peak walkers %d, closest %.2f, worst pair under 2.2 for %.2f s, arrived %d/20 by %.1f s, yields %d, replans %d",
-				S.StepMs, S.MaxStepMs, S.HeartbeatMs, S.Ticks, S.PeakWalkers, R.Min, R.MaxBelow, Count(R.Arrived), R.Last, S.Yields, S.Replans)
+			local Full = FullTicks > 0 and FullMs / FullTicks or 0
+			Say("Performance", "StepMs with all 20 steering %.3f over %d ticks (all ticks %.3f, p99 %.3f, max %.3f, per Heartbeat %.4f); worst tick %s; plans %d, PlanMs avg %.2f max %.2f, max planning in one frame %.2f ms; closest %.2f, worst pair under 2.2 for %.2f s, arrived %d/20 by %.1f s, yields %d, replans %d",
+				Full, FullTicks, S.StepMs, S.P99StepMs, S.MaxStepMs, S.HeartbeatMs, S.WorstTick, S.Plans, S.PlanMs, S.MaxPlanMs, S.MaxPlanFrameMs,
+				R.Min, R.MaxBelow, Count(R.Arrived), R.Last, S.Yields, S.Replans)
 			T.True(S.PeakWalkers >= 20, "20 walkers steered at once (" .. S.PeakWalkers .. ")")
 			T.Eq(S.Fails, 0, "no walk failed")
-			T.True(S.StepMs <= 1.5, ("average steering step %.3f ms <= 1.5"):format(S.StepMs))
+			T.True(FullTicks >= 10, "measured over ticks with all 20 steering (" .. FullTicks .. ")")
+			T.True(Full <= 1.5, ("average steering step with 20 walkers %.3f ms <= 1.5"):format(Full))
+			T.True(S.MaxPlanFrameMs <= Mover.PlanBudgetMs + 3, ("planning in one frame %.2f ms stays near the %.1f ms budget"):format(S.MaxPlanFrameMs, Mover.PlanBudgetMs))
 			T.True(R.All, "all 20 arrive")
 		end)
 	end,

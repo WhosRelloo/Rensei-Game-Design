@@ -8,7 +8,7 @@
 --       WalkTo / Place on the same rig cancels the older walk. "failed" leaves the rig standing where it is (the caller
 --       decides); an error inside a walk ends it "failed" with the rig held still, upright.
 --       Debug fields on the handle: Waypoints (the smoothed path), RawWaypoints (count before smoothing), Radius
---       (agent radius used), Yields, Replans.
+--       (agent radius used), Yields, Replans, Detours, Why (why it failed).
 --   * Mover.Place(Rig, TargetCFrame): cancels any walk, anchors the root and puts the rig exactly there.
 --   * Mover.Handle(Rig) -> the walk in progress (debug), or nil.
 --   * Mover.Stats() -> {Walkers, StepMs, MaxStepMs, HeartbeatMs, Ticks, PeakWalkers, Yields, Replans, Sidesteps,
@@ -23,7 +23,8 @@
 --      (the navmesh hasn't caught up with a change yet) is refused and asked for again.
 --   2. Smoothing: each waypoint the walker can skip safely is dropped: a 1.5-radius spherecast at waist height
 --      between the kept points is clear, and a ground ray every 2 studs finds walkable ground within 3 studs of the
---      line, never dearer (Costs) than the ground the path itself used. Open squares become straight lines.
+--      line, never dearer (Costs) than the ground the path itself used. Open squares become straight lines. One
+--      shortcut spans at most 60 studs, found by galloping search; all planning shares 2 ms a frame (PlanBudgetMs).
 --   3. Steering, 10 Hz on Heartbeat, walking townsfolk only (nothing runs while nobody walks): the desired velocity
 --      points at the next waypoint at the walk speed, slowing over the last 4 studs. Every townsperson, player and
 --      other character within 10 studs is checked: if the closest approach over the next 1.5 s would be under
@@ -32,8 +33,9 @@
 --      nobody walks into a body ahead in its lane (it slows to that body's pace, then stops short). The result goes
 --      to Humanoid:Move, smoothed, so the facing (AutoRotate) turns smoothly.
 --   4. Narrow spots: two walkers blocked head-on (both under 1 stud/s for 0.75 s, facing each other within 4 studs):
---      the one with the lower priority (further from its goal, then the higher Id) steps back and to its right and
---      waits until the other has passed (their distance grows), then carries on.
+--      the one with the lower priority (further from its goal, then the higher Id) steps back and to its right; in an
+--      alley with no room to the side it backs out along its own breadcrumbs until there is. It waits until the other
+--      has gone past it (along the way it wants to go), then carries on.
 --   5. Re-planning: Path.Blocked ahead, or a wall appearing between the walker and its next waypoint, re-plans from
 --      where it stands. Stuck (under 0.5 studs of progress in 1.5 s, not just queueing behind someone moving): step
 --      sideways, then re-plan; the 4th time without real progress in between, the walk ends "failed".
@@ -51,6 +53,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local PhysicsService = game:GetService("PhysicsService")
 local TweenService = game:GetService("TweenService")
+local CollectionService = game:GetService("CollectionService")
 
 local Loco do
 	local Ok, Tuning = pcall(require, ReplicatedStorage.Modules.Data.Rensei.TuningConfig)
@@ -60,7 +63,8 @@ end
 local Mover = {}
 -- ===== tuning (all PROPOSALS) =====
 Mover.Agent = {AgentRadius = 2.5, AgentHeight = 5.5, AgentCanJump = false, AgentCanClimb = false, WaypointSpacing = 4}
-Mover.NarrowRadii = {2, 1.5} -- tried in turn when there's no path at the agent's radius (a 5-stud door needs 2)...
+Mover.NarrowRadii = {2, 1.5, 1} -- tried in turn when there's no path at the agent's radius (a 5-stud door needs 2;
+-- 1 = half a torso: squeezing between crates)...
 Mover.DetourRatio, Mover.DetourSlack = 1.3, 8 -- ...or when its path is longer than this x the straight line + slack
 Mover.Costs = { -- material (or PathfindingModifier label) -> cost; anything else costs 1
 	Cobblestone = 1, Brick = 1, Concrete = 1, Pavement = 1,
@@ -102,12 +106,19 @@ Mover.Sidestep = 2
 Mover.LocalReach = 14 -- local routes (round standing bodies) are planned to waypoints this close...
 Mover.LocalMargin = 8 -- ...on a 1-stud grid this far around the walker and the waypoint...
 Mover.LocalCells = 1600 -- ...of at most this many cells
+Mover.MaxDetours = 8 -- local routes in one walk at most
+Mover.SmoothReach = 60 -- one smoothing shortcut spans at most this many studs...
+Mover.SmoothSkip = 16 -- ...and this many raw waypoints
+Mover.PlanBudgetMs = 2 -- planning work (all walkers together) per frame; more waits for the next frame
+Mover.ModifierTag = "RenseiPathModifier" -- PathfindingModifiers added at runtime outside World.Map: tag them (or their part)
 Mover.BlockedSpeed = 1 -- head-on block: both slower than this...
 Mover.BlockedTime = 0.75 -- ...for this long...
 Mover.FacingDist = 4 -- ...within this distance, facing each other
 Mover.YieldBack = 1.5 -- the yielder steps back this far and...
 Mover.YieldSide = 2.5 -- ...this far to its right
-Mover.YieldMax = 8 -- s: never yields longer than this
+Mover.YieldMax = 15 -- s: never yields longer than this (backing out of an alley takes a while)
+Mover.TrailStep = 1 -- studs between the breadcrumbs a walker leaves (the way back out of an alley)...
+Mover.TrailLength = 40 -- ...and how many it keeps
 Mover.OccupiedRadius = 2 -- someone this close to a post occupies it
 Mover.WaitSide = 1.5 -- the waiting spot: this far clear of the occupant's shoulder
 Mover.WaitMax = 5 -- s: re-check the post at least this often...
@@ -126,16 +137,27 @@ local Seq = 0
 local Stats
 function Mover.ResetStats()
 	Stats = {Ticks = 0, Ms = 0, MaxMs = 0, Heartbeats = 0, HeartbeatMs = 0, PeakWalkers = 0, Yields = 0, Replans = 0,
-		Sidesteps = 0, Fails = 0, Arrivals = 0, PostWaits = 0, Detours = 0}
+		Sidesteps = 0, Fails = 0, Arrivals = 0, PostWaits = 0, Detours = 0, Plans = 0, PlanMs = 0, MaxPlanMs = 0,
+		MaxPlanFrameMs = 0, Routes = 0, RouteMs = 0, MaxRouteMs = 0, WorstTick = "", Times = {}}
 end
 Mover.ResetStats()
 
+-- StepMs: one steering tick (all walkers); PlanMs: one plan's own work (its waits for the pathfinder and for the
+-- frame budget excluded); MaxPlanFrameMs: all planning in one frame; RouteMs: one local route
 function Mover.Stats()
 	return {
 		Walkers = #List, StepMs = Stats.Ticks > 0 and Stats.Ms / Stats.Ticks or 0, MaxStepMs = Stats.MaxMs,
-		HeartbeatMs = Stats.Heartbeats > 0 and Stats.Ms / Stats.Heartbeats or 0, Ticks = Stats.Ticks,
+		HeartbeatMs = Stats.Heartbeats > 0 and Stats.Ms / Stats.Heartbeats or 0, Ticks = Stats.Ticks, TotalMs = Stats.Ms,
 		PeakWalkers = Stats.PeakWalkers, Yields = Stats.Yields, Replans = Stats.Replans, Sidesteps = Stats.Sidesteps,
 		Fails = Stats.Fails, Arrivals = Stats.Arrivals, PostWaits = Stats.PostWaits, Detours = Stats.Detours,
+		Plans = Stats.Plans, PlanMs = Stats.Plans > 0 and Stats.PlanMs / Stats.Plans or 0, MaxPlanMs = Stats.MaxPlanMs,
+		MaxPlanFrameMs = Stats.MaxPlanFrameMs, Routes = Stats.Routes,
+		RouteMs = Stats.Routes > 0 and Stats.RouteMs / Stats.Routes or 0, MaxRouteMs = Stats.MaxRouteMs,
+		WorstTick = Stats.WorstTick, P99StepMs = (function()
+			local T = table.clone(Stats.Times)
+			table.sort(T)
+			return T[math.max(1, math.ceil(#T * 0.99))] or 0
+		end)(),
 	}
 end
 
@@ -194,18 +216,59 @@ local function RefreshBodies()
 	Ground.CollisionGroup = Group
 end
 
--- PathfindingModifier volumes, so smoothing never cuts across ground the builders made dearer
-local Modifiers = {} -- [PathfindingModifier] = true
+-- PathfindingModifier volumes, so smoothing never cuts across ground the builders made dearer. Cached once, lazily on
+-- the first walk: the map's own modifiers (World.Map), plus any instance tagged Mover.ModifierTag (a modifier, or a
+-- part / model holding modifiers) as it is tagged or untagged. Each entry keeps its parts and a world bounding box.
+local Modifiers = {} -- [PathfindingModifier] = {Label, PassThrough, Parts = {{CFrame, Size}}, Min, Max, Source}
 local ModifiersReady = false
+
+local function Extents(CF, Size) -- half-size of a part's world-axis bounding box
+	local S, R, U, L = Size / 2, CF.RightVector, CF.UpVector, CF.LookVector
+	return Vector3.new(
+		math.abs(R.X) * S.X + math.abs(U.X) * S.Y + math.abs(L.X) * S.Z,
+		math.abs(R.Y) * S.X + math.abs(U.Y) * S.Y + math.abs(L.Y) * S.Z,
+		math.abs(R.Z) * S.X + math.abs(U.Z) * S.Y + math.abs(L.Z) * S.Z)
+end
+
+local function CacheModifier(M, Source)
+	local Parent = M.Parent
+	if not Parent then return end
+	local Parts, Min, Max = {}, Vector3.one * math.huge, -Vector3.one * math.huge
+	for _, P in ipairs(Parent:IsA("BasePart") and {Parent} or Parent:GetDescendants()) do
+		if P:IsA("BasePart") then
+			table.insert(Parts, {P.CFrame, P.Size})
+			local E = Extents(P.CFrame, P.Size)
+			Min, Max = Min:Min(P.Position - E), Max:Max(P.Position + E)
+		end
+	end
+	if #Parts > 0 then Modifiers[M] = {Label = M.Label, PassThrough = M.PassThrough, Parts = Parts, Min = Min, Max = Max, Source = Source} end
+end
+
+local function CacheTagged(I)
+	if I:IsA("PathfindingModifier") then CacheModifier(I, I) return end
+	for _, D in ipairs(I:GetDescendants()) do
+		if D:IsA("PathfindingModifier") then CacheModifier(D, I) end
+	end
+end
+
 local function WatchModifiers()
 	if ModifiersReady then return end
 	ModifiersReady = true
-	local function Add(D) if D:IsA("PathfindingModifier") then Modifiers[D] = true end end
-	workspace.DescendantAdded:Connect(Add)
-	workspace.DescendantRemoving:Connect(function(D) Modifiers[D] = nil end)
-	for _, D in ipairs(workspace:GetDescendants()) do Add(D) end
+	local World = workspace:FindFirstChild("World")
+	local Map = World and World:FindFirstChild("Map")
+	if Map then
+		for _, D in ipairs(Map:GetDescendants()) do
+			if D:IsA("PathfindingModifier") then CacheModifier(D, D) end
+		end
+	end
+	for _, I in ipairs(CollectionService:GetTagged(Mover.ModifierTag)) do CacheTagged(I) end
+	CollectionService:GetInstanceAddedSignal(Mover.ModifierTag):Connect(CacheTagged)
+	CollectionService:GetInstanceRemovedSignal(Mover.ModifierTag):Connect(function(I)
+		for M, E in pairs(Modifiers) do
+			if E.Source == I then Modifiers[M] = nil end
+		end
+	end)
 end
-task.defer(WatchModifiers)
 
 local function SegmentHitsBox(CF, Size, A, B)
 	local P, Q = CF:PointToObjectSpace(A), CF:PointToObjectSpace(B)
@@ -225,18 +288,17 @@ local function SegmentHitsBox(CF, Size, A, B)
 	return true
 end
 
--- does the straight line A -> B (ground points) cross a modifier volume dearer than MaxCost?
+-- does the straight line A -> B (ground points) cross a modifier volume dearer than MaxCost? (bounding boxes first)
 local function CrossesDearModifier(Costs, A, B, MaxCost)
-	for M in pairs(Modifiers) do
-		local Parent = M.Parent
-		if Parent and (M.PassThrough ~= true) and Cost(Costs, M.Label) > MaxCost then
-			local Parts = Parent:IsA("BasePart") and {Parent} or Parent:GetDescendants()
-			for _, P in ipairs(Parts) do
-				if P:IsA("BasePart") then
-					for _, Y in ipairs({0.5, Mover.WaistHeight}) do
-						local Lift = Vector3.new(0, Y, 0)
-						if SegmentHitsBox(P.CFrame, P.Size, A + Lift, B + Lift) then return true end
-					end
+	local Lo = A:Min(B) + Vector3.new(0, 0.5, 0)
+	local Hi = A:Max(B) + Vector3.new(0, Mover.WaistHeight, 0)
+	for _, E in pairs(Modifiers) do
+		if E.PassThrough ~= true and Cost(Costs, E.Label) > MaxCost
+			and Hi.X >= E.Min.X and Lo.X <= E.Max.X and Hi.Y >= E.Min.Y and Lo.Y <= E.Max.Y and Hi.Z >= E.Min.Z and Lo.Z <= E.Max.Z then
+			for _, P in ipairs(E.Parts) do
+				for _, Y in ipairs({0.5, Mover.WaistHeight}) do
+					local Lift = Vector3.new(0, Y, 0)
+					if SegmentHitsBox(P[1], P[2], A + Lift, B + Lift) then return true end
 				end
 			end
 		end
@@ -279,22 +341,46 @@ Tight.RespectCanCollide = true
 -- string-pulling: from each kept point, keep the furthest point it can reach safely. A point already within the
 -- spherecast's radius of geometry (a walker pressed against a door jamb) skips nothing: a cast that starts inside a
 -- part doesn't see it, and the raw path is what leads it out.
-local function Smooth(Costs, Pts, Labels)
+-- A shortcut spans at most SmoothReach studs / SmoothSkip waypoints, and the furthest one is found by galloping
+-- (2, 4, 8 ... ahead) then halving, so a long boulevard costs a few dozen checks, not thousands of rays. Budget() is
+-- called between checks (the per-frame planning budget).
+local function Smooth(Costs, Pts, Labels, Budget)
 	local Out, Orig = {Pts[1]}, {1}
 	Tight.FilterDescendantsInstances = Obstacles.FilterDescendantsInstances
 	Tight.CollisionGroup = Obstacles.CollisionGroup
 	local I = 1
 	while I < #Pts do
-		local Best = I + 1
-		local MaxCost = math.max(Cost(Costs, Labels[I]), Cost(Costs, Labels[I + 1]))
+		local Lo = I + 1 -- the furthest point known to be reachable
 		local Wedged = #workspace:GetPartBoundsInRadius(Pts[I] + Vector3.new(0, Mover.WaistHeight, 0), Mover.SmoothRadius, Tight) > 0
-		for J = Wedged and math.huge or I + 2, #Pts do
-			MaxCost = math.max(MaxCost, Cost(Costs, Labels[J]))
-			if Safe(Costs, Pts[I], Pts[J], MaxCost) then Best = J else break end
+		if not Wedged then
+			local function Reachable(J)
+				if J - I > Mover.SmoothSkip or FlatDist(Pts[I], Pts[J]) > Mover.SmoothReach then return false end
+				local MaxCost = 1
+				for K = I, J do MaxCost = math.max(MaxCost, Cost(Costs, Labels[K])) end
+				if Budget then Budget() end
+				return Safe(Costs, Pts[I], Pts[J], MaxCost)
+			end
+			local Hi, Step = nil, 2
+			while true do
+				local J = math.min(I + Step, #Pts)
+				if J <= Lo then break end
+				if Reachable(J) then
+					Lo = J
+					if J == #Pts then break end
+					Step *= 2
+				else
+					Hi = J
+					break
+				end
+			end
+			while Hi and Hi - Lo > 1 do
+				local M = (Lo + Hi) // 2
+				if Reachable(M) then Lo = M else Hi = M end
+			end
 		end
-		table.insert(Out, Pts[Best])
-		table.insert(Orig, Best)
-		I = Best
+		table.insert(Out, Pts[Lo])
+		table.insert(Orig, Lo)
+		I = Lo
 	end
 	return Out, Orig
 end
@@ -321,7 +407,13 @@ local function WalkTrack(Rig)
 		Track.Priority = Enum.AnimationPriority.Core -- as EnemyService plays it
 	end
 	Tracks[Rig] = Ok and Track or false
-	Rig.Destroying:Once(function() Tracks[Rig] = nil end)
+	local Conn
+	Conn = Rig.AncestryChanged:Connect(function()
+		if not Rig.Parent then
+			Tracks[Rig] = nil
+			Conn:Disconnect()
+		end
+	end)
 	return Tracks[Rig] or nil
 end
 
@@ -372,7 +464,6 @@ local function FaceToward(H, Dir)
 end
 
 -- ===== walks =====
-local Conn -- the Heartbeat connection (only while someone walks)
 
 local function Put(Rig, TargetCFrame)
 	local Root = Rig:FindFirstChild("HumanoidRootPart")
@@ -427,6 +518,38 @@ local function ResetWindow(H, P, Now)
 	H.WinPos, H.WinT, H.Excused, H.SlowT, H.SlowRef = P, Now, false, 0, nil
 end
 
+-- ===== the planning budget =====
+-- Plans run in their own threads. Their own work (not their waits) is timed per plan, and all of it shares
+-- PlanBudgetMs per frame: once the frame's budget is spent, a plan waits for the next frame at its next check, so a
+-- schedule change that sends everyone walking at once can't stall one frame.
+local FrameNo = 0 -- counts Heartbeats while anyone walks (Tick)
+local PlanFrame, PlanFrameSpent = -1, 0
+
+local function NewClock() return {Spent = 0, Mark = os.clock()} end
+
+local function Spend(Clock)
+	local Now = os.clock()
+	local D = Now - Clock.Mark
+	Clock.Mark, Clock.Spent = Now, Clock.Spent + D
+	if PlanFrame ~= FrameNo then PlanFrame, PlanFrameSpent = FrameNo, 0 end
+	PlanFrameSpent += D
+	Stats.MaxPlanFrameMs = math.max(Stats.MaxPlanFrameMs, PlanFrameSpent * 1000)
+end
+
+local function PlanWait(Clock, Seconds) -- a wait inside a plan (not its own work)
+	Spend(Clock)
+	task.wait(Seconds)
+	Clock.Mark = os.clock()
+end
+
+local Conn -- the Heartbeat connection (only while someone walks)
+
+local function Budget(Clock)
+	Spend(Clock)
+	while Conn and PlanFrame == FrameNo and PlanFrameSpent * 1000 >= Mover.PlanBudgetMs do task.wait() end
+	Clock.Mark = os.clock()
+end
+
 local function PathLength(Pts)
 	local L = 0
 	for I = 1, #Pts - 1 do L += FlatDist(Pts[I], Pts[I + 1]) end
@@ -436,12 +559,15 @@ end
 -- one path at one agent radius: {Path, Pts, Labels, Raw, Radius, Length}, "stale" (it runs through geometry: the
 -- navmesh hasn't caught up yet, or a bogus jump) or nil (no path). From = the start (default: where the root is); a
 -- start other than the root is joined to it with a straight first leg.
-local function Compute(H, Agent, Costs, Radius, From)
+local function Compute(H, Agent, Costs, Radius, Clock, From)
 	local Params = table.clone(Agent)
 	Params.AgentRadius = Radius
 	Params.Costs = Costs
 	local Path = PathfindingService:CreatePath(Params)
-	local Ok = pcall(Path.ComputeAsync, Path, From or H.Root.Position, H.Goal)
+	Spend(Clock)
+	local Ok = pcall(Path.ComputeAsync, Path, From or H.Root.Position, H.Goal) -- (yields: not our work)
+	Clock.Mark = os.clock()
+	Budget(Clock) -- (many paths come back in the same frame when a schedule sends everyone off at once)
 	if not (Ok and Path.Status == Enum.PathStatus.Success) then return nil end
 	local Raw = Path:GetWaypoints()
 	local Pts, Labels = {}, {}
@@ -457,10 +583,11 @@ local function Compute(H, Agent, Costs, Radius, From)
 		table.insert(Pts, H.Goal)
 		table.insert(Labels, Labels[#Labels])
 	end
-	return {Path = Path, Pts = Pts, Labels = Labels, Raw = #Raw, Radius = Radius, Length = PathLength(Pts)}
+	-- Off: Pts has one point (the root) before the path's own waypoints when it starts elsewhere (Path.Blocked indices)
+	return {Path = Path, Pts = Pts, Labels = Labels, Raw = #Raw, Radius = Radius, Length = PathLength(Pts), Off = From and 1 or 0}
 end
 
-local function PlanBody(H, Gen)
+local function PlanBody(H, Gen, Clock)
 	local Agent = H.Agent
 	local Costs = table.clone(Mover.Costs)
 	for K, V in pairs(Agent.Costs or {}) do Costs[K] = V end
@@ -473,7 +600,9 @@ local function PlanBody(H, Gen)
 	for Attempt = 1, 8 do
 		local Stale, Best = false, nil
 		for _, Radius in ipairs(Radii) do
-			local Got = Compute(H, Agent, Costs, Radius)
+			Budget(Clock)
+			if not Alive(H, Gen) then return end
+			local Got = Compute(H, Agent, Costs, Radius, Clock)
 			if not Alive(H, Gen) then return end
 			if Got == "stale" then
 				Stale = true
@@ -494,13 +623,13 @@ local function PlanBody(H, Gen)
 			-- path from a spot just behind or beside the walker
 			local Here = H.Root.Position - Vector3.new(0, LIFT, 0)
 			if Straight <= 15 and Valid({Here, H.Goal}) and Safe(Costs, Here, H.Goal, math.huge) then
-				Best = {Pts = {Here, H.Goal}, Labels = {}, Raw = 2, Radius = 0, Length = Straight}
+				Best = {Pts = {Here, H.Goal}, Labels = {}, Raw = 2, Radius = 0, Length = Straight, Off = 0}
 			else
 				local Dir, Right = H.Dir, RightOf(H.Dir)
 				for _, Off in ipairs({-Dir * 3, Right * 2.5, -Right * 2.5, -Dir * 6}) do
 					local From = H.Root.Position + Off
 					if Valid({Here, From - Vector3.new(0, LIFT, 0)}) then
-						local Got = Compute(H, Agent, Costs, Radii[#Radii], From)
+						local Got = Compute(H, Agent, Costs, Radii[#Radii], Clock, From)
 						if not Alive(H, Gen) then return end
 						if type(Got) == "table" then Best = Got break end
 					end
@@ -508,17 +637,19 @@ local function PlanBody(H, Gen)
 			end
 		end
 		if Best then
-			local Wps, Orig = Smooth(Costs, Best.Pts, Best.Labels)
+			local Wps, Orig = Smooth(Costs, Best.Pts, Best.Labels, function() Budget(Clock) end)
 			if not Alive(H, Gen) then return end
 			local Remain = {}
 			Remain[#Wps] = 0
 			for I = #Wps - 1, 1, -1 do Remain[I] = Remain[I + 1] + FlatDist(Wps[I], Wps[I + 1]) end
 			H.Wps, H.Orig, H.Remain, H.Wi = Wps, Orig, Remain, math.min(2, #Wps)
 			H.Waypoints, H.RawWaypoints, H.Radius = Wps, Best.Raw, Best.Radius
+			H.PathId, H.OrigOff = Gen, Best.Off
 			if H.BlockedConn then H.BlockedConn:Disconnect() H.BlockedConn = nil end
 			H.BlockedConn = Best.Path and Best.Path.Blocked:Connect(function(Index)
-				-- a waypoint on the rest of the way is blocked: re-plan (on the next tick)
-				if H.Status == "walking" and H.Orig == Orig and Index >= (Orig[math.max(1, H.Wi - 1)] or 1) then
+				-- a waypoint on the rest of the way is blocked: re-plan (on the next tick). H.Orig maps each kept
+				-- waypoint to its index in Pts, which is the path's own index + Off (and survives a local detour)
+				if H.Status == "walking" and H.PathId == Gen and Index + H.OrigOff >= (H.Orig[math.max(1, H.Wi - 1)] or 1) then
 					H.NeedPlan = H.NeedPlan or "blocked"
 				end
 			end)
@@ -527,8 +658,9 @@ local function PlanBody(H, Gen)
 			ResetWindow(H, H.Root.Position, os.clock())
 			return
 		end
+		H.Why = Stale and "paths kept running through geometry" or "no path"
 		if not Stale then break end
-		task.wait(0.5) -- the navmesh is still catching up with a change: ask again
+		PlanWait(Clock, 0.5) -- the navmesh is still catching up with a change: ask again
 		if not Alive(H, Gen) then return end
 	end
 	Finish(H, "failed")
@@ -540,13 +672,18 @@ local function Plan(H, Why)
 	if Why ~= "start" then
 		H.Replans += 1
 		Stats.Replans += 1
-		if H.Replans > Mover.MaxPlans then Finish(H, "failed") return end
+		if H.Replans > Mover.MaxPlans then H.Why = "too many re-plans" Finish(H, "failed") return end
 	end
 	H.Mode = "plan"
 	H.NeedPlan = nil
 	H.NextPlanAt = os.clock() + 1
-	task.spawn(function()
-		local Ok, Err = pcall(PlanBody, H, Gen)
+	task.defer(function() -- (never inside the steering tick)
+		local Clock = NewClock()
+		local Ok, Err = pcall(PlanBody, H, Gen, Clock)
+		Spend(Clock)
+		Stats.Plans += 1
+		Stats.PlanMs += Clock.Spent * 1000
+		Stats.MaxPlanMs = math.max(Stats.MaxPlanMs, Clock.Spent * 1000)
 		if not Ok and H.Status == "walking" then Broke(H, Err) end
 	end)
 end
@@ -607,7 +744,9 @@ local function Avoid(H, P, Desired, Dir, Reach, NearGoal)
 			if DistSq < SenseSq and DistSq > 1e-6 and math.abs(BP.Y - P.Y) < 6 then
 				local Dist = math.sqrt(DistSq)
 				local BV = B.Vel
-				local Still = BV.Magnitude < 0.3
+				-- standing: not moving, or a walker that is itself held up (the same test the local routes use)
+				local BO = Active[B.Model]
+				local Still = BV.Magnitude < 0.3 or (BO ~= nil and BO.Mode == "walk" and (BO.SlowT or 0) >= 0.5)
 				local Vr = BV - Desired
 				local VV = Vr:Dot(Vr)
 				local Tc = VV > 1e-4 and math.clamp(-D:Dot(Vr) / VV, 0, Mover.Lookahead) or 0
@@ -636,7 +775,8 @@ local function Avoid(H, P, Desired, Dir, Reach, NearGoal)
 				-- straight line. A body standing still only counts if the walker would touch it (the side-step above
 				-- gives it a wider berth where there's room; posts may be 3 studs apart)
 				local Off = Along <= Reach and math.abs(Side) or (D - Dir * Reach).Magnitude
-				if Along > 0 and (NoRoom or Off < (Still and Mover.ContactGap or Mover.LaneWidth)) then
+				-- (no room to side-step only stops it for someone moving: one standing still is passed if it won't be touched)
+				if Along > 0 and ((NoRoom and not Still) or Off < (Still and Mover.ContactGap or Mover.LaneWidth)) then
 					local Pace = math.max(0, BV:Dot(Dir))
 					local Cap = Pace + math.max(0, Along - Mover.StopGap) * 2
 					if Cap < FwdCap then
@@ -648,10 +788,12 @@ local function Avoid(H, P, Desired, Dir, Reach, NearGoal)
 				-- studs apart; someone moving is always kept at Separation)
 				local Sep = (NearGoal and Still) and Mover.ContactGap or Mover.Separation
 				if Dist < Sep then Push -= D / Dist * ((Sep - Dist) / Sep) end
-				-- 4) someone moving this close: never step any closer (whatever the other rules want)
-				if not Still and Dist < Mover.HardGap + 0.4 then
+				-- 4) this close: never step any closer, whatever the other rules want (someone moving: HardGap; someone
+				-- standing: ContactGap, so posts 3 studs apart can still be reached)
+				local Floor = Still and Mover.ContactGap or Mover.HardGap
+				if Dist < Floor + 0.4 then
 					Hard = Hard or {}
-					table.insert(Hard, {D / Dist, math.clamp((Mover.HardGap + 0.4 - Dist) / 0.4, 0, 1)})
+					table.insert(Hard, {D / Dist, math.clamp((Floor + 0.4 - Dist) / 0.4, 0, 1)})
 				end
 			end
 		end
@@ -861,23 +1003,40 @@ local function LocalRoute(H, P, Target)
 	return #Out > 0 and Out or nil
 end
 
--- swaps the rest of the way to the current waypoint for a local route; true if it found one
+-- swaps the rest of the way to the current waypoint for a local route: true if it found one, false if not, "later" if
+-- this tick already planned one (at most one per tick: a local route is the costliest thing a tick does)
+local RoutesThisTick, RouteMsThisTick = 0, 0
 local function Detour(H, P, Now)
 	local Target = H.Wps[H.Wi]
-	if FlatDist(P, Target) > Mover.LocalReach then return false end
+	if FlatDist(P, Target) > Mover.LocalReach or (H.Detours or 0) >= Mover.MaxDetours then return false end
+	if RoutesThisTick >= 1 then return "later" end
+	RoutesThisTick += 1
+	local T0 = os.clock()
 	local Route = LocalRoute(H, P, Target)
+	local Ms = (os.clock() - T0) * 1000
+	RouteMsThisTick += Ms
+	Stats.Routes += 1
+	Stats.RouteMs += Ms
+	Stats.MaxRouteMs = math.max(Stats.MaxRouteMs, Ms)
 	if not Route then return false end
-	local Wps = {P - Vector3.new(0, LIFT, 0)}
-	for _, Q in ipairs(Route) do table.insert(Wps, Q) end
-	for I = H.Wi + 1, #H.Wps do table.insert(Wps, H.Wps[I]) end
+	-- the new waypoints keep pointing into the planned path (Orig), so Path.Blocked still works after the detour
+	local Into = H.Orig[H.Wi] or 1
+	local Wps, Orig = {P - Vector3.new(0, LIFT, 0)}, {H.Orig[H.Wi - 1] or 1}
+	for _, Q in ipairs(Route) do
+		table.insert(Wps, Q)
+		table.insert(Orig, Into)
+	end
+	for I = H.Wi + 1, #H.Wps do
+		table.insert(Wps, H.Wps[I])
+		table.insert(Orig, H.Orig[I] or Into)
+	end
 	local Remain = {}
 	Remain[#Wps] = 0
 	for I = #Wps - 1, 1, -1 do Remain[I] = Remain[I + 1] + FlatDist(Wps[I], Wps[I + 1]) end
-	H.Wps, H.Remain, H.Wi, H.Orig = Wps, Remain, 2, {}
+	H.Wps, H.Remain, H.Wi, H.Orig = Wps, Remain, 2, Orig
 	H.Waypoints = Wps
 	H.DetourAt = Now
-	H.Replans += 1
-	Stats.Replans += 1
+	H.Detours = (H.Detours or 0) + 1
 	Stats.Detours += 1
 	ResetWindow(H, P, Now)
 	return true
@@ -910,12 +1069,47 @@ WaitSpot = function(H, P, Dir)
 	return Fallback or P
 end
 
+-- Where a yielder goes: back and to its right, or any side with room. In an alley there is none: it backs out along
+-- its own breadcrumbs until there is room to the side (or as far back as it has been), then steps aside there.
+local function YieldPath(H, P, Dir)
+	local Right = RightOf(Dir)
+	local Back, Side = -Dir * Mover.YieldBack, Right * Mover.YieldSide
+	for _, Off in ipairs({Back + Side, Back - Side, Side, -Side}) do
+		if SpotClear(H, P, P + Off) then return {P + Off} end
+	end
+	local Path, From = {}, P
+	local Trail = H.Trail
+	for K = #Trail, 1, -1 do
+		local C = Trail[K]
+		if FlatDist(C, From) >= 1.5 then
+			table.insert(Path, C)
+			From = C
+			if #Path % 2 == 0 or K == 1 then -- (every other crumb: room to the side here?)
+				local R2 = Right
+				local Prev = Path[#Path - 1] or P
+				local Way = Flat(Prev - C) -- the way it came along this stretch (towards the other walker)
+				if Way.Magnitude > 0.1 then R2 = RightOf(Way.Unit) end
+				for _, Off in ipairs({R2 * Mover.YieldSide, -R2 * Mover.YieldSide}) do
+					if SpotClear(H, C, C + Off) then
+						table.insert(Path, C + Off)
+						return Path
+					end
+				end
+			end
+		end
+	end
+	if #Path == 0 then table.insert(Path, P - Dir * (Mover.YieldBack + Mover.YieldSide)) end
+	return Path
+end
+
 local function Stuck(H, P, Now)
-	if H.StuckReplans >= Mover.MaxReplans then Finish(H, "failed") return end
+	if H.StuckReplans >= Mover.MaxReplans then H.Why = "stuck" Finish(H, "failed") return end
+	-- standing bodies in the way (a crowd at the posts, a player in an alley): a local route round them first
+	local Routed = Detour(H, P, Now)
+	if Routed == "later" then return "later" end -- (another walker's route this tick: try again next tick)
 	H.StuckReplans += 1
 	H.StuckFrom = P
-	-- standing bodies in the way (a crowd at the posts, a player in an alley): a local route round them first
-	if Detour(H, P, Now) then return end
+	if Routed then return end
 	Stats.Sidesteps += 1
 	local Right = RightOf(H.Dir)
 	H.Spot = PickSpot(H, P, {Right * Mover.Sidestep, -Right * Mover.Sidestep, -H.Dir * Mover.Sidestep})
@@ -923,11 +1117,11 @@ local function Stuck(H, P, Now)
 	H.Mode = "side"
 end
 
--- steering towards Spot (sidestep / yield / wait); true when there
-local function GoTo(H, P, Spot, Now)
+-- steering towards Spot (sidestep / yield / wait); true when within Near (default 0.4) of it
+local function GoTo(H, P, Spot, Now, Near)
 	local To = Flat(Spot - P)
 	local D = To.Magnitude
-	if D < 0.4 then return true end
+	if D < (Near or 0.4) then return true end
 	local Dir = To / D
 	local Desired = Dir * math.max(Mover.MinSpeed, H.Speed * math.min(1, D / 2))
 	local Steer = Avoid(H, P, Desired, Dir, D, true)
@@ -965,23 +1159,33 @@ local function StepOne(H, Dt, Now)
 		local OP = O.Root and O.Root.Position
 		local Done = O.Status ~= "walking" or not OP or Now - H.YieldT0 > Mover.YieldMax
 		if not Done then
+			-- passed: the other's progress has taken it past the yielder, along the way the yielder wants to go
+			if Flat(OP - P):Dot(H.YieldDir) < -1 then Done = true end
+			-- or it went off another way: well clear and still getting further
 			local D = FlatDist(P, OP)
 			if D > H.YieldLast + 0.02 then H.Grow += 1 else H.Grow = 0 end
 			H.YieldLast = D
-			-- passed: the distance keeps growing and the other is behind the yielder's way (or well clear)
-			if H.Grow >= 3 and (Flat(OP - P):Dot(H.Dir) < 0 or D > 6) then Done = true end
+			if D > 8 and H.Grow >= 3 then Done = true end
 		end
 		if Done then
 			H.Mode = "walk"
 			H.YieldCooldown = Now + 3
+			if FlatDist(P, H.YieldFrom) > 6 then H.NeedPlan = H.NeedPlan or "yield" end -- (it backed out a long way)
 			ResetWindow(H, P, Now)
 			return
 		end
-		if not H.Settled and GoTo(H, P, H.Spot, Now) then H.Settled = true end
-		if H.Settled or Now - H.YieldT0 > 1.5 then
-			H.Settled = true
-			Hold(H, Flat(OP - P))
+		if not H.Settled then
+			local Last = H.YieldIdx >= #H.YieldPath
+			if GoTo(H, P, H.YieldPath[H.YieldIdx], Now, Last and 0.4 or 1) or Now > H.YieldStepUntil then
+				if Last then
+					H.Settled = true
+				else
+					H.YieldIdx += 1
+					H.YieldStepUntil = Now + 3
+				end
+			end
 		end
+		if H.Settled then Hold(H, Flat(OP - P)) end
 		return
 	end
 
@@ -993,7 +1197,7 @@ local function StepOne(H, Dt, Now)
 				ResetWindow(H, P, Now)
 				return
 			end
-			if Now - H.WaitT0 > Mover.WaitCap then Finish(H, "failed") return end
+			if Now - H.WaitT0 > Mover.WaitCap then H.Why = "its post stayed occupied" Finish(H, "failed") return end
 			-- standing on another walker's post while it waits for ours: step off it (else they wait on each other)
 			if OthersGoalNear(H, P, Mover.OccupiedRadius + 0.5) then
 				H.Spot, H.Settled = WaitSpot(H, P, Flat(H.Goal - P).Magnitude > 0.1 and Flat(H.Goal - P).Unit or H.Dir), false
@@ -1005,6 +1209,11 @@ local function StepOne(H, Dt, Now)
 	end
 
 	-- ===== walk =====
+	local Trail = H.Trail
+	if FlatDist(P, Trail[#Trail]) >= Mover.TrailStep then
+		table.insert(Trail, P)
+		if #Trail > Mover.TrailLength then table.remove(Trail, 1) end
+	end
 	local Wps, N = H.Wps, #H.Wps
 	while H.Wi < N do
 		local W = Wps[H.Wi]
@@ -1030,7 +1239,11 @@ local function StepOne(H, Dt, Now)
 	-- the last stretch runs past someone standing still (a post among others' posts): take a local route round them
 	if H.Wi == N and DN < Mover.LocalReach and Now >= (H.ApproachCheck or 0) then
 		H.ApproachCheck = Now + 0.5
-		if StillBodyOnLine(H, P, Next, Mover.ContactGap) and Detour(H, P, Now) then return end
+		if StillBodyOnLine(H, P, Next, Mover.ContactGap) then
+			local Routed = Detour(H, P, Now)
+			if Routed == true then return end
+			if Routed == "later" then H.ApproachCheck = Now end -- (next tick)
+		end
 	end
 
 	-- the post is taken: wait near it (1.5 studs clear of the occupant's shoulder), re-checking. Back along the way it
@@ -1079,9 +1292,8 @@ local function StepOne(H, Dt, Now)
 				local Dist = D.Magnitude
 				if Dist <= Mover.FacingDist and Dist > 1e-3 and H.Dir:Dot(D / Dist) > 0.5 and O.Dir:Dot(-D / Dist) > 0.5
 					and not HasPriority(H, O) then
-					local Right = RightOf(Dir)
-					local Back, Side = -Dir * Mover.YieldBack, Right * Mover.YieldSide
-					H.Spot = PickSpot(H, P, {Back + Side, Back - Side, Side, -Side, -Dir * (Mover.YieldBack + Mover.YieldSide)})
+					H.YieldPath, H.YieldIdx, H.YieldStepUntil = YieldPath(H, P, Dir), 1, Now + 3
+					H.YieldDir, H.YieldFrom = Dir, P
 					H.Mode, H.YieldTo, H.YieldT0, H.Settled = "yield", O, Now, false
 					H.YieldLast, H.Grow = Dist, 0
 					H.Yields += 1
@@ -1101,7 +1313,7 @@ local function StepOne(H, Dt, Now)
 	if H.StuckFrom and FlatDist(P, H.StuckFrom) > Mover.ProgressReset then H.StuckReplans, H.StuckFrom = 0, nil end
 	if Now - H.WinT >= Mover.StuckWindow then
 		if FlatDist(P, H.WinPos) < Mover.StuckProgress and not H.Excused then
-			Stuck(H, P, Now)
+			if Stuck(H, P, Now) == "later" then return end -- (the window stays open: it tries again next tick)
 			if H.Status ~= "walking" then return end
 		end
 		H.WinPos, H.WinT, H.Excused = P, Now, false
@@ -1111,13 +1323,22 @@ end
 local Acc = 0
 local function Tick(Dt)
 	Stats.Heartbeats += 1
+	FrameNo += 1
 	Acc += Dt
-	if Acc < 1 / Mover.Hz then return end
-	local StepDt = math.min(Acc, 0.5)
-	Acc = 0
+	local Period = 1 / Mover.Hz
+	if Acc < Period then return end
+	Acc = math.min(Acc - Period, Period) -- (keeps the 10 Hz cadence; never more than one catch-up tick)
+	local StepDt = Period
 	local T0 = os.clock()
 	local Now = T0
-	if Now >= BodiesAt then RefreshBodies() BodiesAt = Now + 0.5 end
+	local Mem0 = gcinfo()
+	RoutesThisTick, RouteMsThisTick = 0, 0
+	local RefreshMs = 0
+	if Now >= BodiesAt then
+		RefreshBodies()
+		BodiesAt = Now + 0.5
+		RefreshMs = (os.clock() - T0) * 1000
+	end
 	for _, B in ipairs(Bodies) do
 		local R = B.Root
 		if R.Parent then
@@ -1128,17 +1349,28 @@ local function Tick(Dt)
 			B.Pos = nil
 		end
 	end
+	local Slowest, SlowestMs, SlowestMode, SumMs, Count = nil, 0, "", 0, 0
 	for _, H in ipairs(table.clone(List)) do
 		if H.Status == "walking" then
+			local Mode = H.Mode
+			local T1 = os.clock()
 			local Ok, Err = pcall(StepOne, H, StepDt, Now)
 			if not Ok and H.Status == "walking" then Broke(H, Err) end
+			local One = (os.clock() - T1) * 1000
+			SumMs, Count = SumMs + One, Count + 1
+			if One > SlowestMs then Slowest, SlowestMs, SlowestMode = H, One, Mode .. ">" .. tostring(H.Mode) end
 		end
 	end
 	local Ms = (os.clock() - T0) * 1000
 	if #List > 0 or Ms > 0 then
 		Stats.Ticks += 1
 		Stats.Ms += Ms
-		Stats.MaxMs = math.max(Stats.MaxMs, Ms)
+		if #Stats.Times < 5000 then table.insert(Stats.Times, Ms) end
+		if Ms > Stats.MaxMs then
+			Stats.MaxMs = Ms
+			Stats.WorstTick = ("%.2f ms: %d walkers (%.3f ms each on average, slowest %.2f ms %s), bodies refresh %.2f ms (%d bodies), %d local route(s) %.2f ms, Lua heap %+d KB"):format(
+				Ms, #List, Count > 0 and SumMs / Count or 0, SlowestMs, SlowestMode, RefreshMs, #Bodies, RoutesThisTick, RouteMsThisTick, gcinfo() - Mem0)
+		end
 	end
 	Stats.PeakWalkers = math.max(Stats.PeakWalkers, #List)
 	if #List == 0 and Conn then
@@ -1175,7 +1407,9 @@ function Mover.WalkTo(Rig, TargetCFrame, Opts)
 	H.Steer = Vector3.zero
 	local L = Flat(Root.CFrame.LookVector)
 	H.Dir = L.Magnitude > 1e-3 and L.Unit or Vector3.new(0, 0, -1)
-	H.SlowT, H.StuckReplans, H.SightAt, H.NextPlanAt = 0, 0, 0, 0
+	H.SlowT, H.StuckReplans, H.SightAt, H.NextPlanAt, H.Detours = 0, 0, 0, 0, 0
+	H.Trail = {Root.Position}
+	WatchModifiers()
 	ResetWindow(H, Root.Position, os.clock())
 	Humanoid.WalkSpeed = H.Speed
 	Humanoid.AutoRotate = false -- (the facing is ours: Facer)
