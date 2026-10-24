@@ -405,10 +405,11 @@ def test_merge():
 
 # ------------------------------------------------------------------ placement (the style kits' planners; Task 10)
 def _flat_district(raw, style, D, poly=None, storeys=(2, 3)):
-    """The Testbed reduced to a flat plane, the main road and one district (default: a 220-stud south frontage)."""
+    """The Testbed reduced to a flat plane, the main road and one district (default: a 192-stud south frontage,
+    inside the walls' 16-stud clearance)."""
     L = copy.deepcopy(raw)
     L["Heights"] = [{"Kind": "plane", "Y": 4}]
-    L["Districts"] = [{"Id": "long", "Poly": poly or [[-110, -60], [110, -60], [110, -12], [-110, -12]],
+    L["Districts"] = [{"Id": "long", "Poly": poly or [[-96, -60], [96, -60], [96, -12], [-96, -12]],
                        "Style": style, "Density": D, "Storeys": list(storeys)}]
     L["Routes"] = [r for r in L["Routes"] if r["Id"] == "main"]
     L["Landmarks"] = []
@@ -441,9 +442,11 @@ def test_placement():
     G = HF.sample(L, cell=4)
     plan = PL.plan_buildings(L, G)
     got = sorted((b["id"], b["x"], b["z"], round(b["theta"], 4), b["w"], b["d"], b["storeys"], b["party"]) for b in plan)
-    check("the Testbed plan: 3 houses where they stood before the move",
-          got == [("row_0", -56.0, -50.5, 3.1416, 16, 17, 3, ""), ("row_1", -88.0, -51.5, 3.1416, 12, 19, 3, "R"),
-                  ("row_2", -101.0, -51.5, 3.1416, 14, 19, 2, "L")], got)
+    # (fix round 2: the row district moved south of the main road; at its old place the 16-stud wall clearance left
+    # room for only 2 houses. A terrace of 2, a Density alley of 19 studs, then 1 house; all face the road, north.)
+    check("the Testbed plan: 3 houses facing the main road",
+          got == [("row_0", -92.0, 20.5, 0.0, 12, 17, 3, "R"), ("row_1", -78.0, 20.5, 0.0, 16, 17, 3, "L"),
+                  ("row_2", -43.0, 21.5, 0.0, 16, 19, 2, "")], got)
     check("plans are deterministic", [b["seed"] for b in PL.plan_buildings(L, G)] == [b["seed"] for b in plan])
 
     # every style on a long flat frontage: coverage rises with Density, alleys >= 4, <= 3 in a row, no overlaps,
@@ -461,7 +464,7 @@ def test_placement():
                 cov.append(0.0)
                 continue
             rows, gaps = _row(p)
-            cov.append(sum(b["w"] for b in p) / 220)
+            cov.append(sum(b["w"] for b in p) / 192)
             ok_gap &= all(abs(g) < 1e-6 or g >= PL.ALLEY - 1e-6 for g in gaps)
             run_ = 1
             for g in gaps:
@@ -480,8 +483,8 @@ def test_placement():
         check(f"{style}: plans are deterministic", ok_det)
     Ls = _flat_district(raw, "railtown.house", 1.0)
     p = PL.plan_buildings(Ls, HF.sample(Ls, cell=4))
-    check("houses at Density 1 cover most of a clear frontage", sum(b["w"] for b in p) / 220 > 0.8,
-          sum(b["w"] for b in p) / 220)
+    check("houses at Density 1 cover most of a clear frontage", sum(b["w"] for b in p) / 192 > 0.8,
+          sum(b["w"] for b in p) / 192)
 
     # a diagonal frontage: the buildings turn to face out of it (its outward normal), toward the road
     poly = [[-110, -80], [-40, -10], [-20, -30], [-90, -100]]
@@ -509,6 +512,38 @@ def test_placement():
                     not tops and floor + step[0] - ground <= 1 + 1e-9)
     check("stoop risers are 1 stud or less, the top one included", ok)
     check("no door, no stoop", PL.stoop_tops(None, 10, 4) == [])
+
+    # the edge walls: 120 studs (fully upgraded climbers), and nothing within WALL_CLEAR of their inner faces
+    check("edge walls stand 120 studs over the ground (PROPOSAL)", PL.EDGE_HEIGHT >= 120, PL.EDGE_HEIGHT)
+    check("the wall-clear rect is EDGE_BAND + WALL_CLEAR (28) in from the Testbed's edge",
+          PL.wall_clear_rect(L) == (-100, -100, 100, 100), PL.wall_clear_rect(L))
+    x0, z0, x1, z1 = PL.wall_clear_rect(L)
+
+    def within(q):
+        return all(x0 - 1e-9 <= x <= x1 + 1e-9 and z0 - 1e-9 <= z <= z1 + 1e-9 for x, z in q)
+    Gt = HF.sample(L, cell=4)
+    pt = PL.plan_buildings(L, Gt)
+    props = PL.plan_props(L, Gt, pt)
+    check("Testbed: buildings (with overhangs and stoops) and props keep 16+ studs off the walls' inner faces",
+          all(within(b["clear"]) for b in pt) and all(within(PL._quad(p["x"], p["z"], p["theta"], (-3, -3, 3, 3)))
+                                                     for p in props), [(b["id"], b["clear"]) for b in pt])
+    wide = _flat_district(raw, "railtown.house", 1.0, poly=[[-128, -60], [128, -60], [128, -12], [-128, -12]])
+    Gw = HF.sample(wide, cell=4)
+    pw = PL.plan_buildings(wide, Gw)
+    check("a district reaching the footprint's edge builds only 16+ studs clear of the walls",
+          pw and all(within(b["clear"]) for b in pw) and min(min(x for x, _ in b["clear"]) for b in pw) >= x0 - 1e-9,
+          [(round(min(x for x, _ in b["clear"]), 1), round(max(x for x, _ in b["clear"]), 1)) for b in pw])
+    check("cover and lamps keep 16+ studs off the walls too",
+          all(within(PL._quad(p["x"], p["z"], p["theta"], (-3, -3, 3, 3))) for p in PL.plan_props(wide, Gw, pw)))
+    near = copy.deepcopy(raw)
+    near["Landmarks"].append({"Id": "nearwall", "Kind": "railtown.market_stall", "At": [110, 40], "Yaw": 0})
+    check("a landmark within 16 studs of a wall is caught (the landmarks stage refuses it)",
+          PL.landmarks_too_near_walls(near) == ["nearwall"] and PL.landmarks_too_near_walls(L) == [],
+          PL.landmarks_too_near_walls(near))
+    # the warehouse dock: 1.4 over level ground gets a step (the stage builds exactly the planner's stoop_tops)
+    tops = PL.stoop_tops((1.4, 3.6), 4, 4)
+    check("a warehouse dock on level ground gets one step, both risers 0.7", [round(t, 3) for t in tops] == [4.7],
+          tops)
 
     # edges: the EdgeGaps open the band and nothing else does
     blocks = PL.plan_edges(L)

@@ -38,11 +38,24 @@ STEP_TREAD = 1.2  # studs: a stoop step's tread (risers are 1 stud or less)
 COVER_EVERY = 20  # PROPOSAL (brief): studs of quiet route, or of built frontage (back yards), per cover cluster
 LAMP_EVERY = 40  # PROPOSAL: studs of public or road route per street lamp, sides alternating
 EDGE_BAND = 12  # PROPOSAL: the edge ridges' depth in from the footprint's edge
-# PROPOSAL, the owner's Lindenmoor rule (natural edges, no invisible walls; same as Lindenmoor's crag): every edge
-# ridge shows a SHEER inner face at least EDGE_HEIGHT studs over the ground beside it, with no tread on that face, so a
-# full stamina bar can't climb out (TuningConfig.Parkour: ClimbSpeed 9 studs/s, ClimbMove 12 stamina/s). This
-# supersedes the Task 10 brief's "at least 24 studs" (coordinator, fix round 1).
-EDGE_HEIGHT = 80
+# PROPOSAL, the owner's Lindenmoor rule (natural edges, no invisible walls; Lindenmoor's crag stands about 115 over its
+# ridges): every edge wall shows a SHEER inner face at least EDGE_HEIGHT studs over the ground beside it, with no tread
+# on that face, so that not even a fully upgraded climber gets out. This supersedes the Task 10 brief's "at least 24
+# studs" (coordinator, fix rounds 1-2). The reach of a full climb, from the game's numbers:
+#   stamina      TuningConfig.Stamina.Max 100 (TuningConfig.lua:10) + BO_Endure +10 max stamina x 3 ranks
+#                (SkillTree.lua:82) = 130;
+#   climb cost   Parkour.ClimbStart 10 to grab, ClimbMove 3 per ClimbTickEvery 0.25 s = 12/s while moving
+#                (TuningConfig.lua:197, 202, 204), both x 0.8 with BO_Climb "Climber" (ParkourCost -20%,
+#                SkillTree.lua:83);
+#   climb speed  Parkour.ClimbSpeed 9 studs/s (TuningConfig.lua:199).
+#   Base: (100 - 10) / 12 x 9 = 67.5 studs; fully upgraded: (130 - 8) / 9.6 x 9 = 114.4 studs above the grab.
+# The grab itself comes from a jump, a few studs up, so 120 leaves little margin: raise it if jump or stamina grow.
+EDGE_HEIGHT = 120
+# PROPOSAL: every structure (building, landmark, cover cluster, lamp: anything a climber could grab or rest on) keeps
+# this far from any edge wall's inner face, so nothing within ClimbReach 5 (TuningConfig.lua:205) plus a running jump
+# of the wall lets a climber start higher or rest part way up. The wall's inner face is at most EDGE_BAND in from the
+# footprint's edge, so structures stay EDGE_BAND + WALL_CLEAR in (_Site.inner, wall_clear_rect).
+WALL_CLEAR = 16
 EDGE_SEG = 16  # PROPOSAL: the longest ridge block along an edge
 STREET_KINDS = ("public", "quiet", "road")  # the routes a building may front
 
@@ -139,7 +152,7 @@ class _Site:
         self.boxes = [m for m in layout["Markers"] if "Box" in m and m["Tag"] not in schema.BUILDER_TAGS
                       and m["Tag"] != "RenseiArea"]
         fw, fd = layout["Footprint"]
-        self.inner = (-fw / 2 + EDGE_BAND, -fd / 2 + EDGE_BAND, fw / 2 - EDGE_BAND, fd / 2 - EDGE_BAND)
+        self.inner = wall_clear_rect(layout)
         self.landmarks = []
         for lm in layout["Landmarks"]:
             _, _, what, spec = kitspec.piece(lm["Kind"])
@@ -168,6 +181,28 @@ class _Site:
     def free(self, q, skip=()):
         return not any(_quads_overlap(q, lq) for lq in self.landmarks) and \
             not any(_quads_overlap(q, tq) for tq, g in self.taken if g not in skip)
+
+
+def wall_clear_rect(layout):
+    """[x0, z0, x1, z1]: where structures may stand, WALL_CLEAR studs clear of every edge wall's inner face."""
+    fw, fd = layout["Footprint"]
+    m = EDGE_BAND + WALL_CLEAR
+    return (-fw / 2 + m, -fd / 2 + m, fw / 2 - m, fd / 2 - m)
+
+
+def landmarks_too_near_walls(layout):
+    """The Ids of landmarks whose footprint (kitspec foot, at At turned to -Yaw) comes within WALL_CLEAR of an edge
+    wall's inner face. The landmarks stage refuses to build a layout with any."""
+    x0, z0, x1, z1 = wall_clear_rect(layout)
+    out = []
+    for lm in layout["Landmarks"]:
+        _, _, what, spec = kitspec.piece(lm["Kind"])
+        if what != "landmark":
+            continue
+        q = _quad(lm["At"][0], lm["At"][1], -math.radians(lm.get("Yaw", 0)), spec["foot"])
+        if not all(x0 - 1e-9 <= x <= x1 + 1e-9 and z0 - 1e-9 <= z <= z1 + 1e-9 for x, z in q):
+            out.append(lm["Id"])
+    return out
 
 
 def frontages(layout, district):
@@ -304,7 +339,7 @@ def _place(site, grid, spec, dist, key, n, frame, theta, pos, w, depth, reach, r
     flo, _, fwet = _ground_stats(grid, x, z, theta, front_strip(spec, w, depth))
     if wet or fwet:
         return None
-    nsteps = len(stoop_tops(spec.get("step"), hi, min(flo, lo)))
+    nsteps = len(stoop_tops(spec.get("step"), hi, flo))  # exactly the steps stages._stoop builds
     q = _quad(x, z, theta, (-w / 2 - OVERHANG, -depth / 2 - reach - nsteps * STEP_TREAD, w / 2 + OVERHANG,
                             depth / 2 + OVERHANG))
     if not (site.routes_clear(q, CLEAR) and site.markers_clear(q, CLEAR) and site.in_bounds(q)):

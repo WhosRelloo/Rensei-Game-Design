@@ -566,7 +566,7 @@ def kit_main():
     # inward profiles every 2 studs round the perimeter (the corner squares excluded: the other side's profiles cover
     # their faces): h(t) = the highest edge top at inset t. Each profile must be covered from the footprint edge to one
     # inner face, every covered inset within 1 stud of the crest (no tread to rest on), and the inner face at least
-    # EDGE_HEIGHT (80, PROPOSAL: the owner's Lindenmoor rule) over the highest ground in the 4 studs beside it
+    # EDGE_HEIGHT (120, PROPOSAL: the owner's Lindenmoor rule) over the highest ground in the 4 studs beside it
     sides = {"N": ((1, 0), (0, 1), (0, -hd), hw), "S": ((1, 0), (0, -1), (0, hd), hw),
              "W": ((0, 1), (1, 0), (-hw, 0), hd), "E": ((0, 1), (-1, 0), (hw, 0), hd)}
     open_, short, treads, blocked, nprof = [], [], [], [], 0
@@ -603,7 +603,8 @@ def kit_main():
     INFO["edge_profiles"] = nprof
     check("the edge walls close the footprint's edge except at EdgeGaps", eparts and nprof > 400 and not open_,
           open_[:8])
-    check("each edge wall's inner face stands 80+ studs over the ground beside it (PROPOSAL, owner's rule)",
+    check(f"each edge wall's inner face stands {PL.EDGE_HEIGHT}+ studs over the ground beside it (PROPOSAL, "
+          "owner's rule: fully upgraded climbers)",
           not short, short[:6])
     check("no tread on an edge wall's climbable face (nothing more than 1 stud below the crest)", not treads,
           treads[:6])
@@ -616,6 +617,22 @@ def kit_main():
         if b[5] > lo + 1e-6:
             bad.append((o.name, round(b[5], 2), lo))
     check("each edge wall reaches the lowest ground under it", eparts and not bad, bad[:4])
+    # nothing a climber could grab or rest on stands within WALL_CLEAR (16) of a wall's inner face: every part of every
+    # building, landmark, cover cluster and lamp taller than 1 stud, against every wall block (horizontal distance)
+    near = []
+    for g in ("Buildings", "Landmarks", "Cover"):
+        for o in groups.get(g, []):
+            pts = [o.matrix_world @ Vector(c) for c in o.bound_box]
+            if max(p.z for p in pts) - min(p.z for p in pts) <= 1.0:
+                continue
+            ax0, ax1 = min(p.x for p in pts), max(p.x for p in pts)
+            az0, az1 = min(p.y for p in pts), max(p.y for p in pts)
+            for b in boxes:
+                dist = math.hypot(max(b[0] - ax1, ax0 - b[1], 0.0), max(b[2] - az1, az0 - b[3], 0.0))
+                if dist < PL.WALL_CLEAR - 1e-6:
+                    near.append((o.name, round(dist, 2)))
+                    break
+    check(f"no structure within {PL.WALL_CLEAR} studs of an edge wall's inner face (PROPOSAL)", not near, near[:6])
 
     # ---- EdgeGap is consumed: no part, no export row
     check("no part carries an EdgeGap tag", not any("EdgeGap" in tags_of(o) for o in s.objects))
@@ -638,6 +655,38 @@ def kit_main():
     mt = json.load(open(os.path.join(REPO, "Art", "Regions", "Testbed", "materials.json"), encoding="utf-8"))
     used = {o.get("rs_mat") for v in groups.values() for o in v}
     check("full build: every part's material is in materials.json", used <= set(mt), sorted(used - set(mt)))
+
+    # ---- warehouses through the buildings stage (fix round 2): the dock's 1.4 drop gets a step on level ground,
+    # every riser 1 stud or less, and the stage builds exactly the steps the planner reserved
+    import copy
+    wl = copy.deepcopy(layout)
+    wl["Heights"] = [{"Kind": "plane", "Y": 4}]
+    wl["Districts"] = [{"Id": "docks", "Poly": [[-96, -60], [96, -60], [96, -12], [-96, -12]],
+                        "Style": "railtown.warehouse", "Density": 0.8, "Storeys": [2, 4]}]
+    wl["Routes"] = [r for r in wl["Routes"] if r["Id"] == "main"]
+    wl["Landmarks"] = []
+    wg = HF.sample(wl, cell=build.CELL)
+    wplan = PL.plan_buildings(wl, wg)
+    ST.buildings(wl, wg)
+    bpy.context.view_layer.update()
+    whs = [o for o in s.objects if o.get("rs_prefab") == "Warehouse" and not o.parent]
+    bad = []
+    step = kitspec.piece("railtown.warehouse")[3]["step"]
+    for r in whs:
+        x0, y0, x1, y1 = r["rs_body"]
+        lo = PL._ground_stats(wg, r.location.x, r.location.y, r.rotation_euler.z,
+                              PL.front_strip({"step": step}, x1 - x0, y1 - y0))[0]
+        tops = sorted((o.matrix_world.translation.z + o["rs_size"][2] / 2 for o in r.children
+                       if "Stoop" in o.name.split("_")[-1]), reverse=True)
+        want = PL.stoop_tops(step, r.location.z, lo)
+        chain = [r.location.z + step[0]] + tops + [lo]
+        if not tops or len(tops) != len(want) or any(a_ - b_ > 1 + 1e-6 for a_, b_ in zip(chain, chain[1:])):
+            bad.append((r.name, [round(c, 2) for c in chain], len(want)))
+    INFO["warehouses"] = len(whs)
+    check("warehouses: the dock steps down to level ground in risers of 1 stud or less, as planned",
+          len(whs) >= 2 and len(whs) == len(wplan) and not bad, (len(whs), len(wplan), bad[:3]))
+    bpy.ops.wm.revert_mainfile()
+    s = bpy.context.scene
 
     # ---- the whole kit: every style and landmark builds, each style under 150 parts (gallery, then revert)
     gal = ST.kit_gallery(layout)

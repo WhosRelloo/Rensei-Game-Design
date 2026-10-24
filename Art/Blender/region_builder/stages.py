@@ -484,14 +484,13 @@ def _stoop(root, grid, w, d, step):
     floor = root.location.z
     lo, _, _ = _ground_stats(grid, root.location.x, root.location.y, root.rotation_euler.z,
                              PL.front_strip({"step": step}, w, d))
-    if floor - lo <= 0.05:
-        return 0
-    base = lo - 0.5 - floor  # local: the stoop stands on a base below the street
+    tops = PL.stoop_tops(step, floor, lo)  # the same call the planner reserves room with
+    base = min(lo, floor) - 0.5 - floor  # local: the stoop stands on a base below the street
     n = 0
-    if sd > 0:
+    if sd > 0 and floor - lo > 0.05:  # the door step (or dock) stands over lower ground: fill under it
         kits.railtown.pb(root, "StepFooting", (sw, sd, -base), (dx, -d / 2 - sd / 2, base / 2), "stone", bevel=0.06)
         n += 1
-    for j, top in enumerate(PL.stoop_tops(step, floor, lo), 1):
+    for j, top in enumerate(tops, 1):  # also on level ground, when the door step itself is more than 1 stud high
         t = top - floor
         kits.railtown.pb(root, f"Stoop{j}", (4.6, STEP_TREAD + 0.05, t - base),
                          (dx, -d / 2 - sd - (j - 0.5) * STEP_TREAD, (t + base) / 2), "stone", bevel=0.06)
@@ -523,6 +522,10 @@ def landmarks(layout, grid):
     """Group Landmarks: each landmark's kit function, its prefab at At turned to its Yaw (front = local -y = the
     Roblox LookVector), settled on the ground; then the region kit's underworks tunnel sections along every under
     route, about 16 studs each. Returns the part count."""
+    near = PL.landmarks_too_near_walls(layout)
+    if near:
+        raise ValueError(f"landmark(s) {', '.join(near)} come within {PL.WALL_CLEAR} studs of an edge wall's inner face "
+                         f"(placement.WALL_CLEAR: nothing a climber can grab or rest on near the walls); move them in")
     kits.bind(materials.palette(layout))
     c = clear_group(layout, "Landmarks")
     n = 0
