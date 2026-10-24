@@ -17,6 +17,23 @@ def child(name, x=0, z=0, half=5, parts=10, cls="Model"):
             "Box": [[x - half, 0, z - half], [x + half, 10, z + half]]}
 
 
+def layout(arena_radius=50):
+    """The real layout, plus res_test_arena (Ruling 5) if Task 2 hasn't added it yet."""
+    with open(LAYOUT, encoding="utf-8") as f:
+        L = json.load(f)
+    if not any(lm["Id"] == "res_test_arena" for lm in L["Landmarks"]):
+        L["Landmarks"].append({"Id": "res_test_arena", "Kind": "lindenmoor.reserve", "At": [0, 0],
+                               "Radius": arena_radius})
+    return L
+
+
+def set_radius(L, pad, r):
+    for lm in L["Landmarks"]:
+        if lm["Id"] == pad:
+            lm["Radius"] = r
+    return L
+
+
 def good():
     kids = [child("Lindenmoor", 0, -650, 300), child("Ground", 0, -650, 300), child("HalvardsAdit", 400, -660, 100),
             child("Baseplate", 0, 0, 1024, 1, "Part"), child("AlchemistSpawns")]
@@ -38,7 +55,7 @@ def good():
 
 
 class CheckSurvey(unittest.TestCase):
-    def run_checker(self, survey, layout=None):
+    def run_checker(self, survey, layout=layout()):
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "survey.json")
             with open(p, "w", encoding="utf-8") as f:
@@ -124,7 +141,8 @@ class CheckSurvey(unittest.TestCase):
         s["MapChildren"] = [c for c in s["MapChildren"] if c["Name"] != "Wall"] + [child("Wall", 0, 0, 60)]
         code, out = self.run_checker(s)
         self.assertEqual(code, 1, out)
-        self.assertIn("FAIL: res_practice_yard: needed radius 89.9 > pad 50; needed + 6 = 95.9", out)
+        self.assertIn("FAIL: res_test_arena: pad 50 too small: needed radius 84.9; needed + 6 = 90.9", out)
+        self.assertNotIn("res_practice_yard", out)
 
     def test_arrange_two_pieces(self):
         r = pad_layout.arrange([{"Name": "A", "Size": [10, 10]}, {"Name": "B", "Size": [10, 10]}])
@@ -139,29 +157,34 @@ class CheckSurvey(unittest.TestCase):
                 child("Curve", 50, 50, 40), child("Hill", -60, -24, 25), child("Step", -44, 16, 8),
                 child("TrainingGround", 38, -21, 2)]
         got = pad_layout.pad_pieces(kids)["res_practice_yard"]
-        self.assertEqual([p["Name"] for p in got], ["LedgeCourse", "TestArena"])
-        arena = got[1]
+        self.assertEqual([p["Name"] for p in got], ["LedgeCourse"])
+        got = pad_layout.pad_pieces(kids)["res_test_arena"]
+        self.assertEqual([p["Name"] for p in got], ["TestArena"])
+        arena = got[0]
         self.assertEqual(sorted(arena["Members"]), ["Curve", "Hill", "Step", "TrainingGround", "Wall"])
         self.assertEqual(arena["Size"], [175, 139])  # union x -85..90, z -49..90: its internal layout kept
         self.assertEqual(arena["Center"], [2.5, 20.5])
-        self.assertEqual(got[0]["Size"], [40, 40])
+        self.assertEqual(pad_layout.arrange(got)["slots"], {"TestArena": [0.0, 0.0]})
 
     def test_pad_radius_comes_from_layout(self):
-        with open(LAYOUT, encoding="utf-8") as f:
-            L = json.load(f)
-        for lm in L["Landmarks"]:
-            if lm["Id"] == "res_practice_yard":
-                lm["Radius"] = 10  # the good survey's yard needs 13
+        L = set_radius(layout(), "res_practice_yard", 5)  # the good survey's LedgeCourse (10 x 10) needs 7.1
         code, out = self.run_checker(good(), L)
         self.assertEqual(code, 1, out)
-        self.assertIn("FAIL: res_practice_yard: needed radius 13.0 > pad 10", out)
-        for lm in L["Landmarks"]:
-            if lm["Id"] == "res_practice_yard":
-                lm["Radius"] = 100  # now the 89.9 yard fits
+        self.assertIn("FAIL: res_practice_yard: pad 5 too small: needed radius 7.1", out)
+        L = set_radius(layout(), "res_test_arena", 100)  # now the 84.9 arena fits
         s = good()
         s["MapChildren"] = [c for c in s["MapChildren"] if c["Name"] != "Wall"] + [child("Wall", 0, 0, 60)]
         code, out = self.run_checker(s, L)
         self.assertEqual(code, 0, out)
+
+    def test_missing_pad_landmark_fails(self):
+        L = layout()
+        L["Landmarks"] = [lm for lm in L["Landmarks"] if lm["Id"] != "res_test_arena"]
+        code, out = self.run_checker(good(), L)
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL: res_test_arena not in the layout's landmarks (or has no Radius); needed radius 7.1; "
+                      "needed + 6 = 13.1", out)
+        self.assertIn("FAIL 1", out)
 
     def test_missing_site_fails(self):
         s = good()

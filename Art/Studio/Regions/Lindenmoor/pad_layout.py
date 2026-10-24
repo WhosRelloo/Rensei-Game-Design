@@ -2,7 +2,7 @@
 
 Each pad holds a few blocks placed side by side along +X, centred on the pad, with GAP studs between them.
 A block is one World.Map child, or the test arena: Wall x2, Curve, Hill, Step and TrainingGround, kept together
-as one block with its own internal layout. AlchemistSpawns is not a block; its children follow their site's slot.
+as one block with its own internal layout, on its own pad (Ruling 5: the owner keeps the test arena in the map). AlchemistSpawns is not a block; its children follow their site's slot.
 Used by check_survey.py (pad fit) and by Task 5's pads.json generator (slot offsets).
 """
 import math
@@ -19,7 +19,8 @@ PADS = {
     "res_silent_observatory": [("SilentObservatory", ["SilentObservatory"]), ("GaleFloor", ["GaleFloor"])],
     "res_silent_forge": [("SilentForge", ["SilentForge"]), ("ForgeFloor", ["ForgeFloor"])],
     "res_foundry_graybox": [("FoundryYard", ["FoundryYard"])],
-    "res_practice_yard": [("LedgeCourse", ["LedgeCourse"]), (ARENA, ARENA_MEMBERS)],
+    "res_practice_yard": [("LedgeCourse", ["LedgeCourse"])],
+    "res_test_arena": [(ARENA, ARENA_MEMBERS)],  # Task 2 adds this reserve landmark to the layout
 }
 
 

@@ -92,12 +92,13 @@ def main(path, layout=LAYOUT):
         got = pieces[pad]
         missing = [n for n, _ in blocks if n not in {p["Name"] for p in got}]
         check(not missing, f"{pad}: blocks not found: {missing}")
-        check(pad in pads and "Radius" in pads[pad], f"{pad}: no reserve landmark with a Radius in the layout")
-        if got and pad in pads and "Radius" in pads[pad]:
-            r, have = pad_layout.arrange(got)["radius"], pads[pad]["Radius"]
-            sizes = ", ".join(f"{p['Name']} {p['Size'][0]:.1f} x {p['Size'][1]:.1f}" for p in got)
-            check(r <= have, f"{pad}: needed radius {r:.1f} > pad {have}; needed + {PAD_MARGIN} = "
-                             f"{r + PAD_MARGIN:.1f} ({sizes})")
+        r = pad_layout.arrange(got)["radius"]
+        sizes = ", ".join(f"{p['Name']} {p['Size'][0]:.1f} x {p['Size'][1]:.1f}" for p in got)
+        need = f"needed radius {r:.1f}; needed + {PAD_MARGIN} = {r + PAD_MARGIN:.1f} ({sizes})"
+        if pad not in pads or "Radius" not in pads[pad]:
+            check(False, f"{pad} not in the layout's landmarks (or has no Radius); {need}")
+        elif got:
+            check(r <= pads[pad]["Radius"], f"{pad}: pad {pads[pad]['Radius']} too small: {need}")
 
     # 7. arrivals
     rs = [a for a in S["Arrivals"] if a["Point"] == "RoadStart"]
