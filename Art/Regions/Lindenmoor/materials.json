@@ -1,0 +1,37 @@
+{
+ "LM_GrassGround": {
+  "Material": "Grass",
+  "Color": "4a6232",
+  "Transparency": 0
+ },
+ "LM_GroundMeadow": {
+  "Material": "Grass",
+  "Color": "6b7a3c",
+  "Transparency": 0
+ },
+ "LM_GroundSide": {
+  "Material": "Slate",
+  "Color": "423c34",
+  "Transparency": 0
+ },
+ "LM_Ballast": {
+  "Material": "Slate",
+  "Color": "55534d",
+  "Transparency": 0
+ },
+ "LM_Falls": {
+  "Material": "Glass",
+  "Color": "7fb3b0",
+  "Transparency": 0.35
+ },
+ "LM_Foam": {
+  "Material": "SmoothPlastic",
+  "Color": "eef4f2",
+  "Transparency": 0
+ },
+ "LM_Shadow": {
+  "Material": "SmoothPlastic",
+  "Color": "050606",
+  "Transparency": 0
+ }
+}

@@ -75,7 +75,11 @@ def main(argv):
     check("keep_list: none", kit.keep_list({}, None) == [])
     check("keep_list refuses an empty name", raises(kit.keep_list, {"KeepMapChildren": [""]}, None))
     lind = json.load(open(os.path.join(REPO, "Art", "Regions", "Lindenmoor", "layout.json"), encoding="utf-8"))
-    check("Lindenmoor's own Keep (area objects) is ignored", "Keep" in lind and kit.keep_list(lind, None) == [])
+    # Lindenmoor's region file carries both since the Ye import (Lindenmoor import Task 4): the keep list is its
+    # KeepMapChildren alone, with none of the Keep area objects' Ids in it
+    check("Lindenmoor's own Keep (area objects) is ignored",
+          "Keep" in lind and kit.keep_list(lind, None) == list(dict.fromkeys(lind.get("KeepMapChildren", [])))
+          and not {k.get("Id") for k in lind["Keep"]} & set(kit.keep_list(lind, None)))
     check("map_child defaults to the Region", kit.map_child({}, "Testbed", None, []) == "Testbed")
     check("map_child from the region file", kit.map_child({"MapChild": "TestbedExpansion"}, "Testbed", None, ["Testbed"])
           == "TestbedExpansion")

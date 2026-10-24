@@ -1,0 +1,105 @@
+{
+ "models": 1734,
+ "parts": 40645,
+ "groups": {
+  "Ground": 62,
+  "Routes": 17,
+  "Edging": 274,
+  "Farmsteads": 14,
+  "Bridges": 1,
+  "Training": 1,
+  "Landmarks": 4,
+  "Mine": 3,
+  "Gorge": 4,
+  "Meadows": 2,
+  "Gap": 4,
+  "Lamps": 8,
+  "Forest": 1296,
+  "Markers": 1,
+  "Fields": 43
+ },
+ "region": "Lindenmoor",
+ "groupParts": {
+  "Ground": 26263,
+  "Routes": 777,
+  "Edging": 274,
+  "Farmsteads": 1423,
+  "Bridges": 12,
+  "Training": 90,
+  "Landmarks": 68,
+  "Mine": 81,
+  "Gorge": 115,
+  "Meadows": 68,
+  "Gap": 40,
+  "Lamps": 40,
+  "Forest": 10029,
+  "Markers": 42,
+  "Fields": 1323
+ },
+ "tags": {
+  "RenseiNoGrip": 2141,
+  "RenseiLedge": 1,
+  "RenseiArea": 10,
+  "RenseiClue": 2,
+  "RenseiEnemySpawn": 6,
+  "RenseiMarker": 6,
+  "RenseiPost": 18
+ },
+ "tagsByGroup": {
+  "RenseiNoGrip": {
+   "Ground": 2141
+  },
+  "RenseiLedge": {
+   "Gorge": 1
+  },
+  "RenseiArea": {
+   "Markers": 10
+  },
+  "RenseiClue": {
+   "Markers": 2
+  },
+  "RenseiEnemySpawn": {
+   "Markers": 6
+  },
+  "RenseiMarker": {
+   "Markers": 6
+  },
+  "RenseiPost": {
+   "Markers": 18
+  }
+ },
+ "lights": 14,
+ "variants": [],
+ "variantParts": {},
+ "helpers": {
+  "parts": 42,
+  "query": 0,
+  "touch": 0
+ },
+ "noCollide": [
+  "Tuft",
+  "Crop",
+  "Vine",
+  "Bloom",
+  "Cloth",
+  "Line",
+  "Hinge",
+  "Bar0",
+  "Bar1",
+  "Bar2",
+  "Bar3",
+  "Goods",
+  "Flag",
+  "Kerb",
+  "Bedroll",
+  "Peg",
+  "Banner",
+  "Glass",
+  "Box",
+  "Glow",
+  "Lantern"
+ ],
+ "noCollideKinds": [
+  "EdgeStone"
+ ]
+}
