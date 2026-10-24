@@ -4,6 +4,25 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-23 — Region Foundation Task 7: clues on the map can start quests
+
+Region maps built in Blender can now carry clues: a spot on the map that you inspect, like the existing "Inspect" points. Inspecting one can also start a quest. Built in Ye. No map has clues yet; the first ones come with the region imports.
+
+- **Clues.** Any part on the map marked as a clue gets the usual Inspect prompt. That works for parts already on the map when the server starts (how imported regions arrive) and for parts added later. One clue always has exactly one prompt.
+- **Clues that start quests.** A clue can name a quest. Inspecting it starts that quest when all of these hold:
+  - you found what the clue gives, or you'd found it before;
+  - you meet the clue's requirements;
+  - the quest itself can start: not already active, not done, and not on cooldown.
+
+  If you already found what the clue gives, the new quest counts it at once. Inspecting a clue again doesn't restart a quest you're already on, and doesn't show a message. A locked clue, one whose requirements you don't meet, never starts its quest.
+- **Fix:** the repo copy of the Halvard's Adit entrance's inspect wording was out of date and now matches the game (no change in Ye).
+- **Tests:** a new Play_Clue test covers clues present at start and added later, the quest start, the locked and unmet-requirement cases, and the repeat inspect. Play_AditBoards and Play_Boot still pass.
+- **To publish:** `RenseiServer` (InvestigationService) and `Modules` (Investigation).
+
+### Discord announcement
+
+Hold: not live yet. No map has clues yet; this post is written when the first region with clues ships.
+
 ## 2026-10-23 — Region Foundation Task 6b: townsfolk can be hurt
 
 Your ask: "The townsfolk should be hittable and integrate the heat, rep system, morality, etc.", and when their health runs out, "Knocked, can be finished". Built in Ye. Ye still has no townsfolk roster, so **nobody new appears in Ye**: this shows once Foundry Yard's townsfolk arrive. Until then it runs in the tests. Every number and line below is a **PROPOSAL**.
