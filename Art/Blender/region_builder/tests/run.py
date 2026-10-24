@@ -26,6 +26,12 @@ def seg_dist(px, pz, a, b):
     return math.hypot(px - (ax + t * dx), pz - (az + t * dz))
 
 
+def seg_t(px, pz, a, b):
+    """Where (px, pz) projects onto segment a-b, unclamped: 0 at a, 1 at b."""
+    dx, dz = b[0] - a[0], b[1] - a[1]
+    return ((px - a[0]) * dx + (pz - a[1]) * dz) / (dx * dx + dz * dz)
+
+
 def line_dist(px, pz, line):
     return min(seg_dist(px, pz, line[i], line[i + 1]) for i in range(len(line) - 1))
 
@@ -64,6 +70,8 @@ def raises_schema(schema, data, needle):
         except schema.SchemaError as e:
             msgs = e.messages
             return True, any(needle in m for m in msgs), msgs
+        except Exception as e:  # anything but SchemaError is a failure (e.g. TypeError on an unhashable value)
+            return False, False, [repr(e)]
         return False, False, []
 
 
@@ -114,6 +122,29 @@ def test_schema():
     bad["Markers"][0]["Attr"]["Kind"] = "Nap"
     r, m, msgs = raises_schema(schema, bad, "Kind")
     check("post with unknown Kind raises", r and m, msgs)
+
+    # unhashable values are SchemaErrors, not TypeErrors
+    bad = copy.deepcopy(raw)
+    bad["Markers"][0]["Tag"] = ["RenseiPost"]
+    r, m, msgs = raises_schema(schema, bad, "Tag must be a string")
+    check("list Tag raises SchemaError", r and m, msgs)
+    bad = copy.deepcopy(raw)
+    bad["Routes"][0]["Id"] = ["main"]
+    r, m, msgs = raises_schema(schema, bad, "Id must be")
+    check("list Id raises SchemaError", r and m, msgs)
+    bad = copy.deepcopy(raw)
+    bad["Markers"][0]["Attr"]["PostId"] = ["test_work"]
+    r, m, msgs = raises_schema(schema, bad, "PostId must be")
+    check("list PostId raises SchemaError", r and m, msgs)
+
+    # two posts without a PostId: each is missing, neither is a duplicate
+    bad = copy.deepcopy(raw)
+    del bad["Markers"][0]["Attr"]["PostId"]
+    del bad["Markers"][1]["Attr"]["PostId"]
+    r, m, msgs = raises_schema(schema, bad, "missing Attr.PostId")
+    nmiss = sum("missing Attr.PostId" in x for x in msgs)
+    check("posts without PostId are missing, not duplicate",
+          r and nmiss == 2 and not any("duplicate" in x for x in msgs), msgs)
 
     # a file that is not JSON is a SchemaError too
     with tempfile.TemporaryDirectory() as d:
@@ -221,6 +252,20 @@ def test_columns(G):
             if 0 <= ii < NX and 0 <= kk < NZ and bottom > G.top[ii][kk] - 1:
                 bad.append((i, k, bottom, "vs", ii, kk, G.top[ii][kk]))
     check("column bottoms are 1 below every neighbour's top", not bad, bad[:5])
+    # the exact bottom: min(top - 2, each neighbour's top - 1), an off-grid neighbour counting as top - 12
+    wrong = []
+    for i, k, top, bottom, kind in cols:
+        want = top - 2
+        for di, dk in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            ii, kk = i + di, k + dk
+            n = G.top[ii][kk] if 0 <= ii < NX and 0 <= kk < NZ else top - 12
+            want = min(want, n - 1)
+        if bottom != want:
+            wrong.append((i, k, top, bottom, want))
+    check("column bottom is exact", not wrong, wrong[:5])
+    at = {(i, k): (top, bottom) for i, k, top, bottom, kind in cols}
+    check("border column reaches EDGE_DROP below", hf.EDGE_DROP == 12 and at[(0, 0)] == (4, -9)
+          and at[(NX - 1, 20)] == (4, -9), (at[(0, 0)], at[(NX - 1, 20)]))
 
 
 # ------------------------------------------------------------------ ramps
@@ -230,9 +275,66 @@ def test_ramps(L, G):
     ramps = hf.ramps(G, L)
     check("ramps are route cells", all(G.kind[i][k] in ("path", "quiet") for i, k in ramps))
     climb = route_cells(G, R["climb"])
-    check("climb has a ramp", len(ramps & climb) >= 1, len(ramps & climb))
+    tops = {G.top[i][k] for i, k in climb}
+    check("climb runs from 4 to 10", 4 in tops and 10 in tops, sorted(tops))
+    a, b = R["climb"]["Line"]
+    slope = {(i, k) for i, k in climb if 0 < seg_t(*centre(G, i, k), a, b) < 1}  # not the round end caps
+    check("climb has ramps on its slope", len(ramps & slope) >= 1, (len(ramps & climb), len(ramps & slope)))
     main = route_cells(G, R["main"])
     check("flat main has no ramps", not (ramps & main), sorted(ramps & main)[:5])
+
+
+# ------------------------------------------------------------------ variants of the Testbed
+def test_variants(L):
+    from region_builder import schema, heightfield as hf
+    base = hf.sample(L)
+
+    def variant(heights=(), routes=()):
+        V = copy.deepcopy(L)
+        V["Heights"] += list(heights)
+        V["Routes"] += list(routes)
+        errs = schema.validate(V)
+        check("variant is valid", not errs, errs)
+        return V, hf.sample(V)
+
+    water = next(h for h in L["Heights"] if h["Kind"] == "water")
+    inw = [(i, k) for i in range(base.nx) for k in range(base.nz) if rect_dist(*centre(base, i, k), water["Rect"]) == 0]
+
+    # a later box raising part of the water out of it takes those cells back
+    V, G = variant(heights=[{"Kind": "box", "Rect": [60, 40, 80, 60], "Y": 12, "Edge": 0}])
+    up = [(i, k) for i, k in inw if rect_dist(*centre(G, i, k), [60, 40, 80, 60]) == 0]
+    still = [c for c in inw if c not in up]
+    check("raised water cells are dry", up and all(G.top[i][k] == 12 and G.kind[i][k] != "water"
+                                                   and G.water_of[i][k] is None for i, k in up))
+    check("the rest stays water", still and all(G.kind[i][k] == "water" and G.water_of[i][k] == 0
+                                                for i, k in still))
+    check("the water box is still recorded", G.water == [(60, 40, 100, 80, 3, -6)], G.water)
+    nwet = sum(1 for i in range(G.nx) for k in range(G.nz) if G.kind[i][k] == "water")
+    check("water count drops by the raised cells", nwet == len(inw) - len(up), (nwet, len(inw), len(up)))
+
+    # raised entirely: no water cells and no water box
+    V, G = variant(heights=[{"Kind": "box", "Rect": [56, 36, 104, 84], "Y": 12, "Edge": 0}])
+    nwet = sum(1 for i in range(G.nx) for k in range(G.nz) if G.kind[i][k] == "water")
+    check("fully raised water is gone", nwet == 0 and G.water == [], (nwet, G.water))
+
+    # water beats path
+    wet = {"Id": "wet", "Kind": "public", "Width": 8, "Line": [[80, 24], [80, 96]]}
+    V, G = variant(routes=[wet])
+    cells = route_cells(G, wet)
+    inside = [c for c in cells if c in set(inw)]
+    outside = [c for c in cells if c not in set(inw)]
+    check("water beats path", inside and all(G.kind[i][k] == "water" for i, k in inside), len(inside))
+    check("the route is path off the water", outside and all(G.kind[i][k] == "path" for i, k in outside))
+
+    # rail, under and ledge leave the ground as it is
+    odd = [{"Id": "r", "Kind": "rail", "Width": 10, "Line": [[0, -100], [100, -100]]},
+           {"Id": "u", "Kind": "under", "Width": 8, "Line": [[110, -120], [110, -60]]},
+           {"Id": "l", "Kind": "ledge", "Width": 4, "Line": [[-120, 60], [-60, 60]]}]
+    V, G = variant(routes=odd)
+    for r in odd:
+        cells = route_cells(G, r)
+        same = all(G.kind[i][k] == "top" == base.kind[i][k] and G.top[i][k] == base.top[i][k] for i, k in cells)
+        check(f"{r['Kind']} route leaves the ground as top", cells and same, len(cells))
 
 
 # ------------------------------------------------------------------ merge
@@ -278,7 +380,8 @@ def main():
         except Exception:
             check("heightfield module", False, traceback.format_exc())
     if G is not None:
-        for name, fn, args in (("columns", test_columns, (G,)), ("ramps", test_ramps, (L, G))):
+        for name, fn, args in (("columns", test_columns, (G,)), ("ramps", test_ramps, (L, G)),
+                               ("variants", test_variants, (L,))):
             try:
                 fn(*args)
             except Exception:

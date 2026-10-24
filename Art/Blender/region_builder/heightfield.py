@@ -9,6 +9,14 @@ Shapes apply in file order, each on the height the earlier ones left (later wins
   ridge  raises to Y on its Line, falling linearly to the height beneath at Width studs from it (never lowers);
   cut    lowers to Y inside Rect (never raises);
   water  sets the ground to Bed inside Rect and records the water box (Top is terrain water in Studio).
+Water respects file order too: a cell is water only if the last water shape over it still has depth there, i.e.
+the cell's final top is below that water's Top. A later shape that raises the cell to Top or above takes it back
+from the water (Grid.water_of is None there), and a water shape left with no cells is not recorded in Grid.water.
+
+Align hard edges to the cell size. Box Rects (most of all with Edge 0), cut Rects and water Rects are vertical steps.
+On a cell boundary a step is shown by the columns' side faces, but one that falls mid-cell splits the cell's corners
+across it, and a route cell there becomes an impossibly steep ramp (e.g. 8 studs over 4). Choose Rect coordinates that
+are multiples of the cell size the ground stage samples at (4 near routes and towns; 8-16 elsewhere).
 No bpy; standard library only."""
 import math
 from dataclasses import dataclass, field
@@ -30,7 +38,8 @@ class Grid:
     cell: int
     top: list  # top[i][k]: int, ground height in studs
     kind: list  # kind[i][k]: "top" | "path" | "quiet" | "water"
-    water: list = field(default_factory=list)  # (x0, z0, x1, z1, top, bed) per water shape
+    water: list = field(default_factory=list)  # (x0, z0, x1, z1, top, bed) per water shape that kept a cell
+    water_of: list = field(default_factory=list)  # water_of[i][k]: index into water, or None where kind isn't water
 
     @property
     def nx(self):
@@ -69,7 +78,13 @@ def line_dist(x, z, line):
 # ------------------------------------------------------------------ heights
 def height_at(layout, x, z):
     """The shapes' height at (x, z), before rounding. 0 where no shape reaches."""
+    return _shapes_at(layout, x, z)[0]
+
+
+def _shapes_at(layout, x, z):
+    """(height before rounding, the last water shape over (x, z) or None)."""
     h = 0.0
+    wet = None
     for s in layout["Heights"]:
         kind = s["Kind"]
         if kind == "plane":
@@ -91,7 +106,8 @@ def height_at(layout, x, z):
         elif kind == "water":
             if rect_dist(x, z, s["Rect"]) == 0:
                 h = s["Bed"]
-    return h
+                wet = s
+    return h, wet
 
 
 def _round(h):
@@ -107,23 +123,35 @@ def sample(layout, cell=4):
     origin = (-fw / 2, -fd / 2)
     if origin[0] == int(origin[0]) and origin[1] == int(origin[1]):
         origin = (int(origin[0]), int(origin[1]))
-    G = Grid(origin=origin, cell=cell, top=[[0] * nz for _ in range(nx)], kind=[["top"] * nz for _ in range(nx)])
+    G = Grid(origin=origin, cell=cell, top=[[0] * nz for _ in range(nx)], kind=[["top"] * nz for _ in range(nx)],
+             water_of=[[None] * nz for _ in range(nx)])
     waters = [s for s in layout["Heights"] if s["Kind"] == "water"]
-    for s in waters:
-        x0, z0, x1, z1 = _rect(s["Rect"])
-        G.water.append((x0, z0, x1, z1, s["Top"], s["Bed"]))
+    wet_of = [[None] * nz for _ in range(nx)]  # index into waters
     routes = [(ROUTE_GROUND[r["Kind"]], r) for r in layout["Routes"] if r["Kind"] in ROUTE_GROUND]
     for i in range(nx):
         for k in range(nz):
             x, z = G.centre(i, k)
-            G.top[i][k] = _round(height_at(layout, x, z))
+            h, wet = _shapes_at(layout, x, z)
+            top = G.top[i][k] = _round(h)
             kd = "top"
             for gk, r in routes:
                 if RANK[gk] > RANK[kd] and line_dist(x, z, r["Line"]) <= r["Width"] / 2:
                     kd = gk
-            if any(rect_dist(x, z, s["Rect"]) == 0 for s in waters):
+            if wet is not None and top < wet["Top"]:
                 kd = "water"
+                wet_of[i][k] = next(n for n, s in enumerate(waters) if s is wet)
             G.kind[i][k] = kd
+    # record only the water shapes that kept a cell; water_of indexes that list
+    kept = sorted({n for col in wet_of for n in col if n is not None})
+    index = {n: j for j, n in enumerate(kept)}
+    for n in kept:
+        s = waters[n]
+        x0, z0, x1, z1 = _rect(s["Rect"])
+        G.water.append((x0, z0, x1, z1, s["Top"], s["Bed"]))
+    for i in range(nx):
+        for k in range(nz):
+            if wet_of[i][k] is not None:
+                G.water_of[i][k] = index[wet_of[i][k]]
     return G
 
 

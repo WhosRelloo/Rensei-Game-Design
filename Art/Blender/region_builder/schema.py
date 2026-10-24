@@ -40,6 +40,8 @@ MARKER_ATTRS = {
 }
 MAX_BUDGET = 90000  # the world spec's ceiling for any region (spec §3.6)
 
+# Every top-level key a region file may have; any other key is an error (it catches typos). A later task that adds a
+# top-level key to the region file must add it here, or every file carrying it will fail to load.
 TOP_KEYS = ("Region", "PlaceId", "Footprint", "Palette", "Heights", "Districts", "Routes", "Landmarks", "Markers",
             "Budget")
 
@@ -117,8 +119,8 @@ class _Checker:
         seen = set()
         for n, it in items:
             i = it.get("Id")
-            if i is None:
-                continue
+            if not isinstance(i, str):
+                continue  # a missing or non-string Id is reported by its own check
             if i in seen:
                 self.err(f"{key}[{n}] {i}", "duplicate Id")
             seen.add(i)
@@ -220,7 +222,10 @@ def validate(data):
     for n, m in c.items(data, "Markers"):
         tag = m.get("Tag")
         w = f"Markers[{n}] {tag}"
-        if tag in OLD_TAGS:
+        if not isinstance(tag, str):
+            c.err(w, f"Tag must be a string, got {tag!r}")
+            tag = None
+        elif tag in OLD_TAGS:
             c.err(w, f"unknown Tag {tag!r} (an old spec name: the game reads {OLD_TAGS[tag]})")
         elif tag not in MARKER_TAGS:
             c.err(w, f"unknown Tag {tag!r}")
@@ -246,9 +251,14 @@ def validate(data):
             if "Kind" in attr and attr["Kind"] not in POST_KINDS:
                 c.err(w, f"Attr.Kind must be one of {', '.join(POST_KINDS)}, got {attr['Kind']!r}")
             pid = attr.get("PostId")
-            if pid in posts:
+            if pid is None:
+                pass  # reported as missing above
+            elif not _str(pid):
+                c.err(w, f"Attr.PostId must be a non-empty string, got {pid!r}")
+            elif pid in posts:
                 c.err(w, f"duplicate PostId {pid!r}")
-            posts.add(pid)
+            else:
+                posts.add(pid)
     return c.errs
 
 
