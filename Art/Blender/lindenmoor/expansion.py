@@ -877,6 +877,20 @@ def tunnel_portals(lm):
     return out
 
 
+def reserve(lm):
+    """A reserved spot for a piece moving in from the hub: four survey stakes with red rags. Preview only (rs_skip):
+    the real piece is moved in Studio at import."""
+    X, Z = lm["At"]
+    rt = pf("Reserve", lm["Id"], X, Z, lm["GY"], 0.0, coll="Landmarks")
+    R = lm["Radius"] * 0.7
+    for k, (sx, sy) in enumerate(((-1, -1), (1, -1), (1, 1), (-1, 1))):
+        a = pb(rt, f"Stake{k}", (0.6, 0.6, 5), (sx * R, sy * R, 2.0), M["timber"], bevel=0.04)
+        b = pb(rt, f"Rag{k}", (1.6, 0.15, 1.0), (sx * R + 0.9, sy * R, 4.0), M["cloth"], bevel=0.02)
+        a["rs_skip"] = b["rs_skip"] = True
+    rt["rs_reserve"] = lm.get("Holds", "")
+    return rt
+
+
 def landmarks():
     P = plan()
     for n in ("Farmsteads", "Bridges", "Training", "Landmarks", "Mine", "Gorge", "Meadows", "Gap", "Houses", "Lamps"):
@@ -888,7 +902,7 @@ def landmarks():
         "lindenmoor.ridge_marker": ridge_marker, "lindenmoor.overlook": overlook, "lindenmoor.mine_head": mine_head,
         "lindenmoor.lookout": lookout, "lindenmoor.gorge_ledge": gorge_ledge, "lindenmoor.waterfall": waterfall,
         "lindenmoor.hay_barn": hay_barn, "lindenmoor.signal_box": signal_box, "lindenmoor.road_gate": road_gate,
-        "lindenmoor.tunnel_portals": tunnel_portals,
+        "lindenmoor.tunnel_portals": tunnel_portals, "lindenmoor.reserve": reserve,
     }
     done = []
     for lm in P.landmarks:

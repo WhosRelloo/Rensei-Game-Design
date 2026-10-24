@@ -179,7 +179,7 @@ The owner's profile was snapshotted when it loaded and restored before Stop. The
 
 ## Expansion (Blender, 2026-10-23): Lindenmoor fills its 2,048 × 2,048 footprint
 
-**Owner:** asked for the Lindenmoor expansion to be built in Blender alongside the region foundation. They approved the layout ("Yes, build it"), chose "Plan as if it's gone" for the hub graybox, and chose "Together, NE corner" for the exits. The design is `Documents/specs/2026-10-23-lindenmoor-expansion-design.md`. The owner approved the renders on 2026-10-23: "The expansion renders look good. Approved for a later Studio import." It is **Blender only**: nothing has gone into Ye yet. Every number is a **PROPOSAL**.
+**Owner:** asked for the Lindenmoor expansion to be built in Blender alongside the region foundation. They approved the layout ("Yes, build it"), chose "Plan as if it's gone" for the hub graybox, and chose "Together, NE corner" for the exits. The design is `Documents/specs/2026-10-23-lindenmoor-expansion-design.md`. The owner approved the renders on 2026-10-23: "The expansion renders look good. Approved for a later Studio import." Then: "Start importing after the townspeople tasks are done", using the foundation import tools, with the hub's pieces moved into the new map. It is **Blender only**: nothing has gone into Ye yet. Every number is a **PROPOSAL**.
 
 ![Map](images/Regions/Lindenmoor/Lindenmoor%20expansion%20-%20map.png)
 ![Aerial](images/Regions/Lindenmoor/Lindenmoor%20expansion%20-%20aerial.png)
@@ -197,35 +197,36 @@ The map is drawn as the brief draws it: north at the bottom, east on the right, 
   - the training field and the ridge marker where the hub was, with patchwork crop fields, orchards and hay barns in the north meadows;
   - the Cypress Ridge rim with three overlooks in the north-west;
   - the north road and the rails side by side to tunnel portals in the north-east gap.
+- **Reserved spots** for the hub's pieces: five trainer spots in the training field, and flat, clear pads for each trial site, the Foundry graybox and the ledge course (design note §5).
 - **Edges:** forested ridges rise to a sheer crag (crest y 150–195), more than a stamina bar can climb. There are no invisible walls.
 - **Ground:** the approved stepped part ground, with merged mossy slabs over stone sides and dirt ramps where routes climb. New ground blends to the village's edge heights; nothing is built on the village's own ground.
-- **Part count:** **39,190**, against the expansion ceiling of 42,000:
+- **Part count:** **40,414** exported parts, against the expansion ceiling of 42,000:
 
   | Group | Parts |
   |---|---|
-  | Ground | 23,335 |
-  | Forest | 11,519 (1,416 trees) |
+  | Ground | 25,038 |
+  | Forest | 11,023 (1,363 trees) |
   | Farmsteads | 1,423 |
-  | Fields | 1,310 (44 fields) |
-  | Routes | 778 |
+  | Fields | 1,323 (43 fields) |
+  | Routes | 777 |
   | Edging | 274 |
   | Gorge | 115 |
   | Training | 90 |
   | Mine | 81 |
-  | Landmarks | 68 |
+  | Landmarks | 68 (plus 56 preview-only survey stakes, not exported) |
   | Meadows | 68 |
+  | Markers | 42 |
   | Lamps | 40 |
   | Gap | 40 |
-  | Markers | 37 |
   | Bridges | 12 |
 
-  With Ye's existing ~30.5k (village, ground, Adit dressing, trains; needs a Studio count), the place comes to about 70k against an 80k ceiling.
+  With Ye's existing ~30.5k (village, ground, Adit dressing, trains; needs a Studio count), the place comes to about 71k against an 80k ceiling. The hub pieces moved onto the reserved spots are already part of that ~30.5k.
 
 ### Files
 - `Art/Regions/Lindenmoor/layout.json`: the region file, in world studs (x east, z north), in the region-foundation Task 8 format. Its `Notes` list the extensions: `Materials`, `Keep`, `Infill`, channel cuts and water, `Crag`, and patchwork fields.
 - `Art/Regions/Lindenmoor/water.json`: terrain water boxes (one rotated box per channel segment, surface y 5.2).
 - `Art/Blender/lindenmoor/expansion_plan.py`: the pure planner, with no bpy.
-- `Art/Blender/lindenmoor/expansion_tests.py`: 59 checks on the plan, including:
+- `Art/Blender/lindenmoor/expansion_tests.py`: 60 checks on the plan, including:
   - no ground on the village;
   - no holes;
   - a continuous crag at least 80 studs above the ground beside it;
@@ -238,6 +239,7 @@ The map is drawn as the brief draws it: north at the bottom, east on the right, 
   - level, clear fields;
   - trees clear of routes;
   - the road passage length;
+  - flat, clear reserved spots;
   - the budget.
 
   Run `python -I Art/Blender/lindenmoor/expansion_tests.py`.
@@ -253,14 +255,16 @@ The map is drawn as the brief draws it: north at the bottom, east on the right, 
 - **Slow deletes:** removing tens of thousands of objects one at a time takes Blender most of an hour. `expansion.clear()` uses `bpy.data.batch_remove`.
 - **Slow stages:** stages over five minutes outlive `blender_mcpc.py`'s 300 s wait, but Blender finishes them anyway. Watch for the output file or the saved `.blend` instead.
 
-### Importing later (main session, after the hub has moved out)
+### Importing later (main session)
+**When (owner, 2026-10-23):** start after the townsfolk tasks are done, using the region-foundation import tools (Tasks 9, 11 and 12), not a one-off import. The hub's pieces are **moved into the new map**, not removed; the design note §5 lists each piece's reserved spot.
+
 1. **Measure Ye first:**
    - the Baseplate's position (assumed the template's (0, −8, 0));
    - the place's part count;
    - that `World.Map.Ground` has no parts in the layout's `Infill` cells (the creek's run east to the gorge, and the thin west, south and north strips);
    - the seam heights where new ground meets the village. They are blended from `terrain_studio.json`'s 8-stud grid; the Adit hill's are estimates.
-2. **Move out or retire:**
-   - the hub graybox (trainers, five trial sites, Foundry graybox, ledge course, test arena; the owner's choice);
+2. **Move or retire:**
+   - move the hub's pieces to their reserved spots: the trainers to the `TrainerSpot` markers, and each trial site with its arena, `RenseiArea`, spawns and markers to its `lindenmoor.reserve` pad. Measure each footprint against its pad first;
    - today's `NorthRoad` passage with its encounters, threshold and `RoadStart` arrival;
    - the `HubRoad` strip and its sign;
    - the north buffer stop at world (−270, −369), since the rails continue from there.

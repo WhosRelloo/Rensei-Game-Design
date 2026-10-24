@@ -65,14 +65,14 @@ Lindenmoor is planned and built in Blender at its full 2,048 × 2,048 footprint,
   - the Cypress Ridge rim with three overlooks;
   - the north road and the rails side by side to tunnel portals in a north-east gap (the owner's choice: "Together, NE corner").
 - **Edges:** natural edges with no invisible walls. The forested ridges end in a sheer crag that's too tall to climb out of.
-- **Size:** 39,190 parts (expansion ceiling 42,000; place ceiling 80,000).
+- **Size:** 40,414 parts (expansion ceiling 42,000; place ceiling 80,000).
 - **Owner, after the build:** "Start importing after the townspeople tasks are done", with the region-foundation import tools (Tasks 9, 11 and 12). The hub's trainers and trial sites move into the new map onto reserved spots, so their questlines keep working.
 - **Orientation finding:** the brief reads correctly with drawing-down = +Z (Ye's north). The region-builds spec's "drawing top = +Z" rule is mirrored for Ye.
 - **Files:**
   - `Art/Regions/Lindenmoor/layout.json` and `water.json`;
   - `Art/Blender/lindenmoor/expansion_plan.py` (pure), `expansion_tests.py` and `expansion.py`;
   - the renders in `Documents/images/Regions/Lindenmoor/`.
-- **Tests:** `python -I Art/Blender/lindenmoor/expansion_tests.py` passes 59/59.
+- **Tests:** `python -I Art/Blender/lindenmoor/expansion_tests.py` passes 60/60.
 
 ## 2026-10-23 — Region Foundation Task 2: a day and night: 24 minutes, the same time in every place
 

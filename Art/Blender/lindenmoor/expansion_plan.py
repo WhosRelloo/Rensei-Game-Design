@@ -31,8 +31,13 @@ PAD = {  # flat pad radius (studs) under each landmark kind (PROPOSAL)
     "lindenmoor.level_crossing": 0, "lindenmoor.training_field": 0, "lindenmoor.ridge_marker": 9, "lindenmoor.overlook": 12,
     "lindenmoor.mine_head": 42, "lindenmoor.lookout": 14, "lindenmoor.footbridge": 0, "lindenmoor.gorge_ledge": 0,
     "lindenmoor.waterfall": 0, "lindenmoor.hay_barn": 22, "lindenmoor.signal_box": 9, "lindenmoor.road_gate": 0,
-    "lindenmoor.tunnel_portals": 0,
+    "lindenmoor.tunnel_portals": 0, "lindenmoor.reserve": 0,
 }
+
+
+def pad_r(lm):
+    """A landmark's flat pad radius: its own Radius (reserved spots) or its kind's."""
+    return lm.get("Radius", PAD.get(lm["Kind"], 0))
 
 
 # ------------------------------------------------------------------ small geometry
@@ -322,7 +327,7 @@ def plan(layout=None, village=None, trees=True):
 
     # route corridors and pads calm the noise (smooth ground beside paths and under set pieces)
     feats = [(r["Line"], r["Width"] / 2) for r in L["Routes"]]
-    pads = [(lm["At"][0], lm["At"][1], PAD.get(lm["Kind"], 0)) for lm in L["Landmarks"]]
+    pads = [(lm["At"][0], lm["At"][1], pad_r(lm)) for lm in L["Landmarks"]]
 
     def calm(x, z):
         d = 1e9
@@ -355,7 +360,7 @@ def plan(layout=None, village=None, trees=True):
     # 3. landmark pads (flat ground under set pieces)
     P.landmarks = []
     for lm in L["Landmarks"]:
-        R = PAD.get(lm["Kind"], 0)
+        R = pad_r(lm)
         x0, z0 = lm["At"]
         hc = round(field(x0, z0))
         if R > 0:
@@ -415,7 +420,7 @@ def plan(layout=None, village=None, trees=True):
                 near[i][j] = 0
                 srcs.append((i, j))
     for lm in P.landmarks:
-        R = max(PAD.get(lm["Kind"], 0), 8)
+        R = max(pad_r(lm), 8)
         ci, cj = cell_of(*lm["At"])
         rr = int(R / CELL)
         for i in range(max(0, ci - rr), min(N, ci + rr + 1)):
@@ -720,7 +725,7 @@ FIELD_PARTS = 30  # average, for the estimate
 
 def make_fields(L, P, h, keep, kind, flat):
     rng = random.Random(907)
-    pads = [(lm["At"][0], lm["At"][1], PAD.get(lm["Kind"], 0) + 10) for lm in L["Landmarks"]]
+    pads = [(lm["At"][0], lm["At"][1], pad_r(lm) + 10) for lm in L["Landmarks"]]
     pads += [(m["At"][0], m["At"][2], 10) for m in L["Markers"] if "At" in m and m["Tag"] in ("RenseiPost", "RenseiClue", "RenseiMarker", "RenseiEnemySpawn")]
     out = []
     for d in L["Districts"]:
@@ -802,7 +807,7 @@ def scatter(P):
 
     blocked = []  # (x, z, r): landmarks and markers
     for lm in P.landmarks:
-        R = PAD.get(lm["Kind"], 0) + 6
+        R = pad_r(lm) + 6
         if lm["Kind"] in ("lindenmoor.overlook", "lindenmoor.lookout"):
             R = 40  # a clear view from every viewpoint
         if lm["Kind"] in ("lindenmoor.training_field",):
@@ -891,12 +896,12 @@ def _near_route(P, x, z, pad):
 
 
 # ------------------------------------------------------------------ budget
-LANDMARK_PARTS = {  # estimates for the budget check before building (PROPOSAL); the Blender build counts exactly
-    "lindenmoor.farmstead": 520, "lindenmoor.roadside_market": 90, "lindenmoor.watermill": 120, "lindenmoor.stone_bridge": 60,
-    "lindenmoor.level_crossing": 30, "lindenmoor.training_field": 160, "lindenmoor.ridge_marker": 20, "lindenmoor.overlook": 60,
-    "lindenmoor.mine_head": 260, "lindenmoor.lookout": 90, "lindenmoor.footbridge": 120, "lindenmoor.gorge_ledge": 60,
-    "lindenmoor.waterfall": 30, "lindenmoor.hay_barn": 110, "lindenmoor.signal_box": 50, "lindenmoor.road_gate": 12,
-    "lindenmoor.tunnel_portals": 60,
+LANDMARK_PARTS = {  # per set piece, calibrated to the Blender build's counts (2026-10-23); the build counts exactly
+    "lindenmoor.farmstead": 300, "lindenmoor.roadside_market": 60, "lindenmoor.watermill": 40, "lindenmoor.stone_bridge": 12,
+    "lindenmoor.level_crossing": 14, "lindenmoor.training_field": 95, "lindenmoor.ridge_marker": 12, "lindenmoor.overlook": 25,
+    "lindenmoor.mine_head": 90, "lindenmoor.lookout": 30, "lindenmoor.footbridge": 40, "lindenmoor.gorge_ledge": 50,
+    "lindenmoor.waterfall": 15, "lindenmoor.hay_barn": 35, "lindenmoor.signal_box": 20, "lindenmoor.road_gate": 5,
+    "lindenmoor.tunnel_portals": 40, "lindenmoor.reserve": 0,
 }
 
 

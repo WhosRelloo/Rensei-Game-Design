@@ -5,7 +5,7 @@
 **Owner's request:** grow Lindenmoor (Ye, placeId 106992859583940) to its full 2,048 × 2,048 footprint around the finished village, following page 3 of the Regional Map Design Brief. This runs in parallel with the region foundation plan.
 
 **Owner's choices (2026-10-23):**
-- **Hub graybox:** "Plan as if it's gone". The trainers, the five trial sites, the Foundry graybox, the ledge course and the test arena are treated as moved out. The Studio import waits until they have moved.
+- **Hub graybox:** "Plan as if it's gone". The layout uses the hub's ground. After the build the owner refined this: the hub's pieces **move into the new map** (§5).
 - **Exits:** "Together, NE corner". The north road and the station line leave side by side through one gap in the north-east rim.
 
 Every number here is a **PROPOSAL** unless it is marked measured or quoted.
@@ -76,7 +76,27 @@ The source of truth is `Art/Regions/Lindenmoor/layout.json`, in world studs (x e
 | Expansion as built | see `Documents/Lindenmoor Kit.md`, "Expansion (Blender)" |
 | **Place ceiling** | **80,000**, inside the world spec's 60–90k |
 
-## 5. Files
+## 5. Hub pieces and import timing (owner, 2026-10-23)
+
+- **Timing:** "Start importing after the townspeople tasks are done." The owner chose to import with the region-foundation tools: Tasks 9 (export with tags), 11 (the staged import) and 12 (travel pieces from markers). Not a one-off import.
+- **Hub pieces:** "Move them into the new map", so every trainer questline keeps working until each region is built.
+
+| Piece (from the hub) | New spot (world x, z) | Pad radius |
+|---|---|---|
+| The five alchemy trainers (Calda, Veyra, Holt, Ansel, Brannoc) | `TrainerSpot` markers along the training field's north edge, (−230..−130, −135), facing into the field | none |
+| Burned Laboratory and the Ash Pit (Flame) | Bramble woods, (820, −945) | 38 |
+| Frozen Research Station and the Frozen Chamber (Ice) | the north-west rim, (−760, 760) | 50 |
+| Cracked Footbridge and the Unstable Quarry (Earth) | the mine plateau, (860, −700) | 50 |
+| Silent Observatory and the Gale Floor (Wind) | the Cypress rim crest, (−700, 520) | 45 |
+| Silent Forge and the Forge Floor (Metal) | the north meadows by the gap, (560, 900), until they move to Foundry Yard | 45 |
+| Ye's small Foundry Yard graybox, if it is still in Ye | (300, 880) | 50 |
+| The LedgeCourse (with the FoundationRun world challenge) and the test arena | a practice yard, (−20, 60) | 50 |
+
+- **The pads:** each spot is a `lindenmoor.reserve` landmark: a flat pad with no routes, fields or trees. Blender shows it with survey stakes, which are never exported.
+- **At import:** each piece's footprint is measured in Ye and checked against its pad. Each piece is then moved with its `RenseiArea`, spawns and trial markers.
+- **The hub's bandit spawns** are replaced by the expansion's Grunt spawns.
+
+## 6. Files
 
 - `Art/Regions/Lindenmoor/layout.json`: the region file.
 - `Art/Regions/Lindenmoor/water.json`: terrain water boxes, written by the build.

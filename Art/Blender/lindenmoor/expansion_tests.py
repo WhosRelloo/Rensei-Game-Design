@@ -132,6 +132,25 @@ def main():
     check("fields level, clear and apart", not badf, badf[:3])
     check("some fields", len(P.fields) >= 20, len(P.fields))
 
+    # reserved spots for the hub's pieces: flat, and clear of routes, fields and trees
+    badr = []
+    for lm in P.landmarks:
+        if lm["Kind"] != "lindenmoor.reserve":
+            continue
+        R, (x0, z0) = lm["Radius"], lm["At"]
+        tops, kinds = set(), set()
+        for i in range(E.N):
+            for j in range(E.N):
+                x, z = E.cell_center(i, j)
+                if (x - x0) ** 2 + (z - z0) ** 2 <= R * R:
+                    tops.add(P.top[i][j])
+                    kinds.add(P.kind[i][j])
+        trees_in = sum(1 for t in P.trees if (t[1] - x0) ** 2 + (t[2] - z0) ** 2 <= R * R)
+        fields_in = sum(1 for f in P.fields if E.rect_dist(f["Rect"], x0, z0) <= R)
+        if len(tops) != 1 or kinds != {None} or trees_in or fields_in or None in tops or max(tops) >= E.WALL_Y:
+            badr.append((lm["Id"], sorted(t for t in tops if t is not None)[:4], kinds, trees_in, fields_in))
+    check("reserved spots flat and clear", not badr, badr)
+
     b = E.budget(P)
     check("estimated parts within budget", b["total"] <= b["budget"], b)
     print("budget estimate", b)

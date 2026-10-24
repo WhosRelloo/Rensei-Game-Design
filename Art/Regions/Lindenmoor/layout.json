@@ -9,8 +9,10 @@
     "Keep: the existing village part ground. Nothing is built inside it, and new ground blends to its edge heights over 64 studs. See Keep and Infill.",
     "The hub graybox (trainers, trial sites, Foundry graybox, ledge course, test arena) is treated as gone (owner, 2026-10-23: 'Plan as if it's gone'). Import waits until those pieces have moved out of Ye.",
     "Edges: the outer 20-24 studs (up to 18 more, unevenly) are a sheer crag (crest y 150-195, the box Crag key), about 115 studs above the ridge tops, more than a full stamina bar can climb (TuningConfig: ClimbSpeed 9, ClimbMove 12/s). No invisible walls. The north-east gap ends in road and rail tunnel portals in that wall, behind the threshold.",
+    "Hub pieces (owner, 2026-10-23: 'Move them into the new map'): the five alchemy trainers stand at the TrainerSpot markers in the training field, and each trial site with its arena moves to a lindenmoor.reserve landmark (a flat, clear pad of Radius studs; Holds says what goes there). They move on again when their regions are built. Each piece's footprint must be measured in Ye at import and checked against its pad. The hub's bandit spawns are replaced by the Grunt spawns below.",
+    "Import timing (owner, 2026-10-23): start importing after the townsfolk tasks are done, with the region-foundation import tools (Tasks 9, 11, 12), not a one-off import.",
     "Exits (owner, 2026-10-23): the north road and the station line leave together through one gap in the north-east rim. The road passage moves there (RenseiMarker Piece RoadPassage below); today's NorthRoad passage at world (8..275, -293..-125) is retired at import. The rails continue from today's north buffer stop (world (-270, -369), removed at import).",
-    "Extensions to the Task 8 schema used here: top-level Materials, Keep and Infill; cut and water shapes may take Line + Width (a channel; cut also Bank, a sloped margin) instead of Rect, and channel water becomes one rotated terrain-water box per segment (water.json); box Crag (an uneven inner face and crest: Y range, extra Depth, Cell size); district Style lindenmoor.patchwork (hedged, walled and fenced crop fields); optional route field Bridges; landmark fields Variant, Face, Size, Span, Length, Y; Heights kinds are the Task 8 five only."
+    "Extensions to the Task 8 schema used here: top-level Materials, Keep and Infill; cut and water shapes may take Line + Width (a channel; cut also Bank, a sloped margin) instead of Rect, and channel water becomes one rotated terrain-water box per segment (water.json); box Crag (an uneven inner face and crest: Y range, extra Depth, Cell size); district Style lindenmoor.patchwork (hedged, walled and fenced crop fields); optional route field Bridges; landmark fields Variant, Face, Size, Span, Length, Y, Radius, Holds; Heights kinds are the Task 8 five only."
   ],
   "Materials": {
     "lm_moss":       {"Material": "Grass",       "Color": "#4a6232", "Blender": "LM_GrassGround"},
@@ -114,7 +116,7 @@
     {"Id": "rim_path_1", "Kind": "quiet", "Width": 6, "Line": [[-200, -30], [-380, 40], [-560, 100], [-700, 60]]},
     {"Id": "rim_path_2", "Kind": "quiet", "Width": 6, "Line": [[-700, 60], [-640, 260], [-560, 470]]},
     {"Id": "rim_path_3", "Kind": "quiet", "Width": 6, "Line": [[-560, 470], [-520, 680], [-480, 860]]},
-    {"Id": "bramble_path", "Kind": "quiet", "Width": 6, "Line": [[532, -880], [640, -920], [760, -900], [880, -940]]},
+    {"Id": "bramble_path", "Kind": "quiet", "Width": 6, "Line": [[532, -880], [640, -920], [760, -905], [782, -918]]},
     {"Id": "hay_lane", "Kind": "quiet", "Width": 6, "Line": [[380, 260], [520, 180], [640, 120]]}
   ],
   "Landmarks": [
@@ -140,7 +142,14 @@
     {"Id": "hay_barn_north", "Kind": "lindenmoor.hay_barn", "At": [100, 820], "Yaw": 0},
     {"Id": "signal_box", "Kind": "lindenmoor.signal_box", "At": [660, 830], "Face": [690, 860]},
     {"Id": "road_gate", "Kind": "lindenmoor.road_gate", "At": [686, 661], "Face": [790, 860]},
-    {"Id": "tunnel_portals", "Kind": "lindenmoor.tunnel_portals", "At": [785, 1000], "Yaw": 0}
+    {"Id": "tunnel_portals", "Kind": "lindenmoor.tunnel_portals", "At": [785, 1000], "Yaw": 0},
+    {"Id": "res_burned_laboratory", "Kind": "lindenmoor.reserve", "At": [820, -945], "Radius": 38, "Holds": "Burned Laboratory (Flame site) and the Ash Pit arena, moved from the hub"},
+    {"Id": "res_frozen_station", "Kind": "lindenmoor.reserve", "At": [-760, 760], "Radius": 50, "Holds": "Frozen Research Station (Ice site) and the Frozen Chamber, moved from the hub"},
+    {"Id": "res_cracked_footbridge", "Kind": "lindenmoor.reserve", "At": [860, -700], "Radius": 50, "Holds": "Cracked Footbridge (Earth site) and the Unstable Quarry, moved from the hub"},
+    {"Id": "res_silent_observatory", "Kind": "lindenmoor.reserve", "At": [-700, 520], "Radius": 45, "Holds": "Silent Observatory (Wind site) and the Gale Floor, moved from the hub"},
+    {"Id": "res_silent_forge", "Kind": "lindenmoor.reserve", "At": [560, 900], "Radius": 45, "Holds": "Silent Forge (Metal site) and the Forge Floor, until they move to Foundry Yard"},
+    {"Id": "res_foundry_graybox", "Kind": "lindenmoor.reserve", "At": [300, 880], "Radius": 50, "Holds": "Ye's small Foundry Yard graybox and its NPCs, only if it is still in Ye at import"},
+    {"Id": "res_practice_yard", "Kind": "lindenmoor.reserve", "At": [-20, 60], "Radius": 50, "Holds": "the LedgeCourse (with the FoundationRun world challenge) and the test arena"}
   ],
   "Markers": [
     {"Tag": "RenseiMarker", "At": [686, 0, 661], "Attr": {"Piece": "RoadPassage", "Route": "RoadLindenmoorFoundry", "To": "Foundry", "RoadName": "The North Road",
@@ -158,11 +167,17 @@
     {"Tag": "RenseiArea", "Box": [[-1000, -10, -200], [-420, 110, 1000]], "Attr": {"AreaName": "Cypress Ridge Rim"}},
     {"Tag": "RenseiArea", "Box": [[640, -10, 800], [1000, 110, 1024]], "Attr": {"AreaName": "Northeast Gap"}},
 
+    {"Tag": "RenseiMarker", "At": [-230, 0, -135], "Yaw": 0, "Attr": {"Piece": "TrainerSpot", "Trainer": "Calda", "Element": "Flame"}},
+    {"Tag": "RenseiMarker", "At": [-205, 0, -135], "Yaw": 0, "Attr": {"Piece": "TrainerSpot", "Trainer": "Veyra", "Element": "Ice"}},
+    {"Tag": "RenseiMarker", "At": [-180, 0, -135], "Yaw": 0, "Attr": {"Piece": "TrainerSpot", "Trainer": "Holt", "Element": "Earth"}},
+    {"Tag": "RenseiMarker", "At": [-155, 0, -135], "Yaw": 0, "Attr": {"Piece": "TrainerSpot", "Trainer": "Ansel", "Element": "Wind"}},
+    {"Tag": "RenseiMarker", "At": [-130, 0, -135], "Yaw": 0, "Attr": {"Piece": "TrainerSpot", "Trainer": "Brannoc", "Element": "Metal", "Note": "until he moves to Foundry Yard"}},
+
     {"Tag": "RenseiClue", "At": [-194, 0, -28], "Attr": {"ClueId": "lm_ridge_marker"}},
     {"Tag": "RenseiClue", "At": [714, 0, -766], "Attr": {"ClueId": "lm_mine_shaft"}},
 
     {"Tag": "RenseiEnemySpawn", "At": [700, 0, -930], "Attr": {"EnemyType": "Grunt"}},
-    {"Tag": "RenseiEnemySpawn", "At": [820, 0, -900], "Attr": {"EnemyType": "Grunt"}},
+    {"Tag": "RenseiEnemySpawn", "At": [760, 0, -870], "Attr": {"EnemyType": "Grunt"}},
     {"Tag": "RenseiEnemySpawn", "At": [-640, 0, 640], "Attr": {"EnemyType": "Grunt"}},
     {"Tag": "RenseiEnemySpawn", "At": [-600, 0, 720], "Attr": {"EnemyType": "Grunt"}},
     {"Tag": "RenseiEnemySpawn", "At": [760, 0, -800], "Attr": {"EnemyType": "Grunt"}},
