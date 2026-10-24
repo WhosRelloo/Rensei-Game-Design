@@ -214,7 +214,85 @@ def test_schema():
     check("the old name Keep is not the import setting (unknown key)", r and m, msgs)
     check("the Testbed has an EdgeGap at each end of the main road",
           sum(1 for mk in L["Markers"] if mk["Tag"] == "EdgeGap") == 2, [mk["Tag"] for mk in L["Markers"]])
+    test_travel_markers(schema, raw)
     return L
+
+
+# RenseiMarker (Task 12): one marker per travel piece, with today's Foundry values (station_foundry.lua) in its Attr;
+# the spots stand inside the Testbed's footprint (Attr coordinates are not footprint-checked: they are the pieces')
+TRAVEL_MARKERS = [
+    {"Tag": "RenseiMarker", "At": [0, 6.4, 0], "Attr": {"Piece": "Station", "Route": "LindenmoorFoundry", "TrackX": -12,
+                                                       "RailTop": 4.6, "NoseZ": 240, "PlatformSide": 1}},
+    {"Tag": "RenseiMarker", "At": [16, 0, 36], "Yaw": -90, "Attr": {"Piece": "Clerk", "Station": "Foundry"}},
+    {"Tag": "RenseiMarker", "At": [5.6, 6.4, 70], "Yaw": 90, "Attr": {"Piece": "Board"}},
+    {"Tag": "RenseiMarker", "At": [5.5, 0, 52], "Yaw": 90, "Attr": {"Piece": "Gate", "Route": "LindenmoorFoundry"}},
+    {"Tag": "RenseiMarker", "At": [6.6, 0, 52], "Attr": {
+        "Piece": "Railing", "WallTop": 14,
+        "Runs": "[[6.6,-204.7,6.6,47.4],[6.6,56.6,6.6,134.7],[6.6,-204.7,-5.5,-204.7],[6.6,134.7,-5.5,134.7]]"}},
+    {"Tag": "RenseiMarker", "At": [-26, 0, 120], "Attr": {"Piece": "FreightYard"}},
+    {"Tag": "RenseiMarker", "At": [100, 0, 120], "Yaw": 180, "Attr": {
+        "Piece": "RoadPassage", "Route": "RoadLindenmoorFoundry", "To": "Lindenmoor", "RoadName": "The South Road",
+        "Legs": '[["line",150,226,150,396],["arc",105,396,45,0,90],["line",105,441,30,441],["arc",30,466,25,-90,-180],'
+                '["line",5,466,5,493]]',
+        "Threshold": 359, "RoadStart": 305, "Encounters": "[85,195,265]", "Half": 22, "RoadY": 5, "Seed": 9,
+        "Name": "SouthRoad", "FloorY": 4, "Cut": 200, "High": 1, "Fence": "[10,55]",
+        "Skip": "[[-100000,-100000,100000,262]]", "Clip": '{"MinZ":224}'}},
+]
+
+
+def test_travel_markers(schema, raw):
+    check("RenseiMarker is an exported marker tag (not builder-only)",
+          "RenseiMarker" in schema.MARKER_TAGS and "RenseiMarker" not in schema.BUILDER_TAGS)
+    check("TRAVEL_PIECES names the brief's seven pieces", set(schema.TRAVEL_PIECES) ==
+          {"Station", "Clerk", "Board", "Gate", "Railing", "FreightYard", "RoadPassage"}, sorted(schema.TRAVEL_PIECES))
+    good = copy.deepcopy(raw)
+    good["Markers"] += copy.deepcopy(TRAVEL_MARKERS)
+    r, m, msgs = raises_schema(schema, good, "RenseiMarker")
+    check("all seven travel markers (Foundry's values) load", not r, msgs)
+    lean = copy.deepcopy(raw)  # the required Attr only
+    lean["Markers"] += [{"Tag": "RenseiMarker", "At": mk["At"], "Attr": {
+        k: v for k, v in mk["Attr"].items()
+        if k == "Piece" or k in schema.TRAVEL_PIECES[mk["Attr"]["Piece"]]}} for mk in TRAVEL_MARKERS]
+    r, m, msgs = raises_schema(schema, lean, "RenseiMarker")
+    check("travel markers with only their required Attr load", not r, msgs)
+
+    def bad_case(name, idx, change, needle):
+        bad = copy.deepcopy(raw)
+        mk = copy.deepcopy(TRAVEL_MARKERS[idx])
+        change(mk)
+        bad["Markers"].append(mk)
+        r, m, msgs = raises_schema(schema, bad, needle)
+        check(name, r and m, msgs)
+
+    bad_case("a RenseiMarker without Piece raises", 2, lambda mk: mk["Attr"].pop("Piece"), "missing Attr.Piece")
+    bad_case("an unknown Piece raises", 2, lambda mk: mk["Attr"].update(Piece="Signal"), "Attr.Piece must be one of")
+    for idx, key in ((0, "NoseZ"), (0, "Route"), (1, "Station"), (3, "Route"), (4, "Runs"), (4, "WallTop"),
+                     (6, "Legs"), (6, "Encounters"), (6, "Seed"), (6, "RoadY"), (6, "To")):
+        piece = TRAVEL_MARKERS[idx]["Attr"]["Piece"]
+        bad_case(f"a {piece} without Attr.{key} raises", idx, lambda mk, k=key: mk["Attr"].pop(k), f"missing Attr.{key}")
+    bad_case("Runs that isn't JSON raises", 4, lambda mk: mk["Attr"].update(Runs="[[6.6,-204.7"), "Attr.Runs is not valid JSON")
+    bad_case("Runs as a list (not a JSON string) raises", 4, lambda mk: mk["Attr"].update(Runs=[[1, 2, 3, 4]]),
+             "Attr.Runs must be a string holding JSON")
+    bad_case("a Runs entry of 3 numbers raises", 4, lambda mk: mk["Attr"].update(Runs="[[1,2,3]]"), "Attr.Runs must be")
+    bad_case("Legs that aren't JSON raise", 6, lambda mk: mk["Attr"].update(Legs="line 1 2 3 4"), "Attr.Legs is not valid JSON")
+    bad_case("a leg of the wrong shape raises", 6, lambda mk: mk["Attr"].update(Legs='[["line",1,2,3]]'), "Attr.Legs must be")
+    bad_case("an unknown leg kind raises", 6, lambda mk: mk["Attr"].update(Legs='[["curve",1,2,3,4]]'), "Attr.Legs must be")
+    bad_case("Encounters that aren't JSON raise", 6, lambda mk: mk["Attr"].update(Encounters="85,195"),
+             "Attr.Encounters is not valid JSON")
+    bad_case("Encounters of strings raise", 6, lambda mk: mk["Attr"].update(Encounters='["a"]'), "Attr.Encounters must be")
+    bad_case("an optional Fence that isn't JSON raises", 6, lambda mk: mk["Attr"].update(Fence="10-55"),
+             "Attr.Fence is not valid JSON")
+    bad_case("an inside-out Skip rect raises", 6, lambda mk: mk["Attr"].update(Skip="[[10,0,0,10]]"), "Attr.Skip must be")
+    bad_case("a Clip with an unknown key raises", 6, lambda mk: mk["Attr"].update(Clip='{"Top":3}'), "Attr.Clip must be")
+    bad_case("a non-integer Seed raises", 6, lambda mk: mk["Attr"].update(Seed=9.5), "Attr.Seed must be a whole number")
+    bad_case("a string TrackX raises", 0, lambda mk: mk["Attr"].update(TrackX="-12"), "Attr.TrackX must be a number")
+    bad_case("PlatformSide -1 raises", 0, lambda mk: mk["Attr"].update(PlatformSide=-1), "Attr.PlatformSide must be 1")
+    bad_case("a misspelt Attr raises", 0, lambda mk: mk["Attr"].update(Railtop=4.6), "unknown Attr.Railtop")
+    bad_case("a Board with an Attr raises", 2, lambda mk: mk["Attr"].update(Route="X"), "unknown Attr.Route")
+    bad_case("a Box RenseiMarker raises", 5, lambda mk: (mk.pop("At"), mk.update(Box=[[-30, 0, 110], [-20, 4, 130]])),
+             "needs At")
+    bad_case("an empty Route raises", 3, lambda mk: mk["Attr"].update(Route=""), "Attr.Route must be a non-empty string")
+    bad_case("a RenseiMarker outside the footprint raises", 5, lambda mk: mk.update(At=[-26, 0, 300]), "outside the footprint")
 
 
 # ------------------------------------------------------------------ heightfield

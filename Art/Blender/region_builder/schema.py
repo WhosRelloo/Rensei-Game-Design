@@ -23,6 +23,8 @@ MARKER_TAGS = frozenset((
     "RenseiPost", "RenseiClue", "RenseiTrial",
     # other map-placed gameplay pieces
     "RenseiInspect", "RenseiMechanism", "RenseiPuzzleDoor", "RenseiLight",
+    # Task 12: a travel piece Art/Studio/Regions/setup.lua builds in Studio (Attr.Piece; see TRAVEL_PIECES)
+    "RenseiMarker",
 ))
 # Builder-only tags: the builder reads these markers and never exports them (the markers stage makes no part for
 # them). EdgeGap: a Box where the edges stage leaves the edge ridges open (a road mouth, the station); it needs a Box.
@@ -40,7 +42,29 @@ MARKER_ATTRS = {
     "RenseiClue": ("ClueId",),
     "RenseiArea": ("AreaName",),
     "RenseiTrial": ("TrialId",),
+    "RenseiMarker": ("Piece",),
 }
+# RenseiMarker (Task 12): Art/Studio/Regions/setup.lua builds one travel piece per marker, at its spot (the marker's At;
+# y = 0 is the ground) facing its Yaw (0 = -Z, 90 = -X, -90 = +X). Attr.Piece names the piece; these are each piece's
+# Attr ("str" a non-empty string, "num" a number, "int" a whole number, "bool", "json" a STRING holding JSON, since
+# Roblox attributes can't hold lists). Coordinates in Attr are region coordinates. setup.lua's header has the details.
+TRAVEL_PIECES = {
+    "Station": {"Route": "str", "TrackX": "num", "RailTop": "num", "NoseZ": "num", "PlatformSide": "num"},
+    "Clerk": {"Station": "str"},
+    "Board": {},
+    "Gate": {"Route": "str"},
+    "Railing": {"Runs": "json", "WallTop": "num"},
+    "FreightYard": {},
+    "RoadPassage": {"Route": "str", "To": "str", "RoadName": "str", "Legs": "json", "Threshold": "num",
+                    "RoadStart": "num", "Encounters": "json", "Half": "num", "RoadY": "num", "Seed": "int"},
+}
+TRAVEL_OPTIONAL = {
+    "Station": {"Arrival": "bool"},  # false: no Platform arrival (a second station; one Platform arrival per place)
+    "Gate": {"Sign": "str"},
+    "RoadPassage": {"Name": "str", "FloorY": "num", "Cut": "num", "High": "num", "Gate": "num", "Fence": "json",
+                    "Skip": "json", "Clip": "json"},
+}
+CLIP_KEYS = ("MinX", "MaxX", "MinZ", "MaxZ")
 MAX_BUDGET = 90000  # the world spec's ceiling for any region (spec §3.6)
 # the tallest a district's buildings may be: the kit's part counts are checked at this cap (<= about 150 parts per
 # building; blender_check builds every style at it). PROPOSAL
@@ -142,6 +166,75 @@ class _Checker:
             if i in seen:
                 self.err(f"{key}[{n}] {i}", "duplicate Id")
             seen.add(i)
+
+
+_KIND = {"str": (_str, "a non-empty string"), "num": (_num, "a number"), "int": (_int, "a whole number"),
+         "bool": (lambda v: isinstance(v, bool), "true or false")}
+
+
+def _json_shape(key, v):
+    """A RenseiMarker JSON attribute's parsed value: '' when its shape is right, else what it must be."""
+    if key == "Runs":
+        ok = isinstance(v, list) and len(v) >= 1 and all(_point(r, 4) for r in v)
+        return "" if ok else "a JSON list of one or more [x1, z1, x2, z2]"
+    if key == "Legs":
+        ok = isinstance(v, list) and len(v) >= 1 and all(
+            isinstance(g, list) and ((len(g) == 5 and g[0] == "line") or (len(g) == 6 and g[0] == "arc"))
+            and all(_num(x) for x in g[1:]) for g in v)
+        return "" if ok else 'a JSON list of ["line", x1, z1, x2, z2] / ["arc", cx, cz, r, a1, a2] legs'
+    if key == "Encounters":
+        return "" if isinstance(v, list) and all(_num(s) for s in v) else "a JSON list of distances [s, ...]"
+    if key == "Fence":
+        return "" if _point(v, 2) else "a JSON [s1, s2]"
+    if key == "Skip":
+        return "" if isinstance(v, list) and all(_rect(r) for r in v) else "a JSON list of [x0, z0, x1, z1] (x0 < x1, z0 < z1)"
+    if key == "Clip":
+        ok = isinstance(v, dict) and v and all(k in CLIP_KEYS and _num(x) for k, x in v.items())
+        return "" if ok else "a JSON object of " + ", ".join(CLIP_KEYS) + " (numbers)"
+    return ""
+
+
+def _travel_marker(c, w, m, attr):
+    """A RenseiMarker: a point marker (At), Attr.Piece one of TRAVEL_PIECES, that piece's Attr present and well formed,
+    no other Attr (a misspelt name would be silently ignored in Studio)."""
+    if "At" not in m:
+        c.err(w, "a RenseiMarker needs At (its spot), not a Box")
+    piece = attr.get("Piece")
+    if piece is None:
+        return  # reported as missing Attr.Piece
+    if not (isinstance(piece, str) and piece in TRAVEL_PIECES):
+        c.err(w, f"Attr.Piece must be one of {', '.join(TRAVEL_PIECES)}, got {piece!r}")
+        return
+    w = f"{w} {piece}"
+    need, opt = TRAVEL_PIECES[piece], TRAVEL_OPTIONAL.get(piece, {})
+    for key, kind in list(need.items()) + list(opt.items()):
+        if key not in attr:
+            if key in need:
+                c.err(w, f"missing Attr.{key}")
+            continue
+        v = attr[key]
+        if kind == "json":
+            if not isinstance(v, str):
+                c.err(w, f"Attr.{key} must be a string holding JSON (Roblox attributes can't hold lists), got {v!r}")
+                continue
+            try:
+                parsed = json.loads(v)
+            except ValueError as e:
+                c.err(w, f"Attr.{key} is not valid JSON ({e}): {v!r}")
+                continue
+            what = _json_shape(key, parsed)
+            if what:
+                c.err(w, f"Attr.{key} must be {what}, got {v!r}")
+        else:
+            ok, what = _KIND[kind]
+            if not ok(v):
+                c.err(w, f"Attr.{key} must be {what}, got {v!r}")
+    if piece == "Station" and _num(attr.get("PlatformSide")) and attr["PlatformSide"] != 1:
+        c.err(w, f"Attr.PlatformSide must be 1 (the platform on the track's +X side: the trains' baggage door faces -X), "
+                 f"got {attr['PlatformSide']!r}")
+    for key in attr:
+        if key != "Piece" and key not in need and key not in opt:
+            c.err(w, f"unknown Attr.{key} (a {piece} takes {', '.join(list(need) + list(opt)) or 'none'})")
 
 
 def validate(data):
@@ -277,6 +370,8 @@ def validate(data):
         for a in MARKER_ATTRS.get(tag, ()):
             if a not in attr:
                 c.err(w, f"missing Attr.{a}")
+        if tag == "RenseiMarker":
+            _travel_marker(c, w, m, attr)
         if tag == "RenseiPost":
             if "Kind" in attr and attr["Kind"] not in POST_KINDS:
                 c.err(w, f"Attr.Kind must be one of {', '.join(POST_KINDS)}, got {attr['Kind']!r}")
