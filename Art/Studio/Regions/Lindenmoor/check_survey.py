@@ -1,35 +1,27 @@
 """Check a Ye survey (survey_ye.lua's ye_survey.json) against the Lindenmoor expansion plan.
 
-python -I check_survey.py <survey.json>   -> prints FAIL/INFO lines and "PASS n / FAIL n / INFO n"; exits 1 on any FAIL.
+python -I check_survey.py <survey.json> [--layout layout.json]   -> prints FAIL/INFO lines and "PASS n / FAIL n / INFO n"; exits 1 on any FAIL.
 
 Checks (plan Task 1): every World.Map child classified; part budget; Baseplate at (0, -8, 0); no Ground parts in the
 layout's Infill cells; village-vs-new RenseiArea overlaps (controller Ruling 1: INFO when the two boxes differ in volume,
 since Task 8 makes the smallest box win; FAIL only on an equal-volume tie, within 1 cubic stud); each relocated group's
-footprint fits its reserve pad; exactly one RoadStart (under NorthRoad) and one Platform arrival; five trainers in
+pad's blocks, laid side by side by pad_layout.arrange (Ruling 4), fit its reserve pad (radius from the layout); exactly one RoadStart (under NorthRoad) and one Platform arrival; five trainers in
 World.NPCs.
 """
-import json, sys, math, os
+import json, sys, os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import pad_layout  # noqa: E402
+
 REPO = os.path.normpath(os.path.join(HERE, "..", "..", "..", ".."))
 LAYOUT = os.path.join(REPO, "Art", "Regions", "Lindenmoor", "layout.json")
 EXPECTED = os.path.join(REPO, "Art", "Studio", "Regions", "Lindenmoor", "import", "expected.json")
 BUDGET = 80000
 EXPORT_PARTS = 40414  # the export's part count until import/expected.json exists (plan Task 1)
 KEEP = {"Lindenmoor", "Ground", "HalvardsAdit", "Baseplate"}
-SITES = {  # pad id: map children placed on it together
-    "res_burned_laboratory": ["BurnedLaboratory", "AshPit"],
-    "res_frozen_station": ["FrozenStation", "FrozenChamber"],
-    "res_cracked_footbridge": ["CrackedFootbridge", "UnstableQuarry"],
-    "res_silent_observatory": ["SilentObservatory", "GaleFloor"],
-    "res_silent_forge": ["SilentForge", "ForgeFloor"],
-    "res_foundry_graybox": ["FoundryYard"],
-    "res_practice_yard": ["LedgeCourse", "Wall", "Curve", "Hill", "Step", "TrainingGround"],
-}
-RELOCATE = {n for v in SITES.values() for n in v} | {"AlchemistSpawns"}
-RADIUS = {"res_burned_laboratory": 38, "res_frozen_station": 50, "res_cracked_footbridge": 50,
-          "res_silent_observatory": 45, "res_silent_forge": 45, "res_foundry_graybox": 50,
-          "res_practice_yard": 50}  # design §5
+RELOCATE = {m for blocks in pad_layout.PADS.values() for _, ms in blocks for m in ms} | {"AlchemistSpawns"}
+PAD_MARGIN = 6  # Task 2 enlarges each pad to the needed radius + this (Ruling 4; PROPOSAL)
 VILLAGE_TOPS = ("Lindenmoor", "Ground", "HalvardsAdit")
 
 PASS = FAIL = INFO = 0
@@ -57,11 +49,11 @@ def volume(b):
     return abs((b[1][0] - b[0][0]) * (b[1][1] - b[0][1]) * (b[1][2] - b[0][2]))
 
 
-def main(path):
+def main(path, layout=LAYOUT):
     global PASS, FAIL, INFO
     PASS = FAIL = INFO = 0
     S = json.load(open(path, encoding="utf-8"))
-    L = json.load(open(LAYOUT, encoding="utf-8"))
+    L = json.load(open(layout, encoding="utf-8"))
 
     # 1. classification
     for c in S["MapChildren"]:
@@ -93,24 +85,19 @@ def main(path):
                         info(f"village area {a['AreaName']} (vol {va:.0f}) overlaps new area {nname} (vol {vb:.0f}); "
                              f"smallest wins: {a['AreaName'] if va < vb else nname}")
 
-    # 6. pad fit
+    # 6. pad fit (Ruling 4): each pad's blocks side by side; the pad radius comes from the layout
     pads = {l["Id"]: l for l in L["Landmarks"] if "reserve" in l["Kind"]}
-    by = {}
-    for c in S["MapChildren"]:
-        by.setdefault(c["Name"], []).append(c)
-    for pad, names in SITES.items():
-        boxes = [c["Box"] for n in names for c in by.get(n, []) if c.get("Box")]
-        check(boxes, f"{pad}: none of {names} found")
-        if boxes:
-            x0 = min(b[0][0] for b in boxes); x1 = max(b[1][0] for b in boxes)
-            z0 = min(b[0][2] for b in boxes); z1 = max(b[1][2] for b in boxes)
-            r = math.hypot(x1 - x0, z1 - z0) / 2
-            check(r <= RADIUS[pad], f"{pad}: footprint radius {r:.1f} > pad {RADIUS[pad]} "
-                                    f"(XZ box x {x0:.1f}..{x1:.1f}, z {z0:.1f}..{z1:.1f}; {x1 - x0:.1f} x {z1 - z0:.1f})")
-            check(pad in pads, f"{pad} not in the layout's landmarks")
-            if pad in pads:
-                check(pads[pad].get("Radius") == RADIUS[pad],
-                      f"{pad}: layout Radius {pads[pad].get('Radius')} != design {RADIUS[pad]}")
+    pieces = pad_layout.pad_pieces(S["MapChildren"])
+    for pad, blocks in pad_layout.PADS.items():
+        got = pieces[pad]
+        missing = [n for n, _ in blocks if n not in {p["Name"] for p in got}]
+        check(not missing, f"{pad}: blocks not found: {missing}")
+        check(pad in pads and "Radius" in pads[pad], f"{pad}: no reserve landmark with a Radius in the layout")
+        if got and pad in pads and "Radius" in pads[pad]:
+            r, have = pad_layout.arrange(got)["radius"], pads[pad]["Radius"]
+            sizes = ", ".join(f"{p['Name']} {p['Size'][0]:.1f} x {p['Size'][1]:.1f}" for p in got)
+            check(r <= have, f"{pad}: needed radius {r:.1f} > pad {have}; needed + {PAD_MARGIN} = "
+                             f"{r + PAD_MARGIN:.1f} ({sizes})")
 
     # 7. arrivals
     rs = [a for a in S["Arrivals"] if a["Point"] == "RoadStart"]
@@ -171,5 +158,7 @@ def stamp(lua_path):
 if __name__ == "__main__":
     if sys.argv[1] == "--stamp":
         stamp(sys.argv[2])
+    elif len(sys.argv) > 3 and sys.argv[2] == "--layout":
+        sys.exit(main(sys.argv[1], sys.argv[3]))
     else:
         sys.exit(main(sys.argv[1]))

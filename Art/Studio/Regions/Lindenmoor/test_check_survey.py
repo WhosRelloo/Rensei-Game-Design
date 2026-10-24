@@ -4,6 +4,9 @@ import copy, json, os, subprocess, sys, tempfile, unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CHECKER = os.path.join(HERE, "check_survey.py")
+LAYOUT = os.path.normpath(os.path.join(HERE, "..", "..", "..", "Regions", "Lindenmoor", "layout.json"))
+sys.path.insert(0, HERE)
+import pad_layout  # noqa: E402
 SITE_NAMES = ["BurnedLaboratory", "AshPit", "FrozenStation", "FrozenChamber", "CrackedFootbridge", "UnstableQuarry",
               "SilentObservatory", "GaleFloor", "SilentForge", "ForgeFloor", "FoundryYard", "LedgeCourse", "Wall",
               "Wall", "Curve", "Hill", "Step", "TrainingGround"]
@@ -35,12 +38,18 @@ def good():
 
 
 class CheckSurvey(unittest.TestCase):
-    def run_checker(self, survey):
+    def run_checker(self, survey, layout=None):
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "survey.json")
             with open(p, "w", encoding="utf-8") as f:
                 json.dump(survey, f)
-            r = subprocess.run([sys.executable, "-I", CHECKER, p], capture_output=True, text=True)
+            args = [sys.executable, "-I", CHECKER, p]
+            if layout is not None:
+                lp = os.path.join(d, "layout.json")
+                with open(lp, "w", encoding="utf-8") as f:
+                    json.dump(layout, f)
+                args += ["--layout", lp]
+            r = subprocess.run(args, capture_output=True, text=True)
         return r.returncode, r.stdout + r.stderr
 
     def test_good_survey_passes(self):
@@ -111,18 +120,55 @@ class CheckSurvey(unittest.TestCase):
         self.assertIn("INFO 0", out)
 
     def test_pad_too_small_fails(self):
-        s = good()  # Wall (practice yard, pad 50) spread to 120 x 120: radius 84.9
+        s = good()  # the arena block grows to 120 x 120; beside LedgeCourse 10 x 10: 134 x 120, radius 89.9
         s["MapChildren"] = [c for c in s["MapChildren"] if c["Name"] != "Wall"] + [child("Wall", 0, 0, 60)]
         code, out = self.run_checker(s)
         self.assertEqual(code, 1, out)
-        self.assertIn("FAIL: res_practice_yard: footprint radius 84.9 > pad 50", out)
+        self.assertIn("FAIL: res_practice_yard: needed radius 89.9 > pad 50; needed + 6 = 95.9", out)
+
+    def test_arrange_two_pieces(self):
+        r = pad_layout.arrange([{"Name": "A", "Size": [10, 10]}, {"Name": "B", "Size": [10, 10]}])
+        self.assertEqual(r["slots"], {"A": [-7.0, 0.0], "B": [7.0, 0.0]})
+        self.assertAlmostEqual(r["radius"], 13.0)  # combined AABB 24 x 10: half of a 26-stud diagonal
+        r = pad_layout.arrange([{"Name": "A", "Size": [30, 20]}], gap=4)
+        self.assertEqual(r["slots"], {"A": [0.0, 0.0]})
+        self.assertAlmostEqual(r["radius"], 18.0277, places=3)
+
+    def test_test_arena_is_one_block(self):
+        kids = [child("LedgeCourse", -200, 240, 20), child("Wall", 0, 46, 10), child("Wall", 54, 0, 4, 1, "Part"),
+                child("Curve", 50, 50, 40), child("Hill", -60, -24, 25), child("Step", -44, 16, 8),
+                child("TrainingGround", 38, -21, 2)]
+        got = pad_layout.pad_pieces(kids)["res_practice_yard"]
+        self.assertEqual([p["Name"] for p in got], ["LedgeCourse", "TestArena"])
+        arena = got[1]
+        self.assertEqual(sorted(arena["Members"]), ["Curve", "Hill", "Step", "TrainingGround", "Wall"])
+        self.assertEqual(arena["Size"], [175, 139])  # union x -85..90, z -49..90: its internal layout kept
+        self.assertEqual(arena["Center"], [2.5, 20.5])
+        self.assertEqual(got[0]["Size"], [40, 40])
+
+    def test_pad_radius_comes_from_layout(self):
+        with open(LAYOUT, encoding="utf-8") as f:
+            L = json.load(f)
+        for lm in L["Landmarks"]:
+            if lm["Id"] == "res_practice_yard":
+                lm["Radius"] = 10  # the good survey's yard needs 13
+        code, out = self.run_checker(good(), L)
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL: res_practice_yard: needed radius 13.0 > pad 10", out)
+        for lm in L["Landmarks"]:
+            if lm["Id"] == "res_practice_yard":
+                lm["Radius"] = 100  # now the 89.9 yard fits
+        s = good()
+        s["MapChildren"] = [c for c in s["MapChildren"] if c["Name"] != "Wall"] + [child("Wall", 0, 0, 60)]
+        code, out = self.run_checker(s, L)
+        self.assertEqual(code, 0, out)
 
     def test_missing_site_fails(self):
         s = good()
         s["MapChildren"] = [c for c in s["MapChildren"] if c["Name"] != "FoundryYard"]
         code, out = self.run_checker(s)
         self.assertEqual(code, 1, out)
-        self.assertIn("FAIL: res_foundry_graybox: none of", out)
+        self.assertIn("FAIL: res_foundry_graybox: blocks not found: ['FoundryYard']", out)
 
     def test_arrivals(self):
         s = good()
