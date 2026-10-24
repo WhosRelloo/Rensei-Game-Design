@@ -3,9 +3,13 @@
 --   python -I Art/Studio/Regions/Lindenmoor/bundle_prep.py test <out.lua>
 --   python -I Art/Tools/rbxc.py luau "placeId: 106992859583940" Edit @<out.lua>
 -- The bundle defines PADS_JSON (pads.json) and Prep(mode) (prep_ye.lua; nil before it exists).
--- 1. snapshots World.Map / NPCs / EnemySpawns / Live: every descendant's full name, class and pivot (0.01), plus
---    per-tag counts in workspace; 2. runs apply; 3. checks the result; 4. runs undo (always, once apply succeeded);
--- 5. checks the snapshot equals the start. Returns "PASS ..." or "FAIL ..." with the failures.
+-- 1. snapshots all of workspace.World plus every other workspace child (not the camera or terrain): each
+--    descendant's full name, class, pivot (0.01) and sorted attributes, plus per-tag counts in workspace;
+-- 2. runs apply; 3. checks the result, including a collateral diff: a second snapshot right after apply may differ
+--    from the first only in rows of the instances apply is meant to touch (block members, riders, spawns, the
+--    elite, trainers, lifted items, retired pieces, and World.Map's own row for LindenmoorPrep) or their
+--    descendants (Ruling 18); 4. runs undo (always, once apply succeeded); 5. checks the snapshot equals the start.
+-- Returns "PASS ..." or "FAIL ..." with the failures.
 local HttpService = game:GetService("HttpService")
 local CS = game:GetService("CollectionService")
 local SS = game:GetService("ServerStorage")
@@ -28,29 +32,51 @@ end
 local function near(a, b, tol) return math.abs(a - b) <= (tol or TOL) end
 
 -- ---------------------------------------------------------------- snapshot
-local ROOTS = { "Map", "NPCs", "EnemySpawns", "Live" }
 local function fmt(n)
 	local s = string.format("%.2f", n)
 	return s == "-0.00" and "0.00" or s
 end
-local function snapshot()
-	local rows = {}
+-- exp (optional): {tree = {[inst] = true}, exact = {[inst] = true}}: rows of a tree instance or its descendants, or
+-- of an exact instance itself, are "expected" to change; the rest are returned again as nrows (collateral check)
+local function snapshot(exp)
+	local rows, nrows = {}, {}
+	local function expected(d)
+		if not exp then return false end
+		if exp.exact[d] then return true end
+		local a = d
+		while a do
+			if exp.tree[a] then return true end
+			a = a.Parent
+		end
+		return false
+	end
 	local function add(d)
-		local row = d:GetFullName() .. "|" .. d.ClassName
+		local head, pivot, tail = d:GetFullName() .. "|" .. d.ClassName, "", ""
 		if d:IsA("PVInstance") then
 			local c = { d:GetPivot():GetComponents() }
 			for i = 1, 12 do c[i] = fmt(c[i]) end
-			row ..= "|" .. table.concat(c, ",")
+			pivot = "|" .. table.concat(c, ",")
 		end
-		table.insert(rows, row)
-	end
-	for _, r in ipairs(ROOTS) do
-		local root = World:FindFirstChild(r)
-		if root then
-			for _, d in ipairs(root:GetDescendants()) do add(d) end
+		local attrs, keys = d:GetAttributes(), {}
+		for k in pairs(attrs) do table.insert(keys, k) end
+		if #keys > 0 then
+			table.sort(keys)
+			for i, k in ipairs(keys) do
+				local v = attrs[k]
+				keys[i] = k .. "=" .. (type(v) == "number" and string.format("%.6g", v) or tostring(v))
+			end
+			tail = "|@" .. table.concat(keys, ";")
+		end
+		table.insert(rows, head .. pivot .. tail)
+		if not expected(d) then
+			-- a model without a WorldPivot reports its bounding-box centre, which moves when a retired child
+			-- leaves (Lindenmoor, Station): for those ancestors only the pivot may change
+			table.insert(nrows, head .. (exp and exp.pivotOnly[d] and "|(pivot not compared)" or pivot) .. tail)
 		end
 	end
-	-- Ruling 17: everything else in workspace the lift step may touch (not World, the camera or terrain)
+	-- all of World, and everything else in workspace the lift step may touch (not the camera or terrain)
+	add(World)
+	for _, d in ipairs(World:GetDescendants()) do add(d) end
 	for _, c in ipairs(workspace:GetChildren()) do
 		if c ~= World and not c:IsA("Camera") and not c:IsA("Terrain") then
 			add(c)
@@ -58,6 +84,7 @@ local function snapshot()
 		end
 	end
 	table.sort(rows)
+	table.sort(nrows)
 	local tags = {}
 	for _, t in ipairs(CS:GetAllTags()) do
 		local n = 0
@@ -66,7 +93,7 @@ local function snapshot()
 		end
 		if n > 0 then tags[t] = n end
 	end
-	return rows, tags
+	return rows, tags, nrows
 end
 local function diffRows(a, b, limit)
 	local i, j, onlyA, onlyB = 1, 1, {}, {}
@@ -159,7 +186,6 @@ end
 local function overlapXZ(a, b) return a[1] < b[4] and b[1] < a[4] and a[3] < b[6] and b[3] < a[6] end
 
 -- ---------------------------------------------------------------- 1. snapshot and the "before" values
-local rows0, tags0 = snapshot()
 local pre = { blocks = {}, riders = {}, spawns = {}, elite = nil, adit = {} }
 local ES = World:FindFirstChild("EnemySpawns")
 for pid, pad in pairs(pads()) do
@@ -184,6 +210,45 @@ for _, e in ipairs(PADS and PADS.Lift or {}) do
 	end
 end
 
+-- what apply is meant to touch (Ruling 18's collateral check): these instances and their descendants, and
+-- World.Map's own row (its LindenmoorPrep attribute)
+local exp = { tree = {}, exact = { [Map] = true } }
+for _, pad in pairs(pads()) do
+	for _, b in ipairs(pad.Blocks) do
+		for _, m in ipairs(members(b)) do exp.tree[m] = true end
+		for _, r in ipairs(b.Riders) do
+			local m = rider(r)
+			if m then exp.tree[m] = true end
+		end
+	end
+end
+for _, s in ipairs(Map.AlchemistSpawns:GetChildren()) do exp.tree[s] = true end
+for _, m in ipairs(World.NPCs["Alchemy Trainers"]:GetChildren()) do exp.tree[m] = true end
+for _, s in ipairs(ES:GetChildren()) do
+	if s.Name == "EliteSpawn" or s.Name == "GruntSpawn" then exp.tree[s] = true end
+end
+for e, p0 in pairs(pre.lift) do
+	if p0.low < e.Top + 0.05 - 0.001 then exp.tree[p0.inst] = true end
+end
+local L0 = Map.Lindenmoor
+for _, n in ipairs({ "NorthRoad", "HubRoad" }) do
+	if L0:FindFirstChild(n) then exp.tree[L0[n]] = true end
+end
+for _, c in ipairs(L0.Station:GetChildren()) do
+	if c.Name == "BufferStop" and (c:GetPivot().Position - Vector3.new(-270, 10, -369)).Magnitude <= 5 then exp.tree[c] = true end
+end
+exp.pivotOnly = {}
+for inst in pairs(exp.tree) do
+	if inst.Name == "NorthRoad" or inst.Name == "HubRoad" or inst.Name == "BufferStop" or inst.Name == "GruntSpawn" then
+		local a = inst.Parent
+		while a and a ~= game do
+			exp.pivotOnly[a] = true
+			a = a.Parent
+		end
+	end
+end
+local rows0, tags0, nrows0 = snapshot(exp)
+
 -- ---------------------------------------------------------------- 2. apply
 local applied = false
 if not check(Prep ~= nil, "prep_ye.lua is not built (no Prep in the bundle)") then
@@ -199,6 +264,14 @@ end
 
 -- ---------------------------------------------------------------- 3. checks after apply
 if applied then
+	-- collateral: nothing outside the expected instances changed (Ruling 18)
+	local _, _, nrows1 = snapshot(exp)
+	local cA, cB, cdiff = diffRows(nrows0, nrows1, 10)
+	check(cA == 0 and cB == 0, string.format("collateral: unexpected rows changed by apply (before-only %d, after-only %d)\n%s",
+		cA, cB, table.concat(cdiff, "\n")))
+	table.insert(notes, string.format("collateral diff after apply: %d of %d rows outside the expected set, %d changed",
+		#nrows0, #rows0, cA + cB))
+
 	local L = Map.Lindenmoor
 	local backup = SS:FindFirstChild("RenseiBackups") and SS.RenseiBackups:FindFirstChild(BACKUP)
 	if check(backup ~= nil, "backup folder missing after apply") then
@@ -258,11 +331,11 @@ if applied then
 				if m and p0 then
 					local d = m:GetPivot().Position - (p0.Position + delta)
 					check(d.Magnitude <= TOL, string.format("rider %s off its block by %.2f", r, d.Magnitude))
-					check(type(m:GetAttribute("PrepFrom")) == "string", "rider " .. r .. " has no PrepFrom")
+					check(type(m:GetAttribute("LindenmoorPrepFrom")) == "string", "rider " .. r .. " has no LindenmoorPrepFrom")
 				end
 			end
 			for _, m in ipairs(members(b)) do
-				check(type(m:GetAttribute("PrepFrom")) == "string", "block member " .. m:GetFullName() .. " has no PrepFrom")
+				check(type(m:GetAttribute("LindenmoorPrepFrom")) == "string", "block member " .. m:GetFullName() .. " has no LindenmoorPrepFrom")
 			end
 		end
 		check(worst <= pad.Radius + TOL, string.format("%s group reaches %.1f, pad radius %.1f", pid, worst, pad.Radius))
@@ -287,7 +360,7 @@ if applied then
 				gap = math.min(gap, math.sqrt(gx * gx + gz * gz))
 			end
 			check(s.CFrame.Rotation == p0.Rotation, s.Name .. " rotated")
-			check(type(s:GetAttribute("PrepFrom")) == "string", s.Name .. " has no PrepFrom")
+			check(type(s:GetAttribute("LindenmoorPrepFrom")) == "string", s.Name .. " has no LindenmoorPrepFrom")
 			table.insert(notes, string.format("%s -> (%.1f, %.1f, %.1f) r %.1f, block gap %.1f", s.Name, p.X, p.Y, p.Z, r, gap))
 		end
 	end
@@ -298,7 +371,7 @@ if applied then
 		local e, p = PADS.EliteSpawn, elite.Position
 		check(near(p.X, e.XZ[1]) and near(p.Z, e.XZ[2]) and near(p.Y, pre.elite.Y + e.DY),
 			"EliteSpawn at " .. tostring(p) .. ", expected its Bramble Woods spot")
-		check(type(elite:GetAttribute("PrepFrom")) == "string", "EliteSpawn has no PrepFrom")
+		check(type(elite:GetAttribute("LindenmoorPrepFrom")) == "string", "EliteSpawn has no LindenmoorPrepFrom")
 		table.insert(notes, string.format("EliteSpawn -> (%.1f, %.1f, %.1f)", p.X, p.Y, p.Z))
 	end
 
@@ -315,7 +388,10 @@ if applied then
 			check(near(b[2], spot.At[2]), string.format("%s feet at %.2f, ground %.2f", m.Name, b[2], spot.At[2]))
 			local want = CFrame.Angles(0, math.rad(spot.Yaw), 0).LookVector
 			check(pv.LookVector:Dot(want) > 0.999, m.Name .. " faces " .. tostring(pv.LookVector))
-			check(type(m:GetAttribute("PrepFrom")) == "string", m.Name .. " has no PrepFrom")
+			local hrp = m:FindFirstChild("HumanoidRootPart")
+			check(hrp ~= nil and hrp.CFrame.LookVector:Dot(want) > 0.999,
+				m.Name .. "'s HumanoidRootPart faces " .. tostring(hrp and hrp.CFrame.LookVector))
+			check(type(m:GetAttribute("LindenmoorPrepFrom")) == "string", m.Name .. " has no LindenmoorPrepFrom")
 		end
 	end
 	check(trainers == 5, trainers .. " trainers placed, expected 5")
@@ -329,10 +405,10 @@ if applied then
 		if p0.low < want - 0.001 then
 			check(near(low, want, 0.01), string.format("%s lifted to %.3f, expected %.3f", e.Path, low, want))
 			check(near(pv.X, p0.pivot.X, 0.001) and near(pv.Z, p0.pivot.Z, 0.001), e.Path .. " moved sideways")
-			check(type(m:GetAttribute("PrepFrom")) == "string", e.Path .. " lifted without PrepFrom")
+			check(type(m:GetAttribute("LindenmoorPrepFrom")) == "string", e.Path .. " lifted without LindenmoorPrepFrom")
 			table.insert(notes, string.format("lifted %s: lowest y %.2f -> %.2f", e.Path, p0.low, low))
 		else
-			check(pv == p0.pivot and m:GetAttribute("PrepFrom") == nil, e.Path .. " moved, though already above the ground")
+			check(pv == p0.pivot and m:GetAttribute("LindenmoorPrepFrom") == nil, e.Path .. " moved, though already above the ground")
 			table.insert(notes, string.format("not lifted (already above) %s: lowest y %.2f, top %.2f", e.Path, low, e.Top))
 		end
 	end
@@ -350,9 +426,9 @@ check(Map:GetAttribute("LindenmoorPrep") == nil, "LindenmoorPrep still set")
 check(not (SS:FindFirstChild("RenseiBackups") and SS.RenseiBackups:FindFirstChild(BACKUP)), "backup folder left behind")
 local stray = 0
 for _, d in ipairs(workspace:GetDescendants()) do
-	if d:GetAttribute("PrepFrom") ~= nil or d:GetAttribute("FromPath") ~= nil then stray += 1 end
+	if d:GetAttribute("LindenmoorPrepFrom") ~= nil or d:GetAttribute("FromPath") ~= nil then stray += 1 end
 end
-check(stray == 0, stray .. " instances still carry PrepFrom / FromPath")
+check(stray == 0, stray .. " instances still carry LindenmoorPrepFrom / FromPath")
 local rows1, tags1 = snapshot()
 local nA, nB, diff = diffRows(rows0, rows1, 6)
 check(nA == 0 and nB == 0, string.format("snapshot differs: %d rows only before, %d only after\n%s", nA, nB, table.concat(diff, "\n")))

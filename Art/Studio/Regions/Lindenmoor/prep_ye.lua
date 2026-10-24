@@ -7,7 +7,8 @@
 --   1. retires World.Map.Lindenmoor.NorthRoad (RoadStart arrival + the five road-passage legs), .HubRoad, the
 --      Station BufferStop within 5 studs of (-270, 10, -369) (the one at z -891 stays) and World.EnemySpawns'
 --      two GruntSpawns (Ruling 8): each is MOVED (not cloned, so nothing non-archivable is lost and references
---      stay valid) into ServerStorage.RenseiBackups[BACKUP] with its old full path in the attribute FromPath;
+--      stay valid) into ServerStorage.RenseiBackups[BACKUP] with its old full path in the attribute FromPath and
+--      its old parent in a child ObjectValue, LindenmoorPrepParent (undo prefers it; the path is the fallback);
 --   2. moves each pad's blocks (pads.json, from pad_layout.arrange: Rulings 4, 5) so a block's XZ centre (its
 --      parts' world box) sits at pad centre + slot, raised by pad height - GROUND (the Baseplate top the hub
 --      stands on today), with the models standing on it (pads.json Riders) by the same offset;
@@ -19,9 +20,11 @@
 --      the expansion's new ground (pads.json Lift, from lift_survey.lua + make_pads.py: Ruling 17): its lowest point
 --      goes to the highest planned top under its XZ box + 0.05, if it is below that. The summary lists each lift;
 --   7. sets World.Map's LindenmoorPrep = "applied".
---   Every moved instance records its old CFrame (Parts) or pivot (Models) in PrepFrom, a 12-number CFrame string.
--- undo (refused unless applied): moves every workspace instance with PrepFrom back and clears it, returns every backup
---   child to its FromPath parent and clears it, deletes the backup folder, clears LindenmoorPrep.
+--   Every moved instance records its old CFrame (Parts) or pivot (Models) in LindenmoorPrepFrom, a 12-number CFrame string.
+-- undo (refused unless applied): moves every workspace instance with LindenmoorPrepFrom back and clears it, returns every backup
+--   child to its LindenmoorPrepParent (else FromPath) parent and clears both, deletes the backup folder (and
+--   RenseiBackups, if apply created it and it is now empty), clears LindenmoorPrep. Apply's summary names the
+--   pads.json it ran (PADS_HASH: first 8 hex of its sha256; bundle_prep.py refuses a stale pads.json).
 -- Both modes check everything before changing anything, journal each change, and roll the journal back if any
 -- step errors. They return one summary line (" OK:", "REFUSED:" or "FAILED").
 local MODE = "apply" -- "apply" or "undo"
@@ -31,14 +34,13 @@ local HttpService = game:GetService("HttpService")
 local SS = game:GetService("ServerStorage")
 local BACKUP = "Pre-LindenmoorExpansion_2026-10-24"
 local TOL = 0.3 -- studs: a block's live box may differ this much from the survey's before apply refuses (survey rounds to 0.1)
-local SPAWN_FOOT = 0 -- extra studs round a spawn's footprint in the no-overlap check (pads.json already keeps 4 clear)
 
 local function refuse(msg) return "LindenmoorPrep " .. tostring(MODE) .. " REFUSED: " .. msg end
 
 if MODE ~= "apply" and MODE ~= "undo" then return refuse("MODE must be apply or undo") end
 if game:GetService("RunService"):IsRunning() then return refuse("run in Edit, not Play") end
 if SS:GetAttribute("PlayLock") then return refuse("PlayLock is set (" .. tostring(SS:GetAttribute("PlayLock")) .. ")") end
-if type(PADS_JSON) ~= "string" then return refuse("pads.json is not inlined: run bundle_prep.py's bundle") end
+if type(PADS_JSON) ~= "string" or type(PADS_HASH) ~= "string" then return refuse("pads.json is not inlined: run bundle_prep.py's bundle") end
 local PADS = HttpService:JSONDecode(PADS_JSON)
 local World = workspace:FindFirstChild("World")
 local Map = World and World:FindFirstChild("Map")
@@ -52,9 +54,9 @@ local function cfString(cf)
 end
 local function cfParse(s)
 	local t = string.split(s, ",")
-	assert(#t == 12, "bad PrepFrom: " .. s)
+	assert(#t == 12, "bad LindenmoorPrepFrom: " .. s)
 	local n = {}
-	for i, v in ipairs(t) do n[i] = assert(tonumber(v), "bad PrepFrom number: " .. v) end
+	for i, v in ipairs(t) do n[i] = assert(tonumber(v), "bad LindenmoorPrepFrom number: " .. v) end
 	return CFrame.new(table.unpack(n))
 end
 -- a Part moves by its CFrame and a Model by its pivot, so undo puts back exactly what apply read
@@ -155,6 +157,12 @@ end
 local CHS = game:GetService("ChangeHistoryService")
 local recording
 pcall(function() recording = CHS:TryBeginRecording("LindenmoorPrep " .. MODE) end)
+local function cancelRecording() -- a refusal changed nothing: close the recording without a history entry
+	if recording then
+		pcall(function() CHS:FinishRecording(recording, Enum.FinishRecordingOperation.Cancel) end)
+		recording = nil
+	end
+end
 local function waypoint()
 	if recording then
 		pcall(function() CHS:FinishRecording(recording, Enum.FinishRecordingOperation.Commit) end)
@@ -168,12 +176,12 @@ local lifted = {} -- "path y old -> new" (lowest point), for the summary
 local LIFT_CLEAR = 0.05 -- Ruling 17 (make_pads.py's LIFT_CLEAR)
 local function moveTo(inst, cf)
 	local old = pivotOf(inst)
-	assert(inst:GetAttribute("PrepFrom") == nil, inst:GetFullName() .. " already has PrepFrom")
+	assert(inst:GetAttribute("LindenmoorPrepFrom") == nil, inst:GetFullName() .. " already has LindenmoorPrepFrom")
 	did(function()
 		setPivot(inst, old)
-		inst:SetAttribute("PrepFrom", nil)
+		inst:SetAttribute("LindenmoorPrepFrom", nil)
 	end)
-	inst:SetAttribute("PrepFrom", cfString(old))
+	inst:SetAttribute("LindenmoorPrepFrom", cfString(old))
 	setPivot(inst, cf)
 	moved += 1
 end
@@ -185,8 +193,8 @@ local function planApply()
 	local rb = backupsFolder()
 	if rb and rb:FindFirstChild(BACKUP) then return nil, "ServerStorage.RenseiBackups." .. BACKUP .. " already exists" end
 	for _, d in ipairs(workspace:GetDescendants()) do
-		if d:GetAttribute("PrepFrom") ~= nil or d:GetAttribute("FromPath") ~= nil then
-			return nil, d:GetFullName() .. " already carries PrepFrom / FromPath"
+		if d:GetAttribute("LindenmoorPrepFrom") ~= nil or d:GetAttribute("FromPath") ~= nil then
+			return nil, d:GetFullName() .. " already carries LindenmoorPrepFrom / FromPath"
 		end
 	end
 	local W = { retire = {}, blocks = {}, spawns = {}, trainers = {} }
@@ -260,6 +268,10 @@ local function planApply()
 		local want = PADS.Spawns[s.Name]
 		if not want or not s:IsA("BasePart") then return nil, "AlchemistSpawns." .. s.Name .. " has no pads.json spot" end
 		if seen[s.Name] then return nil, "two AlchemistSpawns named " .. s.Name end
+		local p, f = s.Position, want.From
+		if math.abs(p.X - f[1]) > TOL or math.abs(p.Y - f[2]) > TOL or math.abs(p.Z - f[3]) > TOL then
+			return nil, string.format("AlchemistSpawns.%s at %s, survey (%.1f, %.1f, %.1f): re-survey", s.Name, tostring(p), f[1], f[2], f[3])
+		end
 		seen[s.Name] = true
 		table.insert(W.spawns, { inst = s, want = want })
 	end
@@ -270,6 +282,10 @@ local function planApply()
 	local elites = ES and namedChildren(ES, "EliteSpawn") or {}
 	if #elites ~= 1 then return nil, #elites .. " World.EnemySpawns.EliteSpawn, expected 1" end
 	W.elite = elites[1]
+	local ep, ef = W.elite.Position, PADS.EliteSpawn.From
+	if math.abs(ep.X - ef[1]) > TOL or math.abs(ep.Y - ef[2]) > TOL or math.abs(ep.Z - ef[3]) > TOL then
+		return nil, string.format("EliteSpawn at %s, survey (%.1f, %.1f, %.1f): re-survey", tostring(ep), ef[1], ef[2], ef[3])
+	end
 
 	-- trainers, by element
 	local folder = World:FindFirstChild("NPCs") and World.NPCs:FindFirstChild("Alchemy Trainers")
@@ -314,27 +330,34 @@ end
 
 local function doApply(W)
 	-- the backup folder
-	local rb = backupsFolder()
+	local rb, createdRb = backupsFolder(), false
 	if not rb then
 		rb = Instance.new("Folder")
 		rb.Name = "RenseiBackups"
 		rb.Parent = SS
 		did(function() rb:Destroy() end)
+		createdRb = true
 	end
 	local bk = Instance.new("Folder")
 	bk.Name = BACKUP
-	bk:SetAttribute("Note", "Lindenmoor import Task 5: pieces retired by prep_ye.lua apply; undo puts them back (FromPath)")
+	bk:SetAttribute("Note", "Lindenmoor import Task 5: pieces retired by prep_ye.lua apply; undo puts them back (LindenmoorPrepParent, else FromPath)")
+	if createdRb then bk:SetAttribute("CreatedRenseiBackups", true) end -- undo removes RenseiBackups again if left empty
 	bk.Parent = rb
 	did(function() bk:Destroy() end)
 
 	-- 1. retire
 	for _, inst in ipairs(W.retire) do
 		local parent = inst.Parent
+		local ov = Instance.new("ObjectValue") -- the parent by identity; FromPath is the fallback (names can repeat or hold dots)
+		ov.Name = "LindenmoorPrepParent"
+		ov.Value = parent
 		did(function()
+			ov:Destroy()
 			inst.Parent = parent
 			inst:SetAttribute("FromPath", nil)
 		end)
 		inst:SetAttribute("FromPath", inst:GetFullName())
+		ov.Parent = inst
 		inst.Parent = bk
 		retired += 1
 	end
@@ -357,7 +380,7 @@ local function doApply(W)
 		local sb = boxOf({ s.inst })
 		for _, w in ipairs(onPad[s.want.Pad] or {}) do
 			local b = w.box
-			if sb[1] - SPAWN_FOOT < b[4] and b[1] < sb[4] + SPAWN_FOOT and sb[3] - SPAWN_FOOT < b[6] and b[3] < sb[6] + SPAWN_FOOT then
+			if sb[1] < b[4] and b[1] < sb[4] and sb[3] < b[6] and b[3] < sb[6] then
 				error(s.inst.Name .. " would overlap block " .. w.block.Name)
 			end
 		end
@@ -399,9 +422,9 @@ local function planUndo()
 	if not bk then return nil, "no ServerStorage.RenseiBackups." .. BACKUP end
 	local W = { bk = bk, moves = {}, back = {} }
 	for _, d in ipairs(workspace:GetDescendants()) do
-		local s = d:GetAttribute("PrepFrom")
+		local s = d:GetAttribute("LindenmoorPrepFrom")
 		if s ~= nil then
-			if type(s) ~= "string" then return nil, d:GetFullName() .. ": PrepFrom is not a string" end
+			if type(s) ~= "string" then return nil, d:GetFullName() .. ": LindenmoorPrepFrom is not a string" end
 			local ok, cf = pcall(cfParse, s)
 			if not ok then return nil, d:GetFullName() .. ": " .. tostring(cf) end
 			table.insert(W.moves, { inst = d, cf = cf })
@@ -409,32 +432,39 @@ local function planUndo()
 	end
 	for _, c in ipairs(bk:GetChildren()) do
 		local path = c:GetAttribute("FromPath")
-		local parentPath = type(path) == "string" and string.match(path, "^(.*)%.[^%.]+$")
-		local parent = parentPath and resolve(parentPath)
-		if not parent then return nil, "backup child " .. c.Name .. ": no unique parent for FromPath " .. tostring(path) end
-		table.insert(W.back, { inst = c, parent = parent, path = path })
+		local ov = c:FindFirstChild("LindenmoorPrepParent")
+		local parent = ov and ov:IsA("ObjectValue") and ov.Value
+		if not (parent and parent:IsDescendantOf(game)) then -- the original parent is gone: fall back to the path
+			local parentPath = type(path) == "string" and string.match(path, "^(.*)%.[^%.]+$")
+			parent = parentPath and resolve(parentPath)
+		end
+		if not parent then return nil, "backup child " .. c.Name .. ": no live LindenmoorPrepParent and no unique parent for FromPath " .. tostring(path) end
+		table.insert(W.back, { inst = c, parent = parent, path = path, ov = ov })
 	end
 	return W
 end
 
 local function doUndo(W)
 	for _, m in ipairs(W.moves) do
-		local cur, s = pivotOf(m.inst), m.inst:GetAttribute("PrepFrom")
+		local cur, s = pivotOf(m.inst), m.inst:GetAttribute("LindenmoorPrepFrom")
 		did(function()
 			setPivot(m.inst, cur)
-			m.inst:SetAttribute("PrepFrom", s)
+			m.inst:SetAttribute("LindenmoorPrepFrom", s)
 		end)
 		setPivot(m.inst, m.cf)
-		m.inst:SetAttribute("PrepFrom", nil)
+		m.inst:SetAttribute("LindenmoorPrepFrom", nil)
 		moved += 1
 	end
 	for _, b in ipairs(W.back) do
+		local ov = b.ov
 		did(function()
 			b.inst.Parent = W.bk
 			b.inst:SetAttribute("FromPath", b.path)
+			if ov then ov.Parent = b.inst end
 		end)
 		b.inst.Parent = b.parent
 		b.inst:SetAttribute("FromPath", nil)
+		if ov then ov.Parent = nil end
 		restored += 1
 	end
 	for _, m in ipairs(W.moves) do
@@ -444,13 +474,18 @@ local function doUndo(W)
 	Map:SetAttribute("LindenmoorPrep", nil)
 	if #W.bk:GetChildren() ~= 0 then error("backup folder not empty after restoring") end
 	-- last, and not journaled: nothing is left in it
+	local rb, created = W.bk.Parent, W.bk:GetAttribute("CreatedRenseiBackups")
 	W.bk:Destroy()
+	if created and rb and #rb:GetChildren() == 0 then rb:Destroy() end -- apply made RenseiBackups: leave none behind
 end
 
 -- ================================================================ run
 local W, why
 if MODE == "apply" then W, why = planApply() else W, why = planUndo() end
-if not W then return refuse(why) end
+if not W then
+	cancelRecording()
+	return refuse(why)
+end
 local ok, err = pcall(MODE == "apply" and doApply or doUndo, W)
 if not ok then
 	local errs = rollback()
@@ -461,7 +496,7 @@ end
 journal = {}
 waypoint()
 if MODE == "apply" then
-	return string.format("LindenmoorPrep apply OK: moved %d, retired %d, trainers %d (blocks %d, spawns %d, elite 1, lifted %d)%s",
-		moved, retired, trainers, #W.blocks, #W.spawns, #lifted, #lifted > 0 and ("\n  lifted: " .. table.concat(lifted, "\n  lifted: ")) or "")
+	return string.format("LindenmoorPrep apply OK: moved %d, retired %d, trainers %d (blocks %d, spawns %d, elite 1, lifted %d; pads.json %s)%s",
+		moved, retired, trainers, #W.blocks, #W.spawns, #lifted, PADS_HASH, #lifted > 0 and ("\n  lifted: " .. table.concat(lifted, "\n  lifted: ")) or "")
 end
 return string.format("LindenmoorPrep undo OK: moved back %d, restored %d, trainers %d", moved, restored, trainers)
