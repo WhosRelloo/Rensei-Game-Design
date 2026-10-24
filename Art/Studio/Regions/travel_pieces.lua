@@ -558,7 +558,9 @@ local function Passage(C)
 	local EP, ET = at(Len)
 	for _, Off in ipairs({{6, 0, "OakBig"}, {14, -10, "Cypress"}, {14, 10, "Cypress"}, {8, -18, "Cypress"}, {8, 18, "Cypress"}, {22, 0, "Cypress"}}) do
 		local Pos = EP + ET * Off[1] + side(ET) * Off[2]
-		local K = kit(Off[3], CFrame.new(onGround(Pos)) * CFrame.Angles(0, Rng:NextNumber(0, math.pi * 2), 0))
+		-- (Skip too: Foundry's road ends in a portal at the map's edge, where these would stand in the void and reach
+		-- through the portal; with no Skip, as on Lindenmoor's road, nothing changes)
+		local K = not C.Skip(Pos.X, Pos.Z) and kit(Off[3], CFrame.new(onGround(Pos)) * CFrame.Angles(0, Rng:NextNumber(0, math.pi * 2), 0))
 		if K then Trees += 1 end
 	end
 	-- rocks: kit ridge stones on the cutting's high banks, bank stones scattered along the open verges
@@ -571,7 +573,7 @@ local function Passage(C)
 		end
 	end
 	local EP2 = EP + ET * 16
-	if kit("RidgeTerrace", CFrame.new(onGround(EP2) - Vector3.new(0, 1, 0)) * CFrame.Angles(0, math.atan2(ET.X, ET.Z) + math.pi / 2, 0)) then Rocks += 1 end
+	if not C.Skip(EP2.X, EP2.Z) and kit("RidgeTerrace", CFrame.new(onGround(EP2) - Vector3.new(0, 1, 0)) * CFrame.Angles(0, math.atan2(ET.X, ET.Z) + math.pi / 2, 0)) then Rocks += 1 end
 	for SS2 = 30, C.Cut, 34 do
 		local P, T = at(SS2 + Rng:NextNumber(-6, 6))
 		local Lat = Rng:NextNumber() < 0.5 and -1 or 1

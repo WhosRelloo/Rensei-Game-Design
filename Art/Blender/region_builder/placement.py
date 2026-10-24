@@ -252,8 +252,13 @@ def plan_buildings(layout, grid, site=None):
         if dist["Density"] <= 0:
             continue
         rng = random.Random(f"{layout['Region']}:{dist['Id']}")
+        start = len(out)
         for f in frontages(layout, dist):
             out += _fill_frontage(site, grid, dist, f, spec, rng)
+        # ids count through the whole district: each frontage's fill numbers from 0, and the export names models by
+        # id, so repeated ids made the Studio import replace earlier buildings (Foundry, 2026-10-24: 231 lost)
+        for k, b in enumerate(out[start:]):
+            b["id"] = f"{dist['Id']}_{k}"
     return out
 
 

@@ -1,0 +1,77 @@
+{
+ "models": 2061,
+ "parts": 43685,
+ "groups": {
+  "Ground": 576,
+  "Routes": 132,
+  "Buildings": 535,
+  "Landmarks": 87,
+  "Cover": 724,
+  "Edges": 6,
+  "Markers": 1
+ },
+ "region": "Foundry",
+ "groupParts": {
+  "Ground": 3979,
+  "Routes": 1948,
+  "Buildings": 31323,
+  "Landmarks": 2165,
+  "Cover": 3777,
+  "Edges": 391,
+  "Markers": 102
+ },
+ "tags": {
+  "RenseiLedge": 377,
+  "RenseiNoGrip": 391,
+  "RenseiArea": 12,
+  "RenseiClue": 2,
+  "RenseiEnemySpawn": 4,
+  "RenseiMarker": 8,
+  "RenseiPost": 76
+ },
+ "tagsByGroup": {
+  "RenseiLedge": {
+   "Buildings": 352,
+   "Landmarks": 25
+  },
+  "RenseiNoGrip": {
+   "Edges": 391
+  },
+  "RenseiArea": {
+   "Markers": 12
+  },
+  "RenseiClue": {
+   "Markers": 2
+  },
+  "RenseiEnemySpawn": {
+   "Markers": 4
+  },
+  "RenseiMarker": {
+   "Markers": 8
+  },
+  "RenseiPost": {
+   "Markers": 76
+  }
+ },
+ "lights": 189,
+ "variants": [
+  "RG_Foundry_ground_top",
+  "RG_Foundry_path",
+  "RG_Foundry_quiet"
+ ],
+ "variantParts": {
+  "RG_Foundry_ground_top": 1592,
+  "RG_Foundry_path": 197,
+  "RG_Foundry_quiet": 214
+ },
+ "helpers": {
+  "parts": 102,
+  "query": 0,
+  "touch": 0
+ },
+ "noCollide": [
+  "Glass",
+  "Glow"
+ ],
+ "noCollideKinds": []
+}

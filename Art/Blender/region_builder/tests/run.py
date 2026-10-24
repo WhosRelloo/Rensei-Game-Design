@@ -638,6 +638,15 @@ def test_placement():
           got == [("row_0", -82.0, 20.5, 0.0, 12, 17, 3, "R"), ("row_1", -68.0, 20.5, 0.0, 16, 17, 3, "L"),
                   ("row_2", -33.5, 21.5, 0.0, 15, 19, 2, "")], got)
     check("plans are deterministic", [b["seed"] for b in PL.plan_buildings(L, G)] == [b["seed"] for b in plan])
+    # a district fronting two streets gets one id sequence (the export names models by id; Foundry 2026-10-24 lost 231
+    # buildings to ids repeated across frontages)
+    two = copy.deepcopy(raw)
+    two["Routes"].append({"Id": "back", "Kind": "public", "Width": 10, "Line": [[-120, 92], [120, 92]]})
+    check("the two-street Testbed variant is a valid region file", not schema.validate(two), schema.validate(two))
+    p2 = PL.plan_buildings(two, HF.sample(two, cell=4))
+    ids = [b["id"] for b in p2]
+    check("building ids are unique across a district's frontages",
+          len({b["frontage"] for b in p2}) >= 2 and len(ids) == len(set(ids)), (sorted({b["frontage"] for b in p2}), ids))
 
     # every style on a long flat frontage: coverage rises with Density, alleys >= 4, <= 3 in a row, no overlaps,
     # 2 studs clear of the road, inside the district

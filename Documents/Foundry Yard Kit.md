@@ -1,6 +1,6 @@
 # Foundry Yard Kit (Blender → Studio)
 
-Foundry Yard's new map, built in Blender with the region builder (`Documents/Region Builder.md`) from the owner-approved layout (2026-10-24). The design is `Documents/specs/2026-10-23-region-builds-design.md` §7, and the brief's page is region 03 of `Documents/Rensei-Regional-Map-Design-Brief.pdf`. The new map replaces today's hand-built Foundry place (World Plan 1) through the region import. **Nothing has been imported yet.**
+Foundry Yard's new map, built in Blender with the region builder (`Documents/Region Builder.md`) from the owner-approved layout (2026-10-24). The design is `Documents/specs/2026-10-23-region-builds-design.md` §7, and the brief's page is region 03 of `Documents/Rensei-Regional-Map-Design-Brief.pdf`. The new map replaced the hand-built Foundry map (World Plan 1) through the region import on 2026-10-24 (see "The import" below). It isn't live: the place has to be saved by the owner, and nothing is published.
 
 Every number here is a **PROPOSAL** unless it is quoted from the brief or the owner.
 
@@ -105,6 +105,37 @@ python -I Art/Tools/blender_mcpc.py code @Art/Blender/region_builder/tests/found
 - A full build takes about 15 minutes in Blender; with all 34 renders, about 45.
 - `foundry_blender_check.py` takes about 25 minutes. Its result goes to `<temp>/foundry_check.json`, because the bridge stops waiting after 300 seconds.
 
+## The import (2026-10-24, owner: "Import Foundry Yard into the Foundry Yard place")
+
+Done in Studio, in the Foundry Yard place (109591196441030), Edit mode, with the region tools. Ye wasn't touched.
+
+1. **Export:** from `Foundry.blend` with origin (0, 0, 0) to `Art/Studio/Regions/Foundry/layout.json`. 2,061 models and 43,685 parts, 189 lights.
+2. **`kit.py Foundry`** wrote 39 chunks to `Art/Studio/Regions/Foundry/import/`.
+3. **First dry run: FAILED, and nothing changed.**
+   - 231 of the 535 buildings were missing from the staging. A district's building ids restarted at 0 on each of its frontages, so a later chunk replaced an earlier building with the same name.
+   - **Fixed in the builder:** `placement.plan_buildings` now numbers ids through the whole district. A check was added to `tests/run.py` and one to `foundry_check.py`.
+   - Rebuilt, exported again (no duplicate ids) and regenerated.
+4. **Dry run ok:** 2,061 models and 43,685 parts, with every tag count as expected. It reported: keep list [], move `Foundry` into the backup.
+5. **Real run** (`Confirm = "Foundry"`):
+   - `World.Map.Foundry` is the new map.
+   - The hand-built map is in `ServerStorage.RenseiBackups["Pre-Region_Foundry_2026-10-24"]`, with its tags set aside.
+   - The three texture-pack MaterialVariants are in MaterialService.
+   - The pond is terrain water (2,026 cells).
+   - `restore.lua` undoes all of it.
+6. **`setup.lua`** (`--region Foundry --map-child Foundry --origin 0,0,0`) built `Map.Foundry.Travel` from the 7 travel markers: the station with both trains, the booth, the board, the papers gate, the railing, the freight yard with its watchman, and the 447-stud South Road with 3 encounters. Brannoc's TrainerSpot was skipped.
+   - **Fixed along the way:** the passage's own trees and slabs stood in the void past the south wall, and an oak reached through the portal.
+   - The RoadPassage `Skip` is now `[[-2000,-2000,2000,2000]]`, in the region file, the export and the placed marker.
+   - `travel_pieces.lua`'s end-of-road cluster now honours `Skip`. With no `Skip`, as on Lindenmoor's road, nothing changes.
+   - The road now builds only its markers and the 30 bank stones at the encounter spots, which are the ambush cover.
+7. **Contract test:** PASS 101 / FAIL 0.
+8. **Spawn:** the old `Spawn` went to the backup with the old map. A new invisible, walk-through `SpawnLocation` named `Spawn` stands on the platform at (−648, 6.9, 360), as a child of `Map.Foundry`.
+   - It isn't part of the export, so **re-add it after any re-import**.
+
+**Not done in this import (next):**
+- **Brannoc's move out of Ye.** This touches Ye, where the other session is working. See note 10 below.
+- **The game data:** areas, roster, clues and the shift-ledger quest.
+- **The owner's save of the place.**
+
 ## Foundry import notes (for the Studio import, a later session)
 
 Follow `Documents/Region Builder.md` §§3–9. What is particular to Foundry:
@@ -129,7 +160,7 @@ Follow `Documents/Region Builder.md` §§3–9. What is particular to Foundry:
    - the station: Route `LindenmoorFoundry`, TrackX −660, RailTop 4.6, NoseZ 620;
    - the booth (`Station = "Foundry"`), the board on the platform's back edge, the gate (Yaw 90, facing the track) and the railing runs;
    - the freight yard by the baggage car;
-   - the South Road passage: Route `RoadLindenmoorFoundry` to Lindenmoor, RoadY 4, Half 22, Threshold 432, RoadStart 290, and a `Skip` over the whole footprint. The region paves the road, so the passage builds only its markers, with no Lindenmoor trees, rocks or ground.
+   - the South Road passage: Route `RoadLindenmoorFoundry` to Lindenmoor, RoadY 4, Half 22, Threshold 432, RoadStart 290, and a `Skip` reaching well past the footprint ([[-2000,-2000,2000,2000]]). The region paves the road, so the passage builds only its markers and the bank stones at its encounter spots, with no Lindenmoor trees or ground.
 
    It skips Brannoc's `TrainerSpot`. Then run the contract test and the travel suites (Boot, Travel, Station, Road, Gate, RideEvents, Arrive). **Check by eye** that the threshold box covers the south portal's mouth and that the road's RoadPoints sit on the paving.
 8. **Ride train clearance:** the ride train sits at +(0, 400, −1600) from the platform train, so at about (−660, 405, −980). That is outside the footprint and high above everything (the stacks top out near y 120). The contract test checks it.

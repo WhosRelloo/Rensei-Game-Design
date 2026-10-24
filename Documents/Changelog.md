@@ -4,6 +4,37 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-24 — Foundry Yard's new map imported into the Foundry Yard place (not live)
+
+On the owner's request ("Import Foundry Yard into the Foundry Yard place"), the approved Blender build replaced the hand-built World Plan 1 map in the Foundry Yard place (109591196441030). It was done in Edit mode with the region tools. Ye wasn't touched, and nothing is published: **the place needs the owner's save**.
+
+**The import:**
+- **Export and scripts:** exported from Blender at origin (0, 0, 0): 2,061 models, 43,685 parts and 189 lights. `kit.py` wrote 39 chunks.
+- **Dry run:** ok. Every model, part and tag count matched.
+- **Real run:**
+  - `World.Map.Foundry` is the new map.
+  - The old map is backed up in `RenseiBackups["Pre-Region_Foundry_2026-10-24"]`, with its tags set aside. `restore.lua` undoes the import.
+  - The three texture-pack MaterialVariants are in.
+  - The cooling pond is terrain water.
+- **Travel setup:** `setup.lua` built the station (platform train and ride train), the ticket booth, the departure board, the papers gate and its railing, the stowaway freight yard with its watchman, and the 447-stud South Road to Lindenmoor with its 3 encounters, threshold and RoadStart arrival. The contract test passes 101/101.
+- **Spawn:** a SpawnLocation stands on the new platform. The old one went to the backup with the old map.
+
+**Fixed on the way:**
+- **Missing buildings.** The first dry run caught 231 missing buildings, and nothing changed. The region builder numbered building ids per street frontage, so a district facing two streets repeated names, and the import replaced one building with another. Ids now run through the whole district (`placement.plan_buildings`). There are new checks in `tests/run.py` (218/218) and `foundry_check.py` (36/36).
+- **Trees past the wall.** The South Road's passage put trees and ground past the south wall, and an oak reached through the portal. Its `Skip` now reaches past the footprint, and the passage's end-of-road trees honour `Skip` (`travel_pieces.lua`; with no `Skip`, as on Lindenmoor's road, nothing changes). `test_kit.py` passes 72/72.
+
+**Next:**
+- the owner saves the place;
+- a hooked Play run of Foundry's travel suites;
+- Brannoc and the forge rooms move from Ye (that touches Ye);
+- the game data: areas, the townsfolk roster, clues and the shift-ledger quest.
+
+See `Documents/Foundry Yard Kit.md`, "The import".
+
+### Discord announcement
+
+Hold: not live yet.
+
 ## 2026-10-24 — Foundry Yard built in Blender (owner-approved layout and renders; not imported)
 
 Foundry Yard's new map is built in Blender with the region builder, from the layout the owner approved: 1,536 × 1,536 studs in soot, iron, furnace brick and ember, following the brief's page and spec §7. Nothing changed in Studio, and no game script changed. Every number is a **PROPOSAL** unless the owner chose it.

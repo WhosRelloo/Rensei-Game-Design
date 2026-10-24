@@ -121,8 +121,11 @@ def main():
     road = next(r for r in L["Routes"] if r["Id"] == "south_road")
     off = max(_line_dist(x, z, road["Line"]) for x, z in _leg_points(legs))
     check("the south_road route follows the passage's legs (within 1.5 studs)", off <= 1.5, round(off, 2))
-    check("the passage builds no ground, trees or rocks of its own (Skip covers the footprint: the region paves it)",
-          json.loads(rd["Skip"]) == [[-768, -768, 768, 768]], rd.get("Skip"))
+    sk = json.loads(rd["Skip"])
+    hw = L["Footprint"][0] / 2
+    check("the passage builds no ground, trees or rocks of its own (Skip covers the footprint and its legs' reach past the "
+          "walls, so none stand in the void beyond)", len(sk) == 1 and sk[0][0] <= -hw - 100 and sk[0][1] <= -hw - 100
+          and sk[0][2] >= hw + 100 and sk[0][3] >= hw + 100, rd.get("Skip"))
     gaps = [m for m in mk if m["Tag"] == "EdgeGap"]
     check("two edge gaps, each with a portal: the rails east and the road south",
           sorted(m["Attr"].get("Portal") for m in gaps) == ["rail", "road"], [m["Attr"] for m in gaps])
@@ -169,6 +172,9 @@ def main():
     # build put warehouses across both ends of the pond pair); plans the buildings, so this check takes about a minute
     from region_builder import heightfield as HF
     plan = PL.plan_buildings(L, HF.sample(L, cell=4))
+    ids = [b["id"] for b in plan]
+    check("every planned building has its own id (the import names models by id)", len(ids) == len(set(ids)),
+          len(ids) - len(set(ids)))
     blocked = []
     for i, a in enumerate(walls):
         for b in walls[i + 1:]:
