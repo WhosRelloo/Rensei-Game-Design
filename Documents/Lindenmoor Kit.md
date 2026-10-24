@@ -227,8 +227,9 @@ The map is drawn as the brief draws it: north at the bottom, east on the right, 
 - `Art/Regions/Lindenmoor/water_segments.json`: the channel water as the plan carves it, one `{Id, From, To, Width, Top, Bed}` segment per channel leg, in world studs (surface y 5.2). `expansion.water()` writes it.
 - `Art/Regions/Lindenmoor/water.json`: the same water in `kit.py`'s format: axis-aligned `Rect` boxes in the village's local frame (world − (0, 4, −650); `finish.lua` adds the origin back). `Art/Blender/lindenmoor/water_convert.py` makes it from `water_segments.json`: each segment is a capsule, filled with 2-stud cells and merged into rects (spill ≤ 15% of the capsule's area). Re-run the converter after every `water` stage.
 - `Art/Blender/lindenmoor/expansion_plan.py`: the pure planner, with no bpy.
-- `Art/Blender/lindenmoor/expansion_tests.py`: 114 checks on the plan, including:
-  - no ground on the village, nor on any cell holding a village `Ground` part (the Keep mask is one cell wider than the village terrain; `expansion_plan.keep_mask()`, shared with `check_survey.py`);
+- `Art/Blender/lindenmoor/expansion_tests.py`: 116 checks on the plan, including:
+  - no ground on the village, nor on any cell a village `Ground` part covers (the Keep mask is the village terrain plus the Ground parts' footprint measured by the Ye survey; `expansion_plan.keep_mask()`, shared with `check_survey.py`);
+  - a closed seam: every cell along the village boundary has village ground or new ground;
   - the edge crag's tops and sides flagged `crag` (tagged `RenseiNoGrip`), on every edge;
   - no holes;
   - a continuous crag at least 80 studs above the ground beside it;

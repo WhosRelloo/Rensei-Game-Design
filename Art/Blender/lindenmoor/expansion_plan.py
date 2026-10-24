@@ -287,30 +287,58 @@ def _bridge_t(route, x, z, pad=0.0):
     return False
 
 
-KEEP_WIDEN = 1  # cells: Keep grows this far past the village terrain (Task 2, Ruling 3; PROPOSAL)
+SURVEY = os.path.join(REPO, "Art", "Studio", "Regions", "Lindenmoor", "ye_survey.json")  # survey_ye.lua's output
 
 
-def keep_mask(layout, village, widen=KEEP_WIDEN):
-    """The Keep mask, an N x N bool grid of 4-stud world cells where nothing new is built: village terrain
-    (terrain_studio.json, within half an 8-stud step of the cell centre) grown by `widen` cells in all eight directions,
-    plus each Keep Rect (the Adit hill) as it is. The growth clears the 417 village Ground parts Task 1's survey found
-    just outside the old mask (all within one cell of it). Shared by plan() and check_survey.py's infill_runs()."""
+def ground_footprint(path=SURVEY):
+    """The village Ground parts' footprint in Ye, measured by survey_ye.lua (GroundFootprint): the set of (i, j) 4-stud
+    world cells whose centre lies inside any World.Map.Ground BasePart's XZ box (world AABB). Raises if it is missing."""
+    with open(path, encoding="utf-8") as f:
+        runs = json.load(f).get("GroundFootprint")
+    if not runs:
+        raise ValueError(f"{path} has no GroundFootprint: re-run Art/Studio/Regions/Lindenmoor/run_survey.py")
+    return {cell_of(x0 + CELL / 2, z + CELL / 2) for x0, z0, z1 in runs for z in range(z0, z1, CELL)}
+
+
+def terrain_mask(layout, village):
+    """The Keep mask before Task 2: an N x N bool grid of village terrain cells (terrain_studio.json, within half an
+    8-stud step of the cell centre) and Keep Rect cells (the Adit hill)."""
     rects = [k["Rect"] for k in layout.get("Keep", []) if "Rect" in k]
-    has = [[False] * N for _ in range(N)]
-    keep = [[False] * N for _ in range(N)]
+    m = [[False] * N for _ in range(N)]
     for i in range(N):
         x = -HALF + CELL * i + CELL / 2
         for j in range(N):
             z = -HALF + CELL * j + CELL / 2
-            has[i][j] = village.has(x, z)
-            keep[i][j] = has[i][j] or any(in_rect(r, x, z) for r in rects)
+            m[i][j] = village.has(x, z) or any(in_rect(r, x, z) for r in rects)
+    return m
+
+
+def keep_mask(layout, village, footprint=None):
+    """The Keep mask, an N x N bool grid of 4-stud world cells where nothing new is built (controller Ruling 14):
+    terrain_mask() plus every cell the village's Ground parts cover in Ye (`footprint`, default ground_footprint()).
+    The footprint adds the cells just outside the terrain mask where Ye's Ground parts reach (Task 1's survey found 417
+    parts centred there) and nothing else, so new ground never lands on old and no blanket ring is left bare.
+    One exception keeps the seam closed: a village terrain cell (not a Keep Rect) that no Ground part covers and that
+    touches a cell outside both the terrain and the footprint is not kept, so new ground fills it at the village's
+    height (8 cells on the village's south edge row, z -982, where Ye's own ground has gaps).
+    Shared by plan() and check_survey.py's infill_runs()."""
+    if footprint is None:
+        footprint = ground_footprint()
+    foot = set(footprint)
+    rects = [k["Rect"] for k in layout.get("Keep", []) if "Rect" in k]
+    base = terrain_mask(layout, village)
+    keep = [[base[i][j] or (i, j) in foot for j in range(N)] for i in range(N)]
+    out = [row[:] for row in keep]
     for i in range(N):
         for j in range(N):
-            if has[i][j]:
-                for a in range(max(0, i - widen), min(N, i + widen + 1)):
-                    for b in range(max(0, j - widen), min(N, j + widen + 1)):
-                        keep[a][b] = True
-    return keep
+            if not keep[i][j] or (i, j) in foot:
+                continue
+            x, z = cell_center(i, j)
+            if any(in_rect(r, x, z) for r in rects):
+                continue
+            if any(not keep[a][b] for a in range(max(0, i - 1), min(N, i + 2)) for b in range(max(0, j - 1), min(N, j + 2))):
+                out[i][j] = False  # bare village edge cell: new ground fills it
+    return out
 
 
 def plan(layout=None, village=None, trees=True):
@@ -319,7 +347,7 @@ def plan(layout=None, village=None, trees=True):
     P = Plan()
     P.layout, P.village = L, V
 
-    # 1. keep mask (existing village ground, widened) and the seam source heights
+    # 1. keep mask (existing village ground and the Ground parts' footprint) and the seam source heights
     keep = keep_mask(L, V)
     vsrc = [[None] * N for _ in range(N)]
     for i in range(N):
@@ -372,7 +400,8 @@ def plan(layout=None, village=None, trees=True):
             y, fl, crag[i][j] = shape_height(L, x, z)
             if not fl and y < WALL_Y:
                 y += noise(x, z) * calm(x, z)
-            if not fl and y < WALL_Y and seamd[i][j] is not None and seamd[i][j] > 0:
+            if not fl and y < WALL_Y and seamd[i][j] is not None and (seamd[i][j] > 0 or not keep[i][j]):
+                # seamd 0 and not kept: a bare village edge cell (keep_mask), built at the village's height
                 y = lerp(seamh[i][j], y, smooth(seamd[i][j] * CELL / SEAM))
             h[i][j], flat[i][j] = y, fl
     P.h0 = [row[:] for row in h]

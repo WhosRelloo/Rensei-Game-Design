@@ -155,10 +155,15 @@ def village():
 
 
 def village_preview():
-    """A stepped (ground.lua style) preview of the village's part ground, from terrain_studio.json. Never exported."""
+    """A stepped (ground.lua style) preview of the village's part ground. Never exported. A Keep cell is drawn only where
+    Ye really has ground: the survey's Ground footprint (heights from terrain_studio.json, or its nearest sample just
+    outside it) or a Keep Rect (the Adit hill, from the field). A Keep cell with neither stays empty, so a render shows
+    any hole at the seam instead of hiding it (Ruling 14)."""
     mats()
     P = plan()
     V = P.village
+    foot = EP.ground_footprint()
+    rects = [k["Rect"] for k in P.layout.get("Keep", []) if "Rect" in k]
     core.SCENE = core.ROOT = VILLAGE
     c = clear("VillageGroundPreview")
     top = [[None] * EP.N for _ in range(EP.N)]
@@ -169,10 +174,10 @@ def village_preview():
             if not P.keep[i][j]:
                 continue
             x, z = EP.cell_center(i, j)
-            if V.has(x, z):
-                top[i][j] = max(1, round(V.height(x, z)))
-                mt[i][j] = chars.get(world.mat_at(x, z - EP.VILLAGE_O[2]), "lm_moss")
-            else:
+            if (i, j) in foot:
+                top[i][j] = max(1, round(V.height(x, z)))  # V.height falls back to the nearest village sample
+                mt[i][j] = chars.get(world.mat_at(x, z - EP.VILLAGE_O[2]), "lm_moss") if V.has(x, z) else "lm_moss"
+            elif any(EP.in_rect(r, x, z) for r in rects):
                 top[i][j] = max(1, round(P.h0[i][j]))  # the Adit hill: not in terrain_studio.json; drawn from the field
                 mt[i][j] = "lm_moss"
     tops, sides = EP.merge_ground(top, mt)

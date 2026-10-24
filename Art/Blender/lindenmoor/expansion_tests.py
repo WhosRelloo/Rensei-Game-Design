@@ -221,31 +221,23 @@ SURVEY = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)
 
 
 def village_ground_checks(P):
-    """Task 2 (Ruling 3): the Keep mask is widened by one cell, so no new ground touches a cell holding a village Ground
-    part (survey_ye.lua's GroundCells: the 4-stud cells holding a World.Map.Ground BasePart's XZ centre in Ye, as
-    column runs [x0, z0, z1], z1 exclusive)."""
+    """Task 2 (controller Ruling 14): Keep = the terrain mask + the village Ground parts' footprint in Ye (survey_ye.lua's
+    GroundFootprint: 4-stud cells whose centre lies inside a World.Map.Ground BasePart's XZ box), so new ground never
+    lands on village ground and the seam has no bare cells. GroundCells = cells holding a part's XZ centre. Both are
+    column runs [x0, z0, z1], z1 exclusive."""
     import json
     N = E.N
-    # the plan and check_survey.py share one keep mask; it covers every cell next to village terrain
     V = P.village
     km = E.keep_mask(P.layout, V) if hasattr(E, "keep_mask") else None
     check("plan() uses expansion_plan.keep_mask", km is not None and km == P.keep)
-    thin = 0
-    for i in range(N):
-        for j in range(N):
-            if P.keep[i][j]:
-                continue
-            x, z = E.cell_center(i, j)
-            if any(V.has(x + E.CELL * a, z + E.CELL * b) for a in (-1, 0, 1) for b in (-1, 0, 1)):
-                thin += 1
-    check("keep mask widened one cell past the village terrain", thin == 0, f"{thin} unkept cells beside village terrain")
     try:
         with open(SURVEY, encoding="utf-8") as f:
-            runs = json.load(f).get("GroundCells")
+            S = json.load(f)
     except (OSError, ValueError):
-        runs = None
-    check("survey has the Ground parts' cells (GroundCells)", bool(runs), SURVEY)
-    held = {E.cell_of(x0 + 2, z + 2) for x0, z0, z1 in (runs or []) for z in range(z0, z1, E.CELL)}
+        S = {}
+    cells = lambda runs: {E.cell_of(x0 + 2, z + 2) for x0, z0, z1 in (runs or []) for z in range(z0, z1, E.CELL)}
+    held, foot = cells(S.get("GroundCells")), cells(S.get("GroundFootprint"))
+    check("survey has the Ground parts' cells and footprint (GroundCells, GroundFootprint)", bool(held) and bool(foot), SURVEY)
     built = set()
     for (i, j, w, d, *_) in P.tops:
         for a in range(w):
@@ -254,6 +246,32 @@ def village_ground_checks(P):
     hit = sorted(held & built)
     check("no new ground on a cell holding a village Ground part", bool(held) and not hit,
           f"{len(hit)} cells, e.g. {[E.cell_center(i, j) for i, j in hit[:4]]}")
+    hit = sorted(foot & built)
+    check("no new ground on a village Ground part's footprint", bool(foot) and not hit,
+          f"{len(hit)} cells, e.g. {[E.cell_center(i, j) for i, j in hit[:4]]}")
+    # every Keep cell is the terrain mask (village terrain or a Keep Rect) or footprint: no blanket ring
+    old = E.terrain_mask(P.layout, V)
+    extra = [(i, j) for i in range(N) for j in range(N) if P.keep[i][j] and not old[i][j] and (i, j) not in foot]
+    check("every Keep cell is the terrain mask or a Ground footprint cell", not extra,
+          f"{len(extra)} cells, e.g. {[E.cell_center(i, j) for i, j in extra[:4]]}")
+    # the seam: along the whole village boundary (cells whose 3 x 3 neighbourhood mixes Keep and new ground), every cell
+    # has village ground (footprint) or new ground. Keep Rect cells (the Adit hill) have their own ground.
+    rects = [k["Rect"] for k in P.layout.get("Keep", []) if "Rect" in k]
+    band = bare = 0
+    eg = []
+    for i in range(1, N - 1):
+        for j in range(1, N - 1):
+            ks = {P.keep[i + a][j + b] for a in (-1, 0, 1) for b in (-1, 0, 1)}
+            if len(ks) < 2:
+                continue
+            band += 1
+            x, z = E.cell_center(i, j)
+            if (i, j) in foot or (i, j) in built or any(E.in_rect(r, x, z) for r in rects):
+                continue
+            bare += 1
+            eg.append((x, z))
+    print(f"seam: {band} boundary cells, {bare} with neither village nor new ground")
+    check("seam: no boundary cell without village or new ground", band > 0 and bare == 0, f"{bare} bare, e.g. {eg[:6]}")
 
 
 def water_checks(P):
