@@ -886,6 +886,44 @@ Roblox's `PathfindingService` plans only around static geometry. It knows nothin
 
 ---
 
+### Task 10b: Ungrippable edges (owner, 2026-10-24)
+
+The owner's choice: "Ungrippable edges". The climb leap (Space+W: `ClimbStep` 8 × the ParkourCost multiplier, +12 studs, 0.5 s cooldown) lets a base player climb about 123 studs from a running jump, and a fully upgraded one about 207. No sensible wall height holds them. So the edges keep their look, but the climb and the wall-run can't grab them. There are still no invisible walls.
+
+**Files:**
+- Modify: `Scripts/ReplicatedStorage/Modules/Managers/JumpManager.lua`, `Scripts/ReplicatedStorage/Modules/Managers/MovementState.lua`, `Scripts/ReplicatedStorage/Modules/Data/Rensei/TuningConfig.lua` (the tag name)
+- Modify: `Art/Blender/region_builder/placement.py`, `stages.py`, `tests/run.py`, `tests/blender_check.py`
+- Test: a new or extended Play suite in `Scripts/ServerStorage/RenseiTests/` (e.g. `Play_NoGrip.lua`)
+
+**Interfaces:**
+- **Produces:**
+  - **The tag `RenseiNoGrip`** (`TuningConfig.Parkour.NoGripTag`, or wherever the parkour tuning lives). A part with this tag, or inside a Model with it, can't be:
+    - grabbed for a climb (`HitObject`, the GrabBuffer grab);
+    - climbed onto by a leap (`FindNextClimb`);
+    - climbed along (the `WallAt` / `WallProbe` probes: the wall ends where the tagged part starts);
+    - wall-run on (`CanWallRun` and the side rays).
+
+    It can still be stood on and collided with. One shared helper, e.g. `JumpManager.Grippable(Instance) -> bool`, is used by every grab path.
+  - **The server.** `MovementState`'s wall-in-reach check (the one that validates a climb or wall run) ignores `RenseiNoGrip` parts. A client that claims a climb on one is refused, as if no wall were there. Its floor checks are unchanged.
+  - **The region builder.** Edge wall blocks carry `rs_tags` `RenseiNoGrip`.
+    - `placement.EDGE_HEIGHT` becomes 80 studs over the ground beside the wall (PROPOSAL, the owner's earlier Lindenmoor figure). That is well over a running jump (about +16 to +19).
+    - `placement.WALL_CLEAR` becomes 26 studs (PROPOSAL). That is beyond a running jump's apex (18–23 studs out), so no roof or crate stack can launch a player over the crest.
+    - The comments state the jump figures they rest on.
+- **Carried:** the Lindenmoor expansion's crag gets `RenseiNoGrip` when it is imported (its own builder, `Art/Blender/lindenmoor/expansion.py`, at import time).
+
+- [ ] **Step 1: Write the failing tests.**
+  - **Play suite:** build a tagged wall and an untagged wall in `workspace.World.Map` for the test. Assert:
+    - `Grippable` is false for the tagged part and its descendants, and true for the untagged one;
+    - the server's climb and wall-run validation refuses the tagged wall and accepts the untagged one.
+  - **If the client can be driven from the test kit** (e.g. the Client datamodel through the bridge): a climb attempt facing the tagged wall doesn't start, and one facing the untagged wall does.
+  - **Region builder:** `run.py` checks the new `EDGE_HEIGHT`/`WALL_CLEAR`; `blender_check` checks that every edge wall block carries `RenseiNoGrip` in its `rs_tags` and its export row.
+- [ ] **Step 2: Run them.** Expected: FAIL.
+- [ ] **Step 3: Implement.** Keep every existing movement behaviour on untagged parts exactly as it is.
+- [ ] **Step 4: Run** the new suite, every existing movement and parkour suite (search `RenseiTests` for JumpManager, Climb, WallRun or LedgeWalk), `Play_Boot`, `run.py` and `blender_check`.
+- [ ] **Step 5: Commit.**
+
+---
+
 ### Task 11: Export and import into any place, with a dry run
 
 **Files:**

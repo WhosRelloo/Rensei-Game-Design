@@ -31,7 +31,7 @@ Every number in this file is a **PROPOSAL** unless it is quoted from the brief o
 
 Unchanged from the world spec:
 - one experience with one save;
-- natural edges, never invisible walls;
+- natural edges, never invisible walls; edge cliffs and walls carry `RenseiNoGrip`, so the climb and the wall-run can't grab them (owner, 2026-10-24: "Ungrippable edges");
 - `StreamingEnabled` in every place;
 - the Lindenmoor pipeline reused for every region;
 - trial rooms move to their regions, and their trainer questlines are re-pointed.
