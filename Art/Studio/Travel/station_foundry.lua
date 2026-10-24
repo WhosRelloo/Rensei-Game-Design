@@ -1,3 +1,5 @@
+-- HISTORICAL, DO NOT RE-RUN: this one-shot place script already ran and documents the live geometry. It is superseded
+-- by Art/Studio/Regions/travel_pieces.lua (built from map markers by Art/Studio/Regions/setup.lua); new work uses only that.
 -- Foundry Yard placeholder (World Plan 1 Task 4, 2026-10-20; station added by Task 6, 2026-10-21): run in the Foundry
 -- Yard place (109591196441030), Edit. Needs ServerStorage.TrainKit (copy it from Ye first; the script stops if missing).
 -- The same World skeleton as Ye (Live, Visuals, Map, EnemySpawns, NPCs), a part ground, a cobbled platform with

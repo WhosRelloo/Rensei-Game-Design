@@ -2,9 +2,12 @@
 -- Region {{REGION_TEXT}} (place {{PLACE_ID}}). Run in Studio Edit after import/chunk_NN.lua have built ServerStorage.RegionStaging.
 -- Set ONE attribute on ServerStorage.RegionStaging first:
 --   * DryRun = true: checks the staging against expected.json (models, parts, groups, tags per group, RegionKit,
---     lights, the texture-pack MaterialVariants and the parts that carry them), then removes the staging folder and
---     every MaterialVariant the chunks made (RegionKitStaged = Region), so the place is left as it was, even when a
---     check throws. Returns "dry run ok: ..." or "dry run FAILED: ...".
+--     lights, the texture-pack MaterialVariants and the parts that carry them, the markers' collision, query and touch
+--     settings), and checks the keep list exactly as the real run will (KEEP names missing from World.Map, or naming the
+--     MapChild, fail; so does a non-empty KEEP checked in a place other than {{PLACE_ID}}), listing the World.Map
+--     children a real run would move and keep. Then it removes the staging folder and every MaterialVariant the
+--     chunks made (RegionKitStaged = Region), so the place is left as it was, even when a check throws. Returns
+--     "dry run ok: ..." or "dry run FAILED: ...".
 --   * Confirm = "<Region>": the real run, only in place {{PLACE_ID}}. With neither, it refuses and changes nothing.
 -- The real run refuses, changing nothing, if: the checks fail; this is another place; today's backup
 -- RenseiBackups["Pre-Region_<Region>_<run date>"] exists; workspace.World.Map is missing; a KEEP name is not a
@@ -15,6 +18,10 @@
 --   and swaps any MaterialVariant it replaces (tracked by instance: a rollback never marks or moves the owner's
 --   variant); snapshots the terrain under each water box (TerrainRegion) and fills it with water; parents
 --   Map.{{MAPCHILD_TEXT}}. Returns a summary naming what was moved and kept. import/restore.lua undoes it.
+-- The real swap is recorded with ChangeHistoryService (TryBeginRecording / FinishRecording) so Studio's Undo can take it
+-- back, when Studio allows a recording here. Run through the Studio bridge (rbxc.py luau), a recording is already open
+-- (the bridge's own "Assistant" waypoint, which Undo also takes back as one step), so TryBeginRecording returns nil
+-- and the summary says "undo: the caller's recording".
 local HS = game:GetService("HttpService")
 local SS = game:GetService("ServerStorage")
 local MS = game:GetService("MaterialService")
@@ -115,8 +122,49 @@ local function Check()
 			table.insert(Bad, ("MaterialVariant %s on %d parts, expected none"):format(V, N))
 		end
 	end
+	-- the markers (export field 14: invisible, Transparency 1): never collide; query and touch only where a tag needs
+	-- it (studio_kit.MARKER_ACCESS), so an area box is no invisible wall for climbs, sight rays or projectiles
+	if EXPECTED.helpers then
+		local H, HQ, HT, HC = 0, 0, 0, 0
+		for _, G in ipairs(Groups()) do
+			for _, D in ipairs(G:GetDescendants()) do
+				if D:IsA("BasePart") and D.Transparency >= 1 then
+					H += 1
+					if D.CanQuery then HQ += 1 end
+					if D.CanTouch then HT += 1 end
+					if D.CanCollide then HC += 1 end
+				end
+			end
+		end
+		local W = EXPECTED.helpers
+		if H ~= W.parts or HQ ~= W.query or HT ~= W.touch or HC ~= 0 then
+			table.insert(Bad, ("markers: %d invisible parts (%d queryable, %d touchable, %d colliding), expected %d (%d, %d, 0)")
+				:format(H, HQ, HT, HC, W.parts, W.query, W.touch))
+		end
+	end
 	return Bad, Models, Parts, Tags
 end
+
+-- the keep list, checked the same way by the dry run and the real run: returns problems, would-move, would-keep
+local function KeepCheck()
+	local Problems, Move, Keep = {}, {}, {}
+	local World = workspace:FindFirstChild("World")
+	local Map = World and World:FindFirstChild("Map")
+	if not Map then return {"no workspace.World.Map"}, Move, Keep, nil end
+	local Missing = {}
+	for _, N in ipairs(KEEP) do
+		if N == MAPCHILD then table.insert(Problems, "KEEP names the MapChild (" .. MAPCHILD .. ")") end
+		if not Map:FindFirstChild(N) then table.insert(Missing, N) end
+	end
+	if #Missing > 0 then table.insert(Problems, "KEEP names not found under World.Map: " .. table.concat(Missing, ", ")) end
+	for _, C in ipairs(Map:GetChildren()) do
+		table.insert(table.find(KEEP, C.Name) and Keep or Move, C.Name)
+	end
+	table.sort(Move)
+	table.sort(Keep)
+	return Problems, Move, Keep, Map
+end
+local function List(L) return #L > 0 and table.concat(L, ", ") or "nothing" end
 
 local function TagText(Tags)
 	local L = {}
@@ -127,6 +175,13 @@ end
 
 if Dry then
 	local Ok, Bad, Models, Parts, Tags = pcall(Check)
+	local KOk, KProblems, KMove, KKeep = pcall(KeepCheck)
+	if not KOk then KProblems, KMove, KKeep = {"the keep check threw: " .. tostring(KProblems)}, {}, {} end
+	if #KEEP > 0 and game.PlaceId ~= PLACE_ID then
+		table.insert(KProblems, ("this kit is for place %d, this is place %d: its keep list can't be checked here"):format(PLACE_ID, game.PlaceId))
+	end
+	local KeepText = ("keep list [%s]: a real run would move %s into the backup, keep %s, and build Map.%s")
+		:format(table.concat(KEEP, ", "), List(KMove), List(KKeep), MAPCHILD)
 	-- always leave the place as it was: the variants this kit made, then the staging folder
 	local Removed, Kept = 0, 0
 	for _, C in ipairs(MS:GetChildren()) do
@@ -145,7 +200,12 @@ if Dry then
 	if not Ok then return "dry run FAILED: the check threw: " .. tostring(Bad) .. " | " .. Tail end
 	local NG = 0
 	for _ in pairs(EXPECTED.groups) do NG += 1 end
-	local Text = ("%s: %d models, %d parts, %d groups; tags %s; %s"):format(REGION, Models, Parts, NG, TagText(Tags), Tail)
+	local H = EXPECTED.helpers
+	local Text = ("%s: %d models, %d parts, %d groups; tags %s; markers %s; walk-through names [%s] kinds [%s]; %s | %s")
+		:format(REGION, Models, Parts, NG, TagText(Tags),
+			H and ("%d (%d queryable, %d touchable)"):format(H.parts, H.query, H.touch) or "?",
+			table.concat(EXPECTED.noCollide or {}, ", "), table.concat(EXPECTED.noCollideKinds or {}, ", "), KeepText, Tail)
+	for _, K in ipairs(KProblems) do table.insert(Bad, K) end
 	if #Bad > 0 then return "dry run FAILED: " .. table.concat(Bad, "; ") .. " | " .. Text end
 	return "dry run ok: " .. Text
 end
@@ -165,17 +225,8 @@ local Backups = SS:FindFirstChild("RenseiBackups")
 if Backups and Backups:FindFirstChild(BNAME) then
 	return "finish refused: RenseiBackups." .. BNAME .. " exists (already swapped today; run restore.lua first); " .. LEFT
 end
-local World = workspace:FindFirstChild("World")
-local Map = World and World:FindFirstChild("Map")
-if not Map then return "finish refused: no workspace.World.Map; " .. LEFT end
-local Missing = {}
-for _, N in ipairs(KEEP) do
-	if N == MAPCHILD then return "finish refused: KEEP names the MapChild (" .. MAPCHILD .. "); " .. LEFT end
-	if not Map:FindFirstChild(N) then table.insert(Missing, N) end
-end
-if #Missing > 0 then
-	return "finish refused: KEEP names not found under World.Map: " .. table.concat(Missing, ", ") .. "; " .. LEFT
-end
+local KProblems, _, _, Map = KeepCheck()
+if #KProblems > 0 then return "finish refused: " .. table.concat(KProblems, "; ") .. "; " .. LEFT end
 
 local Terrain = workspace.Terrain
 local Journal, Stripped, Snaps, Moved, Kept = {}, {}, {}, {}, {}
@@ -286,9 +337,16 @@ local function Swap()
 	Move(Dest, Map)
 end
 
+-- Studio's Undo: record the swap when Studio allows it (nil when a recording is already open, e.g. the bridge's)
+local CHS = game:GetService("ChangeHistoryService")
+local ROk, Rec = pcall(CHS.TryBeginRecording, CHS, "Region import " .. REGION, "finish.lua: " .. REGION .. " into World.Map." .. MAPCHILD)
+local UndoText = (ROk and Rec) and "undo: recorded as one Studio Undo step" or ("undo: the caller's recording (" .. (ROk and "a recording is already open" or tostring(Rec)) .. ")")
+local function EndRecording()
+	if ROk and Rec then pcall(CHS.FinishRecording, CHS, Rec, Enum.FinishRecordingOperation.Commit) end
+end
 local SOk, SErr = pcall(Swap)
 if not SOk then
-	local ROk, RErr = pcall(function()
+	local RbOk, RErr = pcall(function()
 		for I = #Snaps, 1, -1 do
 			local C = Snaps[I]:GetAttribute("Corner")
 			Terrain:PasteRegion(Snaps[I], Vector3int16.new(C.X, C.Y, C.Z), true)
@@ -303,18 +361,20 @@ if not SOk then
 		if MadeBackups and Backups then Backups:Destroy() end
 		if Dest then Dest:Destroy() end
 	end)
-	if not ROk then
+	EndRecording()
+	if not RbOk then
 		return "finish FAILED (" .. tostring(SErr) .. ") AND ITS ROLLBACK FAILED (" .. tostring(RErr)
 			.. "): restore by hand from RenseiBackups." .. BNAME
 	end
 	return "finish FAILED and rolled back: " .. tostring(SErr) .. "; World.Map, MaterialService and terrain are as they were; " .. LEFT
 end
 Stage:Destroy()
+EndRecording()
 local function VarNames()
 	local L = {}
 	for _, V in ipairs(KitVars) do table.insert(L, V.Name) end
 	return #L > 0 and table.concat(L, ", ") or "none"
 end
-return ("finish: %s built into workspace.World.Map.%s (%d models, %d parts; tags %s); moved to RenseiBackups.%s: %s; kept: %s; %d tagged instances stripped; MaterialVariants added %s; %d water boxes filled (terrain snapshots in the backup); undo with import/restore.lua")
+return ("finish: %s built into workspace.World.Map.%s (%d models, %d parts; tags %s); moved to RenseiBackups.%s: %s; kept: %s; %d tagged instances stripped; MaterialVariants added %s; %d water boxes filled (terrain snapshots in the backup); %s; undo with import/restore.lua")
 	:format(REGION, MAPCHILD, Models, Parts, TagText(Tags), BNAME, #Moved > 0 and table.concat(Moved, ", ") or "nothing",
-		#Kept > 0 and table.concat(Kept, ", ") or "nothing", #Stripped, VarNames(), #WATER)
+		#Kept > 0 and table.concat(Kept, ", ") or "nothing", #Stripped, VarNames(), #WATER, UndoText)

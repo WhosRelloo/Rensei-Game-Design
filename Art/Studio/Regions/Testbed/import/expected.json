@@ -50,5 +50,15 @@
  ],
  "variantParts": {
   "RG_Testbed_path": 37
- }
+ },
+ "helpers": {
+  "parts": 4,
+  "query": 0,
+  "touch": 0
+ },
+ "noCollide": [
+  "Glass",
+  "Glow"
+ ],
+ "noCollideKinds": []
 }

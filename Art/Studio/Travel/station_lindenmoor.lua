@@ -1,3 +1,5 @@
+-- HISTORICAL, DO NOT RE-RUN: this one-shot place script already ran and documents the live geometry. It is superseded
+-- by Art/Studio/Regions/travel_pieces.lua (built from map markers by Art/Studio/Regions/setup.lua); new work uses only that.
 -- Lindenmoor station (World Plan 1 Task 6, 2026-10-21): run in Ye (106992859583940), Edit. Re-runnable.
 -- Builds, in World.Map.Lindenmoor.Station (local origin O = (0, 4, -650), the same as the Lindenmoor kit):
 --   * Platform + PlatformEdge extended along the track (the 90-long originals go to the backup folder);

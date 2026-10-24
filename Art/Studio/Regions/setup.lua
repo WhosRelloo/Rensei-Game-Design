@@ -16,6 +16,8 @@
 --     refuse (a forgotten test root must not turn a real run into a test run). Remove both afterwards: their tagged
 --     parts are live CollectionService tags while they exist.
 --   * it reads every RenseiMarker part under the root (outside Travel) and builds the pieces into <root>.Travel.
+--     A marker whose Piece is in SKIP (not a travel piece: e.g. Lindenmoor's TrainerSpot, where a hub trainer is moved
+--     to by hand) is left alone and counted in the summary; any other unknown Piece is refused.
 --   * one per place: TravelService.ArrivalPoint and StationService.TrainOf take the first match, so setup refuses if the
 --     build would add a Platform or RoadStart arrival, or a platform or ride train for a Route, that the place already has
 --     outside the old Travel (a real run scans all of workspace: e.g. the kept Map.Lindenmoor beside
@@ -29,8 +31,9 @@
 --
 -- Markers (Tag RenseiMarker, attribute Piece; region file Markers, see Art/Blender/region_builder/schema.py, which checks
 -- the same rules). A marker's SPOT is the bottom centre of its part (the markers stage stands a 2 x 2 x 2 part on its
--- At); its FACING is its level LookVector (region file Yaw: 0 = -Z (north), 90 = -X, -90 = +X). Coordinates in
--- attributes are region coordinates (+ ORIGIN = world). Unknown attributes are refused. Every derived number below
+-- At); its FACING is its level LookVector (region file Yaw: 0 = -Z, 90 = -X, -90 = +X; in Ye +Z is north, so Yaw 0
+-- faces south there). Coordinates in attributes are the file's own frame (+ ORIGIN = world). Unknown attributes are
+-- refused. Every derived number below
 -- comes from Foundry's build (station_foundry.lua) and is a PROPOSAL. The ground under a Gate, Railing or FreightYard
 -- is taken as flat at its marker's height (no raycasts: the build is unparented).
 --   Station      Route, TrackX, RailTop, NoseZ, PlatformSide (must be 1: the trains' baggage door and StowZone face -X,
@@ -61,7 +64,14 @@
 -- A piece that needs a station takes the Station whose Route equals its own Route attribute, else the nearest one.
 local REGION = "Foundry" -- the region id (the summary)
 local MAP_CHILD = nil -- the World.Map child to read and build (Task 11's MapChild); nil = REGION
-local ORIGIN = Vector3.zero -- finish.lua's ORIGIN: region coordinates + ORIGIN = world (region exports use (0, 0, 0))
+-- ORIGIN is added to every coordinate held in a marker ATTRIBUTE (Legs, RoadY, FloorY, Skip, Clip, Runs, WallTop,
+-- TrackX, RailTop, NoseZ); the marker parts themselves are already in world space. Use (0, 0, 0) whenever those
+-- attributes are written in world studs: every region_builder region (exported with origin (0, 0, 0)) and
+-- Lindenmoor's expansion (its region file is in world studs: its RoadPassage Legs start at the marker's own At). It is
+-- non-zero only when the attributes are in region coordinates that the export moved, e.g. a test import moved by
+-- kit.py --offset (then ORIGIN = that offset). Not the same as finish.lua's ORIGIN (the export's origin, added to the
+-- water boxes). bundle_setup.py setup --origin x,y,z sets it in the bundle without editing this file.
+local ORIGIN = Vector3.zero
 local KIT_NAME = "TrainKit" -- ServerStorage.<KIT_NAME>: the train kit
 local RIDE_OFFSET = Vector3.new(0, 400, -1600) -- PROPOSAL: the ride train from the platform train's pivot (well clear)
 
@@ -102,6 +112,9 @@ local Travel0 = Root:FindFirstChild("Travel")
 
 -- ===== the markers =====
 local PIECES = {"Station", "Clerk", "Board", "Gate", "Railing", "FreightYard", "RoadPassage"} -- build order
+-- markers that are not travel pieces: left alone (and listed in the summary). schema.py's NON_TRAVEL_PIECES is the
+-- same list. TrainerSpot: Lindenmoor's five spots in the training field, where the hub's trainers are moved to by hand.
+local SKIP = {TrainerSpot = true}
 -- kinds: string (non-empty), number, integer, boolean, list / object (a STRING holding a JSON list / object)
 local NEED = {
 	Station = {Route = "string", TrackX = "number", RailTop = "number", NoseZ = "number", PlatformSide = "number"},
@@ -161,15 +174,25 @@ local function roadLength(Legs)
 	return Len
 end
 
-local ByPiece, Errors, Warnings, Count = {}, {}, {}, 0
+local ByPiece, Errors, Warnings, Count, Skipped = {}, {}, {}, 0, {}
 for _, P in ipairs(PIECES) do ByPiece[P] = {} end
+local function skipText()
+	local L = {}
+	for P, N in pairs(Skipped) do table.insert(L, P .. " " .. N) end
+	table.sort(L)
+	return #L > 0 and ("; skipped (not travel pieces): " .. table.concat(L, ", ")) or ""
+end
 for _, D in ipairs(Root:GetDescendants()) do
 	if D:IsA("BasePart") and CS:HasTag(D, "RenseiMarker") and not (Travel0 and D:IsDescendantOf(Travel0)) then
 		local Piece = D:GetAttribute("Piece")
 		local W = D:GetFullName()
 		local function err(Msg) table.insert(Errors, W .. ": " .. Msg) end
-		if not NEED[Piece] then
-			err("Piece must be one of " .. table.concat(PIECES, ", ") .. ", got " .. tostring(Piece))
+		if type(Piece) == "string" and SKIP[Piece] then
+			Skipped[Piece] = (Skipped[Piece] or 0) + 1
+		elseif not NEED[Piece] then
+			local Known = table.clone(PIECES)
+			for P in pairs(SKIP) do table.insert(Known, P .. " (skipped)") end
+			err("Piece must be one of " .. table.concat(Known, ", ") .. ", got " .. tostring(Piece))
 		else
 			local A = {}
 			local Need, Opt = NEED[Piece], OPTIONAL[Piece] or {}
@@ -348,7 +371,7 @@ end
 if #Errors > 0 then
 	return "setup refused (" .. #Errors .. " problem(s)); nothing changed:\n  " .. table.concat(Errors, "\n  ")
 end
-if Count == 0 then return "setup: no RenseiMarker parts under " .. Root:GetFullName() .. "; nothing changed" end
+if Count == 0 then return "setup: no travel RenseiMarker parts under " .. Root:GetFullName() .. "; nothing changed" .. skipText() end
 
 -- ===== build (into an unparented Travel) =====
 local Travel = Instance.new("Model")
@@ -514,8 +537,8 @@ for T, N in pairs(Tags) do table.insert(TagList, T .. " " .. N) end
 table.sort(TagList)
 local PieceList = {}
 for _, P in ipairs(PIECES) do if #ByPiece[P] > 0 then table.insert(PieceList, P .. " " .. #ByPiece[P]) end end
-return ("setup ok (%s): %s.Travel from %d markers (%s), %d parts; stations %s; roads: %s; tags: %s; replaced old Travel: %s; backup: %s%s"):format(
+return ("setup ok (%s): %s.Travel from %d markers (%s), %d parts; stations %s; roads: %s; tags: %s; replaced old Travel: %s; backup: %s%s%s"):format(
 	Testing and "test root" or "Map." .. Child, Root:GetFullName(), Count, table.concat(PieceList, ", "), Parts,
 	#Info.Stations > 0 and table.concat(Info.Stations, ", ") or "none", #Info.Roads > 0 and table.concat(Info.Roads, "; ") or "none",
-	table.concat(TagList, ", "), Old and "yes" or "no", Backup,
+	table.concat(TagList, ", "), Old and "yes" or "no", Backup, skipText(),
 	#Warnings > 0 and ("\n  WARNING " .. table.concat(Warnings, "\n  WARNING ")) or "")

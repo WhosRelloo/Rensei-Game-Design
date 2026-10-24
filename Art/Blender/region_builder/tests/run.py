@@ -333,6 +333,56 @@ def test_travel_markers(schema, raw):
     r, m, msgs = raises_schema(schema, with_second(lambda ms: station2(ms, "LindenmoorFoundry", False)), "two Station markers")
     check("two Stations for one Route raise", r and m, msgs)
 
+    # final review I2: non-travel pieces (Lindenmoor's TrainerSpot) load and are checked; unknown pieces still raise
+    check("NON_TRAVEL_PIECES is setup.lua's SKIP list (TrainerSpot)", set(schema.NON_TRAVEL_PIECES) == {"TrainerSpot"}
+          and not set(schema.NON_TRAVEL_PIECES) & set(schema.TRAVEL_PIECES))
+    spot = {"Tag": "RenseiMarker", "At": [-30, 0, -40], "Yaw": 0,
+            "Attr": {"Piece": "TrainerSpot", "Trainer": "Calda", "Element": "Flame", "Note": "x"}}
+    data = copy.deepcopy(raw)
+    data["Markers"] += [copy.deepcopy(spot), dict(copy.deepcopy(spot), Attr={"Piece": "TrainerSpot", "Trainer": "Holt"})]
+    r, m, msgs = raises_schema(schema, data, "TrainerSpot")
+    check("TrainerSpot markers (Lindenmoor's attributes) load", not r, msgs)
+    for name, attr, needle in (("a TrainerSpot without Trainer raises", {"Piece": "TrainerSpot"}, "missing Attr.Trainer"),
+                               ("a TrainerSpot with a misspelt Attr raises", {"Piece": "TrainerSpot", "Trainer": "Calda",
+                                                                              "Elemnt": "Flame"}, "unknown Attr.Elemnt"),
+                               ("an unknown Piece still raises (names the skipped ones)", {"Piece": "TrainerSpots"},
+                                "or a non-travel piece setup.lua skips: TrainerSpot")):
+        data = copy.deepcopy(raw)
+        data["Markers"].append(dict(copy.deepcopy(spot), Attr=attr))
+        r, m, msgs = raises_schema(schema, data, needle)
+        check(name, r and m, msgs)
+    lind = json.load(open(os.path.join(REPO, "Art", "Regions", "Lindenmoor", "layout.json"), encoding="utf-8"))
+    lind_markers = [mk for mk in lind["Markers"] if mk.get("Tag") == "RenseiMarker"]
+    probs = []
+    for mk in lind_markers:
+        c = schema._Checker()
+        schema._travel_marker(c, "Lindenmoor marker", mk, mk.get("Attr", {}))
+        probs += c.errs
+    check("every Lindenmoor RenseiMarker passes the marker check (RoadPassage + 5 TrainerSpots)",
+          not probs and sorted(mk["Attr"]["Piece"] for mk in lind_markers) == ["RoadPassage"] + ["TrainerSpot"] * 5, probs)
+    setup_src = open(os.path.join(REPO, "Art", "Studio", "Regions", "setup.lua"), encoding="utf-8").read()
+    check("setup.lua's SKIP list equals NON_TRAVEL_PIECES", "local SKIP = {TrainerSpot = true}" in setup_src
+          and set(schema.NON_TRAVEL_PIECES) == {"TrainerSpot"})
+    # final review I1: Lindenmoor's marker attributes are world studs (setup.lua ORIGIN (0, 0, 0)): the RoadPassage's
+    # first leg point is its marker's own At
+    rp = next(mk for mk in lind_markers if mk["Attr"]["Piece"] == "RoadPassage")
+    leg0 = json.loads(rp["Attr"]["Legs"])[0]
+    check("Lindenmoor's RoadPassage Legs start at its marker's At (world frame: setup ORIGIN = 0)",
+          leg0[0] == "line" and [leg0[1], leg0[2]] == [rp["At"][0], rp["At"][2]], (leg0, rp["At"]))
+
+    # final review I4: per-region walk-through lists
+    for key in ("NoCollide", "NoCollideKinds"):
+        data = copy.deepcopy(raw)
+        data[key] = ["Tuft", "Crop"]
+        r, m, msgs = raises_schema(schema, data, key)
+        check(f"{key} (a list of names) loads", not r, msgs)
+        data[key] = ["Tuft", ""]
+        r, m, msgs = raises_schema(schema, data, key)
+        check(f"{key} with an empty name raises", r and m, msgs)
+        data[key] = "Tuft"
+        r, m, msgs = raises_schema(schema, data, key)
+        check(f"{key} as a string raises", r and m, msgs)
+
 
 # ------------------------------------------------------------------ heightfield
 def test_heightfield(L):

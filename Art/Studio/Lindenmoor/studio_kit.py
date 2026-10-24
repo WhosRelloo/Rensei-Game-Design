@@ -7,7 +7,8 @@ Then run import/finish.lua (hand-written): backup, swap into Workspace.World.Map
 
 Materials are Roblox built-ins (Plaster, ClayRoofTiles, RoofShingles, WoodPlanks, Cobblestone, LeafyGrass, ...) with
 a colour each; the names stay the Blender material names so MaterialVariants can be layered on later.
-Part rows may carry field 14 (1 = invisible helper: Transparency 1, CanCollide off, CanQuery/CanTouch on), field 15
+Part rows may carry field 14 (1 = invisible helper: Transparency 1, CanCollide off, CanQuery/CanTouch on; in a region
+run a marker, with CanQuery/CanTouch off too except MARKER_ACCESS's per-tag exceptions), field 15
 (a JSON string of attributes; "" = none) and field 16 (comma-separated CollectionService tags, each trimmed, empty
 ones skipped: split_tags; "" = none; applied only in a region run). Shape 3 is a Seat (box-sized). Art/Studio/Train uses this with the train kit.
 Every colour is a PROPOSAL.
@@ -150,7 +151,8 @@ local NOCOLLIDE_KINDS = HS:JSONDecode([==[{long_json(list(kinds))}]==])
     if region:
         head += (f'-- region {region["name"]} (Art/Studio/Regions/kit.py)\n'
                  'local CS = game:GetService("CollectionService")\n'
-                 f'local REGION = {lua_str(region["name"])}\n')
+                 f'local REGION = {lua_str(region["name"])}\n'
+                 f'local MARKER_ACCESS = HS:JSONDecode([==[{long_json(MARKER_ACCESS, sort_keys=True)}]==])\n')
     return head
 
 
@@ -162,6 +164,46 @@ TAGS_LUA = ('\t\tif type(P[16]) == "string" then -- "" = no tags\n'
             "\t\t\tend\n"
             "\t\tend\n")
 
+# field 14 = 1. Lindenmoor and the train (the command line): an invisible helper the train services touch and query
+# (BoardZone, StowZone, CarDoor: StationService's CarDoor.Touched).
+HELPER_LUA = ("\t\tif P[14] == 1 then -- invisible helper (BoardZone, StowZone, CarDoor, ...)\n"
+              "\t\t\tPart.Transparency, Part.CanCollide, Part.CanQuery, Part.CanTouch, Part.CastShadow = 1, false, true, true, false\n"
+              "\t\tend\n")
+# A region run (final review I3, 2026-10-24): field 14 = 1 is a region marker (the markers stage's invisible cube or
+# box). It gets no collision, no queries and no touches by default: a queryable RenseiArea box (Lindenmoor's North
+# Meadows is 740 x 100 x 1080) is an invisible wall for every ray that crosses a face (climbs and wall runs, which
+# raycast World.Map: JumpManager, MovementState's server WallInReach; NPC sight, PerceptionService; projectiles,
+# AlchemyService). MARKER_ACCESS turns one back on for a tag whose service needs it (read from the services,
+# 2026-10-24; Documents/Region Builder.md "Marker parts"):
+#   RenseiLedge        CanQuery: LedgeWalk.Under raycasts with an Include list of the tagged parts
+#                      (ReplicatedStorage.Modules.Managers.JumpManager.LedgeWalk:75-77); a query-off part is never hit.
+#   RenseiStationGate  CanTouch: StationService's GuardGate wires Gate.Touched (Art/Studio/Travel/src/StationService:427).
+# Every other marker tag is read by position, size or attributes only: RenseiArea (WorldService.AreaAt:36-40,
+# FieldNotesUI, AdminService, CompassService: point-in-box), RenseiPost (TownsfolkService.AddPost:135, StandAt:156),
+# RenseiClue / RenseiInspect (InvestigationService.Attach:85-107: a ProximityPrompt with RequiresLineOfSight = false
+# parented to the part; a prompt needs neither), RenseiTrial (TrialService: a prompt), RenseiEnemySpawn (EnemyService:
+# its CFrame), RenseiArrival (TravelService.ArrivalPoint:38-43: its CFrame), RenseiFreightYard (StationService.YardCheck
+# :478-500: InPart), RenseiRoadPassage / RoadThreshold / RoadEncounter (RoadService: Inside, :131), RenseiMarker
+# (setup.lua: attributes), RenseiTicketClerk (a prompt), RenseiLight (LightService: the light).
+MARKER_ACCESS = {"RenseiLedge": {"CanQuery": True}, "RenseiStationGate": {"CanTouch": True}}
+REGION_HELPER_LUA = ("\t\tif P[14] == 1 then -- a region marker: invisible, no collision, queries or touches (MARKER_ACCESS below)\n"
+                     "\t\t\tPart.Transparency, Part.CanCollide, Part.CanQuery, Part.CanTouch, Part.CastShadow = 1, false, false, false, false\n"
+                     "\t\tend\n")
+ACCESS_LUA = ("\t\tif P[14] == 1 then -- per-tag exceptions: only where a service needs a touch or a query\n"
+              "\t\t\tfor _, T in ipairs(CS:GetTags(Part)) do\n"
+              "\t\t\t\tlocal E = MARKER_ACCESS[T]\n"
+              "\t\t\t\tif E and E.CanQuery then Part.CanQuery = true end\n"
+              "\t\t\t\tif E and E.CanTouch then Part.CanTouch = true end\n"
+              "\t\t\tend\n"
+              "\t\tend\n")
+
+
+def helper_access(row):
+    """(CanQuery, CanTouch) of a field 14 = 1 row in a region run: off unless a tag's MARKER_ACCESS turns one on."""
+    tags = split_tags(row[15] if len(row) > 15 else "")
+    return (any(MARKER_ACCESS.get(t, {}).get("CanQuery") for t in tags),
+            any(MARKER_ACCESS.get(t, {}).get("CanTouch") for t in tags))
+
 
 def body_lua(region=None, prelude=""):
     """LUA_BODY with its slots filled: Lindenmoor's own text by default, the region pieces for a region run.
@@ -169,9 +211,10 @@ def body_lua(region=None, prelude=""):
     if region:
         fill = {"@STAGE@": "RegionStaging", "@KITATTR@": '"RegionKit", REGION',
                 "@VARIANT@": "\t\tif M[4] then Part.MaterialVariant = M[4] end -- a texture-pack MaterialVariant\n",
-                "@TAGS@": TAGS_LUA}
+                "@TAGS@": TAGS_LUA, "@HELPER@": REGION_HELPER_LUA, "@ACCESS@": ACCESS_LUA}
     else:
-        fill = {"@STAGE@": "LindenmoorStaging", "@KITATTR@": '"LindenmoorKit", PF.k', "@VARIANT@": "", "@TAGS@": ""}
+        fill = {"@STAGE@": "LindenmoorStaging", "@KITATTR@": '"LindenmoorKit", PF.k', "@VARIANT@": "", "@TAGS@": "",
+                "@HELPER@": HELPER_LUA, "@ACCESS@": ""}
     fill["@PRELUDE@"] = prelude
     s = LUA_BODY
     for k, v in fill.items():
@@ -264,15 +307,12 @@ for I, PF in ipairs(DATA) do
 		Part.TopSurface, Part.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
 		Part.CanCollide = Collides(PF.k, P[1])
 		Part.CastShadow = Part.Size.X * Part.Size.Y * Part.Size.Z > 1.5
-		if P[14] == 1 then -- invisible helper (BoardZone, StowZone, CarDoor, ...)
-			Part.Transparency, Part.CanCollide, Part.CanQuery, Part.CanTouch, Part.CastShadow = 1, false, true, true, false
-		end
-		if type(P[15]) == "string" and P[15] ~= "" then -- "" = no attributes (export rows keep fields 14-16 together)
+@HELPER@		if type(P[15]) == "string" and P[15] ~= "" then -- "" = no attributes (export rows keep fields 14-16 together)
 			for K, V in pairs(HS:JSONDecode(P[15])) do
 				Part:SetAttribute(K, V)
 			end
 		end
-@TAGS@		if Part:GetAttribute("Emit") == "Steam" then Steam(Part) end -- the locomotive's chimney
+@TAGS@@ACCESS@		if Part:GetAttribute("Emit") == "Steam" then Steam(Part) end -- the locomotive's chimney
 		Part.Parent = Model
 		table.insert(List, Part)
 		Parts += 1
@@ -489,9 +529,15 @@ def main(folder=HERE, region=None):
     if region:
         gparts, tags, tag_groups = {}, {}, {}
         vparts = {v["Name"]: 0 for v in variants}
+        helpers = {"parts": 0, "query": 0, "touch": 0}  # field 14 = 1: the region's markers (finish.lua checks them)
         for pf in pre:
             gparts[pf["g"]] = gparts.get(pf["g"], 0) + len(pf["p"])
             for p in pf["p"]:
+                if len(p) > 13 and p[13] == 1:
+                    q, t = helper_access(p)
+                    helpers["parts"] += 1
+                    helpers["query"] += 1 if q else 0
+                    helpers["touch"] += 1 if t else 0
                 var = table[data["mats"][p[2]]][3]
                 if var:
                     vparts[var] += 1
@@ -500,7 +546,9 @@ def main(folder=HERE, region=None):
                     tg = tag_groups.setdefault(t, {})
                     tg[pf["g"]] = tg.get(pf["g"], 0) + 1
         expected.update({"region": region["name"], "groupParts": gparts, "tags": tags, "tagsByGroup": tag_groups,
-                         "lights": sum(len(p["l"]) for p in pre), "variants": [v["Name"] for v in variants], "variantParts": vparts})
+                         "lights": sum(len(p["l"]) for p in pre), "variants": [v["Name"] for v in variants], "variantParts": vparts,
+                         "helpers": helpers, "noCollide": list(region["no_collide"]),
+                         "noCollideKinds": list(region.get("no_collide_kinds", ()))})
     json.dump(expected, open(os.path.join(imp, "expected.json"), "w"), indent=1)
     # kit (Lindenmoor and the train only: a region's pieces live in its Blender scene)
     files = 0

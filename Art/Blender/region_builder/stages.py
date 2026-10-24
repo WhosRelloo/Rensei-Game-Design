@@ -3,7 +3,8 @@ clusters and street lamps), edges, markers, lighting and renders. The style-kit 
 (railtown) with pure-geometry planners (plan_buildings, plan_props, plan_edges) and settle each prefab on the stepped
 ground (a footing down to the lowest ground under it, stoop steps to the street).
 
-Frame: 1 Blender unit = 1 stud. A region point (x east, y up, z south) is Blender (x, z, y), so export.py's mapping
+Frame: 1 Blender unit = 1 stud. A region point (+X, y up, +Z: Roblox's axes; compass words differ by place, and in Ye
++Z is north) is Blender (x, z, y), so export.py's mapping
 (Blender (x, y, z) -> Roblox (X = x, Y = z, Z = y)) puts it back where the region file says. That frame is a mirror
 image of Roblox's, so perspective renders are flipped left-right to show the place as Studio will (as
 lindenmoor/expansion.py does). A Roblox yaw (degrees about +Y) is a Blender rotation of -yaw about z.
@@ -131,7 +132,7 @@ def _ramp(root, n, grid, layout, i, k, bottom, mat, side):
     gx = ((b + d) - (a + c)) / (2 * cell)
     gz = ((c + d) - (a + b)) / (2 * cell)
     mid = (a + b + c + d) / 4
-    right = Vector((1, gx, 0)).normalized()  # Roblox axes (X east, Y up, Z south)
+    right = Vector((1, gx, 0)).normalized()  # Roblox axes (X, Y up, Z)
     up = Vector((0, gz, 1)).cross(Vector((1, gx, 0))).normalized()
     if up.y < 0:
         up = -up
@@ -783,7 +784,7 @@ def lighting(layout):
     sun.color = srgb("ffeedd")
     sun.angle = math.radians(3)
     o = bpy.data.objects.new(sun.name, sun)
-    # shining toward the south-south-east, so the north and west faces the cameras look at are lit
+    # shining toward +Z, a little toward +X, so the -Z and -X faces the cameras look at are lit
     o.rotation_euler = (math.radians(50), 0, math.radians(-30))
     c.objects.link(o)
     _engine(s)
@@ -831,11 +832,11 @@ def shots(layout, grid):
     """{name: (eye (x, y, z), target (x, y, z), lens)}: the aerial, then a street view per district and landmark.
     A district with a frontage (frontages()) is shot from out in front of its longest one, looking back at the building
     fronts. Otherwise (and for landmarks) the shot is taken from the nearest public, road or quiet route (or 40 studs
-    south when none is within 120 studs)."""
+    toward +Z when none is within 120 studs)."""
     fw, fd = layout["Footprint"]
     span = max(fw, fd)
     hw, hd = fw / 2 - 1, fd / 2 - 1
-    # the aerial looks in over the north edge wall: high enough that the sight line to the middle clears the wall's
+    # the aerial looks in over the -Z edge wall: high enough that the sight line to the middle clears the wall's
     # crest (EDGE_HEIGHT over the highest ground, plus 20 studs), and never lower than 0.62 x the span
     ex, ez, tz = -0.42 * fw, -0.78 * fd, 0.05 * fd
     f = (-fd / 2 + EDGE_BAND - ez) / (tz - ez)  # how far along the sight line the wall's inner edge is

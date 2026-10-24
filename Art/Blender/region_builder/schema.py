@@ -1,7 +1,10 @@
 """The region file, Art/Regions/<Region>/layout.json (spec 2026-10-23 §3.1).
 
-Coordinates are studs with the origin at the footprint's centre: x = east, z = south. A point is [x, z]; a marker's
-At is [x, y, z], where y = 0 means "on the ground" (the builder snaps it). A Rect is [x0, z0, x1, z1].
+Coordinates are studs in Roblox's axes (the export puts a point back exactly where the file says), with the origin at
+the footprint's centre: +X, +Z and y up. Compass words depend on the place: in Ye +Z is north (Lindenmoor's file and
+the expansion: x east, z north); the region-builds spec read Foundry's drawings with +Z as south. Prefer +X / -Z in
+notes. A point is [x, z]; a marker's At is [x, y, z], where y = 0 means "on the ground" (the builder snaps it). A Rect
+is [x0, z0, x1, z1].
 
 load(path) returns the parsed dict, with optional fields filled in (box Edge 0, Yaw 0, Attr {}), or raises
 SchemaError(messages) listing every problem found. No bpy; standard library only."""
@@ -45,9 +48,10 @@ MARKER_ATTRS = {
     "RenseiMarker": ("Piece",),
 }
 # RenseiMarker (Task 12): Art/Studio/Regions/setup.lua builds one travel piece per marker, at its spot (the marker's At;
-# y = 0 is the ground) facing its Yaw (0 = -Z, 90 = -X, -90 = +X). Attr.Piece names the piece; these are each piece's
-# Attr ("str" a non-empty string, "num" a number, "int" a whole number, "bool", "json" a STRING holding JSON, since
-# Roblox attributes can't hold lists). Coordinates in Attr are region coordinates. setup.lua's header has the details.
+# y = 0 is the ground) facing its Yaw (0 = -Z, 90 = -X, -90 = +X; in Ye, Yaw 0 faces south). Attr.Piece names the
+# piece; these are each piece's Attr ("str" a non-empty string, "num" a number, "int" a whole number, "bool", "json" a
+# STRING holding JSON, since Roblox attributes can't hold lists). Coordinates in Attr are in the file's frame (setup.lua
+# adds its ORIGIN, (0, 0, 0) for a region exported with origin (0, 0, 0)). setup.lua's header has the details.
 TRAVEL_PIECES = {
     "Station": {"Route": "str", "TrackX": "num", "RailTop": "num", "NoseZ": "num", "PlatformSide": "num"},
     "Clerk": {"Station": "str"},
@@ -65,6 +69,11 @@ TRAVEL_OPTIONAL = {
     "RoadPassage": {"Arrival": "bool", "Name": "str", "FloorY": "num", "Cut": "num", "High": "num", "Gate": "num", "Fence": "json",
                     "Skip": "json", "Clip": "json"},
 }
+# RenseiMarker pieces that are not travel pieces (final review I2): setup.lua leaves them alone and lists them in its
+# summary (its SKIP is the same list); here each one's Attr is still checked. TrainerSpot: where a hub trainer is moved
+# to by hand (Lindenmoor's training field; Trainer and Element name them).
+NON_TRAVEL_PIECES = {"TrainerSpot": {"Trainer": "str"}}
+NON_TRAVEL_OPTIONAL = {"TrainerSpot": {"Element": "str", "Note": "str"}}
 CLIP_KEYS = ("MinX", "MaxX", "MinZ", "MaxZ")
 MAX_BUDGET = 90000  # the world spec's ceiling for any region (spec §3.6)
 # the tallest a district's buildings may be: the kit's part counts are checked at this cap (<= about 150 parts per
@@ -79,7 +88,9 @@ TOP_KEYS = ("Region", "PlaceId", "Footprint", "Palette", "Heights", "Districts",
 #   KeepMapChildren: names of workspace.World.Map children the real run leaves in place (absent = keep nothing);
 #   MapChild: the World.Map child the import builds (absent = the Region name), e.g. "LindenmoorExpansion" beside
 #   the kept village Map.Lindenmoor. (Lindenmoor's own "Keep", a list of area objects, is a different thing.)
-OPTIONAL_KEYS = ("KeepMapChildren", "MapChild")
+#   NoCollide / NoCollideKinds: the walk-through lists of the import (part-name substrings / prefab kinds; final review
+#   I4); absent = kit.py's default for the region (("Glass", "Glow") and no kinds for a region_builder region).
+OPTIONAL_KEYS = ("KeepMapChildren", "MapChild", "NoCollide", "NoCollideKinds")
 
 
 class SchemaError(Exception):
@@ -203,11 +214,15 @@ def _travel_marker(c, w, m, attr):
     piece = attr.get("Piece")
     if piece is None:
         return  # reported as missing Attr.Piece
-    if not (isinstance(piece, str) and piece in TRAVEL_PIECES):
-        c.err(w, f"Attr.Piece must be one of {', '.join(TRAVEL_PIECES)}, got {piece!r}")
+    if not (isinstance(piece, str) and (piece in TRAVEL_PIECES or piece in NON_TRAVEL_PIECES)):
+        c.err(w, f"Attr.Piece must be one of {', '.join(TRAVEL_PIECES)} (or a non-travel piece setup.lua skips: "
+                 f"{', '.join(NON_TRAVEL_PIECES)}), got {piece!r}")
         return
     w = f"{w} {piece}"
-    need, opt = TRAVEL_PIECES[piece], TRAVEL_OPTIONAL.get(piece, {})
+    if piece in NON_TRAVEL_PIECES:
+        need, opt = NON_TRAVEL_PIECES[piece], NON_TRAVEL_OPTIONAL.get(piece, {})
+    else:
+        need, opt = TRAVEL_PIECES[piece], TRAVEL_OPTIONAL.get(piece, {})
     for key, kind in list(need.items()) + list(opt.items()):
         if key not in attr:
             if key in need:
@@ -313,6 +328,9 @@ def validate(data):
         c.err("region", f"KeepMapChildren must be a list of distinct non-empty names (World.Map children), got {keep!r}")
     if isinstance(keep, list) and child in keep:
         c.err("region", f"KeepMapChildren may not name the MapChild ({child!r}): the import builds World.Map.{child}")
+    for k in ("NoCollide", "NoCollideKinds"):
+        if k in data and not (isinstance(data[k], list) and all(_str(v) for v in data[k])):
+            c.err("region", f"{k} must be a list of non-empty names, got {data[k]!r}")
     if "Budget" in data and not (_int(data["Budget"]) and 0 < data["Budget"] <= MAX_BUDGET):
         c.err("region", f"Budget must be an integer in 1..{MAX_BUDGET}, got {data['Budget']!r}")
     pal = data.get("Palette")

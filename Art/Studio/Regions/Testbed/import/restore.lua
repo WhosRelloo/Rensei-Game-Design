@@ -10,6 +10,10 @@
 --   MaterialVariants there too; moves the backed-up Map children back into World.Map and re-adds their tags; puts
 --   back the MaterialVariants the import replaced; pastes back the terrain under the water boxes; then removes the
 --   emptied Pre-Region backup. Kept World.Map children are never touched.
+-- The swap is recorded with ChangeHistoryService so Studio's Undo can take it back, when Studio allows a recording
+-- here (through the Studio bridge a recording is already open, and the bridge's own waypoint covers the run).
+-- It does NOT bring back anything retired by hand before or after the import (in Ye: the old NorthRoad passage and its
+-- RoadStart arrival, the HubRoad strip, the north buffer stop): put those back from their own backups.
 local HS = game:GetService("HttpService")
 local SS = game:GetService("ServerStorage")
 local MS = game:GetService("MaterialService")
@@ -81,6 +85,12 @@ local function Each(Root, F)
 	for _, D in ipairs(Root:GetDescendants()) do F(D) end
 end
 
+local CHS = game:GetService("ChangeHistoryService")
+local ROk, Rec = pcall(CHS.TryBeginRecording, CHS, "Region restore " .. REGION, "restore.lua: " .. REGION .. " back to its backup")
+local UndoText = (ROk and Rec) and "undo: recorded as one Studio Undo step" or ("undo: the caller's recording (" .. (ROk and "a recording is already open" or tostring(Rec)) .. ")")
+local function EndRecording()
+	if ROk and Rec then pcall(CHS.FinishRecording, CHS, Rec, Enum.FinishRecordingOperation.Commit) end
+end
 local Ok, Err = pcall(function()
 	P = Instance.new("Folder")
 	P.Name = PostName
@@ -127,7 +137,7 @@ local Ok, Err = pcall(function()
 	end
 end)
 if not Ok then
-	local ROk, RErr = pcall(function()
+	local UOk, RErr = pcall(function()
 		for I = #Undo, 1, -1 do workspace.Terrain:PasteRegion(Undo[I][1], Undo[I][2], true) end
 		for I = #Journal, 1, -1 do Journal[I][1].Parent = Journal[I][2] end
 		for _, U in ipairs(Unstripped) do
@@ -140,7 +150,8 @@ if not Ok then
 		end
 		if P then P:Destroy() end
 	end)
-	if not ROk then
+	EndRecording()
+	if not UOk then
 		return "restore FAILED (" .. tostring(Err) .. ") AND ITS UNDO FAILED (" .. tostring(RErr) .. "): finish by hand from RenseiBackups."
 			.. B.Name .. " and " .. PostName
 	end
@@ -148,5 +159,6 @@ if not Ok then
 end
 local BName = B.Name
 B:Destroy() -- emptied: its Map children, variants and terrain snapshots have been used
-return ("restore: World.Map.%s (with any edits) moved to RenseiBackups.%s, %d tagged instances stripped (run unstrip.lua on a piece you drag back); back in World.Map: %s; %d tagged instances re-tagged; %d terrain snapshots pasted; backup %s removed")
-	:format(MAPCHILD, PostName, #Stripped, #Back > 0 and table.concat(Back, ", ") or "nothing", #Unstripped, #Undo, BName)
+EndRecording()
+return ("restore: World.Map.%s (with any edits) moved to RenseiBackups.%s, %d tagged instances stripped (run unstrip.lua on a piece you drag back); back in World.Map: %s; %d tagged instances re-tagged; %d terrain snapshots pasted; backup %s removed; %s; pieces retired by hand are not put back by this script")
+	:format(MAPCHILD, PostName, #Stripped, #Back > 0 and table.concat(Back, ", ") or "nothing", #Unstripped, #Undo, BName, UndoText)
