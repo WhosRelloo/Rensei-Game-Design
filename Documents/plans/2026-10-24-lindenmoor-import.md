@@ -234,6 +234,8 @@ if __name__ == "__main__":
 > - Keep `expansion_tests`' flat-and-clear reserved-spot checks passing.
 > - After the rebuild, `check_survey.py` must PASS its pad checks.
 >
+> **(d) A new pad for the test arena** (owner: "Keep it in the map"; Ruling 5). Add a `lindenmoor.reserve` landmark `res_test_arena` in North Meadows near the practice yard, clear of routes, the training field and the ridge marker, with radius about 122 (PROPOSAL: `arrange()` radius + 6). The practice yard pad keeps `LedgeCourse` only.
+>
 > **The rebuild.** Re-run every stage the pad change affects: ground, fields, trees, landmarks and markers. Re-render the aerial view and the views that show a changed pad. The owner sees that seven clearings grew slightly; send them the aerial. Keep the part count at or under 42,000.
 
 **Files:**
@@ -389,7 +391,7 @@ if __name__ == "__main__":
 ### Task 5: Reversible Ye prep: retire the old road, move the hub pieces and trainers onto their pads
 
 > **Amendment from Task 1's survey (controller Ruling 4, 2026-10-24).** Pieces are placed **by slot**, not by keeping today's relative layout. `pads.json` comes from `Art/Studio/Regions/Lindenmoor/pad_layout.arrange(...)`: each piece's slot offset from its pad centre, plus each pad's ground height. Each Map child goes to its pad centre plus its slot offset; its lowest point goes to the pad's height.
-> - **Practice yard:** the test arena (both `Wall`s, `Curve`, `Hill`, `Step`, `TrainingGround`) moves as one block that keeps its internal layout. `LedgeCourse` is a second block.
+> - **Practice yard and test arena (owner, 2026-10-24: keep the test arena in the map; Ruling 5):** `res_practice_yard` holds `LedgeCourse` only. A new pad, `res_test_arena` (added by Task 2), holds the test arena (both `Wall`s, `Curve`, `Hill`, `Step`, `TrainingGround`) as one block that keeps its internal layout.
 > - **`AlchemistSpawns` children** move by their own site's offset.
 > - **This supersedes** "the group's XZ centre goes to the pad's (x, z)" below.
 
