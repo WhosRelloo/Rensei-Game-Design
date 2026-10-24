@@ -125,7 +125,7 @@ for I, PF in ipairs(DATA) do
 		if P[14] == 1 then -- invisible helper (BoardZone, StowZone, CarDoor, ...)
 			Part.Transparency, Part.CanCollide, Part.CanQuery, Part.CanTouch, Part.CastShadow = 1, false, true, true, false
 		end
-		if type(P[15]) == "string" then
+		if type(P[15]) == "string" and P[15] ~= "" then -- "" = no attributes (export rows keep fields 14-16 together)
 			for K, V in pairs(HS:JSONDecode(P[15])) do
 				Part:SetAttribute(K, V)
 			end
