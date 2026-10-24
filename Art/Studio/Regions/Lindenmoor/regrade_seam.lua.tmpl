@@ -217,6 +217,7 @@ end
 local function undo(strict)
 	local B = backupFolder(false)
 	if strict and not EX:GetAttribute(FLAG) and not B then error("regrade_seam undo: nothing is applied") end
+	if strict and EX:GetAttribute("LindenmoorSeamPits") then error("regrade_seam undo: undo seam_pits.lua first") end
 	local n = { destroyed = 0, restored = 0, returned = 0 }
 	for _, d in ipairs(EX:GetDescendants()) do
 		if d.Parent and d:GetAttribute(NEWATTR) then

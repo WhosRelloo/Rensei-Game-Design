@@ -89,7 +89,10 @@ def channel_mask(L):
     return beds, banks - beds
 
 
-def compute():
+def compute(he_fix=None, skip_src=frozenset(), own_height=False):
+    """the regrade plan. seam_pits.py (Ruling 27) re-runs it with he_fix (Ye boundary cells raised by a pit fill to a
+    new height), skip_src (cells left out of the edge medians) and own_height (a cell beside the edge starts at its
+    Ye neighbours' own heights, never the median)"""
     L = E.load()
     P = E.plan(L)
     S = json.load(open(SEAM, encoding="utf-8"))
@@ -142,6 +145,8 @@ def compute():
         nb = [(i + a, j + b) for a, b in NB4 if new(i + a, j + b)]
         if nb:
             he = y if y >= -0.05 else 1  # a sunken Ye cell (below the Baseplate's top) gets a fill slab with top 1
+            if he_fix and (i, j) in he_fix:
+                he = he_fix[(i, j)]
             F[(i, j)] = (he, max(abs(top[a][b] - he) for a, b in nb), nb)
     grid = defaultdict(list)
     for f in F:
@@ -152,7 +157,9 @@ def compute():
     # trenches or spikes out into the new ground at every notch)
     def src(c, d0=None):
         hs = [F[g][0] for g in F if abs(g[0] - c[0]) <= 2 and abs(g[1] - c[1]) <= 2
-              and CELL * math.hypot(g[0] - c[0], g[1] - c[1]) <= SRC_R]
+              and CELL * math.hypot(g[0] - c[0], g[1] - c[1]) <= SRC_R and g not in skip_src]
+        if not hs:
+            return F[c][0] if c in F else None
         hs.sort()
         return hs[len(hs) // 2] if len(hs) % 2 else (hs[len(hs) // 2 - 1] + hs[len(hs) // 2]) / 2
     Fsrc = {f: src(f) for f in F}  # the smoothed edge height at each boundary cell
@@ -181,12 +188,14 @@ def compute():
             # smoothed edge height at its nearest boundary cell; skipped where that edge already meets within 1
             adj = [g for g in ((i + a, j + b) for a, b in NB4) if g in F]
             if adj:  # beside the edge: meet its cells (their own heights, or the median where a cell is a Ye step)
-                cand = [F[g][0] for g in adj if abs(F[g][0] - Fsrc[g]) <= UNEVEN] or [Fsrc[g] for g in adj]
+                cand = [F[g][0] for g in adj] if own_height else                     ([F[g][0] for g in adj if abs(F[g][0] - Fsrc[g]) <= UNEVEN] or [Fsrc[g] for g in adj])
                 he = (min(cand) + max(cand)) / 2
             else:
                 close = [g for g in F if abs(g[0] - i) <= 2 and abs(g[1] - j) <= 2
-                         and CELL * math.hypot(g[0] - i, g[1] - j) <= SRC_R]
+                         and CELL * math.hypot(g[0] - i, g[1] - j) <= SRC_R and g not in skip_src]
                 he = src((i, j)) if close else Fsrc[f]
+                if he is None:
+                    he = F[f][0]
             cur = top[i][j]
             if max(F[f][1], abs(cur - he) if d <= CELL else 0) <= JUMP_OK:
                 continue
@@ -195,7 +204,17 @@ def compute():
                 y = max(y, min(cur, BANK_FLOOR))  # a bank keeps the channel's water in: never below BANK_FLOOR
             newtop[i][j] = y
     changed = {(i, j) for (i, j) in near if newtop[i][j] != top[i][j]}
+    old_parts, new_parts = rebuild(P, ye, newtop, changed, P.tops, {(s[0], s[1]): s for s in P.sides})
+    delta = {c: newtop[c[0]][c[1]] - top[c[0]][c[1]] for c in changed}
+    return dict(L=L, P=P, ye=ye, F=F, Fsrc=Fsrc, exc=exc, banks=banks, near=near, newtop=newtop, changed=changed,
+                delta=delta, old_parts=old_parts, new_parts=new_parts)
 
+
+def rebuild(P, ye, newtop, changed, rects, sides):
+    """the parts to replace and to build so the ground shows `newtop` on `changed`: every current rect (`rects`:
+    [(i, j, w, d, y, mat, crag)], `sides`: {(i, j): (i, j, w, d, lo, hi, crag)}) covering a changed cell or 8-touching
+    one is replaced; the cells they covered are greedy-merged again with the new tops"""
+    keep = P.keep
     # parts to replace: every old rect covering a changed cell or 8-touching one
     touch = set()
     for i, j in changed:
@@ -203,11 +222,10 @@ def compute():
             for b in (-1, 0, 1):
                 touch.add((i + a, j + b))
     owner = {}
-    for (i, j, w, d, y, m, c) in P.tops:
+    for (i, j, w, d, y, m, c) in rects:
         for a in range(w):
             for b in range(d):
                 owner[(i + a, j + b)] = (i, j, w, d, y, m, c)
-    sides = {(s[0], s[1]): s for s in P.sides}
     rebuild_rects = {owner[c] for c in touch if c in owner}
     cells = set()
     for (i, j, w, d, y, m, c) in rebuild_rects:
@@ -268,10 +286,7 @@ def compute():
                 os_ = sides.get((o[0], o[1]))
                 t = (o[0], o[1]) if os_ and os_[6] == k[2] else (side_tpl.get(k[2]) or side_tpl.get(not k[2]))
                 new_parts.append(["S", i, j, w, d, lo, y - 1, bool(k[2]), "S", t[0], t[1]])
-
-    delta = {c: newtop[c[0]][c[1]] - top[c[0]][c[1]] for c in changed}
-    return dict(L=L, P=P, ye=ye, F=F, Fsrc=Fsrc, exc=exc, banks=banks, near=near, newtop=newtop, changed=changed, delta=delta,
-                old_parts=old_parts, new_parts=new_parts)
+    return old_parts, new_parts
 
 
 def pair_class(R, f, c):
