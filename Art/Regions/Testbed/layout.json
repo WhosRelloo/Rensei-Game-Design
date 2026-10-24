@@ -1,6 +1,6 @@
 {
   "Region": "Testbed", "PlaceId": 0, "Footprint": [256, 256],
-  "Palette": {"ground_top": "cinder", "ground_side": "slag", "path": "paving", "quiet": "cinder_dark"},
+  "Palette": {"ground_top": "cinder", "ground_side": "slag", "path": {"Key": "paving", "Pack": "Ceiling C"}, "quiet": "cinder_dark"},
   "Heights": [
     {"Kind": "plane", "Y": 4},
     {"Kind": "box", "Rect": [-60, -60, -20, -20], "Y": 10, "Edge": 8},

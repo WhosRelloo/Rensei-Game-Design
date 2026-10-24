@@ -1,0 +1,51 @@
+{
+ "models": 42,
+ "parts": 809,
+ "groups": {
+  "Ground": 16,
+  "Routes": 9,
+  "Buildings": 3,
+  "Landmarks": 1,
+  "Cover": 8,
+  "Edges": 4,
+  "Markers": 1
+ },
+ "region": "Testbed",
+ "groupParts": {
+  "Ground": 396,
+  "Routes": 53,
+  "Buildings": 179,
+  "Landmarks": 73,
+  "Cover": 42,
+  "Edges": 62,
+  "Markers": 4
+ },
+ "tags": {
+  "RenseiLedge": 4,
+  "RenseiNoGrip": 62,
+  "RenseiArea": 1,
+  "RenseiClue": 1,
+  "RenseiPost": 2
+ },
+ "tagsByGroup": {
+  "RenseiLedge": {
+   "Buildings": 4
+  },
+  "RenseiNoGrip": {
+   "Edges": 62
+  },
+  "RenseiArea": {
+   "Markers": 1
+  },
+  "RenseiClue": {
+   "Markers": 1
+  },
+  "RenseiPost": {
+   "Markers": 2
+  }
+ },
+ "lights": 6,
+ "variants": [
+  "RG_Testbed_path"
+ ]
+}

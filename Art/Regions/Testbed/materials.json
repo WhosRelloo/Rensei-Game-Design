@@ -59,6 +59,13 @@
   "Material": "Neon",
   "Transparency": 0
  },
+ "RG_Testbed_path": {
+  "Color": "5c5853",
+  "Material": "Cobblestone",
+  "PackImage": "rbxassetid://3188977793",
+  "StudsPerTile": 8,
+  "Transparency": 0
+ },
  "RG_Testbed_paving": {
   "Color": "5c5853",
   "Material": "Cobblestone",
