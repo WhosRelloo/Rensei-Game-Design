@@ -151,11 +151,60 @@ def main():
             badr.append((lm["Id"], sorted(t for t in tops if t is not None)[:4], kinds, trees_in, fields_in))
     check("reserved spots flat and clear", not badr, badr)
 
+    water_checks(P)
+
     b = E.budget(P)
     check("estimated parts within budget", b["total"] <= b["budget"], b)
     print("budget estimate", b)
     print(f"PASS {len(PASSES)} / FAIL {len(FAILS)}")
     return 1 if FAILS else 0
+
+
+def water_checks(P):
+    """water_convert: channel segments (world) -> kit.py's village-local axis-aligned boxes."""
+    import json
+    from lindenmoor import water_convert as WC
+    ox, oy, oz = 0.0, 4.0, -650.0  # export origin; finish.lua adds it back
+
+    # frame: a world segment along z = -650 lands on village-local z ~ 0, Top/Bed lose the origin's 4
+    fb = WC.convert([dict(Id="t", From=[0, -650], To=[10, -650], Width=4, Top=5.2, Bed=1)])["Boxes"]
+    check("water frame: z near 0", bool(fb) and all(abs(b["Rect"][1]) <= 2.5 and abs(b["Rect"][3]) <= 2.5 for b in fb), fb)
+    check("water frame: Top 1.2, Bed -3", bool(fb) and all(b["Top"] == 1.2 and b["Bed"] == -3 for b in fb), fb)
+
+    segs = [w for w in P.water if "From" in w]
+    allb = WC.convert(segs)["Boxes"]
+
+    def inside(x, z):
+        return any(b["Rect"][0] + ox <= x <= b["Rect"][2] + ox and b["Rect"][1] + oz <= z <= b["Rect"][3] + oz for b in allb)
+
+    for s in segs:
+        (ax, az), (bx, bz) = s["From"], s["To"]
+        miss = [(round(ax + (bx - ax) * t / 49, 1), round(az + (bz - az) * t / 49, 1)) for t in range(50)
+                if not inside(ax + (bx - ax) * t / 49, az + (bz - az) * t / 49)]
+        check(f"water {s['Id']} centreline covered", not miss, miss[:3])
+        # spill: box area vs the segment's exact area. The channel is a capsule (round ends), as the plan carves its bed
+        # (poly_dist <= Width/2) and as the converter fills it, so exact = length x width + pi (width/2)^2; against
+        # length x width alone the caps are 19-87% "spill" on every segment, straight ones too. PROPOSAL tolerance 15%.
+        L = math.hypot(bx - ax, bz - az)
+        exact = L * s["Width"] + math.pi * (s["Width"] / 2) ** 2
+        area = sum((b["Rect"][2] - b["Rect"][0]) * (b["Rect"][3] - b["Rect"][1]) for b in WC.convert([s])["Boxes"])
+        check(f"water {s['Id']} spill <= 15%", area <= 1.15 * exact, f"{area} vs {exact:.0f} ({area / exact:.3f}x)")
+
+    # kit.py's own rule (Art/Studio/Regions/kit.py: x0 < x1, z0 < z1, Bed < Top)
+    bad = [b for b in allb if not (b["Rect"][0] < b["Rect"][2] and b["Rect"][1] < b["Rect"][3] and b["Bed"] < b["Top"])]
+    check("water boxes pass kit.py's rule", bool(allb) and not bad, bad[:2])
+
+    # the committed water.json is the converter's output of the committed water_segments.json
+    reg = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "Regions", "Lindenmoor")
+    try:
+        with open(os.path.join(reg, "water_segments.json"), encoding="utf-8") as f:
+            seg_file = json.load(f)["Boxes"]
+        with open(os.path.join(reg, "water.json"), encoding="utf-8") as f:
+            kit_file = json.load(f)
+        current = kit_file == json.loads(json.dumps(WC.convert(seg_file)))
+    except (OSError, KeyError, ValueError) as e:
+        current = e
+    check("water.json is water_convert's output of water_segments.json", current is True, current)
 
 
 if __name__ == "__main__":

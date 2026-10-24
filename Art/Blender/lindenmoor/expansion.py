@@ -241,7 +241,7 @@ def water():
             o = box(f"Water_{w['Id']}", (w["Width"], L, 0.2), EP.to_blender((ax + bx) / 2, w["Top"] - 0.1, (az + bz) / 2), M["water"], c,
                     rot=(0, 0, face(ax, az, bx, bz)), bevel=0)
         o["rs_skip"] = True
-    with open(os.path.join(REPO, "Art", "Regions", "Lindenmoor", "water.json"), "w", encoding="utf-8") as f:
+    with open(os.path.join(REPO, "Art", "Regions", "Lindenmoor", "water_segments.json"), "w", encoding="utf-8") as f:
         json.dump({"Note": "Terrain water boxes for Ye (world studs; fill from Bed to Top with Enum.Material.Water). PROPOSAL.",
                    "Boxes": P.water}, f, indent=1)
     return len(P.water)
