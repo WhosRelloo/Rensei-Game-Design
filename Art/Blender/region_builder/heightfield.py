@@ -14,6 +14,7 @@ import math
 from dataclasses import dataclass, field
 
 RAMP_SLOPE = 0.6  # corner-height spread (studs) above which a route cell is a ramp, as ground.lua
+CORNER_INSET = 0.01  # studs; PROPOSAL: small enough not to change a slope's spread measurably
 EDGE_DROP = 12  # a column at the grid's edge reaches this far below its top, as ground.lua's missing neighbour
 
 # Route Kind -> ground kind. rail, under and ledge leave the ground as it is: the routes stage builds them
@@ -145,9 +146,12 @@ def columns(grid):
 
 
 def corners(grid, layout, i, k):
-    """The unrounded heights at a cell's 4 corners: (x0 z0, x1 z0, x0 z1, x1 z1), as ground.lua's a, b, c, d."""
-    x0, z0 = grid.origin[0] + i * grid.cell, grid.origin[1] + k * grid.cell
-    x1, z1 = x0 + grid.cell, z0 + grid.cell
+    """The unrounded heights at a cell's 4 corners: (x0 z0, x1 z0, x0 z1, x1 z1), as ground.lua's a, b, c, d.
+    Each corner is sampled CORNER_INSET inside the cell, so a cut or water edge lying on the cell's boundary is a
+    step between columns (shown by their side faces), not a slope across this cell."""
+    e = CORNER_INSET
+    x0, z0 = grid.origin[0] + i * grid.cell + e, grid.origin[1] + k * grid.cell + e
+    x1, z1 = x0 + grid.cell - 2 * e, z0 + grid.cell - 2 * e
     return (height_at(layout, x0, z0), height_at(layout, x1, z0),
             height_at(layout, x0, z1), height_at(layout, x1, z1))
 

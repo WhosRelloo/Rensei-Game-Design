@@ -102,6 +102,13 @@ def test_schema():
     r, m, msgs = raises_schema(schema, bad, "RenseiNoSuchTag")
     check("all problems collected", r and m and len(msgs) >= 2, msgs)
 
+    # the spec's old tag names are rejected: no service reads them
+    for oldname in ("RenseiClerk", "RenseiThreshold", "RenseiEncounter", "RenseiTrialDoor"):
+        bad = copy.deepcopy(raw)
+        bad["Markers"][2]["Tag"] = oldname
+        r, m, msgs = raises_schema(schema, bad, oldname)
+        check(f"old tag {oldname} raises", r and m, msgs)
+
     # a post needs its PostId and a known Kind
     bad = copy.deepcopy(raw)
     bad["Markers"][0]["Attr"]["Kind"] = "Nap"
@@ -224,11 +231,7 @@ def test_ramps(L, G):
     check("ramps are route cells", all(G.kind[i][k] in ("path", "quiet") for i, k in ramps))
     climb = route_cells(G, R["climb"])
     check("climb has a ramp", len(ramps & climb) >= 1, len(ramps & climb))
-    # main is flat at 4 except where the Testbed's cut [40,-40,80,0] sinks its south half (see the Task 8 report):
-    # the cells whose x-span touches the cut are left out of this check.
-    cut = next(h for h in L["Heights"] if h["Kind"] == "cut")["Rect"]
-    main = {(i, k) for i, k in route_cells(G, R["main"])
-            if not (cut[0] <= G.origin[0] + (i + 1) * G.cell and G.origin[0] + i * G.cell <= cut[2])}
+    main = route_cells(G, R["main"])
     check("flat main has no ramps", not (ramps & main), sorted(ramps & main)[:5])
 
 

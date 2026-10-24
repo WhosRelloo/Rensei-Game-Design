@@ -11,27 +11,32 @@ HEIGHT_KINDS = ("plane", "box", "ridge", "cut", "water")
 ROUTE_KINDS = ("public", "quiet", "rail", "under", "ledge", "road")
 POST_KINDS = ("Work", "Seat", "Counter", "Home", "Shelter")
 
-# Tags a marker may carry: spec §3.4, plus the names the game's services actually read where they differ
-# (RenseiTicketClerk, RenseiRoadThreshold, RenseiRoadEncounter, RenseiTrial) and the map-placed gameplay tags
+# Tags a marker may carry: the names the game's services read (spec §3.4), plus the map-placed gameplay tags
 # (RenseiInspect, RenseiMechanism, RenseiPuzzleDoor, RenseiLight). Add a tag here when a region needs one.
 MARKER_TAGS = frozenset((
     # World Plan 1 (travel)
-    "RenseiArrival", "RenseiPlatformTrain", "RenseiClerk", "RenseiTicketClerk", "RenseiDepartureBoard",
-    "RenseiStationGate", "RenseiFreightYard", "RenseiWatcher", "RenseiRoadPassage", "RenseiThreshold",
-    "RenseiRoadThreshold", "RenseiEncounter", "RenseiRoadEncounter",
+    "RenseiArrival", "RenseiPlatformTrain", "RenseiTicketClerk", "RenseiDepartureBoard", "RenseiStationGate",
+    "RenseiFreightYard", "RenseiWatcher", "RenseiRoadPassage", "RenseiRoadThreshold", "RenseiRoadEncounter",
     # places, movement, enemies
     "RenseiArea", "RenseiLedge", "RenseiEnemySpawn",
     # new for regions
-    "RenseiPost", "RenseiClue", "RenseiTrialDoor", "RenseiTrial",
+    "RenseiPost", "RenseiClue", "RenseiTrial",
     # other map-placed gameplay pieces
     "RenseiInspect", "RenseiMechanism", "RenseiPuzzleDoor", "RenseiLight",
 ))
+# the spec's old names: no service reads them, so a marker carrying one would import and silently do nothing
+OLD_TAGS = {
+    "RenseiClerk": "RenseiTicketClerk",
+    "RenseiThreshold": "RenseiRoadThreshold",
+    "RenseiEncounter": "RenseiRoadEncounter",
+    "RenseiTrialDoor": "RenseiTrial",
+}
 # attributes a tag must carry (spec §3.4; Post Facing comes from the marker's Yaw)
 MARKER_ATTRS = {
     "RenseiPost": ("PostId", "Kind"),
     "RenseiClue": ("ClueId",),
     "RenseiArea": ("AreaName",),
-    "RenseiTrialDoor": ("Trial",),
+    "RenseiTrial": ("TrialId",),
 }
 MAX_BUDGET = 90000  # the world spec's ceiling for any region (spec §3.6)
 
@@ -215,7 +220,9 @@ def validate(data):
     for n, m in c.items(data, "Markers"):
         tag = m.get("Tag")
         w = f"Markers[{n}] {tag}"
-        if tag not in MARKER_TAGS:
+        if tag in OLD_TAGS:
+            c.err(w, f"unknown Tag {tag!r} (an old spec name: the game reads {OLD_TAGS[tag]})")
+        elif tag not in MARKER_TAGS:
             c.err(w, f"unknown Tag {tag!r}")
         has_at, has_box = "At" in m, "Box" in m
         if has_at == has_box:

@@ -5,7 +5,7 @@
     {"Kind": "plane", "Y": 4},
     {"Kind": "box", "Rect": [-60, -60, -20, -20], "Y": 10, "Edge": 8},
     {"Kind": "ridge", "Line": [[-128, 100], [128, 100]], "Width": 24, "Y": 30},
-    {"Kind": "cut", "Rect": [40, -40, 80, 0], "Y": -4},
+    {"Kind": "cut", "Rect": [40, -40, 80, -8], "Y": -4},
     {"Kind": "water", "Rect": [60, 40, 100, 80], "Top": 3, "Bed": -6}
   ],
   "Districts": [{"Id": "row", "Poly": [[-110, -110], [-40, -110], [-40, -40], [-110, -40]], "Style": "railtown.house", "Density": 0.6, "Storeys": [2, 3]}],
