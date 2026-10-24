@@ -975,7 +975,7 @@ The owner's choice: "Ungrippable edges". The climb leap (Space+W: `ClimbStep` 8 
   - **Trains:** a `RenseiPlatformTrain` / `RenseiRideTrain` Model with attrs `Route` and `Length=440`. WorldPivot = nose at rail top, identity rotation; the train runs along −Z of the pivot. Cars are direct child Models.
     - Inside: `CarKind` descendants, `BoardZone*` and `CarDoor*` parts with `CarKind`, and a `StowZone`.
     - The platform must be on the track's +X side (the baggage door and StowZone face −X).
-    - The ride train sits at platform pivot + (0, 400, −1600).
+    - The ride train has identity rotation and stands well clear of the place (PROPOSAL: at least 300 studs above any map part, and clear of every other ride train). StationService only uses the ride-to-platform offset, so no exact position is required (Task 12 review).
   - **Station pieces:**
     - `RenseiTicketClerk` BasePart;
     - `RenseiDepartureBoard` BasePart, with its Front face readable from the hall;
