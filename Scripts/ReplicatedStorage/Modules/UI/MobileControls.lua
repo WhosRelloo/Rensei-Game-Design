@@ -173,7 +173,8 @@ local function KnockedNearby(Character)
 	local Root = Character and Character:FindFirstChild("HumanoidRootPart")
 	if not Root then return false end
 	local Range = (Tuning.Downed and Tuning.Downed.GripRange or 6) + 2
-	for _, M in ipairs(workspace.World.Live:GetChildren()) do
+	-- (townsfolk in World.Live.Townsfolk too: a knocked townsperson shows the Grip button, Task 6b)
+	for _, M in ipairs(require(ReplicatedStorage.Modules.Managers.DownedManager).LiveModels()) do
 		if M ~= Character and M:GetAttribute("Knocked") then
 			local R = M:FindFirstChild("HumanoidRootPart")
 			if R and (R.Position - Root.Position).Magnitude <= Range then return true end

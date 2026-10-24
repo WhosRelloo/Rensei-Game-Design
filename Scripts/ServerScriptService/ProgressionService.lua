@@ -206,6 +206,8 @@ local function TargetMultiplier(Player, Victim)
 	if not Humanoid or Humanoid.MaxHealth == math.huge or Humanoid.MaxHealth > 1e7 then
 		return 0
 	end
+	-- townsfolk train nothing (Region Foundation Task 6b: hurting them pays no reward of any kind)
+	if Victim:GetAttribute("TownsfolkId") then return 0 end
 	local Rule = Training.SameTarget
 	local S = SessionOf(Player)
 	local Now = os.clock()

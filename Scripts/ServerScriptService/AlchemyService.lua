@@ -109,6 +109,8 @@ end
 -- studs of the aim line, in front, within the move's range. Projectile / Thrust moves re-aim at that
 -- enemy's CURRENT centre when they fire (the windup runs after the key is let go, so a target that
 -- moved meanwhile was missed), leading a projectile by the target's ground velocity.
+-- (Only World.Live's direct children: townsfolk, in World.Live.Townsfolk, are never snapped to -- a cast aimed past a
+-- bystander isn't bent onto them -- but a cast that reaches one hits them like anyone else. Task 6b)
 local AIM_SNAP = 4 -- PROPOSAL: studs off the aim line that still count as aimed at someone
 local AIM_HEIGHT = Vector3.new(0, 0.5, 0) -- aim from just above the root (the client aims from here too)
 local function AimedEnemy(Caster, Origin, Dir, Range)
@@ -273,8 +275,7 @@ local function Launch(Caster, Impl, SkillName, Direction)
 		local At = Pos + Direction * Hit.Distance
 		local Victim = nil
 		if Hit.Instance:IsDescendantOf(workspace.World.Live) then
-			Victim = Hit.Instance
-			while Victim.Parent ~= workspace.World.Live do Victim = Victim.Parent end
+			Victim = DownedManager.LiveModel(Hit.Instance) -- (a townsperson in World.Live.Townsfolk too, Task 6b)
 		end
 		local Humanoid = Victim and Victim:FindFirstChildOfClass("Humanoid")
 		if Humanoid and Humanoid.Health > 0 and Victim:FindFirstChild("HumanoidRootPart") then
@@ -295,8 +296,7 @@ local function VictimsNear(Caster, Center, Radius)
 	Params.FilterDescendantsInstances = {workspace.World.Live}
 	local Seen, List = {}, {}
 	for _, Part in ipairs(workspace:GetPartBoundsInRadius(Center, Radius, Params)) do
-		local M = Part
-		while M and M.Parent ~= workspace.World.Live do M = M.Parent end
+		local M = DownedManager.LiveModel(Part) -- (a townsperson in World.Live.Townsfolk too, Task 6b)
 		if M and M ~= Caster and not Seen[M] then
 			Seen[M] = true
 			local H = M:FindFirstChildOfClass("Humanoid")
@@ -824,8 +824,7 @@ Kinds.Thrust = {
 		SteelLanceFX.new(From, End):Start(Players:GetPlayers())
 		local Victim = nil
 		if Hit and Hit.Instance:IsDescendantOf(workspace.World.Live) then
-			Victim = Hit.Instance
-			while Victim.Parent ~= workspace.World.Live do Victim = Victim.Parent end
+			Victim = DownedManager.LiveModel(Hit.Instance) -- (a townsperson in World.Live.Townsfolk too, Task 6b)
 		end
 		local Humanoid = Victim and Victim:FindFirstChildOfClass("Humanoid")
 		if not Humanoid or Humanoid.Health <= 0 or not Victim:FindFirstChild("HumanoidRootPart") then return {} end
@@ -867,8 +866,7 @@ Kinds.Cleave = {
 		Params.FilterDescendantsInstances = {workspace.World.Live}
 		local Seen = {}
 		for _, Part in ipairs(workspace:GetPartBoundsInBox(Box, Vector3.new(Impl.Width, 8, Impl.Length), Params)) do
-			local M = Part
-			while M and M.Parent ~= workspace.World.Live do M = M.Parent end
+			local M = DownedManager.LiveModel(Part) -- (a townsperson in World.Live.Townsfolk too, Task 6b)
 			if M and M ~= Caster and not Seen[M] and M:FindFirstChild("HumanoidRootPart") then
 				Seen[M] = true
 				local H = M:FindFirstChildOfClass("Humanoid")
@@ -987,8 +985,7 @@ Kinds.Wall = {
 		Params.FilterDescendantsInstances = {workspace.World.Live}
 		local Seen, Results = {}, {}
 		for _, Part in ipairs(workspace:GetPartBoundsInBox(CF * CFrame.new(0, Impl.Height / 2, 0), Vector3.new(Impl.Width + 1, Impl.Height, Impl.Thickness + 2.5), Params)) do
-			local M = Part
-			while M and M.Parent ~= workspace.World.Live do M = M.Parent end
+			local M = DownedManager.LiveModel(Part) -- (a townsperson in World.Live.Townsfolk too, Task 6b)
 			if M and M ~= Caster and not Seen[M] and M:FindFirstChild("HumanoidRootPart") then
 				Seen[M] = true
 				local H = M:FindFirstChildOfClass("Humanoid")
@@ -1057,8 +1054,7 @@ Kinds.Fault = {
 					local Elapsed = os.clock() - Start
 					local Reach = math.min(1, Elapsed / Impl.Travel) * Impl.Length
 					for _, Part in ipairs(workspace:GetPartBoundsInBox(Box, Vector3.new(Impl.Width, 16, Impl.Length), Params)) do
-						local M = Part
-						while M and M.Parent ~= workspace.World.Live do M = M.Parent end
+						local M = DownedManager.LiveModel(Part) -- (a townsperson in World.Live.Townsfolk too, Task 6b)
 						if M and M ~= Caster and not Seen[M] and M:FindFirstChild("HumanoidRootPart") then
 							local Rel = M.HumanoidRootPart.Position - From
 							local Along = Rel:Dot(Dir)

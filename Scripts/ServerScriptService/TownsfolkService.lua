@@ -11,9 +11,26 @@
 --     (owner 2026-10-23). An unknown nation is refused, never replaced by a random one.
 --   * Watchers: tagged RenseiWatcher (WatcherType "Witness", Faction, Carrier = false), so PerceptionService registers
 --     them as non-combat witnesses.
---   * Combat: attacks can pick townsfolk (owner 2026-10-23: they will be hittable, with heat, standing and morality).
---     They have no WCS character yet, so DamageManager answers a hit on one with "IFramed" (no damage, no side
---     effects); HeatService still treats a player's hit on a watcher as assault. Task 6b makes them real targets.
+--   * Combat (Task 6b; owner 2026-10-23: "The townsfolk should be hittable and integrate the heat, rep system,
+--     morality, etc."; at 0 health "Knocked, can be finished"): each rig gets a WCS character the way EnemyService
+--     gives its enemies one (WCS.Character.new, default props, BlockManager.Initiate), MaxHealth 100 and no
+--     regeneration (the rig carries no Health script), Knockable, and its own knock length / recovery
+--     (attributes KnockedTime / RecoverHealth, read by DownedManager). Only players hurt them (DamageManager).
+--       - Hit (a landed player hit, ProgressionService.HitListeners, run FIRST so the generic "Hit" sound finds them
+--         already reacting): the walk stops where they stand (Mover.Stop: no steering, facing or re-anchoring while
+--         the combat code owns the body), a Hurt line, state Hurt; once the hit's stun / pin is over they run
+--         (Urgent) to the shelter farthest from the attacker among the ShelterChoices nearest. Every other
+--         townsperson within HelpRadius runs too (HelpChance of them shout a Help line). The assault deed is
+--         HeatService's (a landed hit on a RenseiWatcher).
+--       - Knocked at 0 health (DownedManager, as enemies): state Knocked, can be gripped (B) and carried (V). Left
+--         alone KnockedSeconds, they get up with RecoverShare of their health, say a Hurt line and run for shelter.
+--       - Death (a grip's execution, or anything that kills outright): state Dead. The killer is the last player to
+--         hit, grip or execute them within KillerSeconds: murder_townsfolk, witnessed, in their region. No
+--         defeat rewards of any kind (WorldService and ProgressionService skip a TownsfolkId). The body lies
+--         BodySeconds, then is removed; nothing settles or walks a dead townsperson.
+--       - Newcomers: at the next NewcomerHour (06:00, WorldClock.Changed) every dead townsperson's slot is filled
+--         again: same Id, job, faction, nation, schedule, a new Name (TownsfolkLogic.NewcomerName: none alive in the
+--         region has it) and a new look seed. They greet people as anyone does; the killer's deed stands.
 --   * Idles: the IdleAnim attribute (NpcIdles.server.lua plays it and keeps only the root anchored). At a post the
 --     root is anchored; to walk, IdleAnim is cleared and the root unanchored (NpcIdles only re-anchors while an idle
 --     is playing); on arrival the root is anchored again and the post's idle set.
@@ -24,7 +41,7 @@
 --     PlaceRadius (nobody sees a teleport); otherwise it tries the walk again every RetryDelay seconds.
 --   * Collision: the rigs are in the "Townsfolk" collision group (created if missing), which collides with Default
 --     and with itself: townsfolk don't pass through each other or through players.
---   * States: AtPost, Walking, Asleep, Fleeing, Sheltering.
+--   * States: AtPost, Walking, Asleep (calm), Fleeing, Sheltering, and (Task 6b) Hurt, Knocked, Dead.
 --   * Fights (Task 6): a combat sound (NoiseService.Listen: Hit, Cast, Gunshot) within its radius + FleeMargin of a
 --     townsperson sends them running (Mover Urgent: never gives way, FleeSpeed) to the nearest Shelter post nobody
 --     else has taken (state Fleeing), where they curl up (Sheltering, idle NPC_CurledUp). With no Shelter post, or if
@@ -42,7 +59,8 @@
 --     you ..." - so they are private; greetings, job lines and chatter are public). LastLine(Id) -> Text, Kind, Count;
 --     LastRecipients(Id) -> the players it was fired to, Only (tests).
 --   * Chatter (TownsfolkLogic.Chatter): Pass (a player first comes within PassRadius; once per player per PassEvery),
---     Shift (the schedule moves them on; ShiftChance), Flee (running for shelter), Return (coming back).
+--     Shift (the schedule moves them on; ShiftChance), Flee (running for shelter), Return (coming back), Hurt (hit,
+--     or getting up after a knock) and Help (near someone who was hit).
 local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -77,6 +95,17 @@ TownsfolkService.PassEvery = 300 -- ...at most once per player per townsperson i
 TownsfolkService.ShiftChance = 0.5 -- a remark when the schedule moves them on
 TownsfolkService.TalkRange = 10 -- the Talk prompt's reach
 TownsfolkService.TalkCooldown = 0.5 -- s between one player's Talks (server side: no spamming the rotation)
+-- Task 6b (all PROPOSALS)
+TownsfolkService.MaxHealth = 100
+TownsfolkService.HelpRadius = 30 -- a player hits a townsperson: everyone else this close runs too...
+TownsfolkService.HelpChance = 0.5 -- ...and this share of them shouts a Help line
+TownsfolkService.ShelterChoices = 3 -- a hurt townsperson runs to the shelter farthest from the attacker of this many nearest
+TownsfolkService.HurtMax = 5 -- s: the longest a hurt townsperson waits for the hit's stun / pin to end before it runs
+TownsfolkService.KnockedSeconds = 30 -- knocked at 0 health; left alone this long, they get up...
+TownsfolkService.RecoverShare = 0.3 -- ...with this share of their health, and run for shelter
+TownsfolkService.KillerSeconds = 10 -- the killer: the last player to hit, grip or execute them within this long
+TownsfolkService.BodySeconds = 60 -- a body lies this long, then it's removed
+TownsfolkService.NewcomerHour = 6 -- a dead townsperson's job is taken at the next 06:00
 TownsfolkService.Rng = Random.new()
 
 local POST_TAG = "RenseiPost"
@@ -86,8 +115,11 @@ local LIFT = CFrame.new(0, 3, 0) -- R6 root height above the post
 
 local Posts = {} -- [PostId] = BasePart
 -- [Id] = {Id, Def, Region, Rig, Root, Humanoid, Post, Target, State, Walk (Mover handle), Prompt, Shelter (PostId while
--- fleeing / sheltering), LastNoise (os.clock), Talks ([UserId] = rotation state), PassAt / Close ([UserId])}
+-- fleeing / sheltering), LastNoise (os.clock), Talks ([UserId] = rotation state), PassAt / Close ([UserId]);
+-- Task 6b: WC (WCS character), LastBy ({Player, At}: the last player to hit or grip them), HurtGen (a newer hurt
+-- or knock supersedes the run a hurt one is waiting to make), Dead}
 local Folk = {}
+local Dead = {} -- [Id] = {Def, Region}: killed; a newcomer takes the slot at the next NewcomerHour (Task 6b)
 local LastLines = {} -- [Id] = {Text, Kind, N}
 local Warned = {} -- [key] = true: warn once
 TownsfolkService.Posts = Posts
@@ -134,13 +166,94 @@ local function IdleFor(Def, Post)
 	return TownsfolkLogic.KindIdles[Kind] or Def.Idle or TownsfolkLogic.KindIdles.Home
 end
 
-local function Calm(State) return State ~= "Fleeing" and State ~= "Sheltering" end
+-- going about the day (not running, hiding, hurt, knocked or dead)
+local function Calm(State) return State == "AtPost" or State == "Walking" or State == "Asleep" end
 
 local function SetState(F, State)
 	if F.State == State then return end
 	F.State = State
 	F.Rig:SetAttribute("TownsfolkState", State)
 	if F.Prompt then F.Prompt.Enabled = Calm(State) end -- (no talking while they run or hide)
+end
+
+-- ===== combat (Task 6b) =====
+local Combat -- the combat modules, required on first use
+local function CombatModules()
+	if not Combat then
+		local Modules = ReplicatedStorage.Modules
+		Combat = {
+			WCS = require(Modules.Framework.WCS),
+			BlockManager = require(Modules.Managers.BlockManager),
+			Stun = require(Modules.Skills.States.Stun),
+		}
+	end
+	return Combat
+end
+
+-- a WCS character, as EnemyService gives each enemy (WCS.Character.new, default props, BlockManager.Initiate):
+-- DamageManager needs one to land a hit. WCS refuses characters until its server has started (CharacterHandler's
+-- WCSStarted attribute); until then the townsperson can't be hurt, and Step tries again.
+local function EnsureCombat(F)
+	if F.WC or F.Dead or not F.Rig.Parent then return F.WC end
+	local Handler = ServerScriptService:FindFirstChild("CharacterHandler")
+	if not (Handler and Handler:GetAttribute("WCSStarted")) then return nil end
+	local C = CombatModules()
+	local Ok, WC = pcall(function()
+		return C.WCS.Character.GetCharacterFromInstance(F.Rig) or C.WCS.Character.new(F.Rig)
+	end)
+	if not Ok or not WC then
+		WarnOnce("wcs " .. F.Id, F.Id, "has no combat character:", WC)
+		return nil
+	end
+	-- (WCS puts these back whenever a status effect with humanoid data starts or ends)
+	pcall(function()
+		WC:SetDefaultProps({WalkSpeed = TownsfolkService.WalkSpeed, JumpPower = F.Humanoid.JumpPower,
+			JumpHeight = F.Humanoid.JumpHeight, AutoRotate = true})
+	end)
+	C.BlockManager.Initiate(F.Rig)
+	F.WC = WC
+	return WC
+end
+
+-- knocked, gripped, carried or dead: DownedManager / death own the body
+local function Down(F)
+	local R = F.Rig
+	return F.Dead == true or F.Humanoid.Health <= 0 or R:GetAttribute("Knocked") == true
+		or R:GetAttribute("GrippedBy") ~= nil or R:GetAttribute("CarriedBy") ~= nil
+end
+
+-- free to run: up, not stunned, not slowed or pinned by a hit (MoverManager's Movement), not tripped or ragdolled
+local PINNED = {
+	[Enum.HumanoidStateType.Physics] = true, [Enum.HumanoidStateType.Ragdoll] = true,
+	[Enum.HumanoidStateType.FallingDown] = true, [Enum.HumanoidStateType.PlatformStanding] = true,
+}
+local function Free(F)
+	if not F.Rig.Parent or Down(F) or F.Humanoid.PlatformStand or PINNED[F.Humanoid:GetState()] then return false end
+	if (tonumber(F.Rig:GetAttribute("Movement")) or 0) > 0 then return false end
+	if F.WC then
+		local Ok, Stunned = pcall(function() return F.WC:HasStatusEffects({CombatModules().Stun}) end)
+		if Ok and Stunned then return false end
+	end
+	return true
+end
+
+-- whatever it was doing stops where it stands, and the combat code owns the body: the walk ends without a placement
+-- (Mover.Stop: no steering, the facing constraint off, never re-anchored), the idle pose stops (NpcIdles anchors
+-- the root only while a pose plays), the root is free to be knocked about
+local function Halt(F)
+	F.Walk, F.Target, F.RetryAt, F.Shelter = nil, nil, nil, nil
+	Mover.Stop(F.Rig)
+	F.Rig:SetAttribute("IdleAnim", nil)
+	-- (a body held by a grip or a carry is welded to the holder, who owns the pair's physics: left as it is)
+	if F.Root.Parent and not (F.Rig:GetAttribute("GrippedBy") or F.Rig:GetAttribute("CarriedBy")) then
+		F.Root.Anchored = false
+		pcall(F.Root.SetNetworkOwner, F.Root, nil)
+	end
+end
+
+local function PosOf(Model)
+	local R = typeof(Model) == "Instance" and Model:FindFirstChild("HumanoidRootPart")
+	return R and R.Position or nil
 end
 
 -- held still at a post with its idle (used on arrival, when placed while asleep, and when a walk fails)
@@ -335,12 +448,24 @@ local function Cower(F)
 	SetState(F, "Sheltering")
 end
 
-local function Flee(F)
-	F.Shelter = NearestShelter(F)
+-- (Task 6b) the shelter a townsperson runs to from an attacker at From: the farthest from it of the ShelterChoices
+-- nearest (TownsfolkLogic.AwayShelter)
+local function AwayShelter(F, From)
+	local List = {}
+	for Id, P in pairs(Posts) do
+		if P.Parent and P:GetAttribute("Kind") == "Shelter" then table.insert(List, {Id = Id, Pos = P.Position}) end
+	end
+	return TownsfolkLogic.AwayShelter(List, F.Root.Position, From, TownsfolkService.ShelterChoices)
+end
+
+-- runs for shelter: away from From (an attacker's position, Task 6b) when given, else to the nearest free one.
+-- Quiet: no Flee line (a hurt one has said its Hurt line, a helper its Help line)
+local function Flee(F, From, Quiet)
+	F.Shelter = (typeof(From) == "Vector3" and AwayShelter(F, From)) or NearestShelter(F)
 	F.Target, F.RetryAt = nil, nil -- (so the schedule walks them back to wherever they are due once it's calm)
 	F.Rig:SetAttribute("IdleAnim", nil)
 	SetState(F, "Fleeing")
-	Chat(F, "Flee")
+	if not Quiet then Chat(F, "Flee") end
 	local Post = F.Shelter and Posts[F.Shelter]
 	if not Post then Cower(F) return end
 	local H
@@ -370,6 +495,120 @@ local function OnNoise(Position, Radius, Kind)
 end
 TownsfolkService.OnNoise = OnNoise -- (tests)
 
+-- ===== hurt, knocked, dead (Task 6b) =====
+-- a hurt townsperson runs once it can (the hit's stun / pin over, HurtMax at most), away from the attacker as they
+-- stand then. A newer hit, a knock or death supersedes the wait (HurtGen).
+local function RunWhenFree(F, Attacker)
+	F.HurtGen = (F.HurtGen or 0) + 1
+	local Gen = F.HurtGen
+	local From = PosOf(Attacker)
+	task.spawn(function()
+		local T0 = os.clock()
+		repeat task.wait(0.1)
+		until F.HurtGen ~= Gen or not F.Rig.Parent or Down(F) or Free(F) or os.clock() - T0 >= TownsfolkService.HurtMax
+		if F.HurtGen ~= Gen or not F.Rig.Parent or Down(F) or F.State ~= "Hurt" then return end
+		local Ok, Err = pcall(Flee, F, PosOf(Attacker) or From, true)
+		if not Ok then WarnOnce("hurtflee " .. F.Id, F.Id, "couldn't flee:", Err) end
+	end)
+end
+
+-- a player's hit landed on F (Attacker = their character): F reacts unless the hit knocked it (OnKnockedChanged
+-- takes that), and everyone else within HelpRadius runs too
+local function OnHurt(F, Attacker)
+	local Now = os.clock()
+	F.LastNoise = Now -- (sheltering lasts CalmSeconds past the last hit, as past the last combat sound)
+	Halt(F)
+	if not Down(F) then
+		SetState(F, "Hurt")
+		Chat(F, "Hurt")
+		RunWhenFree(F, Attacker)
+	end
+	local From = PosOf(Attacker)
+	for Id, O in pairs(Folk) do
+		if O ~= F and O.Rig.Parent and O.Root.Parent and not Down(O)
+			and (O.Root.Position - F.Root.Position).Magnitude <= TownsfolkService.HelpRadius then
+			O.LastNoise = Now
+			if Calm(O.State) then
+				if TownsfolkService.Rng:NextNumber() < TownsfolkService.HelpChance then Chat(O, "Help") end
+				local Ok, Err = pcall(Flee, O, From, true)
+				if not Ok then WarnOnce("flee " .. Id, Id, "couldn't flee:", Err) end
+			end
+		end
+	end
+end
+
+-- ProgressionService.HitListeners (inserted FIRST, in Start): a landed player hit on a townsperson
+local function OnHit(Attacker, Victim, Result)
+	if typeof(Victim) ~= "Instance" or Result ~= "Hit" then return end
+	local Id = Victim:GetAttribute("TownsfolkId")
+	local F = Id and Folk[Id]
+	if not F or F.Rig ~= Victim or F.Dead then return end
+	local Player = typeof(Attacker) == "Instance" and Players:GetPlayerFromCharacter(Attacker)
+	if not Player then return end
+	F.LastBy = {Player = Player, At = os.clock()}
+	OnHurt(F, Attacker)
+end
+TownsfolkService.OnHit = OnHit -- (tests)
+
+-- the Knocked attribute changed (DownedManager): knocked -> state Knocked; up again (left alone KnockedSeconds:
+-- RecoverShare of their health) -> a Hurt line and a run for shelter, away from whoever did it. Deferred: a grip's
+-- execution clears Knocked just before it sets Health to 0, so it must not read as getting up.
+local function OnKnockedChanged(F)
+	task.defer(function()
+		if Folk[F.Id] ~= F or F.Dead or not F.Rig.Parent or F.Humanoid.Health <= 0 then return end
+		if F.Rig:GetAttribute("Knocked") then
+			F.HurtGen = (F.HurtGen or 0) + 1
+			F.LastNoise = os.clock()
+			Halt(F)
+			SetState(F, "Knocked")
+		elseif F.State == "Knocked" then
+			F.LastNoise = os.clock()
+			SetState(F, "Hurt")
+			Chat(F, "Hurt")
+			local By = F.LastBy and F.LastBy.Player
+			RunWhenFree(F, By and By.Character)
+		end
+	end)
+end
+
+-- a player took hold of them for a grip (the GrippedBy attribute is the gripper's character name)
+local function OnGripped(F)
+	local Name = F.Rig:GetAttribute("GrippedBy")
+	local P = Name and Players:FindFirstChild(Name)
+	if P and P:IsA("Player") and P.Character and P.Character.Name == Name then F.LastBy = {Player = P, At = os.clock()} end
+end
+
+local function Remove(F) -- (the rig and its state; Despawn also forgets a death)
+	if Folk[F.Id] == F then Folk[F.Id] = nil end
+	LastLines[F.Id] = nil
+	F.HurtGen = (F.HurtGen or 0) + 1
+	if F.Walk then F.Walk:Cancel() F.Walk = nil end
+	if F.WC then pcall(function() F.WC:Destroy() end) F.WC = nil end
+	if F.Rig.Parent then F.Rig:Destroy() end
+end
+
+-- died (an execution, or killed outright): nothing walks or places the body; the killer's murder; the body lies
+-- BodySeconds; a newcomer at the next NewcomerHour
+local function OnDied(F)
+	if F.Dead or Folk[F.Id] ~= F then return end
+	F.Dead = true
+	F.HurtGen = (F.HurtGen or 0) + 1
+	Halt(F) -- (the body falls where it is: an anchored one, at a post or hiding, is let go)
+	SetState(F, "Dead")
+	Dead[F.Id] = {Def = F.Def, Region = F.Region}
+	local By = F.LastBy
+	if By and os.clock() - By.At <= TownsfolkService.KillerSeconds and By.Player.Parent == Players then
+		F.Killer = By.Player
+		local Ok, Err = pcall(function()
+			require(ServerScriptService.MoralityService).Record(By.Player, "murder_townsfolk", false, {Witness = true, Region = F.Region})
+		end)
+		if not Ok then warn("TownsfolkService: couldn't record the murder of", F.Id, Err) end
+	end
+	task.delay(TownsfolkService.BodySeconds, function()
+		if Folk[F.Id] == F then Remove(F) end
+	end)
+end
+
 -- ===== the rig =====
 local function Look(Def)
 	local L = Def.Look
@@ -397,6 +636,15 @@ local function BuildRig(Def)
 	Humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer
 	Humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
 	Humanoid.AutoJumpEnabled = false
+	-- Task 6b: hittable, knocked at 0 like an enemy (no Health script: no regeneration)
+	Humanoid.MaxHealth = TownsfolkService.MaxHealth
+	Humanoid.Health = TownsfolkService.MaxHealth
+	Humanoid.BreakJointsOnDeath = false -- (the body lies whole, as an enemy's does)
+	Humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false) -- (a hit never trips them; WorldService does
+	Humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false) -- the same for every NPC it watches)
+	Rig:SetAttribute("Knockable", true)
+	Rig:SetAttribute("KnockedTime", TownsfolkService.KnockedSeconds) -- (DownedManager: this one's knock length...)
+	Rig:SetAttribute("RecoverHealth", TownsfolkService.RecoverShare) -- (...and the health they get up with)
 	local L, Nation, Gender = Look(Def)
 	AppearanceService.Apply(Rig, L, Def.Name)
 	Rig:SetAttribute("Nation", Nation)
@@ -428,13 +676,22 @@ function TownsfolkService.State(Id)
 	return F and F.State or nil
 end
 
-function TownsfolkService.Despawn(Id)
+-- (Task 6b; tests) the townsperson's current definition (a newcomer's carries its own Name and Look), and the shelter
+-- post it is running to or hiding at
+function TownsfolkService.Def(Id)
 	local F = Folk[Id]
-	if not F then return end
-	Folk[Id] = nil
-	LastLines[Id] = nil
-	if F.Walk then F.Walk:Cancel() end
-	if F.Rig.Parent then F.Rig:Destroy() end
+	return F and F.Def or (Dead[Id] and Dead[Id].Def) or nil
+end
+function TownsfolkService.ShelterOf(Id)
+	local F = Folk[Id]
+	return F and F.Shelter or nil
+end
+
+-- removes the townsperson (and forgets a death: no newcomer for that slot)
+function TownsfolkService.Despawn(Id)
+	Dead[Id] = nil
+	local F = Folk[Id]
+	if F then Remove(F) end
 end
 
 function TownsfolkService.Spawn(Def, Region)
@@ -482,9 +739,55 @@ function TownsfolkService.Spawn(Def, Region)
 	F.Prompt = Prompt
 	Rig.Destroying:Once(function()
 		if Folk[Def.Id] == F then Folk[Def.Id] = nil end
+		F.HurtGen = (F.HurtGen or 0) + 1
 		if F.Walk then F.Walk:Cancel() end
+		if F.WC then pcall(function() F.WC:Destroy() end) F.WC = nil end
 	end)
+	-- Task 6b: hittable (a WCS character), knocked / got up, gripped, died
+	EnsureCombat(F)
+	Rig:GetAttributeChangedSignal("Knocked"):Connect(function() OnKnockedChanged(F) end)
+	Rig:GetAttributeChangedSignal("GrippedBy"):Connect(function() OnGripped(F) end)
+	local function Died()
+		local Ok, Err = pcall(OnDied, F)
+		if not Ok then warn("TownsfolkService: death of", F.Id, "failed:", Err) end
+	end
+	Humanoid.Died:Once(Died)
+	-- (a Humanoid whose root is anchored -- at a post, hiding -- doesn't run its state machine, so Died never fires
+	-- for it: health reaching 0 is the death)
+	Humanoid.HealthChanged:Connect(function(Health) if Health <= 0 and not F.Dead then Died() end end)
 	return Rig
+end
+
+-- Task 6b: every dead townsperson's slot gets a newcomer (WorldClock.Changed at NewcomerHour; tests call it): the same
+-- Id, job, faction, nation and schedule, a new Name nobody alive in the region has and a new look seed. Returns how
+-- many came.
+function TownsfolkService.Newcomers()
+	local Came = 0
+	local Ids = {}
+	for Id in pairs(Dead) do table.insert(Ids, Id) end
+	table.sort(Ids)
+	for _, Id in ipairs(Ids) do
+		local D = Dead[Id]
+		local Old = D.Def
+		local Taken = {[Old.Name or ""] = true}
+		for _, O in pairs(Folk) do
+			if O.Region == D.Region and not O.Dead and O.Def.Name then Taken[O.Def.Name] = true end
+		end
+		local Nation = type(Old.Look) == "table" and Old.Look.Nation or nil
+		local New = table.clone(Old)
+		New.Name = TownsfolkLogic.NewcomerName(Nation, Taken, TownsfolkService.Rng)
+			or ("New " .. tostring(Old.Job or "townsperson")) -- (every name in the nation's list is taken)
+		New.Look = table.clone(type(Old.Look) == "table" and Old.Look or {})
+		New.Look.Seed = TownsfolkService.Rng:NextInteger(1, 2 ^ 30)
+		New.Newcomer = true
+		local Ok, Err = pcall(TownsfolkService.Spawn, New, D.Region) -- (Spawn clears the death and removes the body)
+		if Ok then
+			Came += 1
+		else
+			WarnOnce("newcomer " .. Id .. tostring(Err), "no newcomer for", Id, Err) -- (tried again at the next one)
+		end
+	end
+	return Came
 end
 
 -- Validates a roster against the posts that exist and spawns everyone, or warns and spawns nobody.
@@ -527,6 +830,11 @@ function TownsfolkService.Step(Hour)
 			Folk[Id] = nil
 			return
 		end
+		-- Task 6b: the dead lie where they fell; the hurt and the knocked are the combat code's (and RunWhenFree's)
+		if F.Dead or F.State == "Dead" then return end
+		if F.Humanoid.Health <= 0 then OnDied(F) return end -- (a death no signal reported)
+		if not F.WC then EnsureCombat(F) end
+		if F.State == "Hurt" or F.State == "Knocked" or Down(F) then return end
 		if F.State == "Fleeing" then
 			-- watchdog: running with no run in progress (it ended without settling) -> curl up where it is
 			if not (F.Walk and F.Walk.Status == "walking") then Cower(F) end
@@ -557,8 +865,13 @@ function TownsfolkService.Step(Hour)
 				if os.clock() >= F.RetryAt then
 					if PlayerWithin(F, F.Target, TownsfolkService.PlaceRadius) then Walk(F, F.Target) else Settle(F, F.Target, "AtPost") end
 				end
+			elseif F.Target and Posts[F.Target] and PlayerWithin(F, F.Target, TownsfolkService.PlaceRadius) then
+				-- watchdog: "Walking" with no live walk (it ended without settling) and a player near (Task 6b: nobody
+				-- may see a teleport, the same gate as a failed walk) -> walk on to the post it was walking to
+				WarnOnce("watchdog " .. Id, Id, "was Walking with no walk in progress - walking on to", F.Target)
+				Walk(F, F.Target)
 			else
-				-- watchdog: "Walking" with no live walk (it ended without settling) -> settle at the post it was walking to
+				-- ...with nobody near -> settle at that post
 				WarnOnce("watchdog " .. Id, Id, "was Walking with no walk in progress - settled at", F.Target)
 				Settle(F, F.Target, "AtPost")
 			end
@@ -600,6 +913,18 @@ function TownsfolkService.Start()
 	-- (World.Live.Townsfolk is made on the first spawn, not here: CharacterHandler's start-up loop over World.Live's
 	-- children sets up every non-enemy child as a training dummy, so an empty folder made at boot could reach it)
 	require(ServerScriptService.NoiseService).Listen(OnNoise)
+	-- Task 6b: a landed player hit on a townsperson. FIRST in the list (the listeners run in order), so the hurt one
+	-- and its neighbours are already reacting when NoiseService's listener sounds the "Hit" (OnNoise then only keeps
+	-- them hiding). Newcomers at NewcomerHour.
+	table.insert(require(ServerScriptService.ProgressionService).HitListeners, 1, function(...)
+		local Ok, Err = pcall(OnHit, ...)
+		if not Ok then warn("TownsfolkService: hit:", Err) end
+	end)
+	WorldClock.Changed.Event:Connect(function(Hour)
+		if Hour ~= TownsfolkService.NewcomerHour then return end
+		local Ok, Err = pcall(TownsfolkService.Newcomers)
+		if not Ok then warn("TownsfolkService: newcomers:", Err) end
+	end)
 	Players.PlayerRemoving:Connect(function(Player)
 		LastTalk[Player.UserId] = nil
 		for _, F in pairs(Folk) do

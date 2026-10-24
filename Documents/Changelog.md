@@ -4,6 +4,28 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-23 — Region Foundation Task 6b: townsfolk can be hurt
+
+Your ask: "The townsfolk should be hittable and integrate the heat, rep system, morality, etc.", and when their health runs out, "Knocked, can be finished". Built in Ye. Ye still has no townsfolk roster, so **nobody new appears in Ye**: this shows once Foundry Yard's townsfolk arrive. Until then it runs in the tests. Every number and line below is a **PROPOSAL**.
+
+- **Hitting a townsperson.** Townsfolk have 100 health and don't heal by themselves. Only players can hurt them; an enemy's swing or blast passes through a bystander, as enemies' attacks pass through each other. A melee hit, a fireball or any other attack that reaches one lands like a hit on an enemy. Before this, fireballs stopped on townsfolk without hitting them.
+  - The one you hit cries out ("Leave me be!"), stops where it stands, and once the hit's stagger is over runs to a shelter. It picks the shelter farthest from you among the 3 nearest, so it runs away from you rather than past you.
+  - Everyone else within 30 studs runs too, and about half of them shout for help ("Somebody stop them!").
+  - They hide until 20 s after the last hit or fight sound nearby, then go back to their day.
+- **What it costs you.**
+  - **Assault** ("Struck a townsperson"; unchanged from before): Mercy -2, Order -2, Townsfolk standing -2, and 15 Heat where the law hears of it. It counts at most once per townsperson every 30 s. It now counts only for a hit that actually lands: a swing that was blocked, dodged or passed through is not assault.
+  - **Murder** ("Killed a townsperson", new): Mercy -5 (the harshest so far), Order -5, Townsfolk standing -15, Authority standing -5, and 60 Heat (Wanted 2 at once) wherever there is law, State or Militia. It counts for the last player who hit, gripped or executed them in the 10 s before they died. Witnesses and word of mouth work as for every other deed: other townsfolk soon say "They say you killed a townsperson."
+- **Knocked, and finished.** At 0 health a townsperson is knocked down like an enemy: you can grip them (B) or carry them (V), and the mobile Grip button shows for them too. Left alone for 30 s they get up with 30% health and run for shelter. Gripped and executed, they die; the body lies for 60 s, then is gone.
+- **No rewards.** Hurting or killing townsfolk gives no EXP, money, combat training, codex entries, quest "defeat" progress or drops.
+- **A newcomer takes the job.** At the next 06:00 game time, every townsperson who died is replaced by someone new: same job, place, hours and nation, a new face and a new name (8 names per nation, never one already walking about in the town). They greet you like anyone else would; your deed stands.
+- **Walking and fighting.** A townsperson who is hit, knocked, gripped or carried while walking no longer keeps steering or turning: the walk stops or waits, so knockbacks and knockdowns play out properly. A townsperson who dies while walking now lies where they fell instead of being moved to their post, and a townsperson whose walk broke is no longer placed at their post while a player is within 60 studs; they walk on instead.
+- **Tests:** a new test suite covers each of the above (hits, assault, fleeing and calling for help, knock and recovery, execution and murder with a witness and Heat, no rewards, the newcomer at 06:00, gossip, and one swing hitting a townsperson and a bandit together). The townsfolk, crowd, Heat, morality, rumour, stealth, assault and station suites still pass.
+- **To publish (at a checkpoint the controller names):** the `RenseiServer` package (TownsfolkService and its Mover, HeatService, ProgressionService, WorldService, AlchemyService) and the `Modules` package (DamageManager, DownedManager, MobileControls, Deeds, TownsfolkLogic).
+
+### Discord announcement
+
+Hold: not live yet. Townsfolk aren't in the live game yet; this post is written when they ship.
+
 ## 2026-10-23 — Closed-test fixes (afternoon and evening)
 
 Fixes made during the weekend closed test, each tested in Ye and published by the owner.

@@ -117,4 +117,32 @@ return {
 		end
 		T.Eq(L.Chat("Nonsense"), nil)
 	end,
+	-- Task 6b: a hurt townsperson runs to the shelter farthest from the attacker among the 3 nearest
+	AwayShelterFromTheAttacker = function(T)
+		local function S(Id, X) return {Id = Id, Pos = Vector3.new(X, 0, 0)} end
+		local List = {S("near", 10), S("far", 75), S("beyond", 300), S("behind", -40)}
+		-- at 40, attacker at 36: the 3 nearest are near (30), far (35) and behind (80); behind is 76 from the attacker
+		T.Eq(L.AwayShelter(List, Vector3.new(40, 0, 0), Vector3.new(36, 0, 0)), "behind", "the farthest of the 3 nearest")
+		T.Eq(L.AwayShelter(List, Vector3.new(40, 0, 0), Vector3.new(36, 0, 0), 2), "far", "of the 2 nearest")
+		T.Eq(L.AwayShelter({S("b", 10), S("a", -10)}, Vector3.zero, Vector3.new(0, 0, 5)), "a", "a tie: the lower id")
+		T.Eq(L.AwayShelter({}, Vector3.zero, Vector3.zero), nil, "no shelters")
+		T.Eq(L.AwayShelter(nil, Vector3.zero, Vector3.zero), nil)
+	end,
+	-- Task 6b: newcomers' names: 8 per nation, never one that is taken
+	NewcomerNames = function(T)
+		local Customization = require(game.ReplicatedStorage.Modules.Data.Rensei.Customization)
+		for Nation in pairs(Customization.NationLooks) do
+			local List = L.NewcomerNames[Nation]
+			T.True(List ~= nil and #List == 8, Nation .. " has 8 newcomer names")
+		end
+		local Names = L.NewcomerNames.Amestrian
+		local Taken = {}
+		for I = 1, 7 do Taken[Names[I]] = true end
+		T.Eq(L.NewcomerName("Amestrian", Taken, Random.new(3)), Names[8], "the one name left")
+		Taken[Names[8]] = true
+		T.Eq(L.NewcomerName("Amestrian", Taken, Random.new(3)), nil, "all taken")
+		T.True(table.find(Names, L.NewcomerName("Amestrian", {}, Random.new(5))) ~= nil, "one of the nation's names")
+		T.Eq(L.NewcomerName("Atlantis", {}), nil, "an unknown nation has none")
+		T.True(#L.Chatter.Hurt > 0 and #L.Chatter.Help > 0, "Hurt and Help lines")
+	end,
 }

@@ -143,8 +143,8 @@ local function RecordSignals(Body)
 	if not Ok then error(Err, 0) end
 end
 
--- fix round 1: a townsperson has no WCS character yet (Task 6b), and DamageManager used to throw on one, aborting the
--- whole sweep. Puts a townsperson beside the training Dummy in World.Live, runs Body(Rig, Dummy, Attacker) with the
+-- fix round 1: DamageManager used to throw on a townsperson (no WCS character before Task 6b), aborting the whole
+-- sweep. Puts a townsperson beside the training Dummy in World.Live, runs Body(Rig, Dummy, Attacker) with the
 -- "Parry" training dummy as the attacker (an NPC: no player, so no assault / morality record and no save change), and
 -- puts both dummies back.
 local function BesideDummy(T, Body)
@@ -250,10 +250,15 @@ return {
 			TS.Step()
 			T.Eq(TS.State(A.Id), "Walking", "A walks despite the broken one")
 			T.Eq(TS.State(B.Id), "Walking", "B walks despite the broken one")
-			-- B: cancelled behind the service's back -> the watchdog settles it at its target
+			-- B: cancelled behind the service's back -> with the player near, the watchdog walks it on to its target
+			-- (Task 6b: nobody may see a teleport, the same 60-stud gate as a failed walk); it arrives
 			Mover.Place(TS.Get(B.Id), TS.Get(B.Id).HumanoidRootPart.CFrame)
 			TS.Step()
-			T.Eq(TS.State(B.Id), "AtPost", "watchdog settled B")
+			T.Eq(TS.State(B.Id), "Walking", "watchdog: B walks on (a player is near)")
+			T.True(Mover.Handle(TS.Get(B.Id)) ~= nil, "with a live walk")
+			local TB = os.clock()
+			while os.clock() - TB < 15 and TS.State(B.Id) ~= "AtPost" do task.wait(0.25) end
+			T.Eq(TS.State(B.Id), "AtPost", "B arrived")
 			T.True((TS.Get(B.Id).HumanoidRootPart.Position - Stand(Posts.A)).Magnitude < 1, "at its post")
 			-- A: its target post is removed mid-walk -> held where it stands, upright, with an idle
 			task.wait(1)
@@ -292,8 +297,9 @@ return {
 		end)
 	end,
 
-	-- fix round 1: a melee sweep through a townsperson (no WCS character) still lands on the Dummy beside it, without
-	-- errors, and the townsperson's hit is a no-hit with no side effects
+	-- fix round 1: a melee sweep through a townsperson still lands on the Dummy beside it, without errors. Task 6b:
+	-- townsfolk have a WCS character now, but only players hurt them, so this NPC's hit on the townsperson is still a
+	-- no-hit with no side effects (Play_TownsfolkHurt covers a player's sweep)
 	MeleeSweepThroughTownsperson = function(T)
 		BesideDummy(T, function(Rig, Dummy, Attacker)
 			local HitboxManager = require(Managers.HitboxManager)

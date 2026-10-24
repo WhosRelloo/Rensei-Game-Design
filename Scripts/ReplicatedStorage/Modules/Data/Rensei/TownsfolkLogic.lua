@@ -4,7 +4,8 @@
 -- The FIRST matching slot wins: PostAt walks the slots in order and returns the first that covers the hour, so in a
 -- schedule whose slots overlap, the earlier slot hides the later one for the overlap.
 -- Task 6 adds talk: the rotation of what a townsperson says (NextTalk), rumour lines (Rumours / RumourLine) and the
--- ambient chatter lists (Chatter / Chat). Every line and number here is a PROPOSAL.
+-- ambient chatter lists (Chatter / Chat). Task 6b adds the Hurt / Help lines, the hurt flee's shelter (AwayShelter)
+-- and newcomers' names (NewcomerNames / NewcomerName). Every line and number here is a PROPOSAL.
 local Factions = require(script.Parent.Factions)
 local Customization = require(script.Parent.Customization)
 
@@ -198,13 +199,55 @@ end
 function L.SpeechSeconds(Text) return 3 + 0.05 * #tostring(Text or "") end
 
 -- Ambient chatter (PROPOSAL lines): Pass (a player first comes near), Shift (the schedule moves them on), Flee (a
--- fight nearby: running for shelter), Return (calm again, back to the day).
+-- fight nearby: running for shelter), Return (calm again, back to the day), Hurt and Help (Task 6b, below).
 L.Chatter = {
 	Pass = {"Mind how you go.", "Keep well.", "Don't see many new faces round here.", "Busy day, this.", "Watch your pockets in a crowd."},
 	Shift = {"Right, that's me done here.", "Time I moved on.", "Off I go, then.", "Where does the day go?"},
 	Flee = {"Fighting! Get inside!", "Not again - run!", "Someone fetch the Authority!", "Get away from here!"},
 	Return = {"Is it over?", "Seems quiet now.", "Back to it, I suppose.", "That was too close."},
+	-- Task 6b: Hurt (the townsperson a player hit, or one getting up after being knocked down), Help (others near it)
+	Hurt = {"Agh! Stop!", "What are you doing?!", "Leave me be!", "Please, no more!"},
+	Help = {"Help! Someone help!", "They're killing someone!", "Fetch the watch!", "Somebody stop them!"},
 }
+
+-- Task 6b: where a hurt townsperson runs. Shelters = {{Id = PostId, Pos = Vector3}, ...}; of the N (default 3)
+-- nearest At, the one farthest from From (the attacker). Ties go to the lower Id. nil when there are none.
+function L.AwayShelter(Shelters, At, From, N)
+	local List = table.clone(Shelters or {})
+	table.sort(List, function(A, B)
+		local DA, DB = (A.Pos - At).Magnitude, (B.Pos - At).Magnitude
+		if DA ~= DB then return DA < DB end
+		return tostring(A.Id) < tostring(B.Id)
+	end)
+	local Best, BestD
+	for I = 1, math.min(N or 3, #List) do
+		local D = (List[I].Pos - From).Magnitude
+		if not Best or D > BestD then Best, BestD = List[I].Id, D end
+	end
+	return Best
+end
+
+-- Task 6b: when a townsperson is killed, a newcomer takes the job at the next 06:00 (same Id, job, faction, nation and
+-- schedule; a new name and look). PROPOSAL names, 8 per nation (Customization.NationLooks).
+L.NewcomerNames = {
+	Amestrian = {"Hal Brenner", "Greta Vossler", "Emil Hartwig", "Ruth Calder", "Otto Fenwick", "Clara Holm", "Pieter Lang", "Mina Albrecht"},
+	Xingnese = {"Lin Shao", "Mei Tan", "Wen Hu", "Jia Rong", "Bo Lan", "Xiu Fen", "Kai Zhou", "Ren Yue"},
+	Ishvalan = {"Adin", "Sarai", "Tamir", "Leah", "Ezra", "Nadia", "Yosef", "Hanna"},
+	Xerxian = {"Daris", "Mithra", "Cyra", "Arsen", "Roshan", "Tahmin", "Parisa", "Kaveh"},
+	Aerugonian = {"Marco Vela", "Lucia Ferro", "Teo Bassi", "Giulia Rinaldi", "Nico Sarti", "Elena Costa", "Paolo Greco", "Sofia Lenti"},
+	Drachman = {"Pyotr Volkov", "Anya Orlova", "Ivan Sokol", "Vera Petrova", "Lev Morozov", "Yelena Kuzna", "Boris Rybak", "Mila Zorin"},
+}
+
+-- a newcomer's name: one of NewcomerNames[Nation] that isn't in Taken ([Name] = true: the names alive in the region,
+-- and the dead one's), picked with Rng. nil when every name is taken.
+function L.NewcomerName(Nation, Taken, Rng)
+	local Free = {}
+	for _, Name in ipairs(L.NewcomerNames[Nation] or {}) do
+		if not (Taken and Taken[Name]) then table.insert(Free, Name) end
+	end
+	if #Free == 0 then return nil end
+	return Free[Rng and Rng:NextInteger(1, #Free) or math.random(#Free)]
+end
 function L.Chat(Kind, Rng)
 	local List = L.Chatter[Kind]
 	if not List or #List == 0 then return nil end

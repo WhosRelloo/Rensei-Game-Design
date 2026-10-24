@@ -23,7 +23,8 @@ local CounterManager = require(ReplicatedStorage.Modules.Managers.CounterManager
 local ShieldManager = require(ReplicatedStorage.Modules.Managers.ShieldManager)
 local SkillMods = require(ReplicatedStorage.Modules.Managers.SkillMods) -- the Mastery skill tree
 
--- Duelist (skill tree): only one other living fighter within DUEL_RANGE
+-- Duelist (skill tree): only one other living fighter within DUEL_RANGE. (Townsfolk, in the World.Live.Townsfolk
+-- folder, are not counted: a bystander doesn't spoil a duel, and beating up a townsperson is no duel. Task 6b)
 local DUEL_RANGE = 20
 local function OneOnOne(Character)
 	local Root = Character:FindFirstChild("HumanoidRootPart")
@@ -110,13 +111,16 @@ return function(Character,Victim,SkillInfo)
 	if DownedManager.IsKnocked(Victim) or DownedManager.IsKnocked(Character) then return "IFramed" end
 	-- admin god mode (AdminService "God")
 	if Victim:GetAttribute("AdminGod") then return "IFramed" end
-	-- a victim with no WCS character (townsfolk until Task 6b gives them one, any other plain Humanoid model in
-	-- World.Live): no hit and no side effects -- before LastHitAt, counters or shields. It used to throw further down
-	-- (VictimState is nil), which aborted the whole sweep, so the victims after it went unhit (Region Foundation
-	-- Task 5 fix round 1)
+	-- a victim with no WCS character (any plain Humanoid model in World.Live nobody set up for combat; townsfolk
+	-- have one since Region Foundation Task 6b): no hit and no side effects -- before LastHitAt, counters or shields.
+	-- It used to throw further down (VictimState is nil), which aborted the whole sweep, so the victims after it went
+	-- unhit (Region Foundation Task 5 fix round 1)
 	if not WCS.Character.GetCharacterFromInstance(Victim) then return "IFramed" end
 	-- enemies don't hurt each other (their swings used to cut down the enemies beside them)
 	if Character ~= Victim and Character:GetAttribute("EnemyType") and Victim:GetAttribute("EnemyType") then return "IFramed" end
+	-- townsfolk (Task 6b) are hurt only by players: an NPC's swing, trap or blast passes through a bystander, the way
+	-- enemies' attacks pass through each other (a player's hit is assault, and their death is the killer's murder)
+	if Character ~= Victim and Victim:GetAttribute("TownsfolkId") and not Players:GetPlayerFromCharacter(Character) then return "IFramed" end
 	-- squads: an enemy without its encounter's attack token can't hurt that player (no hidden second attacker:
 	-- lingering hitboxes, projectiles, traps or explosions included)
 	if Character ~= Victim and Character:GetAttribute("EnemyType") then

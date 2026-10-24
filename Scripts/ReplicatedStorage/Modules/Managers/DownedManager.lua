@@ -16,8 +16,13 @@
 -- * CARRY (V): pick up a knocked target (welded root-to-root, piggyback). The carrier walks at
 --   CarryWalkSpeed; V again, attacking, getting stunned or the target recovering drops them.
 -- Attributes (server-written): Knocked, KnockedUntil, GrippedBy, Gripping, CarriedBy, Carrying.
+-- Per-character knock (Region Foundation Task 6b; townsfolk set them): attributes KnockedTime (s) and
+-- RecoverHealth (share of max health) replace TuningConfig.Downed's KnockedTime / RecoverHealth for that one.
 -- Listeners (server): functions called ("Grip", Gripper, Target) after a grip finishes someone
 -- (MoralityService records the deed).
+-- Live characters (Task 6b): the knocked / grip / carry lookups see World.Live's Model children AND the Models in
+-- its Folder children (townsfolk live in World.Live.Townsfolk). LiveModels() lists them; LiveModel(Part) is the
+-- character a part belongs to (AlchemyService's hit resolution uses it too).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -37,6 +42,40 @@ end
 
 function DownedManager.Knockable(Model)
 	return Players:GetPlayerFromCharacter(Model) ~= nil or Model:GetAttribute("Knockable") == true
+end
+
+local function LiveFolder()
+	local World = workspace:FindFirstChild("World")
+	return World and World:FindFirstChild("Live")
+end
+
+-- the character models in World.Live: its Model children, then the Models inside its Folder children (a
+-- townsperson in World.Live.Townsfolk, Region Foundation Task 6b)
+function DownedManager.LiveModels()
+	local Out = {}
+	local Live = LiveFolder()
+	if not Live then return Out end
+	local Folders = {}
+	for _, M in ipairs(Live:GetChildren()) do
+		if M:IsA("Model") then table.insert(Out, M) elseif M:IsA("Folder") then table.insert(Folders, M) end
+	end
+	for _, F in ipairs(Folders) do
+		for _, M in ipairs(F:GetChildren()) do
+			if M:IsA("Model") then table.insert(Out, M) end
+		end
+	end
+	return Out
+end
+
+-- the character a part in World.Live belongs to: its ancestor that is a direct child of World.Live, or of a Folder
+-- directly in World.Live (a townsperson). nil for anything outside World.Live. (Before Task 6b the callers climbed
+-- to the direct child of World.Live, which for a townsperson was the Townsfolk folder: no Humanoid, so no hit.)
+function DownedManager.LiveModel(Inst)
+	local Live = LiveFolder()
+	if not Live or typeof(Inst) ~= "Instance" or not Inst:IsDescendantOf(Live) then return nil end
+	local M = Inst
+	while M.Parent ~= Live and not (M.Parent:IsA("Folder") and M.Parent.Parent == Live) do M = M.Parent end
+	return M
 end
 
 if not IsServer then return DownedManager end
@@ -131,7 +170,7 @@ function DownedManager.Knock(Victim)
 	if DownedManager.IsKnocked(Victim) or not Alive(Victim) then return end
 	local WCS, AnimationManager, Stun = Mods()
 	-- Second Wind (skill tree keystone): once per life, a shorter knock and a stronger recovery
-	local KnockedTime = Cfg.KnockedTime
+	local KnockedTime = tonumber(Victim:GetAttribute("KnockedTime")) or Cfg.KnockedTime -- (per character: townsfolk, Task 6b)
 	local SkillMods = require(game:GetService("ReplicatedStorage").Modules.Managers.SkillMods)
 	if SkillMods.Get(Victim, "SecondWind") > 0 and not Victim:GetAttribute("SecondWindUsed") then
 		Victim:SetAttribute("SecondWindUsed", true)
@@ -177,7 +216,8 @@ function Recover(Victim)
 	Lock(Victim, false)
 	AnimationManager.Stop(Victim, "Knocked")
 	local H = Hum(Victim)
-	local Share = Victim:GetAttribute("SecondWindActive") and 0.30 or Cfg.RecoverHealth -- Second Wind (PROPOSAL 30%)
+	local Share = Victim:GetAttribute("SecondWindActive") and 0.30 -- Second Wind (PROPOSAL 30%)
+		or tonumber(Victim:GetAttribute("RecoverHealth")) or Cfg.RecoverHealth -- (per character: townsfolk, Task 6b)
 	Victim:SetAttribute("SecondWindActive", nil)
 	H.Health = math.max(H.Health, H.MaxHealth * Share)
 end
@@ -199,9 +239,13 @@ function DownedManager.Damage(Victim, Amount)
 	end
 end
 
--- character model by name among the live characters
+-- character model by name among the live characters (townsfolk included, Task 6b)
 function DownedManager.Find(Name)
-	return Name and workspace.World.Live:FindFirstChild(Name)
+	if not Name then return nil end
+	for _, M in ipairs(DownedManager.LiveModels()) do
+		if M.Name == Name then return M end
+	end
+	return nil
 end
 
 -- the body this carrier is actually holding. Enemies share names ("Bandit Duelist"), so a name
@@ -209,7 +253,7 @@ end
 function DownedManager.Carried(Carrier)
 	local Name = Carrier and Carrier:GetAttribute("Carrying")
 	if not Name then return nil end
-	for _, M in ipairs(workspace.World.Live:GetChildren()) do
+	for _, M in ipairs(DownedManager.LiveModels()) do
 		if M.Name == Name and M:GetAttribute("CarriedBy") == Carrier.Name then return M end
 	end
 	return DownedManager.Find(Name)
@@ -220,7 +264,7 @@ function DownedManager.Nearest(Actor, Range)
 	local AR = Root(Actor)
 	if not AR then return nil end
 	local Best, BestD = nil, Range
-	for _, M in ipairs(workspace.World.Live:GetChildren()) do
+	for _, M in ipairs(DownedManager.LiveModels()) do
 		if M ~= Actor and DownedManager.IsKnocked(M) and Alive(M) and not M:GetAttribute("GrippedBy")
 			and not M:GetAttribute("CarriedBy") then
 			local R = Root(M)

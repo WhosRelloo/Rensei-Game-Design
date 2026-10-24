@@ -173,11 +173,13 @@ function HeatService.OnCast(Player)
 	return MS.Record(Player, "unlicensed_cast", false, {Witness = true, Region = Region})
 end
 
--- a hit on a watcher (a townsperson, tag RenseiWatcher) is assault: once per victim per 30 s
+-- a hit on a watcher (a townsperson, tag RenseiWatcher) is assault: once per victim per 30 s. Only a hit that lands
+-- (Result "Hit") counts (Region Foundation Task 6b): a swing that was blocked, dodged, parried or passed through (a
+-- knocked body, i-frames) hurt nobody, so it is no assault
 local LastAssault = {} -- [Player] = {[Victim] = os.clock()}
-local function OnHit(Attacker, Victim)
+local function OnHit(Attacker, Victim, Result)
 	local Player = Players:GetPlayerFromCharacter(Attacker)
-	if not Player or not Victim or not CollectionService:HasTag(Victim, "RenseiWatcher") then return end
+	if not Player or not Victim or Result ~= "Hit" or not CollectionService:HasTag(Victim, "RenseiWatcher") then return end
 	local Mine = LastAssault[Player] or setmetatable({}, {__mode = "k"})
 	LastAssault[Player] = Mine
 	if Mine[Victim] and os.clock() - Mine[Victim] < HeatService.AssaultCooldown then return end

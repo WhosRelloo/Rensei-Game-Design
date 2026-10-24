@@ -11,6 +11,13 @@
 --       Debug fields on the handle: Waypoints (the smoothed path), RawWaypoints (count before smoothing), Radius
 --       (agent radius used), Yields, Replans, Detours, Why (why it failed).
 --   * Mover.Place(Rig, TargetCFrame): cancels any walk, anchors the root and puts the rig exactly there.
+--   * Mover.Stop(Rig) (Task 6b): ends the rig's walk "cancelled" where it stands WITHOUT placing it: the root is left
+--     unanchored, the facing constraint off, AutoRotate back on, no more Humanoid:Move. For a townsperson who is hit,
+--     knocked, gripped or carried: the combat code owns the body from then on.
+--   * Suspension (Task 6b): a walk whose rig is pinned (Knocked / GrippedBy / CarriedBy, PlatformStand, a Physics /
+--     Ragdoll / FallingDown / PlatformStanding state, or MoverManager's Movement slow-or-pin active) is held: no
+--     steering, the facing constraint off (it would fight knockback spin and knockdown tilt), the root never
+--     re-anchored, and the stuck clock held. When the rig is free again the walk resumes at its own speed.
 --   * Mover.Handle(Rig) -> the walk in progress (debug), or nil.
 --   * Mover.P99StepMs() -> the 99th-percentile steering tick of the last 1000 (sorted on demand).
 --   * Mover.Stats() -> {Walkers, StepMs, MaxStepMs, HeartbeatMs, Ticks, PeakWalkers, Yields, Replans, Sidesteps,
@@ -588,6 +595,18 @@ local function Broke(H, Err)
 end
 
 local function Alive(H, Gen) return H.Status == "walking" and H.Rig.Parent ~= nil and (Gen == nil or Gen == H.PlanGen) end
+
+-- (Task 6b) the rig is held by combat: knocked, gripped, carried, tripped, ragdolled, or slowed / pinned by a hit
+local PINNED_STATES = {
+	[Enum.HumanoidStateType.Physics] = true, [Enum.HumanoidStateType.Ragdoll] = true,
+	[Enum.HumanoidStateType.FallingDown] = true, [Enum.HumanoidStateType.PlatformStanding] = true,
+}
+local function Pinned(H)
+	local Rig, Hum = H.Rig, H.Humanoid
+	return Hum.PlatformStand or PINNED_STATES[Hum:GetState()] == true or Rig:GetAttribute("Knocked") == true
+		or Rig:GetAttribute("GrippedBy") ~= nil or Rig:GetAttribute("CarriedBy") ~= nil
+		or (tonumber(Rig:GetAttribute("Movement")) or 0) > 0
+end
 
 local function ResetWindow(H, P, Now)
 	H.WinPos, H.WinT, H.Excused, H.SlowT, H.SlowRef = P, Now, false, 0, nil
@@ -1260,6 +1279,26 @@ local function StepOne(H, Dt, Now)
 	local Rig, Root, Hum = H.Rig, H.Root, H.Humanoid
 	if not Rig.Parent or not Root.Parent or Hum.Health <= 0 then Finish(H, "cancelled") return end
 	if H.Mode == "arrive" then return end
+	if Pinned(H) then
+		-- (Task 6b) held by combat: no steering, no facing, never re-anchored, and it doesn't count as stuck
+		if not H.Suspended then
+			H.Suspended = true
+			pcall(function()
+				Hum:Move(Vector3.zero)
+				if H.Facer then H.Facer.Enabled = false end
+			end)
+			local T = Tracks[Rig]
+			if T and T.IsPlaying then T:Stop(0.2) end
+		end
+		ResetWindow(H, Root.Position, Now)
+		return
+	elseif H.Suspended then
+		H.Suspended = false
+		if H.Facer then H.Facer.Enabled = true end
+		Hum.AutoRotate = false
+		Hum.WalkSpeed = H.Speed -- (the hit's slow handed back MoverManager's own default when it ended)
+		ResetWindow(H, Root.Position, Now)
+	end
 	if Root.Anchored then Root.Anchored = false end -- a deferred NpcIdles loosen landing after the walk began
 	local P = Root.Position
 	local SpeedNow = Flat(Root.AssemblyLinearVelocity).Magnitude
@@ -1551,6 +1590,12 @@ function Mover.Place(Rig, TargetCFrame)
 	local H = Active[Rig]
 	if H then Cancel(H) end
 	Put(Rig, TargetCFrame)
+end
+
+-- (Task 6b) ends the walk where the rig stands, without placing (or anchoring) it
+function Mover.Stop(Rig)
+	local H = Active[Rig]
+	if H then Cancel(H) end
 end
 
 function Mover.WalkTo(Rig, TargetCFrame, Opts)

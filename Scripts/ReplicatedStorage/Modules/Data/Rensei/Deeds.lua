@@ -108,6 +108,18 @@ local Deeds = {
 		Repeat = {Cap = 10},
 		Crime = 15,
 	},
+	-- killing a townsperson (Region Foundation Task 6b): executed by a grip, or killed outright, by the last player to
+	-- hit, grip or execute them within 10 s (TownsfolkService). A crime wherever there is law: Crime raises the State
+	-- or Militia Heat of the place whose law hears it. PROPOSAL numbers (Mercy as the harshest deed so far; Crime 60 is
+	-- Wanted 2 at once where the law hears it)
+	murder_townsfolk = {
+		Text = "Killed a townsperson",
+		Conduct = {Mercy = -5, Order = -5},
+		Standing = {Townsfolk = -15, Authority = -5},
+		Scope = "Local",
+		Repeat = {Cap = 10},
+		Crime = 60,
+	},
 
 	-- ===== Birth (2026-10-19, spec §11): recorded once when the character first plays in Ye. Origin offsets
 	-- cut both ways, each at most +-20, and each origin's add up to >= 0 so no origin is a net handicap.

@@ -8,6 +8,7 @@
 --     PROPOSAL: with no ExpReward set, EXP = 25 * Level.
 --     Credit(Victim, Player) also credits a named player directly (MoralityService: a knocked
 --     enemy carried in alive counts as the defeat). A victim is only ever credited once.
+--     Townsfolk (attribute TownsfolkId) are never credited (Region Foundation Task 6b).
 
 local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
@@ -63,6 +64,9 @@ end
 
 function WorldService.Credit(Victim, Player)
 	if Victim:GetAttribute("Credited") then return end
+	-- townsfolk give nothing: no EXP, money, Defeat training, codex entry or quest "Defeat" (Region Foundation Task 6b;
+	-- killing one is the killer's murder_townsfolk deed, TownsfolkService)
+	if Victim:GetAttribute("TownsfolkId") then return end
 	if not Player then
 		local Hit = LastHit[Victim]
 		if not Hit or os.clock() - Hit.Time > DEFEAT_CREDIT_SECONDS or Hit.Player.Parent ~= Players then return end
