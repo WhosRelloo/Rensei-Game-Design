@@ -136,7 +136,7 @@ local function BuildRig(Type, Def, Spawn)
 	Rig:SetAttribute("Level", Def.Level)
 	Rig:SetAttribute("PhysicalMultiplier", Def.DamageMult)
 	Rig:SetAttribute("CombatMode", true) -- weapon drawn, same as a player in Combat Mode
-	if Def.Knockable then Rig:SetAttribute("Knockable", true) end -- knocked at 0 HP, grip (B) to finish
+	if Def.Knockable ~= false then Rig:SetAttribute("Knockable", true) end -- every enemy is knocked at 0 HP, grip (B) to finish (owner 2026-10-20); Knockable = false opts out
 	if Def.Boss then -- the top-of-screen boss bar (HUDUI): name, title, health
 		Rig:SetAttribute("Boss", true)
 		Rig:SetAttribute("BossName", Def.BossName or Def.DisplayName)
@@ -392,7 +392,7 @@ local function OnWindup(Attacker)
 		local Def = E.Def
 		-- Ward Alchemist: a windup close by -> raise its Guard move (Steel Guard), the real ability, if it can
 		local Guard = Def.Alchemy and Def.Alchemy.Guard
-		if Guard and E.Target == Attacker and Alive(Rig) and not Rig:GetAttribute("AIPassive") and not Swimming(Rig) then
+		if Guard and E.Target == Attacker and Alive(Rig) and not Rig:GetAttribute("AIPassive") and not Rig:GetAttribute("Knocked") and not Swimming(Rig) then
 			local ARoot, Root = Attacker:FindFirstChild("HumanoidRootPart"), Rig:FindFirstChild("HumanoidRootPart")
 			if ARoot and Root and (ARoot.Position - Root.Position).Magnitude <= 12 and Alchemy().CanCastAs(Rig, Def.Alchemy.Affinity, Guard) then
 				task.spawn(function()
@@ -403,7 +403,7 @@ local function OnWindup(Attacker)
 			end
 		end
 		-- GuardDown (TrialService): a telegraphed opening -- no blocks or parries while it's set
-	if Def.ParryChance and E.Target == Attacker and Alive(Rig) and E.Block and not Rig:GetAttribute("GuardDown") and not Swimming(Rig) then
+	if Def.ParryChance and E.Target == Attacker and Alive(Rig) and E.Block and not Rig:GetAttribute("GuardDown") and not Rig:GetAttribute("Knocked") and not Swimming(Rig) then
 			local ARoot, Root = Attacker:FindFirstChild("HumanoidRootPart"), Rig:FindFirstChild("HumanoidRootPart")
 			if ARoot and Root and (ARoot.Position - Root.Position).Magnitude <= 12
 				and not AttackRunner.IsRunning(Rig) and not E.WCS:HasStatusEffects({Stun, Attacking}) then
