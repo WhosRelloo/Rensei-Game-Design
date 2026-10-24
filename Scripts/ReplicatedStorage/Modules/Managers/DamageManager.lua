@@ -321,7 +321,7 @@ return function(Character,Victim,SkillInfo)
 		if StunTime ~= 0 then
 			-- hitstun: no jumping, a slow shuffle (Devil Hunter); knockbacks below still pin the victim
 			MoverManager.Movement(Victim,{D = StunTime,JH = 0,WS = Tuning.HitStun.WalkSpeed})
-			StateModules["Stun"].new(VictimState):Start(StunTime)
+			if StunTime > 0 then StateModules["Stun"].new(VictimState):Start(StunTime) end -- hotfix 2026-10-23: Start(0) is an endless WCS stun (ChainedStun can return 0)
 		end
 		
 		-- NPC physics stays on the server (it used to be handed to the attacker's client, where
@@ -357,7 +357,7 @@ return function(Character,Victim,SkillInfo)
 			MoverManager.Knockback(Victim,{V = Velocity,D = Duration,RL = 7,Clear = true,LandAction = function(Position,Normal)
 				KnockbackEffect.new(Victim,"End"):Start(Players:GetPlayers())
 				MoverManager.Movement(Victim,{D = StunTime,JH = 0,WS = 0})
-				StateModules["Stun"].new(VictimState):Start(StunTime)
+				if StunTime > 0 then StateModules["Stun"].new(VictimState):Start(StunTime) end -- hotfix 2026-10-23: Start(0) is an endless WCS stun (ChainedStun can return 0)
 				GroundSmash.new(Position,Normal):Start(Players:GetPlayers())
 			end,})
 			
@@ -382,7 +382,7 @@ return function(Character,Victim,SkillInfo)
 			
 			MoverManager.Knockback(Victim,{V = Velocity,D = Duration,RL = 7,Clear = true,LandAction = function(Position,Normal)
 				MoverManager.Movement(Victim,{D = StunTime,JH = 0,WS = 0})
-				StateModules["Stun"].new(VictimState):Start(StunTime)
+				if StunTime > 0 then StateModules["Stun"].new(VictimState):Start(StunTime) end -- hotfix 2026-10-23: Start(0) is an endless WCS stun (ChainedStun can return 0)
 				GroundSmash.new(Position,Normal):Start(Players:GetPlayers())
 			end,})
 
