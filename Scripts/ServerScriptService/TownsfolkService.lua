@@ -36,8 +36,11 @@
 --     with this townsperson: greeting by standing tier -> a rumour they haven't heard from them (RumourService.HeardIn)
 --     -> the job line -> greeting... The rotation lives in memory only. No DialogueService: townsfolk carry no
 --     DialogueId.
---   * Say(Id, Text): Remotes.TownsfolkSay:FireClient(Player, Rig, Text, Seconds) to every player within SayRadius;
---     TownsfolkClient draws the bubble. LastLine(Id) -> Text, Kind, Count (tests).
+--   * Say(Id, Text, Kind, Opts): Remotes.TownsfolkSay:FireClient(Player, Rig, Text, Seconds) to every player within
+--     SayRadius (Recipients); TownsfolkClient draws the bubble. Opts.Only = a player: only that player sees it (fix
+--     round 2, controller ruling: rumour and clue lines are worded for the talker - names only they know, "They say
+--     you ..." - so they are private; greetings, job lines and chatter are public). LastLine(Id) -> Text, Kind, Count;
+--     LastRecipients(Id) -> the players it was fired to, Only (tests).
 --   * Chatter (TownsfolkLogic.Chatter): Pass (a player first comes within PassRadius; once per player per PassEvery),
 --     Shift (the schedule moves them on; ShiftChance), Flee (running for shelter), Return (coming back).
 local Players = game:GetService("Players")
@@ -199,24 +202,42 @@ end
 
 -- ===== speech (Task 6) =====
 local SayRemote
-function TownsfolkService.Say(Id, Text, Kind)
+-- who sees a line said at Pos: every player (of List, default everyone in the server) within SayRadius, or only
+-- Opts.Only (if within SayRadius) for a private line
+function TownsfolkService.Recipients(Pos, Opts, List)
+	local Out = {}
+	local Only = Opts and Opts.Only
+	for _, P in ipairs(List or Players:GetPlayers()) do
+		local C = P.Character
+		local R = C and C:FindFirstChild("HumanoidRootPart")
+		if R and (Only == nil or P == Only) and (R.Position - Pos).Magnitude <= TownsfolkService.SayRadius then
+			table.insert(Out, P)
+		end
+	end
+	return Out
+end
+
+function TownsfolkService.Say(Id, Text, Kind, Opts)
 	local F = Folk[Id]
 	if not F or not F.Rig.Parent or type(Text) ~= "string" or Text == "" then return false end
 	local Prev = LastLines[Id]
-	LastLines[Id] = {Text = Text, Kind = Kind, N = (Prev and Prev.N or 0) + 1}
+	local To = TownsfolkService.Recipients(F.Root.Position, Opts)
+	LastLines[Id] = {Text = Text, Kind = Kind, N = (Prev and Prev.N or 0) + 1, To = To, Only = Opts and Opts.Only}
 	if not (SayRemote and SayRemote.Parent) then
 		local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
 		SayRemote = Remotes and Remotes:FindFirstChild("TownsfolkSay")
 	end
 	if not SayRemote then WarnOnce("remote", "Remotes.TownsfolkSay is missing - townsfolk lines aren't shown") return true end
 	local Seconds = TownsfolkLogic.SpeechSeconds(Text)
-	for _, P in ipairs(Players:GetPlayers()) do
-		local R = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
-		if R and (R.Position - F.Root.Position).Magnitude <= TownsfolkService.SayRadius then
-			SayRemote:FireClient(P, F.Rig, Text, Seconds)
-		end
-	end
+	for _, P in ipairs(To) do SayRemote:FireClient(P, F.Rig, Text, Seconds) end
 	return true
+end
+
+-- the players the last line was fired to, and its Only (nil for a public line) (tests)
+function TownsfolkService.LastRecipients(Id)
+	local L = LastLines[Id]
+	if not L then return {}, nil end
+	return L.To, L.Only
 end
 
 -- the last line a townsperson said: Text, Kind, how many lines it has said (tests)
@@ -274,7 +295,9 @@ function TownsfolkService.Talk(Player, Id)
 	local State = F.Talks[Player.UserId] or {}
 	F.Talks[Player.UserId] = State
 	local Kind, Text = TownsfolkLogic.NextTalk(Def, State, {Tier = Tier, Rumours = Rumours, Clue = OnClue})
-	TownsfolkService.Say(Id, Text, Kind)
+	-- rumours and clues are worded for this player (names only they know, "They say you ..."): theirs alone
+	local Private = Kind == "Rumour" or Kind == "Clue"
+	TownsfolkService.Say(Id, Text, Kind, Private and {Only = Player} or nil)
 	if Kind == "Clue" and Clue.Signal ~= nil then
 		local COk, CErr = pcall(QuestService.Signal, Player, "Signal", Clue.Signal)
 		if not COk then warn("TownsfolkService: clue signal failed:", CErr) end

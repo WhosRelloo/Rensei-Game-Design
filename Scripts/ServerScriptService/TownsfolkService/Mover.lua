@@ -1229,9 +1229,10 @@ local function GoTo(H, P, Spot, Now, Near)
 end
 
 -- is P on the urgent walker O's way: within LaneWidth of the rest of its path from OP (its current segment, then the
--- next ones), no further along it than GiveWayDist or the way it has left to go + 2 studs? (header 4b)
+-- next ones), no further along it than GiveWayDist or the way it has left to go + 2 studs? (header 4b) Also while it
+-- side-steps or re-plans, on its last known waypoints (so nobody waits for its next plan to step aside)
 function InUrgentWay(O, OP, P)
-	local Wps = O.Mode == "walk" and O.Wps
+	local Wps = (O.Mode == "walk" or O.Mode == "side" or O.Mode == "plan") and O.Wps
 	if not (Wps and O.Wi and Wps[O.Wi]) then return false end
 	local Budget = math.min(Mover.GiveWayDist, (O.RemainDist or math.huge) + 2)
 	local A = OP

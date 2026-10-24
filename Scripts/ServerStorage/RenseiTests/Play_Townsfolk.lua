@@ -496,6 +496,96 @@ return {
 		end)
 	end,
 
+	-- Fix round 2 (controller ruling): rumour and clue lines go only to the talker; greetings, job lines and chatter go
+	-- to everyone near. Talk's own sends (one player in Studio), then Recipients over two stand-in players (a talker and
+	-- a bystander, real character models at real distances) and one out of range.
+	PrivateRumoursPublicGreetings = function(T)
+		Fixture(T, function(Posts, Ids, Spawned)
+			WorldClock.Hold(8)
+			local D = Def({{0, 24, Ids.A}})
+			D.Clue = {Quest = "__t6_quest2", Stage = 1, Text = "Ask the ferryman.", Signal = "__t6_signal2"}
+			local Rig = TS.Spawn(D, "Test")
+			table.insert(Spawned, D.Id)
+			BesideLine(Posts)
+			Deeds.__test_t6_private = {Text = "Kicked over a market stall", Standing = {}, Scope = "Local"}
+			local M = PS.GetData(Player).Morality
+			local Data = PS.GetData(Player)
+			local Saved = M.News
+			local Got = {}
+			local Ok, Err = pcall(function()
+				RecordSignals(function()
+					-- (no yield from here until News and the quest entry are put back)
+					M.News = table.clone(Saved or {})
+					table.insert(M.News, {At = os.time() + 100000, Place = "Test", Deed = "__test_t6_private", Heard = {"Townsfolk"}})
+					for I = 1, 3 do
+						local Text, Kind = TS.Talk(Player, D.Id)
+						local To, Only = TS.LastRecipients(D.Id)
+						Got[I] = {Kind = Kind, To = To, Only = Only}
+					end
+					Data.Quests.Active.__t6_quest2 = {Stage = 1, Progress = {}}
+					local _, Kind = TS.Talk(Player, D.Id)
+					local To, Only = TS.LastRecipients(D.Id)
+					Got[4] = {Kind = Kind, To = To, Only = Only}
+					Data.Quests.Active.__t6_quest2 = nil
+					M.News = Saved
+				end)
+			end)
+			M.News = Saved
+			Data.Quests.Active.__t6_quest2 = nil
+			Deeds.__test_t6_private = nil
+			if not Ok then error(Err, 0) end
+			T.Eq(Got[1].Kind, "Greeting") T.Eq(Got[1].Only, nil, "a greeting is public")
+			T.Eq(Got[2].Kind, "Rumour") T.Eq(Got[2].Only, Player, "a rumour is the talker's alone")
+			T.Eq(#Got[2].To, 1) T.Eq(Got[2].To[1], Player)
+			T.Eq(Got[3].Kind, "Job") T.Eq(Got[3].Only, nil, "the job line is public")
+			T.Eq(Got[4].Kind, "Clue") T.Eq(Got[4].Only, Player, "a clue is the talker's alone")
+			-- two stand-in players: the talker 6 studs off, a bystander 12 off, someone 150 off
+			local Here = Rig.HumanoidRootPart.Position
+			local Made = {}
+			local function Stand(Name, Off)
+				local Model = Instance.new("Model")
+				Model.Name = Name
+				local R = Instance.new("Part")
+				R.Name = "HumanoidRootPart"
+				R.Position = Here + Off
+				R.Parent = Model
+				table.insert(Made, Model)
+				return {Name = Name, Character = Model}
+			end
+			local Talker, Bystander, Far = Stand("Talker", Vector3.new(6, 0, 0)), Stand("Bystander", Vector3.new(0, 0, 12)), Stand("Far", Vector3.new(150, 0, 0))
+			local List = {Talker, Bystander, Far}
+			local function Names(Out) local N = {} for _, P in ipairs(Out) do table.insert(N, P.Name) end return table.concat(N, ",") end
+			T.Eq(Names(TS.Recipients(Here, nil, List)), "Talker,Bystander", "public: everyone within SayRadius")
+			T.Eq(Names(TS.Recipients(Here, {Only = Talker}, List)), "Talker", "private: the talker only, not the bystander")
+			T.Eq(Names(TS.Recipients(Here, {Only = Far}, List)), "", "private and out of range: nobody")
+			for _, Model in ipairs(Made) do Model:Destroy() end
+		end)
+	end,
+
+	-- Fix round 2 (review N1): the real IdentityService.KnownNameFor. A record with no name yet -> nil; named -> the
+	-- name. (One player in Studio: the record is put in the player's own book under their own id, then removed.)
+	KnownNameForIsTheIdentifiedName = function(T)
+		local IdentityService = require(SSS.IdentityService)
+		local D = PS.GetData(Player)
+		local Key = IdentityService.CharacterIdOf(Player)
+		IdentityService.KnownNameFor(Player, Player) -- (makes the book if the save has none yet, as LabelFor does)
+		T.True(Key ~= nil and type(D.Identities) == "table" and type(D.Identities.Records) == "table", "the player has an identity book")
+		local Records = D.Identities.Records
+		local Saved = Records[Key]
+		local A, B
+		local Ok, Err = pcall(function()
+			-- (no yield while the test record is in the book)
+			Records[Key] = {N = 99, First = 0, Last = 0, Seen = 1, Obs = {}, Name = "", Src = "", Links = {}, Log = {}, Lock = 0}
+			A = IdentityService.KnownNameFor(Player, Player)
+			Records[Key].Name = "Ansel"
+			B = IdentityService.KnownNameFor(Player, Player)
+		end)
+		Records[Key] = Saved
+		if not Ok then error(Err, 0) end
+		T.Eq(A, nil, "a record with no name: nil")
+		T.Eq(B, "Ansel", "named: the name")
+	end,
+
 	-- Fix round 1: one player's Talks are at least TalkCooldown apart (server side)
 	TalkCooldown = function(T)
 		Fixture(T, function(Posts, Ids, Spawned)
