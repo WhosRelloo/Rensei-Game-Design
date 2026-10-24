@@ -1,0 +1,25 @@
+{
+  "Region": "Testbed", "PlaceId": 0, "Footprint": [256, 256],
+  "Palette": {"ground_top": "cinder", "ground_side": "slag", "path": "paving", "quiet": "cinder_dark"},
+  "Heights": [
+    {"Kind": "plane", "Y": 4},
+    {"Kind": "box", "Rect": [-60, -60, -20, -20], "Y": 10, "Edge": 8},
+    {"Kind": "ridge", "Line": [[-128, 100], [128, 100]], "Width": 24, "Y": 30},
+    {"Kind": "cut", "Rect": [40, -40, 80, 0], "Y": -4},
+    {"Kind": "water", "Rect": [60, 40, 100, 80], "Top": 3, "Bed": -6}
+  ],
+  "Districts": [{"Id": "row", "Poly": [[-110, -110], [-40, -110], [-40, -40], [-110, -40]], "Style": "railtown.house", "Density": 0.6, "Storeys": [2, 3]}],
+  "Routes": [
+    {"Id": "main", "Kind": "public", "Width": 12, "Line": [[-120, 0], [120, 0]]},
+    {"Id": "alley", "Kind": "quiet", "Width": 6, "Line": [[-75, -40], [-75, 0]]},
+    {"Id": "climb", "Kind": "public", "Width": 8, "Line": [[-40, -40], [-20, -20]]}
+  ],
+  "Landmarks": [{"Id": "court", "Kind": "railtown.practice_court", "At": [0, 40], "Yaw": 0}],
+  "Markers": [
+    {"Tag": "RenseiPost", "At": [10, 0, 20], "Yaw": 90, "Attr": {"PostId": "test_work", "Kind": "Work"}},
+    {"Tag": "RenseiPost", "At": [-20, 0, 20], "Yaw": 0, "Attr": {"PostId": "test_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiClue", "At": [30, 0, 30], "Attr": {"ClueId": "test_clue"}},
+    {"Tag": "RenseiArea", "Box": [[-128, -10, -128], [128, 80, 128]], "Attr": {"AreaName": "Testbed"}}
+  ],
+  "Budget": 12000
+}
