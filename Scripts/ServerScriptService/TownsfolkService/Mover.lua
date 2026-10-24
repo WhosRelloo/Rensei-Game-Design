@@ -150,6 +150,7 @@ local Tracks = {} -- [Rig] = walk AnimationTrack | false
 local OthersGoalNear, WaitSpot -- (defined with the waiting logic below)
 local Seq = 0
 local UrgentCount = 0 -- urgent walkers walking (counted each tick; header 4b)
+local InUrgentWay -- (defined with the steering below)
 
 local Stats
 function Mover.ResetStats()
@@ -1227,6 +1228,33 @@ local function GoTo(H, P, Spot, Now, Near)
 	return false
 end
 
+-- is P on the urgent walker O's way: within LaneWidth of the rest of its path from OP (its current segment, then the
+-- next ones), no further along it than GiveWayDist or the way it has left to go + 2 studs? (header 4b)
+function InUrgentWay(O, OP, P)
+	local Wps = O.Mode == "walk" and O.Wps
+	if not (Wps and O.Wi and Wps[O.Wi]) then return false end
+	local Budget = math.min(Mover.GiveWayDist, (O.RemainDist or math.huge) + 2)
+	local A = OP
+	for I = O.Wi, #Wps do
+		local B = Wps[I]
+		local Seg = Flat(B - A)
+		local L = Seg.Magnitude
+		if I == #Wps and L > 0.01 then -- (the last stretch reaches 2 studs past the end)
+			B = B + Seg / L * 2
+			L += 2
+		end
+		local Use = math.min(L, Budget)
+		if Use > 0.01 then
+			local Cut = A + Flat(B - A).Unit * Use
+			if SegDist(A, Cut, P) < Mover.LaneWidth then return true end
+		end
+		Budget -= Use
+		if Budget <= 0 then break end
+		A = B
+	end
+	return false
+end
+
 local function StepOne(H, Dt, Now)
 	local Rig, Root, Hum = H.Rig, H.Root, H.Humanoid
 	if not Rig.Parent or not Root.Parent or Hum.Health <= 0 then Finish(H, "cancelled") return end
@@ -1333,8 +1361,9 @@ local function StepOne(H, Dt, Now)
 	H.RemainDist = Remain
 
 	if H.Wi == N and DN < Mover.ArriveDist then Arrive(H) return end
-	-- (Task 6) ran past the end at speed (someone fleeing): it has arrived; the arrival turn puts it on the spot
-	if H.Wi == N and N >= 2 and DN < 3 then
+	-- (Task 6) ran past the end at speed (someone fleeing): it has arrived; the arrival turn puts it on the spot. Not
+	-- when someone has just taken the post, nor across a floor (the tween would go through it)
+	if H.Wi == N and N >= 2 and DN < 3 and math.abs(P.Y - LIFT - Next.Y) < 3 and not Occupied(H) then
 		local Prev = Wps[N - 1]
 		local Seg = Flat(Next - Prev)
 		local L = Seg.Magnitude
@@ -1386,8 +1415,8 @@ local function StepOne(H, Dt, Now)
 				local OP = O.Root.Position
 				local D = Flat(P - OP) -- from the urgent walker to this one
 				local Dist = D.Magnitude
-				if Dist > 1e-3 and Dist <= Mover.GiveWayDist and math.abs(OP.Y - P.Y) < 6
-					and D:Dot(O.Dir) > 0 and math.abs(D:Dot(RightOf(O.Dir))) < Mover.LaneWidth then
+				if Dist > 1e-3 and Dist <= Mover.GiveWayDist and math.abs(OP.Y - P.Y) < 6 and D:Dot(O.Dir) > 0
+					and InUrgentWay(O, OP, P) then
 					local Toward = -D / Dist
 					H.YieldPath, H.YieldIdx, H.YieldStepUntil = YieldPath(H, P, Toward), 1, Now + 3
 					H.YieldDir, H.YieldFrom = Toward, P

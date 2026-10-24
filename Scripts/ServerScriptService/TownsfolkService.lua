@@ -73,6 +73,7 @@ TownsfolkService.PassRadius = 12 -- a player first coming this close gets a pass
 TownsfolkService.PassEvery = 300 -- ...at most once per player per townsperson in this many seconds
 TownsfolkService.ShiftChance = 0.5 -- a remark when the schedule moves them on
 TownsfolkService.TalkRange = 10 -- the Talk prompt's reach
+TownsfolkService.TalkCooldown = 0.5 -- s between one player's Talks (server side: no spamming the rotation)
 TownsfolkService.Rng = Random.new()
 
 local POST_TAG = "RenseiPost"
@@ -230,19 +231,24 @@ local function Chat(F, Kind)
 	if Line then TownsfolkService.Say(F.Id, Line, Kind) end
 end
 
--- how Listener knows Subject, for a rumour: IdentityService's label (the name once identified, "Subject 03" before),
--- "someone" without a record
+-- how Listener knows Subject, for a rumour. Owner 2026-10-23: "Name if known, else 'someone'": the name once the
+-- listener has identified them (IdentityService.KnownNameFor), otherwise "someone", never the journal's "Subject 03"
 local function NameOf(Listener, Subject)
 	if typeof(Subject) ~= "Instance" then return "someone" end
-	local Ok, Label = pcall(function() return require(ServerScriptService.IdentityService).LabelFor(Listener, Subject) end)
-	if not Ok or type(Label) ~= "string" or Label == "" or Label == "Unknown subject" then return "someone" end
-	return Label
+	local Ok, Name = pcall(function() return require(ServerScriptService.IdentityService).KnownNameFor(Listener, Subject) end)
+	return (Ok and type(Name) == "string" and Name ~= "") and Name or "someone"
 end
 
--- Player talks to townsperson Id: one line over their head. Returns Text, Kind (nil while they flee or shelter).
+local LastTalk = {} -- [UserId] = os.clock() of their last Talk (the cooldown)
+
+-- Player talks to townsperson Id: one line over their head. Returns Text, Kind (nil while they flee or shelter, or
+-- within TalkCooldown of this player's last Talk)
 function TownsfolkService.Talk(Player, Id)
 	local F = Folk[Id]
 	if not F or not F.Rig.Parent or not Calm(F.State) then return nil end
+	local Now = os.clock()
+	if Now - (LastTalk[Player.UserId] or -math.huge) < TownsfolkService.TalkCooldown then return nil end
+	LastTalk[Player.UserId] = Now
 	local Def = F.Def
 	local QuestService = require(ServerScriptService.QuestService)
 	local SOk, SErr = pcall(QuestService.Signal, Player, "Talk", Def.Id)
@@ -301,6 +307,7 @@ local function Cower(F)
 	local Flat = Vector3.new(L.X, 0, L.Z)
 	Mover.Place(F.Rig, CFrame.lookAt(F.Root.Position, F.Root.Position + (Flat.Magnitude > 1e-3 and Flat or Vector3.new(0, 0, -1))))
 	F.Walk, F.RetryAt = nil, nil
+	F.Shelter = nil -- (a failed run releases the shelter it was running to)
 	F.Rig:SetAttribute("IdleAnim", TownsfolkLogic.KindIdles.Shelter)
 	SetState(F, "Sheltering")
 end
@@ -571,6 +578,7 @@ function TownsfolkService.Start()
 	-- children sets up every non-enemy child as a training dummy, so an empty folder made at boot could reach it)
 	require(ServerScriptService.NoiseService).Listen(OnNoise)
 	Players.PlayerRemoving:Connect(function(Player)
+		LastTalk[Player.UserId] = nil
 		for _, F in pairs(Folk) do
 			F.Talks[Player.UserId], F.PassAt[Player.UserId], F.Close[Player.UserId] = nil, nil, nil
 		end

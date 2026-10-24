@@ -75,9 +75,9 @@ end
 -- HeardIn (region builds spec §5): the latest word in Region, across everyone in this server, newest first, at
 -- most N: {{At, Text, Subject}, ...}. Rumour state is per player, so this reads each player's Morality. Read-only.
 --   * word that reached Region from elsewhere (Data.Morality.News);
---   * (Task 6 ruling) deeds done in Region itself: they land there at once and write no News, but they are what the
---     town talks about. Read from Morality.Places[Region].Known (deed -> faction -> time heard); At is the earliest
---     time any faction there knew it.
+--   * (Task 6 ruling) deeds known in Region (done here, arrived by rumour, or seeded): Morality.Places[Region].Known
+--     (deed -> faction -> time heard). Deeds done here land at once and write no News, but they are what the town
+--     talks about. At is the earliest time any faction there knew it.
 -- Only deeds with a reason line (Deeds[Id].Text); origin (Birth) deeds are never rumours. The same deed lands once
 -- per faction, so each (Subject, Text) is listed once, at its newest.
 function RumourService.HeardIn(Region, N)

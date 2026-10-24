@@ -76,7 +76,10 @@ local function Measure(Text)
 	return Vector2.new(MAX_WIDTH - PAD_X * 2, Lines * TEXT_SIZE * 1.2)
 end
 
-local Tokens = {} -- [Head] = the newest line's token (a newer line replaces an older one, even mid-measure)
+-- [Head] = the newest line's token (a newer line replaces an older one, even mid-measure). A plain table (Instance keys
+-- in weak tables can be dropped while the Instance lives): every entry is cleared when its line ends, is dropped, or
+-- its bubble is destroyed with the head.
+local Tokens = {}
 local function Show(Rig, Text, Seconds)
 	if typeof(Rig) ~= "Instance" or not Rig:IsDescendantOf(workspace) or type(Text) ~= "string" or Text == "" then return end
 	local Head = Rig:FindFirstChild("Head")
@@ -84,7 +87,8 @@ local function Show(Rig, Text, Seconds)
 	local Token = {}
 	Tokens[Head] = Token
 	local Size = Measure(Text) -- (yields)
-	if Tokens[Head] ~= Token or not Head.Parent then return end
+	if Tokens[Head] ~= Token then return end
+	if not Head.Parent then Tokens[Head] = nil return end
 	local Old = Head:FindFirstChild("SpeechBubble")
 	if Old then Old:Destroy() end
 
@@ -123,6 +127,7 @@ local function Show(Rig, Text, Seconds)
 	Label.Parent = Plate
 
 	Bubble.Parent = Head
+	Bubble.Destroying:Once(function() if Tokens[Head] == Token then Tokens[Head] = nil end end)
 	local M = Motion()
 	if M then
 		M.Fade(Plate, true, 0.18)

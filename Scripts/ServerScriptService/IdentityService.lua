@@ -260,6 +260,16 @@ function IdentityService.LabelFor(Viewer, Subject)
 	return R and Rules.Label(R) or "Unknown subject"
 end
 
+-- the name Viewer knows Subject by once they've identified them, or nil (Region Foundation Task 6: townsfolk name
+-- the people in their rumours this way; owner 2026-10-23: "Name if known, else 'someone'", never a journal number)
+function IdentityService.KnownNameFor(Viewer, Subject)
+	local B = Book(Viewer)
+	local Key = IdentityService.CharacterIdOf(Subject)
+	local R = B and Key and B.Records[Key]
+	local Name = R and R.Name
+	return (type(Name) == "string" and Name ~= "") and Name or nil
+end
+
 -- the Introduce prompt on each character (enabled only while that character is out of Combat Mode)
 local function AddPrompt(Player, Character)
 	local Root = Character:WaitForChild("HumanoidRootPart", 10)

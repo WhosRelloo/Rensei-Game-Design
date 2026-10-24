@@ -104,7 +104,7 @@ return {
 		T.Eq((L.NextTalk(Def, Fresh, {Tier = "Neutral"})), "Greeting", "the clue doesn't move the rotation")
 	end,
 	RumourWording = function(T)
-		T.Eq(L.RumourLine("Subject 03", "Struck a townsperson", false), "They say Subject 03 struck a townsperson.")
+		T.Eq(L.RumourLine("Ansel", "Struck a townsperson", false), "They say Ansel struck a townsperson.")
 		T.Eq(L.RumourLine("x", "Struck a townsperson.", true), "They say you struck a townsperson.", "the listener is the subject")
 		T.Eq(L.RumourLine("someone", "Promised Tobin you'd keep quiet about his nap", false), "They say someone promised Tobin they'd keep quiet about his nap.")
 		local R = L.Rumours({ {Text = "Kept Lise's secret", Subject = "Me"} }, "Me")

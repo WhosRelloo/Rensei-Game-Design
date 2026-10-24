@@ -131,13 +131,15 @@ local function BesideLine(Posts)
 	task.wait(0.2)
 end
 
--- Task 6: QuestService.Signal swapped for a recorder while Body runs (no real quest progress), then put back
+-- Task 6: QuestService.Signal swapped for a recorder while Body runs (no real quest progress), then put back. The
+-- Talk cooldown is off meanwhile (these tests talk several times in a row; TalkCooldown has its own test).
 local function RecordSignals(Body)
-	local Real = QuestService.Signal
+	local Real, Cool = QuestService.Signal, TS.TalkCooldown
 	local Calls = {}
 	QuestService.Signal = function(P, Kind, Target) table.insert(Calls, {P, Kind, Target}) end
+	TS.TalkCooldown = 0
 	local Ok, Err = pcall(Body, Calls)
-	QuestService.Signal = Real
+	QuestService.Signal, TS.TalkCooldown = Real, Cool
 	if not Ok then error(Err, 0) end
 end
 
@@ -455,6 +457,63 @@ return {
 			T.Eq(Lines[3][2], "Job", "3: the job line") T.Eq(Lines[3][1], D.JobLine)
 			T.Eq(Lines[4][2], "Greeting", "4: greeting again")
 			T.Eq(Lines[5][2], "Job", "5: the rumour was told already: the job line")
+		end)
+	end,
+
+	-- Fix round 1 (owner 2026-10-23: "Name if known, else 'someone'"): a rumour names someone else by the name the
+	-- listener has identified them by, otherwise "someone"; never the journal's "Subject 03". HeardIn and IdentityService
+	-- are patched (one player in the test server), then put back.
+	RumourNamesKnownOrSomeone = function(T)
+		Fixture(T, function(Posts, Ids, Spawned)
+			WorldClock.Hold(8)
+			local D = Def({{0, 24, Ids.A}})
+			TS.Spawn(D, "Test")
+			table.insert(Spawned, D.Id)
+			local RumourService = require(SSS.RumourService)
+			local IdentityService = require(SSS.IdentityService)
+			local Other = Instance.new("Folder") -- (stands in for another player: only its identity matters here)
+			local RealHeard, RealKnown, RealLabel = RumourService.HeardIn, IdentityService.KnownNameFor, IdentityService.LabelFor
+			local Known = nil
+			local Lines = {}
+			local Ok, Err = pcall(function()
+				RecordSignals(function()
+					RumourService.HeardIn = function() return {{At = 1, Text = "Struck a townsperson", Subject = Other}} end
+					IdentityService.KnownNameFor = function(Viewer, Subject) return Subject == Other and Known or nil end
+					IdentityService.LabelFor = function() return "Subject 03" end -- (the journal's label must not be spoken)
+					for I = 1, 2 do Lines[I] = {TS.Talk(Player, D.Id)} end -- greeting, then the rumour, unidentified
+					Known = "Ansel"
+					local D2 = Def({{0, 24, Ids.B}}) -- (a fresh townsperson: this rumour is new to the player again)
+					TS.Spawn(D2, "Test")
+					table.insert(Spawned, D2.Id)
+					for I = 3, 4 do Lines[I] = {TS.Talk(Player, D2.Id)} end
+				end)
+			end)
+			RumourService.HeardIn, IdentityService.KnownNameFor, IdentityService.LabelFor = RealHeard, RealKnown, RealLabel
+			Other:Destroy()
+			if not Ok then error(Err, 0) end
+			T.Eq(Lines[2][1], "They say someone struck a townsperson.", "not identified: someone")
+			T.Eq(Lines[4][1], "They say Ansel struck a townsperson.", "identified: the name they know")
+		end)
+	end,
+
+	-- Fix round 1: one player's Talks are at least TalkCooldown apart (server side)
+	TalkCooldown = function(T)
+		Fixture(T, function(Posts, Ids, Spawned)
+			WorldClock.Hold(8)
+			local D = Def({{0, 24, Ids.A}})
+			TS.Spawn(D, "Test")
+			table.insert(Spawned, D.Id)
+			RecordSignals(function()
+				TS.TalkCooldown = 0.5
+				task.wait(0.6) -- (clear of the earlier tests' Talks)
+				local First = TS.Talk(Player, D.Id)
+				local Second = TS.Talk(Player, D.Id)
+				task.wait(0.6)
+				local Third, Kind = TS.Talk(Player, D.Id)
+				T.True(First ~= nil, "the first Talk speaks")
+				T.Eq(Second, nil, "a second Talk within 0.5 s says nothing")
+				T.True(Third ~= nil and Kind == "Job", "after the cooldown, the next line (" .. tostring(Kind) .. ")")
+			end)
 		end)
 	end,
 
