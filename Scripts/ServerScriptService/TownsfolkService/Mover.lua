@@ -49,8 +49,10 @@
 --   4b. Urgent walkers (Task 6: fleeing a fight; not polite): an urgent walker never gives way to a normal one, runs
 --      at UrgentSpeed (16), side-steps only for a closer miss (UrgentClearance), keeps a narrower lane and hard gap,
 --      and has priority over every normal walker. A normal walker with an urgent one coming at it (ahead of it in its
---      lane, within GiveWayDist) steps aside AT ONCE, the same way it gives way in a door, and waits until it has
---      gone past. Two urgent walkers settle a head-on block between them by the usual priority.
+--      lane, within GiveWayDist or GiveWayLead seconds of it) steps aside AT ONCE - in the same steering tick, its
+--      forward steer dropped - the same way it gives way in a door, to the clear spot farthest from the urgent
+--      walker's way (off it when there is one), and waits until it has gone past. Two urgent walkers settle a
+--      head-on block between them by the usual priority.
 --   5. Re-planning: Path.Blocked ahead, or a wall appearing between the walker and its next waypoint, re-plans from
 --      where it stands. Stuck (under 0.5 studs of progress in 1.5 s, not just queueing behind someone moving): step
 --      sideways, then re-plan; the 4th time without real progress in between, the walk ends "failed".
@@ -146,7 +148,10 @@ Mover.UrgentSpeed = 16 -- running from a fight (a player's walk speed)
 Mover.UrgentClearance = 2.5 -- side-steps only for a closer miss than this (normal: Clearance 4)
 Mover.UrgentLane = 2.4 -- only a body this close to its line holds it up (normal: LaneWidth 3.6 / ContactGap 2.4)
 Mover.UrgentHardGap = 2.2 -- never closer than this to a moving body (normal: HardGap 2.8): brushing past is fine
-Mover.GiveWayDist = 14 -- a normal walker this close ahead of an urgent one, in its lane, steps aside at once
+Mover.GiveWayDist = 14 -- a normal walker this close ahead of an urgent one, in its lane, steps aside at once...
+Mover.GiveWayLead = 1.75 -- ...or (Lindenmoor import Task 8 fix round 2, PROPOSAL) once the urgent one would reach it
+-- within this many seconds: the reach is max(GiveWayDist, its speed x GiveWayLead), so a fast runner is seen in time
+Mover.YieldWide = 4 -- giving way to an urgent walker: the wider side spots tried (studs) when 2.5 is still in its lane
 
 local UP = Vector3.new(0, 1, 0)
 local LIFT = 3 -- R6 root height above the ground
@@ -1183,12 +1188,27 @@ end
 
 -- Where a yielder goes: back and to its right, or any side with room. In an alley there is none: it backs out along
 -- its own breadcrumbs until there is room to the side (or as far back as it has been), then steps aside there.
-local function YieldPath(H, P, Dir)
+-- Away (optional; giving way to an urgent walker): Away(Spot) -> how far Spot is from that walker's way. Then every
+-- clear spot is scored, the wider side spots are tried too, and the one off its way (LaneWidth or more), else the
+-- farthest from it, wins (ties: the order below, right side first); the breadcrumbs only when no spot is clear.
+local function YieldPath(H, P, Dir, Away)
 	local Right = RightOf(Dir)
 	local Back, Side = -Dir * Mover.YieldBack, Right * Mover.YieldSide
-	for _, Off in ipairs({Back + Side, Back - Side, Side, -Side}) do
-		if SpotClear(H, P, P + Off) then return {P + Off} end
+	local Offs = {Back + Side, Back - Side, Side, -Side}
+	if Away then
+		local Wide = Right * Mover.YieldWide
+		table.insert(Offs, Back + Wide)
+		table.insert(Offs, Back - Wide)
 	end
+	local Best, BestD
+	for _, Off in ipairs(Offs) do
+		if SpotClear(H, P, P + Off) then
+			if not Away then return {P + Off} end
+			local D = Away(P + Off) or math.huge
+			if not Best or D > BestD + 0.05 and BestD < Mover.LaneWidth then Best, BestD = P + Off, D end
+		end
+	end
+	if Best then return {Best} end
 	-- (the trail is cut back to the crumb it backs out to: what lies beyond is the way towards the other walker)
 	local Path, From = {}, P
 	local Trail = H.Trail
@@ -1253,11 +1273,12 @@ end
 -- is P on the urgent walker O's way: within LaneWidth of the rest of its path from OP (its current segment, then the
 -- next ones), no further along it than GiveWayDist or the way it has left to go + 2 studs? (header 4b) Also while it
 -- side-steps or re-plans, on its last known waypoints (so nobody waits for its next plan to step aside)
-function InUrgentWay(O, OP, P)
+-- (fix round 2) how far Q is from that way (Reach: how far along it to look, default GiveWayDist); nil when unknown
+local function UrgentWayDist(O, OP, Q, Reach)
 	local Wps = (O.Mode == "walk" or O.Mode == "side" or O.Mode == "plan") and O.Wps
-	if not (Wps and O.Wi and Wps[O.Wi]) then return false end
-	local Budget = math.min(Mover.GiveWayDist, (O.RemainDist or math.huge) + 2)
-	local A = OP
+	if not (Wps and O.Wi and Wps[O.Wi]) then return nil end
+	local Budget = math.min(Reach or Mover.GiveWayDist, (O.RemainDist or math.huge) + 2)
+	local A, Near = OP, math.huge
 	for I = O.Wi, #Wps do
 		local B = Wps[I]
 		local Seg = Flat(B - A)
@@ -1269,13 +1290,17 @@ function InUrgentWay(O, OP, P)
 		local Use = math.min(L, Budget)
 		if Use > 0.01 then
 			local Cut = A + Flat(B - A).Unit * Use
-			if SegDist(A, Cut, P) < Mover.LaneWidth then return true end
+			Near = math.min(Near, SegDist(A, Cut, Q))
 		end
 		Budget -= Use
 		if Budget <= 0 then break end
 		A = B
 	end
-	return false
+	return Near
+end
+function InUrgentWay(O, OP, P, Reach)
+	local D = UrgentWayDist(O, OP, P, Reach)
+	return D ~= nil and D < Mover.LaneWidth
 end
 
 local function StepOne(H, Dt, Now)
@@ -1458,16 +1483,24 @@ local function StepOne(H, Dt, Now)
 				local OP = O.Root.Position
 				local D = Flat(P - OP) -- from the urgent walker to this one
 				local Dist = D.Magnitude
-				if Dist > 1e-3 and Dist <= Mover.GiveWayDist and math.abs(OP.Y - P.Y) < 6 and D:Dot(O.Dir) > 0
-					and InUrgentWay(O, OP, P) then
+				-- (fix round 2) on time to meet: the reach grows with the urgent walker's speed
+				local Reach = math.max(Mover.GiveWayDist, (O.Speed or Mover.UrgentSpeed) * Mover.GiveWayLead)
+				if Dist > 1e-3 and Dist <= Reach and math.abs(OP.Y - P.Y) < 6 and D:Dot(O.Dir) > 0
+					and InUrgentWay(O, OP, P, Reach) then
 					local Toward = -D / Dist
-					H.YieldPath, H.YieldIdx, H.YieldStepUntil = YieldPath(H, P, Toward), 1, Now + 3
+					H.YieldPath = YieldPath(H, P, Toward, function(Spot) return UrgentWayDist(O, OP, Spot, Reach) end)
+					H.YieldIdx, H.YieldStepUntil = 1, Now + 3
 					H.YieldDir, H.YieldFrom = Toward, P
 					H.Mode, H.YieldTo, H.YieldT0, H.Settled = "yield", O, Now, false
 					H.YieldLast, H.Grow = Dist, 0
 					H.Yields += 1
 					Stats.Yields += 1
 					Stats.GiveWays += 1
+					-- (fix round 2) the step-aside starts in this tick: the forward steer is dropped (the steering blend
+					-- would otherwise carry it on for a few ticks) and the walker heads for the spot now
+					local To = Flat(H.YieldPath[1] - P)
+					H.Steer = To.Magnitude > 0.05 and To.Unit * H.Speed or Vector3.zero
+					GoTo(H, P, H.YieldPath[1], Now, #H.YieldPath == 1 and 0.4 or 1)
 					return
 				end
 			end
