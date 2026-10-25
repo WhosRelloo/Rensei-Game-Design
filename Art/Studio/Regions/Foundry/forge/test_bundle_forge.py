@@ -139,7 +139,7 @@ def read(path):
     if not os.path.exists(path):
         return ""
     with open(path, encoding="utf-8", newline="") as f:
-        return f.read()
+        return f.read().replace("\r\n", "\n")  # (a Windows checkout may turn LF into CRLF: compare normalised)
 
 
 def mode_lines(text):
@@ -191,17 +191,14 @@ def main():
         out = os.path.join(d, "bf_check.lua")
         r = subprocess.run([sys.executable, "-I", os.path.join(HERE, "bundle_forge.py"), out, "check"], capture_output=True, text=True)
         check("CLI exits 0", r.returncode == 0, r.stdout + r.stderr)
-        with open(out, encoding="utf-8", newline="") as f:
-            body = f.read()
+        body = read(out)
         check("CLI wrote MODE check", mode_lines(body) == ["check"], mode_lines(body))
-        with open(B.OUT_PATH, encoding="utf-8", newline="") as f:
-            check("CLI left build_forge.lua a plan bundle", f.read() == plan)
+        check("CLI left build_forge.lua a plan bundle", read(B.OUT_PATH) == plan)
         r = subprocess.run([sys.executable, "-I", os.path.join(HERE, "bundle_forge.py"), out, "nope"], capture_output=True, text=True)
         check("CLI refuses an unknown MODE", r.returncode != 0 and "REFUSED" in r.stdout, r.stdout)
     r = subprocess.run([sys.executable, "-I", os.path.join(HERE, "bundle_forge.py"), B.OUT_PATH, "apply"], capture_output=True, text=True)
     check("CLI refuses another MODE onto build_forge.lua", r.returncode != 0 and "REFUSED" in r.stdout, r.stdout)
-    with open(B.OUT_PATH, encoding="utf-8", newline="") as f:
-        check("build_forge.lua still a plan bundle after the refusal", f.read() == plan)
+    check("build_forge.lua still a plan bundle after the refusal", read(B.OUT_PATH) == plan)
 
     # 5. the kit's contents
     sf = [p for p in kit["Pieces"] if p["Group"] == "SilentForge"]
