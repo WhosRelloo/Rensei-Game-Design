@@ -1,5 +1,11 @@
 # Gun Rework Implementation Plan
 
+> **Owner update (2026-10-25):** the gun reload animation id is **97563934064498**, supplied by the owner.
+> - The `Guns_Reload` slot is created with this id, not empty.
+> - Task 1 checks in Studio that it loads, and measures its length for `AnimLength`.
+> - If it fails to load, the no-animation fallback stays.
+> - Nothing is left for the owner to upload for this plan.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Every implementer gets the **Global Constraints** and the **Facts** below together with its own task.
 
 **Goal:** Fix guns' shooting-mode aiming, rebalance the gun class, and give the automatic reload an animation slot with a safe fallback. That means:

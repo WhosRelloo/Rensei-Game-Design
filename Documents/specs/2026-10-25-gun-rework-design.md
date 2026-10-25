@@ -1,5 +1,11 @@
 # Gun Class Rework: Audit and Design (PROPOSAL)
 
+> **Owner update (2026-10-25):** the gun reload animation id is **97563934064498**, supplied by the owner.
+> - The `Guns_Reload` slot is created with this id, not empty.
+> - Task 1 checks in Studio that it loads, and measures its length for `AnimLength`.
+> - If it fails to load, the no-animation fallback stays.
+> - Nothing is left for the owner to upload for this plan.
+
 **Date:** 2026-10-25. **Status:** draft for the owner. Every number and rule here is a **PROPOSAL** unless it quotes an owner decision. Written overnight under the owner's go-ahead (Backlog, 2026-10-25); nothing is built or published.
 
 **The owner's request** (Backlog, "After the Foundry Yard plan"): "Fix gun shoot mode aiming mechanics. (balance out the gun class completely, add a reload animation as well)".
