@@ -34,6 +34,7 @@
 --                 Shelter is over 145 studs away, a duplicate PostId, a new shelter missing / untagged / off the
 --                 ground / with something solid where a townsperson stands. Returns PASS n / FAIL n.
 -- MODE = "test"   (only while not applied) snapshot -> apply -> check -> undo -> snapshot; the two must be equal.
+--                 check (and the second snapshot) run in a pcall, so undo always runs (Ruling 26, Foundry data Task 7).
 --                 Leaves Foundry as it was.
 -- import/restore.lua refuses while FoundryPosts is set (the region file's RestoreRefuseFlags).
 local MODE = "plan" -- "plan", "apply", "undo", "check" or "test"
@@ -397,9 +398,9 @@ local function apply()
 	local Ok, Err = pcall(function()
 		-- (c) the shelves
 		for _, T in ipairs(Traders) do
+			table.insert(Journal, {"shelf", T.Shelf}) -- (Ruling 26: each journal entry before the change it undoes)
 			T.Shelf.CanCollide = false
 			T.Shelf:SetAttribute(SHELF, true)
-			table.insert(Journal, {"shelf", T.Shelf})
 		end
 		task.wait(NAV_WAIT) -- (the navmesh is rebuilt on a later frame; a path asked at once still sees the shelves)
 		-- (b) the yard posts
@@ -451,8 +452,8 @@ local function apply()
 					Mod.Name = "FoundryCanopyPassThrough"
 					Mod.PassThrough = true
 					Mod:SetAttribute(ADD, true)
+					table.insert(Journal, {"made", Mod}) -- (Ruling 26: the journal entry before the Parent)
 					Mod.Parent = T.Canopy
-					table.insert(Journal, {"made", Mod})
 					-- (a new modifier alone doesn't rebuild the navmesh in Edit, measured 2026-10-24; the stall's own
 					-- collision change does: the shelf goes solid for a moment and walk-through again)
 					T.Shelf.CanCollide = true
@@ -495,14 +496,14 @@ local function apply()
 			P:SetAttribute("PostId", D.Id)
 			P:SetAttribute("Kind", "Shelter")
 			P:SetAttribute(ADD, true)
+			table.insert(Journal, {"made", P}) -- (Ruling 26: the journal entry before the Parent)
 			P.Parent = Markers
 			CS:AddTag(P, "RenseiPost")
-			table.insert(Journal, {"made", P})
 			table.insert(Report, ("%s at (%.1f, %.2f, %.1f)%s; %s"):format(D.Id, X, Top + 1, Z,
 				Tried > 1 and (" (spiral point %d)"):format(Tried) or " (the target)", Why))
 		end
-		FD:SetAttribute(FLAG, "applied")
 		table.insert(Journal, {"flag"})
+		FD:SetAttribute(FLAG, "applied")
 	end)
 	if not Ok then
 		for I = #Journal, 1, -1 do
@@ -593,10 +594,13 @@ elseif MODE == "test" then
 	local Before = snapshot()
 	local Ok, Msg = apply()
 	if not Ok then return refuse(Msg) end
-	local Fails, Head, Lines = checks()
+	-- (Ruling 26) check runs in a pcall between apply and undo, so undo always runs
+	local COk, Fails, Head, Lines = pcall(checks)
+	if not COk then Head, Lines = "check ERROR: " .. tostring(Fails), {} end
 	local UOk, UMsg = undo()
-	local After = snapshot()
-	local Diffs, First = compare(Before, After)
+	local SOk, After = pcall(snapshot)
+	local Diffs, First = 0, {}
+	if SOk then Diffs, First = compare(Before, After) else Diffs, First = -1, {"snapshot ERROR: " .. tostring(After)} end
 	table.insert(Out, ("foundry_posts test: %s %s; %s; round trip %s (%d rows, %d differ)"):format(Msg, Head,
 		UOk and UMsg or ("UNDO FAILED: " .. UMsg), Diffs == 0 and "EXACT" or "DIFFERS", #Before, Diffs))
 	for _, L in ipairs(Lines) do table.insert(Out, L) end

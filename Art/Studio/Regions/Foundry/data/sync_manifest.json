@@ -50,5 +50,6 @@
   {"Label": "RenseiTests.Test_FoundryPaths", "Studio": "ServerStorage/RenseiTests/Test_FoundryPaths", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_FoundryPaths.lua", "Places": ["foundry"], "Create": true},
   {"Label": "RenseiTests.Test_YePaths", "Studio": "ServerStorage/RenseiTests/Test_YePaths", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_YePaths.lua", "Places": ["ye"], "Create": true},
   {"Label": "RenseiTests.Play_FoundryWalks", "Studio": "ServerStorage/RenseiTests/Play_FoundryWalks", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_FoundryWalks.lua", "Places": ["foundry"], "Create": true},
+  {"Label": "RenseiTests.Play_FoundryForge", "Studio": "ServerStorage/RenseiTests/Play_FoundryForge", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_FoundryForge.lua", "Places": ["foundry"], "Create": true},
   {"Label": "RenseiTests.Play_LindenmoorData", "Studio": "ServerStorage/RenseiTests/Play_LindenmoorData", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_LindenmoorData.lua", "Places": ["ye"], "Create": false}
 ]}

@@ -95,7 +95,7 @@ def main():
         check(f"{p['Label']} places", p["Places"] and set(p["Places"]) <= {"ye", "foundry"}, p["Places"])
         check(f"{p['Label']} class", p["Class"] in ("ModuleScript", "Script", "LocalScript"), p["Class"])
         check(f"{p['Label']} path", len(p["Studio"].split("/")) >= 2 and p["Studio"].split("/")[-1], p["Studio"])
-    check("pair count foundry", len(sync.pairs_for(manifest, "foundry")) == 48, len(sync.pairs_for(manifest, "foundry")))
+    check("pair count foundry", len(sync.pairs_for(manifest, "foundry")) == 49, len(sync.pairs_for(manifest, "foundry")))
     check("pair count ye", len(sync.pairs_for(manifest, "ye")) == 47, len(sync.pairs_for(manifest, "ye")))
 
     # 3. norm_hash against Studio's value
