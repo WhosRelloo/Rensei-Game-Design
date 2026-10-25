@@ -32,7 +32,7 @@ The final review of the Lindenmoor import asked for these fixes (Ruling 43). All
 - **The Lindenmoor Discord post** now says the compass matches the land, says the open land falls under Lindenmoor's law, and puts the mine beside the Adit hill.
 
 **Tests:**
-- **New `test_ye_fixes.py`:** 27/0. It pins the east/west name swap against the kit's layout.json and chunks (review M5), keeps the generated scripts equal to their templates, and checks every guard.
+- **New `test_ye_fixes.py`:** 26 checks pass, 0 fail. It pins the east/west name swap against the kit's layout.json and chunks (review M5), keeps the generated scripts equal to their templates, and checks every guard.
 - **`test_kit.py`:** 75/0.
 - **Hooked Play in Ye** (the owner's save restored before every Stop):
   - **The RED run, before the EnemyService fix:** Smoke 7/1, failing on EnemiesStandInTheWorld. Two Grunts stood within 60 studs of (5, _, −70).
