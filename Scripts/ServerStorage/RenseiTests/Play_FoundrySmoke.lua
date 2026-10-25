@@ -8,8 +8,14 @@
 --                            guard_square's for errand_square itself), PathfindingService at the Mover's own radii in
 --                            turn (Mover.Agent 2.5, NarrowRadii 2 and 1.5, SqueezeRadius 1; its height, spacing and
 --                            Costs), ending within 2.5 of the post's foot (Task 4's reach test, Ruling 25 (3): the last
---                            waypoint sits on the navmesh, under the stand point). Control: a post pivoted into the
---                            great hall's Back wall is reported.
+--                            waypoint sits on the navmesh, under the stand point). And (Ruling 39) a rig-sized box where
+--                            a townsperson stands at the post overlaps no colliding part: 3 x 3 (Task 4's spot test),
+--                            from the post's foot (post - 1) + Mover.StepHeight (1.5: a kerb a rig steps beside or onto
+--                            isn't in the way; 11 Workers' Row posts stand beside 0.5-stud kerbs) up to the foot +
+--                            Mover.Agent.AgentHeight (5.5). Controls (run once): a post pivoted into the great
+--                            hall's Back wall at floor level, (400, 5, -394), fails the box (the reach alone passes it:
+--                            the 2-stud wall is within the path's 2.5 tolerance); one at the wall's centre, (400, 19,
+--                            -394), fails the reach.
 --   * EveryPostHasAShelter   each post's nearest Shelter post (from where a rig's root stands, 3 over the post) is at
 --                            most 145 studs off (Ruling 37). Control (inline): the same function given a synthetic post
 --                            at (0, 5, 760) reports it.
@@ -170,6 +176,30 @@ local function Reach(Hub, Stand)
 	end
 	return nil, Miss
 end
+-- (Ruling 39) the posts whose standing box (3 x 3, from the post's foot + the Mover's step height up to the foot + its
+-- agent height) overlaps a colliding part other than the markers, the players and the live rigs:
+-- {"id at (x, y, z): solid where a rig stands [names]"}
+local function SolidStands(List)
+	local Op = OverlapParams.new()
+	Op.FilterType = Enum.RaycastFilterType.Exclude
+	local Ex = Skip()
+	table.insert(Ex, FD():FindFirstChild("Markers"))
+	Op.FilterDescendantsInstances = Ex
+	Op.RespectCanCollide = true
+	local Mover = require(SSS.TownsfolkService.Mover)
+	local Lo, Hi = Mover.StepHeight, Mover.Agent.AgentHeight
+	local Out = {}
+	for _, P in ipairs(List) do
+		local Foot = P.Position - Vector3.new(0, 1, 0)
+		local Hit = {}
+		for _, X in ipairs(workspace:GetPartBoundsInBox(CFrame.new(Foot + Vector3.new(0, (Lo + Hi) / 2, 0)), Vector3.new(3, Hi - Lo, 3), Op)) do
+			if X ~= P and not X:IsA("Terrain") then table.insert(Hit, X.Name) end
+		end
+		if #Hit > 0 then table.insert(Out, ("%s at %s: solid where a rig stands [%s]"):format(tostring(P:GetAttribute("PostId")), f1(P.Position), table.concat(Hit, ","))) end
+	end
+	return Out
+end
+
 -- the posts with no path from the hub: {"id at (x, y, z) (ends d off)"}
 local function Unreached(ById, List)
 	local Out = {}
@@ -228,6 +258,8 @@ function Suite.EveryPostIsReachable(T)
 	local ById, List = Posts()
 	T.Eq(#List, POSTS, "RenseiPosts in Map.Foundry")
 	T.True(ById.errand_square ~= nil and ById.guard_square ~= nil, "the hub posts errand_square and guard_square")
+	local Solid = SolidStands(List)
+	T.Eq(#Solid, 0, "posts with something solid where a townsperson stands: " .. table.concat(Solid, "; "))
 	local Bad = Unreached(ById, List)
 	T.Eq(#Bad, 0, "posts with no path from the hub at radii " .. table.concat(Radii(), "/") .. ": " .. table.concat(Bad, "; "))
 end
@@ -535,8 +567,8 @@ function Suite.TownsfolkAtTheirPosts(T)
 			if Post16 ~= Want then
 				Moves += 1
 				local Off16 = Flat(Root.Position - StandOf(ById[Post16])).Magnitude
+				if Off16 > 1.5 then Wrong16 += 1 end -- (Ruling 39: counted only when it holds)
 				T.True(Off16 > 1.5, ("control: %s is %.1f studs from its 16:00 post %s, so that comparison fails"):format(D.Id, Off16, Post16))
-				Wrong16 += 1
 			end
 		end
 		-- (17 of the 26 have another post at 16:00 than at 10:00, measured 2026-10-25: the brief's "at least 20" can't
@@ -646,4 +678,4 @@ function Suite.UnderworksIsShaded(T)
 end
 
 -- (the run-once controls' switches and the suite's helpers; not tests: TestKit runs only the suite's own keys)
-return setmetatable(Suite, {__index = {Opt = Opt, Posts = Posts, Unreached = Unreached, LedgeProblems = LedgeProblems}})
+return setmetatable(Suite, {__index = {Opt = Opt, Posts = Posts, Unreached = Unreached, SolidStands = SolidStands, LedgeProblems = LedgeProblems}})

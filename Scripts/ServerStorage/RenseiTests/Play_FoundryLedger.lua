@@ -256,10 +256,8 @@ local function RunFlow(T)
 	task.wait(0.2) -- (MoralityService's Recorded listeners run in spawned threads)
 	Try("save", function()
 		for K, S in pairs(Saved) do
-			if type(S.Was) == "table" then
-				for Key in pairs(S.Was) do S.Was[Key] = nil end
-				for Key, V in pairs(S.Copy) do S.Was[Key] = Copy(V) end
-			end
+			-- (Task 9, Ruling 39: SmokeKit.PutBack; keys added since are removed, a fresh copy goes back in place)
+			if type(S.Was) == "table" then SmokeKit.PutBack(S.Was, Copy(S.Copy)) end
 			Data[K] = S.Was
 		end
 	end)

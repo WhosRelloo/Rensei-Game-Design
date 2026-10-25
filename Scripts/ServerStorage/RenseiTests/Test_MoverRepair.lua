@@ -24,6 +24,9 @@
 --                            path crosses a lawn somewhere else). A new vertex clear of the post lands on Grass, dearer
 --                            than the leg's own ground: refused (stale), or routed round with Concrete under every leg.
 --                            (The repair's cost cap is the leg's neighbouring labels, not the dearest on the path.)
+--   * GrassLegMayUseGrass    (Task 9, Ruling 39: DearGroundIsRefused's positive case) the same post and strip, but the
+--                            leg through the post is labelled Grass at both ends (the planned path walks a lawn there):
+--                            the repair may push onto Grass: repaired, with a vertex, every leg clear of the post.
 --   * EaseKeepsItsGround     (Task 9) a waypoint hugging a wall on a Concrete strip with Grass beyond 1.6 studs from
 --                            the wall, all labels Concrete: the eased point (1.25+ off the wall) would stand on Grass, so
 --                            the ease is refused; the path stays stale or keeps Concrete under every leg.
@@ -173,8 +176,8 @@ local function BodyLegs(Ctx, Pts)
 end
 
 -- a repaired path: valid by the test's own rays, every new vertex MIN_CLEAR or more from the blocks, the ends kept
-local function Repaired(T, Ctx, Pts, What)
-	local Out, Added = Mover.RepairPath(Pts)
+local function Repaired(T, Ctx, Pts, What, Labels)
+	local Out, Added = Mover.RepairPath(Pts, Labels) -- (Labels: optional, the points' labels)
 	T.True(Out ~= nil, What .. ": repaired (not stale: " .. tostring(Added) .. ")")
 	T.True(#Added >= 1, What .. ": at least one vertex was inserted")
 	T.Eq(#Out, #Pts + #Added, What .. ": the path is the old points plus the vertices")
@@ -307,6 +310,19 @@ return {
 			else
 				T.Eq(Why, "stale", "or the repair is refused")
 			end
+		end, {Strip = {3, 5}})
+	end,
+
+	GrassLegMayUseGrass = function(T)
+		Fixture(T, function(Ctx)
+			Ctx.Box(0, 4, 0.6, 0.6) -- the same post on the same Concrete strip (z 3..5), Grass either side
+			local Pts = {Ctx.At(-40, 4.1), Ctx.At(-12, 4.1), Ctx.At(12, 4.1), Ctx.At(30, 4.1)}
+			local Labels = {"Concrete", "Grass", "Grass", "Concrete"} -- (the leg's own ends are Grass)
+			T.True(#ClearLegs(Ctx, Pts) > 0, "the line runs through the post")
+			local Out, Added = Repaired(T, Ctx, Pts, "a Grass leg past a post", Labels)
+			local OnGrass = 0
+			for _, L in ipairs(ConcreteLegs(Ctx, Out)) do if string.find(L, "Grass", 1, true) then OnGrass += 1 end end
+			T.True(OnGrass > 0, "the repaired legs use the Grass beside the strip (" .. #Added .. " vertices)")
 		end, {Strip = {3, 5}})
 	end,
 

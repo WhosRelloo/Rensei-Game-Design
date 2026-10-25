@@ -198,6 +198,7 @@ function Suite.AcqMetalFromFoundry(T)
 
 		-- 4. the experiment: the bench's prompt handler, as PuzzleService runs it
 		local Bench = OneTagged(T, "RenseiMechanism", "MechanismId", BENCH)
+		T.True(Bench:FindFirstChild("MechanismPrompt") ~= nil, "step 4: PuzzleService attached the bench's MechanismPrompt") -- (Ruling 39)
 		local P = Puzzles.Mechanisms[BENCH].Prompt
 		T.Eq(P.Minigame, "metal_match", "step 4: the bench's prompt opens metal_match")
 		local Me = SmokeKit.Stand(Player, Bench.Position)

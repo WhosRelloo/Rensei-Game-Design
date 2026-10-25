@@ -17,8 +17,9 @@
 --   * Quick mode (owner request, Foundry Yard plan Task 9: "one full walk of every route, then repeats only for routes
 --     that needed repairs or failed before"; made stricter: "only recheck routes that failed or needed a replan, not
 --     routine corner repairs"): opt-in only, with ServerStorage's attribute WalksQuick = true; without it
---     the suite runs the whole day as above. Quick mode reads the risky list (RenseiTests.RiskyWalks: {Id, From, To}
---     routes) and steps only the hours those routes change at: for each, the clock is held half an hour before
+--     the suite runs the whole day as above. The attribute is cleared as soon as a run reads it (one quick run per
+--     setting), and the run prints "[FoundryWalks] run: QUICK" or "FULL". Quick mode reads the risky list
+--     (RenseiTests.RiskyWalks: {Id, From, To} routes) and steps only the hours those routes change at: for each, the clock is held half an hour before
 --     (everyone placed by LoadRegion at the post that covers it: every listed route's From), then at the hour
 --     (TownsfolkService.Step sends everyone due walking, as in the full day). The same checks judge every walk made;
 --     Coverage checks every listed route was walked (and is a schedule change) and reports the list's coverage. An
@@ -143,6 +144,9 @@ local function RunDay()
 			end
 		end
 		R.Quick = Opt.Quick == true or game.ServerStorage:GetAttribute("WalksQuick") == true
+		-- (Ruling 39) the attribute is used once: cleared as soon as it is read, so it can't make a later run quick
+		game.ServerStorage:SetAttribute("WalksQuick", nil)
+		print("[FoundryWalks] run: " .. (R.Quick and "QUICK (the risky routes only)" or "FULL (the whole day)"))
 		if not R.Quick then
 			-- the hours any schedule changes, in order
 			local Hours, Seen = {}, {}

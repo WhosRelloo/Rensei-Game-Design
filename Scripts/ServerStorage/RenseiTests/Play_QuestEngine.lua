@@ -27,7 +27,8 @@ local TestKit = require(script.Parent.TestKit) -- (Task 4b: TestKit.Beside, for 
 local SITES = {Vector3.new(-700, 300, 700), Vector3.new(700, 300, 700), Vector3.new(-700, 300, -3300)}
 local FLOOR = 40
 
-local Copy = require(script.Parent.SmokeKit).Copy -- (Task 9, Ruling 37: the shared helper)
+local SmokeKit = require(script.Parent.SmokeKit)
+local Copy = SmokeKit.Copy -- (Task 9, Ruling 37: the shared helper)
 
 -- runs Body(Player, Data, OnCleanup) with the player's Quests / Story / Morality copied first and put back after (in
 -- place, the same tables), then every OnCleanup function (last first); a failure is raised after the cleanup
@@ -42,10 +43,8 @@ local function Guarded(T, Body)
 	local Ok, Err = pcall(Body, Player, Data, function(Fn) table.insert(Cleanups, Fn) end)
 	local ROk, RErr = pcall(function()
 		for K, S in pairs(Saved) do
-			if type(S.Was) == "table" then
-				for Key in pairs(S.Was) do S.Was[Key] = nil end
-				for Key, V in pairs(S.Copy) do S.Was[Key] = Copy(V) end
-			end
+			-- (Task 9, Ruling 39: SmokeKit.PutBack; keys added since are removed, a fresh copy goes back in place)
+			if type(S.Was) == "table" then SmokeKit.PutBack(S.Was, Copy(S.Copy)) end
 			Data[K] = S.Was
 		end
 	end)
