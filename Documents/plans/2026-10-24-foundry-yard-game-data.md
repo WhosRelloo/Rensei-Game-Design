@@ -760,8 +760,8 @@ Notes on the roster:
   - **Test_FoundryRoster:** 0 FAIL.
   - **The roster is live:** `TownsfolkService` has 26 townsfolk (`TownsfolkService.Get` for each Id), with no "refused" warning in the server output (`get_console_output`).
   - **At their posts:** `WorldClock.Hold(10)`, then `TownsfolkService.LoadRegion("Foundry", Townsfolk.Regions.Foundry)` (as Play_LindenmoorData does at :272–274), then 1.5 s later every rig's post is its 10:00 post and it stands within 1.5 studs of the post's stand point. Do this as Play_LindenmoorData's TownsfolkRoster test does: use the same calls, run inline from the session script. Put the clock back.
-  - **Regressions:** Play_Townsfolk, Play_TownsfolkCrowd and Play_TownsfolkHurt, 0 FAIL, now with Foundry's roster live.
-- [ ] **Step 4: Play in Ye:** Play_LindenmoorData and Play_Townsfolk, 0 FAIL. Ye's roster is unaffected.
+  - **Regressions:** Play_TownsfolkCrowd, 0 FAIL, now with Foundry's roster live. (Play_Townsfolk and Play_TownsfolkHurt are Ye-map suites, Ye-only per Ruling 17; Step 4 runs them in Ye.)
+- [ ] **Step 4: Play in Ye:** Play_LindenmoorData, Play_Townsfolk and Play_TownsfolkHurt, 0 FAIL. Ye's roster is unaffected.
 - [ ] **Step 5:** `sync.py --check` in both places.
 - [ ] **Step 6: Commit** `Townsfolk.lua`, `Test_FoundryRoster.lua` and the manifest: `"Foundry data Task 5: Foundry Yard's 26 townsfolk on two shifts"`.
 
@@ -1237,7 +1237,7 @@ foundry_ledger = {
   - Play_Boot, Play_Station, Play_Road, Play_Gate, Play_Arrive, Play_Travel, Play_RideEvents;
   - Play_FoundrySmoke, Play_FoundryData, Play_FoundryLedger, Play_FoundryForge;
   - Test_FoundryRoster, Test_AcqMetal, Test_Regions, Test_QuestRevision, Play_QuestEngine;
-  - Play_Exams, Play_Clue, Play_Townsfolk, Play_TownsfolkCrowd, Play_TownsfolkHurt, Play_Clock, Play_NoGrip.
+  - Play_Exams, Play_Clue, Play_TownsfolkCrowd, Play_Clock, Play_NoGrip (Play_Townsfolk and Play_TownsfolkHurt are Ye-only, Ruling 17; Step 3 runs them).
 
   Expected: 0 FAIL, apart from the known Travel 5/2 and RideEvents 8/1. Record every count, and the step-time numbers.
 - [ ] **Step 3: Ye's suites, in one Ye Play session:**
