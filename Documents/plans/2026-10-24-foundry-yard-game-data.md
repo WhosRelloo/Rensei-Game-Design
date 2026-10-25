@@ -1280,7 +1280,7 @@ foundry_ledger = {
   3. `fix_ledges.lua` undo, if Task 9 made and applied it;
   4. revert the scripts from `RenseiBackups["Pre-FoundryData_2026-10-24"]`, in both places, for this plan's labels;
   5. **delete the scripts this plan created,** which have no backup:
-     - **in Foundry:** `StarterPlayerScripts.TownsfolkClient`, `StarterCharacterScripts.Health`, and the suites Test_TownsfolkLogic, Play_Townsfolk, Play_TownsfolkCrowd, Play_TownsfolkHurt, Play_Clue, Play_Clock, Play_Exams, Play_NoGrip, Test_QuestRevision, Play_QuestEngine, Test_AcqMetal, Test_FoundryRoster, Play_FoundryLedger, Play_FoundryForge, SmokeKit, Play_FoundrySmoke and Play_FoundryData;
+     - **in Foundry:** `StarterPlayerScripts.TownsfolkClient`, `StarterCharacterScripts.Health`, and the suites Test_TownsfolkLogic, Play_TownsfolkCrowd, Play_Clue, Play_Clock, Play_Exams, Play_NoGrip, Test_QuestRevision, Play_QuestEngine, Test_AcqMetal, Test_FoundryRoster, Play_FoundryLedger, Play_FoundryForge, SmokeKit, Play_FoundrySmoke and Play_FoundryData;
      - **in Ye:** Test_QuestRevision, Play_QuestEngine, Test_AcqMetal and SmokeKit. Ye's Play_LindenmoorSmoke goes back to its backup instead.
   6. `import/restore.lua`, which refuses while `FoundryPosts`, `FoundryForge` or `FoundryLedges` is set.
 - **The smoke table:** each check and what it proves.
