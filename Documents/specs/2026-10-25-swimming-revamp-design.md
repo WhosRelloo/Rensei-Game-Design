@@ -4,6 +4,7 @@
 > - **Climbing out:** use the game's existing **ledge-climb** animation, the one played when you pull up onto a ledge. In the repo's JumpManager that pull-up plays `Vault1`/`Vault2`. Task 1's Studio survey confirms which `Assets.Animations` entry is the ledge climb (and whether a dedicated ledge-climb id exists) and uses that one.
 > - **Underwater idle:** use the surface idle, `Swim_Idle`.
 > - So **`Swim_ClimbOut` and `Swim_UnderIdle` are not new slots any more**. The owner only needs to upload **two** animations: `Swim_Dive` and `Swim_Surface`.
+> - **The Ye plunge hole is APPROVED** (owner, 2026-10-25: "The deep diving hole in Ye's gorge is a good idea (you can work on that in studio I don't want to open blender yet)"). The optional Task 8 is in scope. It is **Studio-only, with no Blender**: a reversible Studio script carves the terrain hole and resizes the Baseplate around it, with a restore guard, as planned.
 > - **Placeholders (owner, 2026-10-25: "Use placeholders for the other 2 animations"):** `Swim_Dive` and `Swim_Surface` are created **filled**, not empty.
 >   - `Swim_Dive` copies `Swim_Forward`'s AnimationId, played with the body pitched down.
 >   - `Swim_Surface` copies `Swim_Idle`'s AnimationId, played once, briefly.

@@ -43,6 +43,9 @@ In the owner's order:
 5. [ ] **Reputation shapes investigations:** expand the reputation system so it changes how NPCs answer during investigations. "some will lie to you or just refuse to tell you the truth, or some evil NPC's will spill secrets easier, etc."
 6. [ ] **The main story** (concept draft: `Documents/specs/2026-10-25-main-story-concept.md`). Placed here by the controller (the owner left the slot open on 2026-10-25): after the reputation item, before the remaining regions are built, so it can teach every system. The owner can move it.
 
+## After the main story (owner, 2026-10-25: "The older backlog can go after the main story task")
+The items below, from 2026-10-20, now come after the main story (item 6 in "After the swimming revamp").
+
 ## After the world plans (owner, 2026-10-20)
 
 These start after the world, travel and seasons plans are finished (`Documents/specs/2026-10-20-world-travel-seasons-design.md`).
@@ -52,10 +55,10 @@ These start after the world, travel and seasons plans are finished (`Documents/s
 - [ ] **Health:** balance it out, so fights don't last forever.
 - [ ] **Running attack:** fix it; it shouldn't be a knockback.
 - [ ] **Down slam:** fix it not doing anything on uptilt.
-- [ ] **Parry:** "Fix parrying so players can constantly spam F (let me know if I need to add parry attempt anims)".
+- [x] **Parry:** "Fix parrying so players can constantly spam F (let me know if I need to add parry attempt anims)". *(Done: confirmed by the owner 2026-10-25.)*
   - Ask the owner before starting: should spam be blocked by a miss window (a parry attempt with its own animation and cooldown)? If so, which animations are needed?
 - [x] **Greatsword:** fix its sheathe position on the back. *(Done 2026-10-23: centred on the spine, steeper diagonal; `HolsterC0` on the Greatsword grip part, Assets package.)*
-- [ ] **Alchemy aim:** alchemy doesn't lock on with the lock-on; it fires in random directions.
+- [x] **Alchemy aim:** alchemy doesn't lock on with the lock-on; it fires in random directions. *(Done: confirmed by the owner 2026-10-25.)*
 
 ### Performance and multiplayer
 - [ ] **Lag and memory:** fix server lag and in-game memory use, so players aren't laggy or delayed.
