@@ -85,7 +85,7 @@ Hold: not live yet; goes out together with the Lindenmoor expansion. Post this w
 
 **A real town at the end of the line**
 - Foundry Yard is a whole town now: the station, Cinder Lane's terraces, the rail yards, Workers' Row, the square with its market and canteen, and the great hall where the furnaces roar day and night.
-- Take the train from Lindenmoor, or walk the road north from Lindenmoor.
+- Take the train from Lindenmoor, or walk the road north.
 
 **A town at work**
 - 26 townsfolk live and work here on two shifts: crane and furnace hands, yard hands, a porter, cooks, traders, errand runners and more.
