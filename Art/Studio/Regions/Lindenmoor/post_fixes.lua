@@ -1,15 +1,18 @@
 --!nocheck
--- post_fixes.lua: Foundry Yard game-data plan Task 4b (Ruling 30). Four of Lindenmoor's RenseiPost markers stand
--- inside solid parts, so a townsperson can't stand there and walks to and from them fail (Test_YePaths' Stands rule: a
--- standing rig's body axis within 0.5 of a colliding part):
+-- post_fixes.lua: Foundry Yard game-data plan Task 4b (Ruling 30), extended in Task 8 (Ruling 32). Five of Lindenmoor's
+-- RenseiPost markers stand inside solid parts, so a townsperson can't stand there and walks to and from them fail
+-- (Test_YePaths' Stands rule: a standing rig's body axis within 0.5 of a colliding part):
 --   lm_lookout_seat      inside Lookout_lookout.Base (the minehand's night seat: mine_carts -> it, it -> mine_winder)
 --   lm_haybarn_shelter   inside Barn_hay_barn_east.Body and Plinth (a Shelter post: flee walks end there)
 --   lm_farm4_field       inside Farmhouse_farm_4.StoneFloor (farm4's day post: no path from it to lm_farm4_home, and
 --                        the walk to it ends against the stone floor)
 --   lm_farm1_home        on the rim of Farmyard_farm_1's well (Well6, 1 stud high, through the rig's legs: 0.01 from
 --                        its body axis)
--- (Measured too and NOT moved: lm_signal_box stands inside SignalBox_signal_box's Base and Cabin, but the signalman's
--- schedule is 0-24 there, so no schedule change walks to it; left for the owner.)
+--   lm_signal_box        inside SignalBox_signal_box's Base and Cabin (the signalman's post, 0-24: no schedule change
+--                        walks to it, but he spawns there and stood inside the box; Task 8, Ruling 32). Its new spot is
+--                        3.5 studs -Z (south on Ye's compass) of the old one, on the ground in front of the box's base,
+--                        clear of the stair (measured 2026-10-25: waist clearance 2.38). Its reach check starts 30 studs
+--                        further -Z (it has no partner post).
 -- Each moves to the nearest spot outside its part where a rig can stand (measured 2026-10-25, every spot a PROPOSAL):
 -- walkable ground at the old foot's height, nothing solid in the 3 x 5.5 x 3 box a standing rig fills, a waist
 -- clearance of 1.25 or more, and (measured with the repaired Mover in Edit) the post's own schedule walks passing every
@@ -20,7 +23,7 @@
 -- MODE = "apply"  refuses, changing nothing, while Play runs, while ServerStorage's PlayLock is set, when
 --                 LindenmoorExpansion has LindenmoorPostFixes, when anything carries LindenmoorPostFrom, or when a post
 --                 is not exactly one RenseiPost at its measured old spot. Then, in a pcall with a journal (an error half-
---                 way is rolled back) and one ChangeHistory recording: moves the four posts (each carries
+--                 way is rolled back) and one ChangeHistory recording: moves the five posts (each carries
 --                 LindenmoorPostFrom, its old CFrame as a CFrame attribute: 12 numbers), sets LindenmoorPostFixes =
 --                 "applied", then runs check.
 -- MODE = "undo"   (refuses while Play runs or PlayLock is set) puts every LindenmoorPostFrom post back on its old
@@ -47,6 +50,8 @@ local POSTS = {
 	{Id = "lm_haybarn_shelter", Old = Vector3.new(646, 5, 112), New = Vector3.new(641.2, 5, 110.5), Partner = nil, In = "Barn_hay_barn_east.Body"},
 	{Id = "lm_farm4_field", Old = Vector3.new(-640, 23, -470), New = Vector3.new(-631.2, 23, -468.0), Partner = "lm_farm4_home", In = "Farmhouse_farm_4.StoneFloor"},
 	{Id = "lm_farm1_home", Old = Vector3.new(-876, 23, -876), New = Vector3.new(-880.0, 23, -875.5), Partner = "lm_farm1_field", In = "Farmyard_farm_1.Well6"},
+	-- (Task 8, Ruling 32; PROPOSAL spot)
+	{Id = "lm_signal_box", Old = Vector3.new(660, 5, 826), New = Vector3.new(660.0, 5, 822.5), Partner = nil, Hub = Vector3.new(660, 8, 792.5), In = "SignalBox_signal_box.Base"},
 }
 -- the haybarn shelter's reach check starts 30 studs out from its new spot, away from the barn (no roster post is
 -- within 150 studs of it; it is a shelter for whoever passes by)
@@ -129,6 +134,7 @@ local function reach(From, C)
 	return nil, Miss
 end
 local function hubFor(ById, D)
+	if D.Hub then return D.Hub end
 	if not D.Partner then return HAYBARN_HUB end
 	local P = one(ById, D.Partner)
 	return P and (P.CFrame * CFrame.new(0, 3, 0)).Position

@@ -483,7 +483,7 @@ Do this in Edit, never in Play, in this order. Each Studio-fix script takes its 
 - **`post_fixes.lua`, `east_west_names.lua`, `shelters.lua` and `bed_fix.lua`:** copy the file to a scratch folder and edit its MODE line there.
 - **The generated scripts (`road_cut.lua`, `seam_pits.lua` and `regrade_seam.lua`):** do the same. Copy the committed file to a scratch folder and edit only its `local MODE = "apply"` line. **Never regenerate them with their `.py`**: the generator recomputes from the current survey and the current ground, so the new file would no longer match what was applied.
 - **`gorge_fix.lua`:** use its bundler (step 7).
-1. **`Art/Studio/Regions/Lindenmoor/post_fixes.lua`**, `MODE = "undo"` (Foundry Yard plan Task 4b). It puts `lm_lookout_seat`, `lm_haybarn_shelter`, `lm_farm4_field` and `lm_farm1_home` back where they were (inside the lookout's base, the hay barn, the farmhouse's stone floor and on the well's rim) and clears `LindenmoorPostFixes`. Nothing else depends on it.
+1. **`Art/Studio/Regions/Lindenmoor/post_fixes.lua`**, `MODE = "undo"` (Foundry Yard plan Task 4b; `lm_signal_box` added in Task 8). It puts `lm_lookout_seat`, `lm_haybarn_shelter`, `lm_farm4_field`, `lm_farm1_home` and `lm_signal_box` back where they were (inside the lookout's base, the hay barn, the farmhouse's stone floor, on the well's rim and inside the signal box) and clears `LindenmoorPostFixes`. Nothing else depends on it.
    - After this step, Test_YePaths fails again (the four posts can't be stood at; farm4's walks fail). That is expected.
 2. **`Art/Studio/Regions/Lindenmoor/east_west_names.lua`**, `MODE = "undo"`.
    - West Lookout and Northwest Gap go back to East Lookout and Northeast Gap.
@@ -500,7 +500,7 @@ Do this in Edit, never in Play, in this order. Each Studio-fix script takes its 
 9. **`import/restore.lua`.** It refuses, changing nothing, while the expansion still carries any of the seven fix flags (`LindenmoorSeamRegrade`, `LindenmoorSeamPits`, `LindenmoorGorgeFix`, `LindenmoorGorgeBed`, `LindenmoorRoadCut`, `LindenmoorShelters`, `LindenmoorEastWest`; the region file's `RestoreRefuseFlags`), so steps 2–8 come first. It does not check `LindenmoorPostFixes` (step 1 has no restore guard), so step 1 must already be done.
    - It moves `LindenmoorExpansion` into `Post-Region_Lindenmoor_<date>`, together with its `Travel`, its `SeamFillers` and the shelter posts.
    - It pastes the terrain back under the water boxes.
-10. **`prep_ye.lua` undo, from a fresh bundle:** `python -I Art/Studio/Regions/Lindenmoor/bundle_prep.py prep <out.lua> undo`. Then check there is exactly one `RenseiArrival` with `Point = "RoadStart"`: the old North Road's.
+10. **`prep_ye.lua` undo, from a fresh bundle:** `python -I Art/Studio/Regions/Lindenmoor/bundle_prep.py prep <out.lua> undo`. It refuses while `World.Map` has `FoundryMove` (Foundry Yard plan Task 8): first run `Art/Studio/Regions/Foundry/forge/retire_ye.lua` with `MODE = "undo"` (a scratch copy), which brings Brannoc, the Silent Forge, the Forge Floor and the Ward spawn back from `Pre-FoundryMove_2026-10-24` and removes his notice. Then check there is exactly one `RenseiArrival` with `Point = "RoadStart"`: the old North Road's.
 11. **Revert the data and script files.** Take every Studio copy from `ServerStorage.RenseiBackups["Pre-LindenmoorImport_2026-10-24"]`. Backups are named `Rensei.<Module>`, `RenseiServer.<Service>`, `TownsfolkService.Mover`, `UI.<Module>` and `RenseiTests.<Suite>`. Back up each current copy, then set its Source from the backup.
     - **Never take `Rensei.Puzzles` or `UI.CompassUI` from git.** The repo copies at the plan's base, `2378b54`, were behind Studio:
       - Puzzles lacks `adit_boards` and the Breakable kind;
@@ -518,7 +518,7 @@ Do this in Edit, never in Play, in this order. Each Studio-fix script takes its 
     - **Delete:** Play_LindenmoorData and Play_LindenmoorSmoke. They are new; the `RenseiTests.Play_LindenmoorData` backup is a Task 8 copy and `RenseiTests.Play_LindenmoorSmoke_Task9` a Task 9 copy, not pre-import ones.
 12. **Run the travel suites:** Play_Boot, Gate, Arrive, Station, Road, Travel and RideEvents.
 
-**A re-import brings the old names back.** The kit files (`Art/Studio/Regions/Lindenmoor/layout.json` and `import/chunk_*.lua`) still say East Lookout and Northeast Gap. After any re-import from them, re-apply `east_west_names.lua` with `MODE = "apply"`, then `post_fixes.lua` with `MODE = "apply"` (the kit's chunks still put `lm_lookout_seat`, `lm_haybarn_shelter`, `lm_farm4_field` and `lm_farm1_home` inside the parts they stood in).
+**A re-import brings the old names back.** The kit files (`Art/Studio/Regions/Lindenmoor/layout.json` and `import/chunk_*.lua`) still say East Lookout and Northeast Gap. After any re-import from them, re-apply `east_west_names.lua` with `MODE = "apply"`, then `post_fixes.lua` with `MODE = "apply"` (the kit's chunks still put `lm_lookout_seat`, `lm_haybarn_shelter`, `lm_farm4_field`, `lm_farm1_home` and `lm_signal_box` inside the parts they stood in).
 
 ### Ye differs from the kit
 Ye's expansion is **not** what the kit files build. The kit is `Art/Studio/Regions/Lindenmoor/layout.json`, `import/chunk_*.lua` and the Blender scene `Lindenmoor_Expansion.blend`. After the import, these Studio fixes changed Ye in place, and none of them is in the kit:
@@ -530,12 +530,12 @@ Ye's expansion is **not** what the kit files build. The kit is `Art/Studio/Regio
 - the **seam fillers** (`SeamFillers`, Ruling 20, placed by hand);
 - the **7 Shelter posts** (`shelters.lua`);
 - the **east/west names** (`east_west_names.lua`): West Lookout, Northwest Gap and the two village descriptions;
-- the **four moved posts** (`post_fixes.lua`, Foundry Yard plan Task 4b): `lm_lookout_seat`, `lm_haybarn_shelter`, `lm_farm4_field` and `lm_farm1_home`, out of the parts they stood in. The region file (`Art/Regions/Lindenmoor/layout.json`) has the new spots; the kit's chunks don't.
+- the **five moved posts** (`post_fixes.lua`, Foundry Yard plan Tasks 4b and 8): `lm_lookout_seat`, `lm_haybarn_shelter`, `lm_farm4_field`, `lm_farm1_home` and `lm_signal_box`, out of the parts they stood in. The region file (`Art/Regions/Lindenmoor/layout.json`) has the new spots; the kit's chunks don't.
 
 The north-west road's `Travel` is built by `setup.lua` from the kit's marker, so a re-run of `setup.lua` brings it back.
 
 **A re-import from the kit, or a Blender rebuild and fresh export, silently drops all of the list above.** Nothing warns you: the import's own checks pass, because they compare against the kit. After any re-import:
-1. Re-apply the fixes in the order they first ran: the seam fillers (by hand), the seam regrade, the gorge fix, the seam pits, the bed, `setup.lua`, the road cut, the shelters, the east/west names, then the four posts (`post_fixes.lua`). Regenerate the generated ones (`regrade_seam.lua`, `seam_pits.lua`, `road_cut.lua`) from a fresh survey with their `.py` first, each right before it runs: their committed plans are for the ground as it was. Every fix checks the ground or targets it expects, and refuses instead of half-applying when they don't match.
+1. Re-apply the fixes in the order they first ran: the seam fillers (by hand), the seam regrade, the gorge fix, the seam pits, the bed, `setup.lua`, the road cut, the shelters, the east/west names, then the five posts (`post_fixes.lua`). Regenerate the generated ones (`regrade_seam.lua`, `seam_pits.lua`, `road_cut.lua`) from a fresh survey with their `.py` first, each right before it runs: their committed plans are for the ground as it was. Every fix checks the ground or targets it expects, and refuses instead of half-applying when they don't match.
 2. Re-run the smoke and travel suites.
 
 `test_ye_fixes.py` (beside the kit scripts) fails if the kit gains an east/west name that `east_west_names.lua` doesn't swap.

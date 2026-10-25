@@ -203,7 +203,7 @@
     {"Tag": "RenseiPost", "At": [690, 0, -740], "Yaw": 90, "Attr": {"PostId": "lm_mine_winder", "Kind": "Work"}},
     {"Tag": "RenseiPost", "At": [720, 0, -720], "Yaw": 0, "Attr": {"PostId": "lm_mine_carts", "Kind": "Work"}},
     {"Tag": "RenseiPost", "At": [-120, 0, -150], "Yaw": 270, "Attr": {"PostId": "lm_training_drill", "Kind": "Work"}},
-    {"Tag": "RenseiPost", "At": [660, 0, 826], "Yaw": 45, "Attr": {"PostId": "lm_signal_box", "Kind": "Work"}},
+    {"Tag": "RenseiPost", "At": [660, 0, 822.5], "Yaw": 45, "Attr": {"PostId": "lm_signal_box", "Kind": "Work"}},
     {"Tag": "RenseiPost", "At": [715, 0, -447.7], "Yaw": 80, "Attr": {"PostId": "lm_lookout_seat", "Kind": "Seat"}},
     {"Tag": "RenseiPost", "At": [641.2, 0, 110.5], "Yaw": 60, "Attr": {"PostId": "lm_haybarn_shelter", "Kind": "Shelter"}},
     {"Tag": "RenseiPost", "At": [-919.6, 0, -831.8], "Yaw": 135, "Attr": {"PostId": "lm_farm1_shelter", "Kind": "Shelter"}},
