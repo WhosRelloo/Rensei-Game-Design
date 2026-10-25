@@ -53,5 +53,8 @@
   {"Label": "RenseiTests.Play_FoundryForge", "Studio": "ServerStorage/RenseiTests/Play_FoundryForge", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_FoundryForge.lua", "Places": ["foundry"], "Create": true},
   {"Label": "RenseiTests.Play_LindenmoorData", "Studio": "ServerStorage/RenseiTests/Play_LindenmoorData", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_LindenmoorData.lua", "Places": ["ye"], "Create": false},
   {"Label": "RenseiTests.SmokeKit", "Studio": "ServerStorage/RenseiTests/SmokeKit", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/SmokeKit.lua", "Places": ["ye", "foundry"], "Create": true},
-  {"Label": "RenseiTests.Play_LindenmoorSmoke", "Studio": "ServerStorage/RenseiTests/Play_LindenmoorSmoke", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_LindenmoorSmoke.lua", "Places": ["ye"], "Create": false}
+  {"Label": "RenseiTests.Play_LindenmoorSmoke", "Studio": "ServerStorage/RenseiTests/Play_LindenmoorSmoke", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_LindenmoorSmoke.lua", "Places": ["ye"], "Create": false},
+  {"Label": "RenseiTests.Play_FoundrySmoke", "Studio": "ServerStorage/RenseiTests/Play_FoundrySmoke", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_FoundrySmoke.lua", "Places": ["foundry"], "Create": true},
+  {"Label": "RenseiTests.Play_FoundryData", "Studio": "ServerStorage/RenseiTests/Play_FoundryData", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_FoundryData.lua", "Places": ["foundry"], "Create": true},
+  {"Label": "RenseiServer.MinigameService", "Studio": "ServerStorage/RenseiServer/MinigameService", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/MinigameService.lua", "Places": ["ye", "foundry"], "Create": false}
 ]}

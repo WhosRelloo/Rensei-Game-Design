@@ -335,6 +335,7 @@ local function Submit(Player, Answer)
 	end
 	Pass(Player, S)
 end
+MinigameService.Submit = Submit -- tests (Foundry Yard plan): the same path the remote takes
 
 function MinigameService.Start()
 	Remote = Instance.new("RemoteEvent")

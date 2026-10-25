@@ -1,6 +1,8 @@
 -- SmokeKit (Foundry Yard plan Task 8, Ruling 6 and Ruling 31, 2026-10-25): the helpers more than one Play suite uses,
 -- in one module (the global "no duplicated test logic" rule). Run in the game VM (LMRunSuite), never in Edit.
 --   * SmokeKit.Copy(V): a deep copy of a table (anything else comes back as it is).
+--   * SmokeKit.PutBack(Tbl, Old) (Task 9): puts Old's keys back into Tbl in place (keys Old lacks are removed), so a
+--     save table keeps its identity; Old is a copy taken first (SmokeKit.Copy) and is used as it is.
 --   * SmokeKit.Stand(Player, Pos): the player's character held still (anchored) 5 studs off and 3 up from Pos, for an
 --     inspect or a Talk; returns the root. The caller puts the character back.
 --   * SmokeKit.Ask(Player, Character, Kind): asks the server for a traversal (as JumpRemote "TraversalState" does) and
@@ -17,7 +19,8 @@
 --       ExpectSpawns = {[EnemyType] = count}: the RenseiEnemySpawns in workspace, counted by EnemyType, are exactly
 --                      these (no other type, no other count);
 --       AreaOf = function(Part) -> AreaName or nil: WorldService.AreaAt at each workspace spawn is that name.
--- (Moved here from Play_LindenmoorSmoke and Play_FoundryLedger with the same behaviour.)
+-- (Moved here from Play_LindenmoorSmoke and Play_FoundryLedger with the same behaviour; Task 9, Ruling 37: the Copy
+-- helpers of Play_Exams, Play_FoundryForge, Play_QuestEngine and Test_QuestRevision too.)
 local CollectionService = game:GetService("CollectionService")
 local SSS = game:GetService("ServerScriptService")
 local MovementState = require(game:GetService("ReplicatedStorage").Modules.Managers.MovementState)
@@ -31,6 +34,11 @@ function SmokeKit.Copy(V)
 	local R = {}
 	for K, X in pairs(V) do R[K] = SmokeKit.Copy(X) end
 	return R
+end
+
+function SmokeKit.PutBack(Tbl, Old)
+	for K in pairs(Tbl) do if Old[K] == nil then Tbl[K] = nil end end
+	for K, V in pairs(Old) do Tbl[K] = V end
 end
 
 function SmokeKit.Stand(Player, Pos)
@@ -134,7 +142,9 @@ function SmokeKit.EnemiesStandInTheWorld(T, Opts)
 					local Want = Opts.AreaOf(P)
 					if Want ~= nil then
 						local Where = P:IsA("BasePart") and P.Position or P:GetPivot().Position
-						T.Eq(require(SSS.WorldService).AreaAt(Where), Want, P:GetFullName() .. "'s area")
+						-- (Task 9: AreaAt returns the area's part; its name is compared, as WorldService names areas)
+						local A = require(SSS.WorldService).AreaAt(Where)
+						T.Eq(A and (A:GetAttribute("AreaName") or A.Name), Want, P:GetFullName() .. "'s area")
 					end
 				end
 			end
