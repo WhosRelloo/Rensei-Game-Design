@@ -321,7 +321,7 @@ Human transmutation is a Taboo act (the morality spec). It's always warned about
 - **Tough but loud.** Higher damage resistance, but every step clanks. They make more footstep noise through the existing noise system (`NoiseService`), so stealth is harder.
 - **No swimming.** They sink in deep water and walk along the bottom, and they can only climb out where the bottom rises. There's no breath meter, because they don't breathe. This ties into the swimming revamp's diving.
 - **Alchemy works** as before.
-- **The look:** the owner's existing armor set in the Studio places. Its exact model path and parts must be confirmed in Studio before building.
+- **The look:** the owner's existing armor set, confirmed in Ye's Studio on 2026-10-25 at `ReplicatedStorage.Assets["RELLO IMPORTED ASSETS"]["ArmourSet (FULL METAL ALCHEMIST)"].ArmourSet`. It is a Model with 10 parts: Head, Hair, Torso, Left Arm, Right Arm, Left Leg, Right Leg, Apron, Coverup and `Meshes/ARMORSET_Cube.001`. Its parts are named for the R6 rig, so it can be worn piece by piece over the character's body.
 - **Permanent** for that character, unless a future body-recovery questline is done.
 - **Taboo:**
   - It records the Taboo mark "Attempted human transmutation" (morality spec).
@@ -429,7 +429,7 @@ All payouts stay once only (exists: a quest leaves Active before anything is pai
   - a Militia fine desk in Lindenmoor (fines are taken only by Foreman Brask today, for State Heat);
   - the "travel alone" flag.
 - **Identities NPC records** (§2.5).
-- **The armor-bound state** (§3.4): the outcome roll, the armor look (the owner's existing set, path to confirm in Studio), repair healing, footstep noise, sinking, and its Taboo handling. It belongs with the Taboo layer's build, not Chapter 1.
+- **The armor-bound state** (§3.4): the outcome roll, the armor look (the owner's existing set at `Assets["RELLO IMPORTED ASSETS"]["ArmourSet (FULL METAL ALCHEMIST)"].ArmourSet`, an R6-named set of 10 parts), repair healing, footstep noise, sinking, and its Taboo handling. It belongs with the Taboo layer's build, not Chapter 1.
 - **A guaranteed rumour** about the beat 4 fight, so beat 5 always has something to hear.
 - **The survey camp** at the mine (beat 9). It later becomes Lindenmoor's first stealth compound.
 
