@@ -435,7 +435,7 @@ The Lindenmoor expansion is in Ye's Studio Edit session, tested, and **not live*
 - [x] Play tests (Tasks 7–9).
 
 ### Smoke test (`ServerStorage.RenseiTests.Play_LindenmoorSmoke`)
-The repo copy is `Scripts/ServerStorage/RenseiTests/Play_LindenmoorSmoke.lua`. Run it in hooked Play through `LMRunSuite`. It passed **7/7** in three sessions. After review fix round 1 it passed 7/7 again (with Play_NoGrip 6/0). With the crag tags taken off around one spot, it **failed**, as it must.
+The repo copy is `Scripts/ServerStorage/RenseiTests/Play_LindenmoorSmoke.lua`. Run it in hooked Play through `LMRunSuite`. Before review it passed 7/0 in two of three sessions (the first was 6/1 on a test spot), under an older crag check that could not fail. After review fix round 1, with the stricter check, it passed 7/0 (with Play_NoGrip 6/0). With the crag tags taken off around one spot, it **failed**, as it must.
 
 | Check | What it proves |
 |---|---|

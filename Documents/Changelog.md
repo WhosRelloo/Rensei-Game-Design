@@ -39,7 +39,7 @@ Every number is a **PROPOSAL** unless the owner chose it. The details, the rollb
   - these docs.
 
 **Tests (hooked Play in Ye; the owner's save restored before every Stop; one Play session at a time across Ye and Foundry):**
-- **Play_LindenmoorSmoke 7/0** in three sessions, and again after review fix round 1 (with Play_NoGrip 6/0). With the crag tags removed around one spot it fails, as it should. It checks that:
+- **Play_LindenmoorSmoke 7/0** after review fix round 1 (with Play_NoGrip 6/0), under the stricter crag check. With the crag tags removed around one spot it fails, as it should. It checks that:
   - the crag refuses a climb and a wall run on all four edges, and a control proves it is the tag;
   - there is water in the creek and the gorge;
   - the expansion's 10 lamps are lit at 23:00 and dark at 12:00;
