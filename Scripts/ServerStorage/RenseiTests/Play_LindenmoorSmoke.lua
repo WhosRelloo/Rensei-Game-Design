@@ -4,7 +4,8 @@
 --     before the crag, facing it. The crag face is within the server's reach (TuningConfig.Traversal.ValidateReach),
 --     MovementState.Grippable says no, and the server refuses a climb and a wall run ("Refused:NoWall"). Control: with
 --     the RenseiNoGrip tags near that spot taken off for a moment, the same climb is accepted, so the refusal is the
---     tag's doing and not a missing wall. The tags are always put back.
+--     tag's doing and not a missing wall. The tags are always put back (the tagged count is the same after). The
+--     spot is chosen without reading the tag (see "the crag" below).
 --   * WaterIsReal: terrain Water voxels at three points in the west creek and three in the Mill Creek gorge (the
 --     water_segments.json centrelines), and a downward ray there meets the water's surface at about Top 5.2.
 --   * LampsFollowTheClock: every NightOnly lamp of the expansion is in WorldClock's lamp set; with the clock held at
@@ -35,16 +36,23 @@ local function Expansion()
 end
 
 -- ===== the crag =====
--- one point per edge: outward direction, and the spot t studs in from the edge at s along it (world studs; the
--- expansion fills x -1024..1024, z -1024..1024). The spot is the first s (from -400, 40 at a time) whose crag foot
--- has nothing else grippable within the server's reach: a forest trunk beside the crag is a fair climb, and isn't
--- the crag (the +Z edge's s -400 has an oak 3.5 studs off, 2026-10-24).
+-- One point per edge: outward direction, and the spot t studs in from the edge at s along it (world studs; the
+-- expansion fills x -1024..1024, z -1024..1024). Nothing in choosing the spot reads the RenseiNoGrip tag, so an
+-- untagged crag part fails the test instead of being skipped:
+--   * the crag's foot is found by height: walking outward, the last expansion Ground cell before the ground rises
+--     more than CRAG_RISE in one step (the crag stands 80+ studs over the ground beside it);
+--   * the wall in front of the player there must be an expansion Ground part facing the player;
+--   * a spot is skipped only when the server's own wall rays meet a grippable part that is NOT expansion Ground
+--     (a forest trunk, a lamp, a rock): that is a fair climb, and isn't the crag. The +Z edge's s -400 has an oak
+--     3.5 studs off (2026-10-24). A grippable Ground part in reach is never skipped: the server takes it and the
+--     refusal asserts fail.
 local EDGES = {
 	{Name = "+X edge", Out = Vector3.new(1, 0, 0), At = function(T, S) return Vector3.new(1024 - T, 0, S) end},
 	{Name = "-X edge", Out = Vector3.new(-1, 0, 0), At = function(T, S) return Vector3.new(-1024 + T, 0, S) end},
 	{Name = "+Z edge", Out = Vector3.new(0, 0, 1), At = function(T, S) return Vector3.new(S, 0, 1024 - T) end},
 	{Name = "-Z edge", Out = Vector3.new(0, 0, -1), At = function(T, S) return Vector3.new(S, 0, -1024 + T) end},
 }
+local CRAG_RISE = 40 -- (studs in one 2-stud step: far more than any ramp or terrace step, far less than the crag)
 
 -- the last ground cell before the crag along the edge's line at S (walking outward), from the expansion's Ground only
 local function CragFoot(E, S)
@@ -52,43 +60,54 @@ local function CragFoot(E, S)
 	GP.FilterType = Enum.RaycastFilterType.Include
 	GP.FilterDescendantsInstances = {Expansion().Ground}
 	local Last
-	for T = 120, 20, -2 do
+	for T = 120, 2, -2 do
 		local P = E.At(T, S)
 		local Hit = workspace:Raycast(P + Vector3.new(0, 400, 0), Vector3.new(0, -500, 0), GP)
 		if Hit then
-			if not MovementState.Grippable(Hit.Instance) then break end -- the crag's top
+			if Last and Hit.Position.Y - Last.Y > CRAG_RISE then return Last end -- the next cell is the crag
 			Last = Vector3.new(P.X, Hit.Position.Y, P.Z)
-		end
-	end
-	return Last
-end
-
--- the server's own wall-in-reach rays (MovementState: 8 flat directions, at the root and 3 above, ValidateReach
--- long, any face steeper than 0.7): the first grippable wall they meet from Stand, or nil
-local function GrippableNear(Stand, Reach, MP)
-	for _, H in ipairs({0, 3}) do
-		for I = 0, 7 do
-			local A = I * math.pi / 4
-			local Hit = workspace:Raycast(Stand + Vector3.new(0, H, 0), Vector3.new(math.cos(A), 0, math.sin(A)) * Reach, MP)
-			if Hit and math.abs(Hit.Normal.Y) < 0.7 and MovementState.Grippable(Hit.Instance) then return Hit.Instance end
 		end
 	end
 	return nil
 end
 
--- the first spot along the edge whose crag face is in reach in front and with nothing else grippable in reach
+-- the server's own wall-in-reach rays (MovementState: 8 flat directions, at the root and 3 above, ValidateReach
+-- long, any face steeper than 0.7): the first grippable wall they meet from Stand that is not expansion Ground
+local function ClutterNear(Stand, Reach, MP)
+	local Ground = Expansion().Ground
+	for _, H in ipairs({0, 3}) do
+		for I = 0, 7 do
+			local A = I * math.pi / 4
+			local Hit = workspace:Raycast(Stand + Vector3.new(0, H, 0), Vector3.new(math.cos(A), 0, math.sin(A)) * Reach, MP)
+			if Hit and math.abs(Hit.Normal.Y) < 0.7 and MovementState.Grippable(Hit.Instance)
+				and not Hit.Instance:IsDescendantOf(Ground) then
+				return Hit.Instance
+			end
+		end
+	end
+	return nil
+end
+
+-- the first spot along the edge with an expansion Ground wall facing the player in reach, and no grippable clutter
+-- in reach; returns the stand point, s, and why each earlier spot was skipped (for the failure message)
 local function CragSpot(E, Reach, MP)
+	local Ground = Expansion().Ground
+	local Skipped = {}
 	for S = -400, 400, 40 do
 		local Foot = CragFoot(E, S)
 		if Foot then
 			local Stand = Foot + Vector3.new(0, 3, 0) -- (where a standing root is)
 			local Front = workspace:Raycast(Stand, E.Out * Reach, MP)
-			if Front and not MovementState.Grippable(Front.Instance) and not GrippableNear(Stand, Reach, MP) then
-				return Stand, S
+			if Front and Front.Instance:IsDescendantOf(Ground) and Front.Normal:Dot(E.Out) < -0.7 then
+				local Clutter = ClutterNear(Stand, Reach, MP)
+				if not Clutter then return Stand, S, Skipped end
+				table.insert(Skipped, ("s %d: %s"):format(S, Clutter.Name))
+			else
+				table.insert(Skipped, ("s %d: no Ground wall in front"):format(S))
 			end
 		end
 	end
-	return nil
+	return nil, nil, Skipped
 end
 
 -- asks the server for a traversal (as JumpRemote "TraversalState" does) and waits for its answer for this session:
@@ -143,8 +162,8 @@ function Suite.CragCantBeGrabbed(T)
 	MP.FilterType = Enum.RaycastFilterType.Include
 	MP.FilterDescendantsInstances = {workspace.World.Map}
 	for _, E in ipairs(EDGES) do
-		local Stand, S = CragSpot(E, Reach, MP)
-		T.True(Stand ~= nil, E.Name .. ": a spot at the crag's foot with nothing else grippable in reach")
+		local Stand, S, Skipped = CragSpot(E, Reach, MP)
+		T.True(Stand ~= nil, E.Name .. ": a spot at the crag's foot without grippable clutter (" .. table.concat(Skipped, "; ") .. ")")
 		WithRoot(function(Character, Root)
 			Root.Anchored = true
 			Root.CFrame = CFrame.lookAt(Stand, Stand + E.Out)
@@ -154,6 +173,7 @@ function Suite.CragCantBeGrabbed(T)
 				local Hit = workspace:Raycast(O, E.Out * Reach, MP)
 				local Where = ("%s at (%.0f, %.0f, %.0f) +%d"):format(E.Name, O.X, O.Y, O.Z, H)
 				T.True(Hit ~= nil, Where .. ": the crag face is within reach (" .. Reach .. ")")
+				T.True(Hit.Instance:IsDescendantOf(Expansion().Ground), Where .. ": it is expansion Ground (" .. Hit.Instance.Name .. ")")
 				T.True(Hit.Normal:Dot(E.Out) < -0.7, Where .. ": it is a wall facing the player")
 				T.Eq(MovementState.Grippable(Hit.Instance), false, Where .. ": " .. Hit.Instance.Name .. " can't be gripped")
 			end
@@ -165,6 +185,7 @@ function Suite.CragCantBeGrabbed(T)
 			T.Eq(Why, "Refused:NoWall", E.Name .. ": wall run refused as if no wall were there")
 			-- control: the same spot with the crag's tags off for a moment takes a climb
 			local Untagged = {}
+			local Before = #CollectionService:GetTagged(NOGRIP)
 			local Ok, Err = pcall(function()
 				for _, P in ipairs(workspace:GetPartBoundsInRadius(Stand, Reach + 16)) do
 					if CollectionService:HasTag(P, NOGRIP) then
@@ -180,6 +201,7 @@ function Suite.CragCantBeGrabbed(T)
 			for _, P in ipairs(Untagged) do CollectionService:AddTag(P, NOGRIP) end
 			if not Ok then error(Err, 0) end
 			T.Eq(MovementState.Grippable(Untagged[1]), false, E.Name .. ": the tags are back")
+			T.Eq(#CollectionService:GetTagged(NOGRIP), Before, E.Name .. ": every RenseiNoGrip tag is back")
 		end)
 	end
 end
@@ -323,6 +345,12 @@ function Suite.TrainersCanBeTalkedTo(T)
 		if P:IsDescendantOf(workspace) and P:GetAttribute("Piece") == "TrainerSpot" then table.insert(Spots, P) end
 	end
 	T.Eq(#Spots, 5, "TrainerSpot markers")
+	local Elements = {}
+	for _, Spot in ipairs(Spots) do
+		local El = Spot:GetAttribute("Element")
+		T.True(El ~= nil and not Elements[El], "TrainerSpot " .. Spot.Name .. " has its own Element (" .. tostring(El) .. ")")
+		Elements[El] = true
+	end
 	for _, Spot in ipairs(Spots) do
 		local Element, Name = Spot:GetAttribute("Element"), Spot:GetAttribute("Trainer")
 		local Trainer

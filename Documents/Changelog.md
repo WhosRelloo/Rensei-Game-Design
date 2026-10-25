@@ -39,11 +39,11 @@ Every number is a **PROPOSAL** unless the owner chose it. The details, the rollb
   - these docs.
 
 **Tests (hooked Play in Ye; the owner's save restored before every Stop; one Play session at a time across Ye and Foundry):**
-- **Play_LindenmoorSmoke 7/0, twice:**
+- **Play_LindenmoorSmoke 7/0** in three sessions, and again after review fix round 1 (with Play_NoGrip 6/0). With the crag tags removed around one spot it fails, as it should. It checks that:
   - the crag refuses a climb and a wall run on all four edges, and a control proves it is the tag;
-  - water in the creek and the gorge;
-  - the expansion's 10 lamps lit at 23:00 and dark at 12:00;
-  - one RoadStart, one Platform and one LindenmoorFoundry platform train;
+  - there is water in the creek and the gorge;
+  - the expansion's 10 lamps are lit at 23:00 and dark at 12:00;
+  - there is one RoadStart, one Platform and one LindenmoorFoundry platform train;
   - the gorge ledge faces its wall;
   - all five trials start;
   - the five trainers stand at their spots and can be talked to.
@@ -53,8 +53,8 @@ Every number is a **PROPOSAL** unless the owner chose it. The details, the rollb
 - **Also:** NoGrip 6/0, Clock 5/0 and LindenmoorData 3/0. Task 8's suites passed in its own rounds.
 
 **Part budget:**
-- **Workspace:** 76,369 of the place's 80,000.
-- **The expansion:** 45,421. That is over its own 42,000 ceiling, which Ruling 25 accepts.
+- **Workspace:** 76,373 of the place's 80,000.
+- **The expansion:** 45,425. That is over its own 42,000 ceiling, which Ruling 25 accepts.
 
 **Repo brought up to Studio (the sweep):** these files were stale copies of what is already in Studio, and the game is unchanged:
 - `Scripts/`: ProfileData, JumpManager, StealthUI, PuzzleClient, FlowService, PuzzleService, Test_Schema5, Test_Witness and `ClientHandler/Run`;
@@ -65,12 +65,15 @@ Two whitespace-only differences in `Art/Studio/Travel/src` (Play_Boot, RenseiBoo
 **For the owner:**
 1. Save Ye in Studio. Don't publish yet.
 2. Walk the new land in Play once.
-3. Then publish:
-   - the Ye place;
-   - the Modules package: Regions, Townsfolk, TownsfolkLogic, Quests, Dialogues, Investigation, Evidence, Puzzles, CompassUI and MasteryUI;
-   - the RenseiServer package: WorldService, TownsfolkService, TownsfolkService.Mover and MoralityService.
+3. Publish the packages from Ye:
+   - Modules: Regions, Townsfolk, TownsfolkLogic, Quests, Dialogues, Investigation, Evidence, Puzzles, CompassUI and MasteryUI;
+   - RenseiServer: WorldService, TownsfolkService, TownsfolkService.Mover and MoralityService;
+   - ClientHandler (`Run`).
+4. Update those three packages in Foundry Yard by hand, and check they match Ye.
+5. Publish Ye and Foundry Yard.
+6. Migrate to Latest Update.
 
-The Kit doc has the full list.
+This follows `Documents/World Travel.md` §10. The Kit doc has the full list, including older Studio changes that go out with these packages (HitboxManager's Strike hook among them).
 
 ### Discord announcement
 

@@ -408,8 +408,8 @@ The Lindenmoor expansion is in Ye's Studio Edit session, tested, and **not live*
 **Compass (Ruling 38b).** Ye's north is **+Z**, so east is **−X**. This doc's builder sections and the layout files use the builder's frame (x = east), in which the road leaves to the "north-east". On Ye's compass, the one players see, the road and the rails leave Lindenmoor to the **north-west**. Ye's area names are **West Lookout** and **Northwest Gap**.
 
 ### Final part count
-- **Workspace:** 76,369 BaseParts, against the place's 80,000 ceiling.
-- **`World.Map.LindenmoorExpansion`:** 45,421, including the north-west road's `Travel` (1,592).
+- **Workspace:** 76,373 BaseParts, against the place's 80,000 ceiling. It read 76,369 an hour earlier the same day; the 4 extra parts are inside the expansion, with no duplicates and no test names, and their source wasn't found.
+- **`World.Map.LindenmoorExpansion`:** 45,425, including the north-west road's `Travel` (1,592).
   - The import itself brought 40,645.
   - The seam regrade, the seam pits, the gorge fix, the road cut and the shelter posts added the rest.
   - That is over the expansion's own 42,000 ceiling. Ruling 25 accepts it, because the binding limit is the place's 80,000.
@@ -435,11 +435,11 @@ The Lindenmoor expansion is in Ye's Studio Edit session, tested, and **not live*
 - [x] Play tests (Tasks 7–9).
 
 ### Smoke test (`ServerStorage.RenseiTests.Play_LindenmoorSmoke`)
-The repo copy is `Scripts/ServerStorage/RenseiTests/Play_LindenmoorSmoke.lua`. Run it in hooked Play through `LMRunSuite`. It passed **7/7 twice**, in two sessions.
+The repo copy is `Scripts/ServerStorage/RenseiTests/Play_LindenmoorSmoke.lua`. Run it in hooked Play through `LMRunSuite`. It passed **7/7** in three sessions. After review fix round 1 it passed 7/7 again (with Play_NoGrip 6/0). With the crag tags taken off around one spot, it **failed**, as it must.
 
 | Check | What it proves |
 |---|---|
-| CragCantBeGrabbed | On each of the four edges, the player stands at the crag's foot facing it. The crag face is within the server's reach, `MovementState.Grippable` says no, and the server refuses a climb and a wall run (`Refused:NoWall`). **Control:** with the crag's tags off for a moment, the same climb is accepted. |
+| CragCantBeGrabbed | On each of the four edges, the player stands at the crag's foot facing it. The wall in front is expansion Ground, within the server's reach, and `MovementState.Grippable` says no. The server refuses a climb and a wall run (`Refused:NoWall`). **Control:** with the crag's tags off for a moment, the same climb is accepted, and afterwards the tagged count is the same as before. |
 | WaterIsReal | Terrain Water voxels, and a water surface at about 5.2, at three west-creek and three gorge centreline points. |
 | LampsFollowTheClock | The expansion's 10 `NightOnly` lamps are all in WorldClock's set. Held at 23:00 they are lit, with their own material; held at 12:00 they are dark, with `DayMaterial`. The clock is held through `WorldClock.Hold` and put back afterwards. |
 | TravelIsSingle | There is exactly one RoadStart arrival (on RoadLindenmoorFoundry, in the expansion's `Travel`), one Platform arrival, and one platform train for LindenmoorFoundry. `TravelService.ArrivalPoint` finds them. |
@@ -447,7 +447,14 @@ The repo copy is `Scripts/ServerStorage/RenseiTests/Play_LindenmoorSmoke.lua`. R
 | EveryTrialStarts | All five `RenseiTrial` markers are in workspace, one per trial, each with a known `TrialId` and its Begin Trial prompt. |
 | TrainersCanBeTalkedTo | The five trainers (Calda, Veyra, Holt, Ansel and Brannoc) each have their `trainer_<element>` dialogue and a talk prompt, and stand within 6 studs of their TrainerSpot. |
 
-**Where the crag check stands.** On each edge it uses the first spot (from s −400) with nothing else grippable in reach. On the +Z edge an oak trunk stands 3.5 studs off at s −400, and a tree is a fair climb, so that edge uses s −360. The four spots:
+**Where the crag check stands.** Choosing the spot never reads the `RenseiNoGrip` tag:
+- **The crag's foot** is the last expansion Ground cell before the ground rises more than 40 studs in one 2-stud step.
+- **The wall in front** must be an expansion Ground part facing the player.
+- **Skipped spots:** the test moves along the edge from s −400 only when the server's wall rays meet something grippable that *isn't* expansion Ground, such as a tree, a lamp or a rock. A tree is a fair climb.
+- **What this means for the crag:** an untagged crag part, or a grippable Ground wall, is never skipped, so it fails the test. It failed with the tags off.
+- **The +Z edge** uses s −360, because an oak trunk stands 3.5 studs off at s −400.
+
+The four spots:
 - (990, 48, −400);
 - (−990, 54, −400);
 - (−360, 54, 986);
@@ -461,7 +468,10 @@ The repo copy is `Scripts/ServerStorage/RenseiTests/Play_LindenmoorSmoke.lua`. R
 - **Also run:** NoGrip 6/0, Clock 5/0 and LindenmoorData 3/0.
 
 ### Rolling everything back
-Do this in Edit, never in Play, in this order. Each Studio-fix script takes its mode on its `local MODE = ...` line.
+Do this in Edit, never in Play, in this order. Each Studio-fix script takes its mode on its `local MODE = ...` line:
+- **`east_west_names.lua`, `shelters.lua` and `bed_fix.lua`:** copy the file to a scratch folder and edit its MODE line there.
+- **The generated scripts (`road_cut.lua`, `seam_pits.lua` and `regrade_seam.lua`):** do the same. Copy the committed file to a scratch folder and edit only its `local MODE = "apply"` line. **Never regenerate them with their `.py`**: the generator recomputes from the current survey and the current ground, so the new file would no longer match what was applied.
+- **`gorge_fix.lua`:** use its bundler (step 6).
 1. **`Art/Studio/Regions/Lindenmoor/east_west_names.lua`**, `MODE = "undo"`.
    - West Lookout and Northwest Gap go back to East Lookout and Northeast Gap.
    - The two area descriptions go back too.
@@ -478,31 +488,65 @@ Do this in Edit, never in Play, in this order. Each Studio-fix script takes its 
    - It moves `LindenmoorExpansion` into `Post-Region_Lindenmoor_<date>`, together with its `Travel`, its `SeamFillers` and the shelter posts.
    - It pastes the terrain back under the water boxes.
 9. **`prep_ye.lua` undo, from a fresh bundle:** `python -I Art/Studio/Regions/Lindenmoor/bundle_prep.py prep <out.lua> undo`. Then check there is exactly one `RenseiArrival` with `Point = "RoadStart"`: the old North Road's.
-10. **Revert the data and script files.**
-    - Studio copies are in `ServerStorage.RenseiBackups["Pre-LindenmoorImport_2026-10-24"]`, named `Rensei.<Module>`, `RenseiServer.<Service>`, `UI.<Module>` and `RenseiTests.<Suite>`. The repo copies are in git at `2378b54`.
+10. **Revert the data and script files.** Take every Studio copy from `ServerStorage.RenseiBackups["Pre-LindenmoorImport_2026-10-24"]`. Backups are named `Rensei.<Module>`, `RenseiServer.<Service>`, `TownsfolkService.Mover`, `UI.<Module>` and `RenseiTests.<Suite>`. Back up each current copy, then set its Source from the backup.
+    - **Never take `Rensei.Puzzles` or `UI.CompassUI` from git.** The repo copies at the plan's base, `2378b54`, were behind Studio:
+      - Puzzles lacks `adit_boards` and the Breakable kind;
+      - CompassUI lacks the `InTruth` line (no directions at the Gate).
+      - Their Studio backups are the right text.
+    - **Every other file below:** the Studio backup equals git at `2378b54` (checked by normalised hash, 2026-10-24). Either source works; the Studio backup is still preferred.
     - **Data modules:** Regions, Townsfolk, TownsfolkLogic, Quests, Dialogues, Investigation, Evidence and Puzzles.
     - **UI:** CompassUI and MasteryUI.
-    - **Services:** WorldService, TownsfolkService, TownsfolkService.Mover and MoralityService.
-    - **Tests:** the test suites.
-    - **Which backup to use:**
-      - `RenseiServer.WorldService` is the pre-import copy; the plain `WorldService` is Task 8's.
-      - Of Play_Road's two backups, `RenseiTests.Play_Road` is the pre-import copy; `RenseiTests.Play_Road_Task7` is Task 7's.
-      - Play_LindenmoorData and Play_LindenmoorSmoke are new: delete them.
+    - **Services:** WorldService (from `RenseiServer.WorldService`, the pre-import copy; the plain `WorldService` backup is Task 8's), TownsfolkService, TownsfolkService.Mover and MoralityService.
+    - **Test suites:**
+      - from their `RenseiTests.*` backups: Test_Regions, Test_TownsfolkLogic, Play_TownsfolkCrowd and Play_TownsfolkHurt;
+      - Play_Road from `RenseiTests.Play_Road` (the pre-import copy, for the old North Road; `RenseiTests.Play_Road_Task7` is Task 7's);
+      - Play_Station from `RenseiTests.Play_Station` (the copy from before d3606a5). That revert is optional: d3606a5's Play_Station behaves the same in Ye.
+    - **Delete:** Play_LindenmoorData and Play_LindenmoorSmoke. They are new; the `RenseiTests.Play_LindenmoorData` backup is a Task 8 copy, not a pre-import one.
 11. **Run the travel suites:** Play_Boot, Gate, Arrive, Station, Road, Travel and RideEvents.
 
 **A re-import brings the old names back.** The kit files (`Art/Studio/Regions/Lindenmoor/layout.json` and `import/chunk_*.lua`) still say East Lookout and Northeast Gap. After any re-import from them, re-apply `east_west_names.lua` with `MODE = "apply"`.
 
 ### Publish checkpoint (for the owner)
 **First:** Ye's Edit session holds every change below, unsaved.
-1. **Save the place in Studio. Don't publish it yet.**
+1. **Save the place in Studio. Don't publish anything yet.**
 2. Walk the new land in Play once: the farms, the gorge and its ledge, the mine, the woods, the meadows, the training field, and the north-west road to the gap.
-3. Then publish.
 
-**1. The Ye place itself:**
+**Then publish in this order.** It is the package routine in `Documents/World Travel.md` §10.
+1. **Publish the packages from Ye:**
+   - Modules;
+   - RenseiServer;
+   - ClientHandler (it holds `ClientHandler.Run`).
+
+   Their contents are listed below.
+2. **Update the packages in Foundry Yard by hand.** Foundry never updates a package on its own.
+   - Update Modules, RenseiServer and ClientHandler there.
+   - Check that they match Ye.
+3. **Publish the places:**
+   - Ye;
+   - Foundry Yard, so it carries the updated packages;
+   - the Main Menu and the Tutorial, only if they changed (nothing in this plan touched them).
+4. **Migrate to Latest Update** (or shut down all servers) for Ye and Foundry Yard, so that no old server runs the old code against the new saves.
+
+Migrate comes after the place publishes, because it moves running servers onto the latest *published* version. Run before Ye is published, it would restart them on the old place.
+
+**1. The Modules package** (`ReplicatedStorage.Modules`):
+- `Data.Rensei`: Regions, Townsfolk, TownsfolkLogic, Quests, Dialogues, Investigation, Evidence and Puzzles;
+- `UI`: CompassUI and MasteryUI.
+
+Foundry Yard gets these through step 2 of the order. Its compass stays −Z north.
+
+**2. The RenseiServer package** (`ServerStorage.RenseiServer`):
+- WorldService;
+- TownsfolkService and TownsfolkService.Mover;
+- MoralityService (a comment change only).
+
+**3. The ClientHandler package** (`StarterPlayer.StarterPlayerScripts.ClientHandler`): `ClientHandler.Run` (slide into sprint). The sweep found the repo behind Studio here. It predates this plan, and may already be live.
+
+**4. The Ye place itself:**
 - **The map:**
   - `World.Map.LindenmoorExpansion`, with its `Travel` (the north-west road), `SeamFillers`, `SeamRegradeFill` and `SeamPitsFill`;
   - the hub pieces that `prep_ye.lua` moved onto their pads: trainers, trial sites, LedgeCourse, spawns and the lifted items;
-  - the retired NorthRoad, HubRoad and BufferStop (now in the backups).
+  - the retired NorthRoad, HubRoad and BufferStop, now in the backups.
 - **The Studio fixes:**
   - the seam regrade and the seam pits;
   - the gorge (bridge and water) and its bed;
@@ -512,28 +556,20 @@ Do this in Edit, never in Play, in this order. Each Studio-fix script takes its 
 - **Place-owned scripts** in `ServerStorage.RenseiTests` (not a package):
   - new: Play_LindenmoorData and Play_LindenmoorSmoke;
   - changed: Test_Regions, Test_TownsfolkLogic, Play_TownsfolkCrowd and Play_TownsfolkHurt;
-  - Play_Road and Play_Station (the d3606a5 versions).
+  - Play_Road and Play_Station, the d3606a5 versions.
 - **`ServerStorage.RenseiBackups`.**
 
-**2. The Modules package** (`ReplicatedStorage.Modules`):
-- `Data.Rensei`: Regions, Townsfolk, TownsfolkLogic, Quests, Dialogues, Investigation, Evidence and Puzzles;
-- `UI`: CompassUI and MasteryUI.
-
-This package also reaches Foundry Yard when it is published. Foundry's compass stays −Z north.
-
-**3. The RenseiServer package** (`ServerStorage.RenseiServer`):
-- WorldService;
-- TownsfolkService and TownsfolkService.Mover;
-- MoralityService (a comment only).
-
-**Older changes that go out with the same publishes.** The Studio == repo sweep found these Studio copies ahead of the repo, from before this plan, and brought the repo up to date. If they aren't live already, they go out with the same publishes:
+**Older Studio changes that go out in the same package publishes, if they aren't live already.** The Studio == repo sweep found these Studio copies ahead of the repo, from before this plan, and brought the repo up to date:
 - **Modules:**
   - StealthUI (the restyle);
   - PuzzleClient (Breakable boards);
+  - `Managers.HitboxManager`;
   - ProfileData (the `Travel` default);
   - JumpManager (a trailing newline only).
-- **RenseiServer:** PuzzleService (Breakable boards) and FlowService (`ToMenu`).
-- **ClientHandler package:** `ClientHandler.Run` (slide into sprint).
-- **RenseiTests:** Test_Schema5 and Test_Witness.
+
+  HitboxManager is Studio's copy, and it equals `Art/Studio/HalvardsAdit/boards/HitboxManager.lua`. Its `Sweep` → `PuzzleService.Strike` hook is what lets a melee strike break the Adit's boards. It has no `Scripts/` copy by design.
+- **RenseiServer:** PuzzleService (Breakable boards: `Strike`) and FlowService (`ToMenu`).
+- **ClientHandler:** `Run` (above).
+- **RenseiTests (the place):** Test_Schema5 and Test_Witness.
 
 **Two travel tests fail in your save.** Play_Travel and Play_RideEvents fail because your real save holds a Cabin / Second ticket. That isn't a regression.
