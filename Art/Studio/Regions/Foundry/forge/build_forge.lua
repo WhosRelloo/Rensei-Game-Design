@@ -667,8 +667,8 @@ local function apply()
 		end
 		parent(Rig, Folder)
 
+		table.insert(Journal, {"flag"}) -- (Task 9, Ruling 35: the journal entry before the flag)
 		FD:SetAttribute(FLAG, "applied")
-		table.insert(Journal, {"flag"})
 	end)
 	if not Ok then
 		for I = #Journal, 1, -1 do

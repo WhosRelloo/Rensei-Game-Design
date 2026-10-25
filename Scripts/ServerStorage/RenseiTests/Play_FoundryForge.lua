@@ -11,12 +11,20 @@
 --                            Foundry's compass (Regions.Bearing in (0, 90), live positions only); the control: the
 --                            same offsets read on Ye's "+Z" compass are not in (0, 90).
 --   BrannocTalks             DialogueId trainer_metal, a TalkPrompt on his root, within 6 studs of the TrainerSpot;
---                            DialogueService.Open with the player beside him opens; Close.
+--                            (Task 9, Ruling 35) his look was applied: LookGender set, and the Gender attribute
+--                            DialogueService gives a dressed NPC equals it; DialogueService.Open with the player beside
+--                            him opens; Close.
 --   WardSpawnsInTheForge     the WardAlchemist spawn is in ForgeRooms.SilentForge and inside the room's interior; a
 --                            live WardAlchemist whose Home is that spawn (within 30 s), standing inside the interior.
 --   TrialFitsTheRoom         acq_metal on its trial stage and no path: TrialService.Begin from 3 studs off the marker;
 --                            the foe stands inside the Forge Floor's interior; the player pivoted out to (325, 8, -300)
---                            (outside Radius x 1.35) ends the run within OUTSIDE_GRACE + 2 = 8 s.
+--                            (outside Radius x 1.35) ends the run within OUTSIDE_GRACE + 2 = 8 s. (Task 9, Ruling 35:
+--                            the run is still on just before the pivot, and it ends lost, "You left the arena.")
+--   ArenaIsOpen              (Task 9, Ruling 35) no colliding part but the floor and the marker stands at body height
+--                            (the floor's top + 0.5 .. + 6) within the trial's FoeDistance of the marker: the fight's
+--                            middle is open. Measured 2026-10-25: the shell's ForgeFloorAnvil stood 4.0 studs from the
+--                            marker (hidden by Art/Studio/Regions/Foundry/forge/hide_anvil.lua); the hearth (19.3) and
+--                            the side walls (20.2) are outside FoeDistance 14.
 --   TrialIsLockedOtherwise   with no acq_metal, CanStart refuses with the trial's Locked line (not "isn't ready").
 -- Quests and Identity are copied and put back in place; the character's pivot and anchoring are put back.
 local SSS = game:GetService("ServerScriptService")
@@ -33,17 +41,8 @@ local WARD_WAIT = 30 -- s
 local OUT_WAIT = 8 -- s: TrialService's OUTSIDE_GRACE (6) + 2
 local OUT_AT = Vector3.new(325, 8, -300) -- 64.5 studs from the marker: outside Radius 24 x 1.35 = 32.4
 
-local function Copy(V)
-	if type(V) ~= "table" then return V end
-	local R = {}
-	for K, X in pairs(V) do R[K] = Copy(X) end
-	return R
-end
--- puts Old's keys back into Tbl in place (the save keeps its table)
-local function PutBack(Tbl, Old)
-	for K in pairs(Tbl) do if Old[K] == nil then Tbl[K] = nil end end
-	for K, V in pairs(Old) do Tbl[K] = V end
-end
+local SmokeKit = require(script.Parent.SmokeKit) -- (Task 9, Ruling 37: Copy and PutBack are the shared helpers)
+local Copy, PutBack = SmokeKit.Copy, SmokeKit.PutBack
 local function Inside(Box, P) return P.X > Box.X0 and P.X < Box.X1 and P.Z > Box.Z0 and P.Z < Box.Z1 end
 local function f1(V) return ("(%.1f, %.1f, %.1f)"):format(V.X, V.Y, V.Z) end
 
@@ -146,6 +145,10 @@ function Suite.BrannocTalks(T)
 	T.True(Root:FindFirstChild("TalkPrompt") ~= nil, "Brannoc's root has the TalkPrompt")
 	local Off = (Root.Position - TrainerSpot(T).Position).Magnitude
 	T.True(Off <= 6, ("Brannoc stands %.1f studs from the TrainerSpot (at most 6)"):format(Off))
+	-- (Task 9, Ruling 35) his look: DialogueService dresses a model with LookNation and records the Gender it chose
+	local Want = Model:GetAttribute("LookGender")
+	T.True(Want == "Male" or Want == "Female", "Brannoc has a LookGender (" .. tostring(Want) .. ")")
+	T.Eq(Model:GetAttribute("Gender"), Want, "Brannoc was dressed in his look (the Gender attribute)")
 	local Opened, Open
 	local Ok, Err = pcall(function()
 		TestKit.Beside(Player, Model, function()
@@ -241,12 +244,52 @@ function Suite.TrialFitsTheRoom(T)
 		local FoeRoot = Run and Run.Foe and Run.Foe:FindFirstChild("HumanoidRootPart")
 		T.True(FoeRoot ~= nil, "the trial's foe has a root")
 		T.True(Inside(FF, FoeRoot.Position), "the foe stands at " .. f1(FoeRoot.Position) .. ", inside the Forge Floor interior")
+		-- (Task 9, Ruling 35) the end's reason is captured: the run's own End, wrapped on this run only
+		local Ended
+		local RealEnd = Run.End
+		Run.End = function(Self, Won, Why)
+			Ended = Ended or {Won = Won, Why = Why}
+			return RealEnd(Self, Won, Why)
+		end
+		T.Eq(TS.InRun(Player), true, "the run is still on just before the player leaves")
 		C:PivotTo(CFrame.new(OUT_AT))
 		Root.AssemblyLinearVelocity = Vector3.zero
 		local T0 = os.clock()
 		while TS.InRun(Player) and os.clock() - T0 < OUT_WAIT do task.wait(0.25) end
 		T.Eq(TS.InRun(Player), false, ("the run ended within %d s of the player leaving the arena"):format(OUT_WAIT))
+		T.True(Ended ~= nil, "the run's End was called")
+		T.Eq(Ended.Won, false, "the run ended lost")
+		T.Eq(Ended.Why, "You left the arena.", "the run ended because the player left the arena")
 	end)
+end
+
+function Suite.ArenaIsOpen(T)
+	local Trials = require(Rensei.Trials)
+	local Marker = One(T, "RenseiTrial", "TrialId", TRIAL)
+	local Floor = GreatHallPart(T, "ForgeFloorFloor")
+	local Top = Floor.Position.Y + Floor.Size.Y / 2
+	local R = Trials[TRIAL].FoeDistance
+	local Op = OverlapParams.new()
+	Op.FilterType = Enum.RaycastFilterType.Exclude
+	local Skip = {Marker}
+	for _, P in ipairs(game.Players:GetPlayers()) do if P.Character then table.insert(Skip, P.Character) end end
+	local Live = workspace.World:FindFirstChild("Live")
+	if Live then table.insert(Skip, Live) end -- (rigs: a trial foe of an earlier run, townsfolk)
+	Op.FilterDescendantsInstances = Skip
+	Op.RespectCanCollide = true
+	local Lo, Hi = Top + 0.5, Top + 6
+	local In = {}
+	for _, P in ipairs(workspace:GetPartBoundsInBox(CFrame.new(Marker.Position.X, (Lo + Hi) / 2, Marker.Position.Z),
+		Vector3.new(2 * R, Hi - Lo, 2 * R), Op)) do
+		-- (the box's corners reach past R: only what comes within R of the marker, flat, counts)
+		local Q = P.CFrame:PointToObjectSpace(Marker.Position)
+		local H = P.Size / 2
+		local Near = Vector3.new(math.clamp(Q.X, -H.X, H.X), 0, math.clamp(Q.Z, -H.Z, H.Z))
+		local W = P.CFrame:PointToWorldSpace(Vector3.new(Near.X, Q.Y, Near.Z))
+		local D = Vector3.new(W.X - Marker.Position.X, 0, W.Z - Marker.Position.Z).Magnitude
+		if D <= R and P ~= Floor then table.insert(In, ("%s (%.1f)"):format(P:GetFullName(), D)) end
+	end
+	T.Eq(#In, 0, ("colliding parts at body height within FoeDistance %d of the marker: %s"):format(R, table.concat(In, ", ")))
 end
 
 function Suite.TrialIsLockedOtherwise(T)

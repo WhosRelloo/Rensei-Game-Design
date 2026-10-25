@@ -6,13 +6,15 @@ python -I Art/Studio/Regions/Foundry/forge/test_bundle_forge.py
     2. the bundle's MODE line is the one asked for, for each of the five modes, and nothing else differs;
     3. the committed build_forge.lua equals a fresh bundle with MODE "plan" (and a bundle of a changed kit doesn't);
     4. the header is the generated-file header; no placeholder is left; an unknown MODE is refused; the CLI writes the
-       asked MODE to <out> and leaves build_forge.lua a plan bundle; the CLI refuses another MODE onto build_forge.lua;
+       asked MODE to <out> and leaves build_forge.lua a plan bundle; the CLI refuses another MODE onto build_forge.lua
+       (Task 9, Ruling 35: the CLI cases run from a temporary copy of this folder and never rewrite the committed
+       build_forge.lua);
     5. the kit has what the brief lists: 20 SilentForge pieces, 3 SilentForge Models (Interactables a Folder,
        WorkshopRecord's Model and Iron Alchemy Models), every container on a piece's path a Models entry, the
        TrialMarker, Brannoc's 9 attributes (no LindenmoorPrepFrom), the Ward; attributes string/number/boolean only.
 Prints PASS n / FAIL n; exits 1 on any failure.
 """
-import copy, json, os, re, subprocess, sys, tempfile
+import copy, json, os, re, shutil, subprocess, sys, tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -187,18 +189,29 @@ def main():
           and first.endswith("): do not edit by hand."), first)
     check("no placeholder left", B.HEADER_MARK not in plan and B.KIT_MARK not in plan)
     check("no CR in the bundle", "\r" not in plan)
+    # (Task 9, Ruling 35) the CLI always rewrites the build_forge.lua next to it, so it runs from a temporary copy of
+    # this folder: every write lands in the temp dir and the committed build_forge.lua is never rewritten
+    before = open(B.OUT_PATH, "rb").read() if os.path.exists(B.OUT_PATH) else None
+    mtime = os.path.getmtime(B.OUT_PATH) if os.path.exists(B.OUT_PATH) else None
     with tempfile.TemporaryDirectory() as d:
+        for name in ("bundle_forge.py", "build_forge.lua.tmpl", "forge_kit.json"):
+            shutil.copy(os.path.join(HERE, name), d)
+        cli = os.path.join(d, "bundle_forge.py")
+        temp_plan = os.path.join(d, "build_forge.lua")
         out = os.path.join(d, "bf_check.lua")
-        r = subprocess.run([sys.executable, "-I", os.path.join(HERE, "bundle_forge.py"), out, "check"], capture_output=True, text=True)
+        r = subprocess.run([sys.executable, "-I", cli, out, "check"], capture_output=True, text=True)
         check("CLI exits 0", r.returncode == 0, r.stdout + r.stderr)
         body = read(out)
         check("CLI wrote MODE check", mode_lines(body) == ["check"], mode_lines(body))
-        check("CLI left build_forge.lua a plan bundle", read(B.OUT_PATH) == plan)
-        r = subprocess.run([sys.executable, "-I", os.path.join(HERE, "bundle_forge.py"), out, "nope"], capture_output=True, text=True)
+        check("CLI left its build_forge.lua a plan bundle", read(temp_plan) == plan)
+        r = subprocess.run([sys.executable, "-I", cli, out, "nope"], capture_output=True, text=True)
         check("CLI refuses an unknown MODE", r.returncode != 0 and "REFUSED" in r.stdout, r.stdout)
-    r = subprocess.run([sys.executable, "-I", os.path.join(HERE, "bundle_forge.py"), B.OUT_PATH, "apply"], capture_output=True, text=True)
-    check("CLI refuses another MODE onto build_forge.lua", r.returncode != 0 and "REFUSED" in r.stdout, r.stdout)
-    check("build_forge.lua still a plan bundle after the refusal", read(B.OUT_PATH) == plan)
+        r = subprocess.run([sys.executable, "-I", cli, temp_plan, "apply"], capture_output=True, text=True)
+        check("CLI refuses another MODE onto build_forge.lua", r.returncode != 0 and "REFUSED" in r.stdout, r.stdout)
+        check("build_forge.lua still a plan bundle after the refusal", read(temp_plan) == plan)
+    check("the committed build_forge.lua was not rewritten by the CLI cases",
+          (open(B.OUT_PATH, "rb").read() if os.path.exists(B.OUT_PATH) else None) == before
+          and (os.path.getmtime(B.OUT_PATH) if os.path.exists(B.OUT_PATH) else None) == mtime)
 
     # 5. the kit's contents
     sf = [p for p in kit["Pieces"] if p["Group"] == "SilentForge"]

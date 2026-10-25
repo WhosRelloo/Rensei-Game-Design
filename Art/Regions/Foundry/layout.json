@@ -258,7 +258,7 @@
     {"Tag": "RenseiPost", "At": [-90, 0, 268], "Yaw": 0, "Attr": {"PostId": "cinder_east_shelter", "Kind": "Shelter"}}
   ],
   "Budget": 45000,
-  "RestoreRefuseFlags": ["FoundryPosts", "FoundryForge", "FoundryLedges", "FoundryWalks"],
+  "RestoreRefuseFlags": ["FoundryPosts", "FoundryForge", "FoundryLedges", "FoundryWalks", "FoundryAnvil"],
   "Notes": [
     "Foundry Yard plan Task 4: the four market stalls' Shelf parts are walk-through in Studio (foundry_posts.lua), so traders can reach their counters; the builder still makes them solid",
     "Foundry Yard plan Task 4: the same four stalls' Canopy parts each carry a PathfindingModifier with PassThrough (FoundryCanopyPassThrough, foundry_posts.lua), because the canopy shuts the navmesh under it although a townsperson fits beneath; the canopies stay solid; the builder doesn't add the modifiers",
