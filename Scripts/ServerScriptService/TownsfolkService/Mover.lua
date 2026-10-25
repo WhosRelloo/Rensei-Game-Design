@@ -22,7 +22,8 @@
 --   * Mover.P99StepMs() -> the 99th-percentile steering tick of the last 1000 (sorted on demand).
 --   * Mover.Stats() -> {Walkers, StepMs, MaxStepMs, HeartbeatMs, Ticks, PeakWalkers, Yields, Replans, Sidesteps,
 --       Fails, Arrivals, PostWaits, Detours, GiveWays (yields to urgent walkers, also counted in Yields), Repairs (plans
---       whose path needed the corner repair, 1b), RepairVertices, RepairMs, MaxRepairMs};
+--       whose path needed the corner repair, 1b), RepairVertices, RepairMs, MaxRepairMs, RepairRefusedGround /
+--       RepairRefusedCost (repair spots refused by the ground check: no ground or a drop / dearer ground)};
 --       Mover.ResetStats(). StepMs = average time of one steering tick (all walkers).
 --   * Mover.PlanPath(From, Goal, Agent, Opts) (Foundry Yard plan Task 4b): the planning a walk does (1, 1b and 2: the
 --       real Compute, Repair and Smooth), with no rig. From = where a standing root is (Vector3); Goal = a standing
@@ -41,7 +42,8 @@
 --      round (a narrower path 25% shorter wins: people use the door). A path whose segments run through geometry
 --      (Valid: a waist-height ray along each leg), or where a walker's body would touch something (BodyClear), is
 --      repaired (1b); one the repair can't fix (the navmesh hasn't caught up with a change yet) is refused and asked
---      for again, every 0.5 s, 8 times at most.
+--      for again, every 0.5 s, 8 times at most, each re-ask with another waypoint spacing (ReaskSpacings: a settled
+--      navmesh gives the same path to the same question, and other spacings give other legs to repair).
 --   1b. Corner repair (Foundry Yard plan Task 4b, Ruling 30): PathfindingService's rare long legs (over 4.5 studs,
 --      mostly where the ground surface changes) cut convex building corners at waist height and run through thin
 --      colliders (lamp and stall posts) the navmesh doesn't see. For each leg Valid's ray hits: the colliding parts
@@ -50,7 +52,12 @@
 --      the surface; when something sticking out there (a downpipe, a door leaf) is nearer, it moves on by the
 --      shortfall, RepairMarch times at most. The vertex needs walkable ground within RepairStep of the leg's height
 --      (not water) and clearance to the geometry around it of at least (that clearance - RepairTolerance), never under
---      the last of them (1.25: Ruling 30's minimum, so no vertex sits in a gap under 2.5 studs). The legs are re-checked
+--      the last of them (1.25: Ruling 30's minimum, so no vertex sits in a gap under 2.5 studs), and both new legs
+--      need walkable ground all along (smoothing's ground rays: a trench or a drop beside a corner refuses the vertex),
+--      no dearer (Costs) than the dearest ground the planned path already walks, or ordinary ground (RepairGroundCost).
+--      When no spot along the gradient will do (or there is no gradient: a post dead on the line), the vertex is pushed
+--      out square to the leg, either side (the street side of a stall post whose gradient side is the stall); a side
+--      landing inside a solid part is given up (a wall, not a post). The legs are re-checked
 --      from that one; at most RepairMax vertices a path. The result must pass Valid, else the path stays stale (a path
 --      through a solid wall is still refused). Budget() runs between legs.
 --      The body (measured 2026-10-25 in Play_FoundryWalks: walkers whose centre line passed a lamp post, a stall post or
@@ -191,6 +198,9 @@ Mover.RepairMax = 12 -- new vertices in one path at most
 Mover.RepairReach = 4 -- the colliding parts within this of a leg (and of a new vertex) are measured
 Mover.RepairStep = 1.5 -- a new vertex's ground is within this of the leg's height
 Mover.RepairMarch = 3 -- a vertex short of its clearance (something sticking out near it) moves on this many times at most
+Mover.ReaskSpacings = {3, 6, 5, 2.5, 3.5, 4.5, 2} -- (fix round 1) waypoint spacings for the re-asks after a stale path
+Mover.RepairGroundCost = 1.5 -- (fix round 1) a repaired leg may always cross ground this cheap (Ground, WoodPlanks)...
+-- ...and dearer ground (Grass, Mud, Water) only where the planned path itself walks it
 Mover.ReplanProgress = 10 -- (header 5) a sight or blocked re-plan this close to the last plan's start is a stuck event
 Mover.BodyRadius = 1 -- (header 1b) a leg also needs the repair when a sphere this wide (half the 2-stud root) swept at
 -- waist height along it hits something: Valid's ray is the body's centre line only, and walkers stuck on lamp posts,
@@ -213,7 +223,7 @@ function Mover.ResetStats()
 	Stats = {Ticks = 0, Ms = 0, MaxMs = 0, Heartbeats = 0, HeartbeatMs = 0, PeakWalkers = 0, Yields = 0, Replans = 0,
 		Sidesteps = 0, Fails = 0, Arrivals = 0, PostWaits = 0, Detours = 0, Plans = 0, PlanMs = 0, MaxPlanMs = 0,
 		MaxPlanFrameMs = 0, Routes = 0, RouteMs = 0, MaxRouteMs = 0, WorstTick = "", Times = {}, TimeAt = 0, GiveWays = 0,
-		Repairs = 0, RepairVertices = 0, RepairMs = 0, MaxRepairMs = 0}
+		Repairs = 0, RepairVertices = 0, RepairMs = 0, MaxRepairMs = 0, RepairRefusedGround = 0, RepairRefusedCost = 0}
 end
 Mover.ResetStats()
 
@@ -231,6 +241,7 @@ function Mover.Stats()
 		WorstTick = Stats.WorstTick, GiveWays = Stats.GiveWays,
 		Repairs = Stats.Repairs, RepairVertices = Stats.RepairVertices,
 		RepairMs = Stats.Repairs > 0 and Stats.RepairMs / Stats.Repairs or 0, MaxRepairMs = Stats.MaxRepairMs,
+		RepairRefusedGround = Stats.RepairRefusedGround, RepairRefusedCost = Stats.RepairRefusedCost,
 	}
 end
 
@@ -431,6 +442,30 @@ local function CrossesDearModifier(Costs, A, B, MaxCost)
 	return false
 end
 
+-- walkable ground all along A-B (ground points)? A ray every GroundStep finds ground within GroundDrop of the line,
+-- flat enough, and no dearer (Costs) than MaxCost (smoothing's rule; Task 4b fix round 1: the repair's new legs too)
+local function GroundAlong(Costs, A, B, MaxCost)
+	local Len = Flat(B - A).Magnitude
+	local N = math.max(1, math.ceil(Len / Mover.GroundStep))
+	local Drop = Mover.GroundDrop
+	for K = 1, N - 1 do
+		local P = A:Lerp(B, K / N)
+		local Hit = workspace:Raycast(P + Vector3.new(0, Drop, 0), Vector3.new(0, -2 * Drop, 0), Ground)
+		if not Hit or Hit.Normal.Y < 0.7 or math.abs(Hit.Position.Y - P.Y) > Drop then return false, "ground" end
+		if Cost(Costs, Hit.Material.Name) > MaxCost then return false, "cost" end
+	end
+	return true
+end
+-- (fix round 1) the repair's ground check on a new vertex or eased point's two legs, counted in Stats when it refuses
+local function RepairGround(Costs, A, P, B, MaxCost)
+	local Ok, Why = GroundAlong(Costs, A, P, MaxCost)
+	if Ok then Ok, Why = GroundAlong(Costs, P, B, MaxCost) end
+	if not Ok then
+		if Why == "cost" then Stats.RepairRefusedCost += 1 else Stats.RepairRefusedGround += 1 end
+	end
+	return Ok
+end
+
 -- can a walker go straight from A to B (ground points)? see the header (2. Smoothing)
 local function Safe(Costs, A, B, MaxCost)
 	local D = B - A
@@ -438,14 +473,7 @@ local function Safe(Costs, A, B, MaxCost)
 	if Len < 0.1 then return true end
 	local Waist = Vector3.new(0, Mover.WaistHeight, 0)
 	if workspace:Spherecast(A + Waist, Mover.SmoothRadius, D, Obstacles) then return false end
-	local N = math.max(1, math.ceil(Len / Mover.GroundStep))
-	local Drop = Mover.GroundDrop
-	for K = 1, N - 1 do
-		local P = A:Lerp(B, K / N)
-		local Hit = workspace:Raycast(P + Vector3.new(0, Drop, 0), Vector3.new(0, -2 * Drop, 0), Ground)
-		if not Hit or Hit.Normal.Y < 0.7 or math.abs(Hit.Position.Y - P.Y) > Drop then return false end
-		if Cost(Costs, Hit.Material.Name) > MaxCost then return false end
-	end
+	if not GroundAlong(Costs, A, B, MaxCost) then return false end
 	if next(Modifiers) and CrossesDearModifier(Costs, A, B, MaxCost) then return false end
 	return true
 end
@@ -524,7 +552,8 @@ local function ShapesNear(A, B)
 end
 
 -- a new vertex for the leg A-B (ground points) whose waist ray hit Hit, or nil: see the header (1b)
-local function RepairVertex(A, B, Hit, Budget)
+-- Costs, MaxCost: the new legs A-V and V-B need walkable ground no dearer than the leg's own labels (GroundAlong)
+local function RepairVertex(A, B, Hit, Budget, Costs, MaxCost)
 	if Hit.Instance:IsA("Terrain") then return nil end -- (a terrain bump: no shapes to push off; the leg stays stale)
 	local Waist = Vector3.new(0, Mover.WaistHeight, 0)
 	local Shapes = ShapesNear(A, B)
@@ -549,27 +578,43 @@ local function RepairVertex(A, B, Hit, Budget)
 	local E = 0.05
 	local G = Vector3.new(Field(Shapes, Q + Vector3.new(E, 0, 0)) - Field(Shapes, Q - Vector3.new(E, 0, 0)), 0,
 		Field(Shapes, Q + Vector3.new(0, 0, E)) - Field(Shapes, Q - Vector3.new(0, 0, E)))
-	if G.Magnitude < 1e-4 then G = Vector3.new(Hit.Normal.X, 0, Hit.Normal.Z) end
-	if G.Magnitude < 1e-4 then return nil end
-	G = G.Unit
+	-- (fix round 1) along the gradient first; then out to either side of the leg, square to it: the other side of a post
+	-- (the gradient side is a neighbouring stall's inside), or a post dead on the line (no gradient). A side that lands
+	-- inside a solid part is given up (the thing is wider than the push: a wall, not a post)
+	local Ways = {}
+	if G.Magnitude >= 1e-4 then table.insert(Ways, G.Unit) end
+	local Along = Flat(B - A)
+	if Along.Magnitude >= 1e-3 then
+		local Right = RightOf(Along.Unit)
+		table.insert(Ways, Right)
+		table.insert(Ways, -Right)
+	end
 	local Ladder = Mover.RepairClearances
 	local Floor = Ladder[#Ladder]
-	for _, C in ipairs(Ladder) do
-		-- C past the surface it is pushed off; something else sticking out there (a downpipe, a door leaf) can leave it
-		-- closer than C to that: it marches on along the gradient by the shortfall, RepairMarch more times at most
-		-- (in a gap the shortfall only grows: no spot)
-		local Need = math.max(C - Mover.RepairTolerance, Floor)
-		local Push = math.max(0, -Best) + C
-		for _ = 0, Mover.RepairMarch do
-			if Budget then Budget() end
-			local V = Q + G * Push - Waist
-			local Down = workspace:Raycast(V + Vector3.new(0, 3, 0), Vector3.new(0, -6, 0), Ground)
-			if not (Down and Down.Normal.Y >= 0.7 and Down.Material ~= Enum.Material.Water and math.abs(Down.Position.Y - V.Y) <= Mover.RepairStep) then break end
-			local P = Down.Position
-			local Clear = Field(ShapesNear(P, P), P + Waist)
-			if Clear >= Need then return P end
-			Push += C - Clear + 0.05
-			if Push > math.max(0, -Best) + C + Mover.RepairReach then break end
+	for N, Way in ipairs(Ways) do
+		local Sideways = N > (G.Magnitude >= 1e-4 and 1 or 0)
+		for _, C in ipairs(Ladder) do
+			-- C past the surface it is pushed off; something else sticking out there (a downpipe, a door leaf) can leave
+			-- it closer than C to that: it marches on along the gradient by the shortfall, RepairMarch more times at
+			-- most (in a gap the shortfall only grows: no spot)
+			local Need = math.max(C - Mover.RepairTolerance, Floor)
+			local Push = math.max(0, -Best) + C
+			for _ = 0, Mover.RepairMarch do
+				if Budget then Budget() end
+				local V = Q + Way * Push - Waist
+				local Down = workspace:Raycast(V + Vector3.new(0, 3, 0), Vector3.new(0, -6, 0), Ground)
+				if not (Down and Down.Normal.Y >= 0.7 and Down.Material ~= Enum.Material.Water and math.abs(Down.Position.Y - V.Y) <= Mover.RepairStep) then break end
+				local P = Down.Position
+				local Clear = Field(ShapesNear(P, P), P + Waist)
+				if Clear >= Need then
+					-- (fix round 1) both new legs on walkable ground (a trench or a drop beside the corner refuses it)
+					if Costs and not RepairGround(Costs, A, P, B, MaxCost) then break end
+					return P
+				end
+				if Sideways and Clear < 0 then break end
+				Push += C - Clear + 0.05
+				if Push > math.max(0, -Best) + C + Mover.RepairReach then break end
+			end
 		end
 	end
 	return nil
@@ -630,7 +675,8 @@ end
 -- (body) an existing waypoint closer than the repair's floor (1.25) to something at waist height (PathfindingService
 -- leaves corner waypoints 0.04-1.8 studs from walls): moved off it along the distance gradient to RepairClearances,
 -- where there is ground, as a new vertex would be; nil when it is clear enough already or can't be moved
-local function Ease(P, Budget)
+-- Prev, Next, Costs, MaxCost: the legs Prev-P and P-Next need walkable ground (GroundAlong) after the move
+local function Ease(P, Budget, Prev, Next, Costs, MaxCost)
 	local Waist = Vector3.new(0, Mover.WaistHeight, 0)
 	local Q = P + Waist
 	local Shapes = ShapesNear(P, P)
@@ -654,7 +700,10 @@ local function Ease(P, Budget)
 			if not (Down and Down.Normal.Y >= 0.7 and Down.Material ~= Enum.Material.Water and math.abs(Down.Position.Y - V.Y) <= Mover.RepairStep) then break end
 			local NP = Down.Position
 			local Clear = Field(ShapesNear(NP, NP), NP + Waist)
-			if Clear >= Need then return NP end
+			if Clear >= Need then
+				if Costs and not RepairGround(Costs, Prev, NP, Next, MaxCost) then break end
+				return NP
+			end
 			Push += C - Clear + 0.05
 			if Push > C - Here + Mover.RepairReach then break end
 		end
@@ -665,12 +714,17 @@ end
 -- the repair of a path that fails Valid or BodyClear: Pts (ground points), Labels and RawIdx (each point's index in
 -- the path's own waypoints) with the new vertices inserted, and the vertices; nil when a leg can't be repaired or
 -- RepairMax is used up. Budget (optional) is called between legs.
-local function Repair(Pts, Labels, RawIdx, Budget)
+local function Repair(Pts, Labels, RawIdx, Budget, Costs)
 	local Out, OL, OR, Tried = table.clone(Pts), {}, {}, {}
 	for K = 1, #Pts do OL[K], OR[K], Tried[K] = Labels[K] or false, RawIdx[K] or K, false end
 	local Added = {}
 	local Waist = Vector3.new(0, Mover.WaistHeight, 0)
 	local From, To = Pts[1], Pts[#Pts]
+	-- (fix round 1) the new legs' ground may be no dearer than the dearest ground this path already walks (its labels),
+	-- and never less than RepairGroundCost: a corner pushed off a cobbled street onto plain Ground is fine, one into
+	-- grass, mud or water off a street is not
+	local MaxCost = Mover.RepairGroundCost
+	for K = 1, #Pts do MaxCost = math.max(MaxCost, Cost(Costs, OL[K])) end
 	local I = 1
 	while I < #Out do
 		if Budget then Budget() end
@@ -685,7 +739,7 @@ local function Repair(Pts, Labels, RawIdx, Budget)
 				for _, K in ipairs({I + 1, I}) do
 					if K > 1 and K < #Out and not Tried[K] then
 						Tried[K] = true
-						local NP = Ease(Out[K], Budget)
+						local NP = Ease(Out[K], Budget, Out[K - 1], Out[K + 1], Costs, MaxCost)
 						if NP then Out[K], Eased = NP, true break end
 					end
 				end
@@ -694,7 +748,7 @@ local function Repair(Pts, Labels, RawIdx, Budget)
 				I = math.max(1, I - 1)
 			else
 				if #Added >= Mover.RepairMax then return nil end
-				local V = RepairVertex(A, B, Hit or Body, Budget)
+				local V = RepairVertex(A, B, Hit or Body, Budget, Costs, MaxCost)
 				if not V then return nil end
 				table.insert(Out, I + 1, V)
 				table.insert(OL, I + 1, OL[I])
@@ -711,7 +765,7 @@ end
 
 -- Valid and BodyClear, else the repair (whose result must pass both too): Pts, Labels, RawIdx, Added ({} when nothing
 -- was needed), or nil (stale)
-local function Mend(Pts, Labels, RawIdx, Budget)
+local function Mend(Pts, Labels, RawIdx, Budget, Costs)
 	if Valid(Pts, Budget) and BodyClear(Pts, Budget) then return Pts, Labels, RawIdx, {} end
 	local T0, Waited = os.clock(), 0
 	local Wait = Budget and function()
@@ -719,7 +773,7 @@ local function Mend(Pts, Labels, RawIdx, Budget)
 		Budget()
 		Waited += os.clock() - T1
 	end
-	local Out, OL, OR, Added = Repair(Pts, Labels, RawIdx, Wait)
+	local Out, OL, OR, Added = Repair(Pts, Labels, RawIdx, Wait, Costs or Mover.Costs)
 	if Out and not (Valid(Out, Wait) and BodyClear(Out, Wait)) then Out = nil end
 	local Ms = (os.clock() - T0 - Waited) * 1000 -- (its own work: the budget's waits left out)
 	Stats.Repairs += 1
@@ -939,6 +993,8 @@ end
 -- schedule change that sends everyone walking at once can't stall one frame.
 local FrameNo = 0 -- counts physics frames (PreSimulation) while anyone walks
 local PlanFrame, PlanFrameSpent = -1, 0
+local Conn -- the Heartbeat connection (only while someone walks)
+local FrameConn -- the frame counter for the planning budget (likewise)
 
 local function NewClock() return {Spent = 0, Mark = os.clock()} end
 
@@ -948,7 +1004,9 @@ local function Spend(Clock)
 	Clock.Mark, Clock.Spent = Now, Clock.Spent + D
 	if PlanFrame ~= FrameNo then PlanFrame, PlanFrameSpent = FrameNo, 0 end
 	PlanFrameSpent += D
-	Stats.MaxPlanFrameMs = math.max(Stats.MaxPlanFrameMs, PlanFrameSpent * 1000)
+	-- (fix round 1) only while someone walks: FrameNo only counts frames then, and PlanPath's work with nobody walking
+	-- (tests) would otherwise pile into one "frame"
+	if Conn then Stats.MaxPlanFrameMs = math.max(Stats.MaxPlanFrameMs, PlanFrameSpent * 1000) end
 end
 
 local function PlanWait(Clock, Seconds) -- a wait inside a plan (not its own work)
@@ -956,9 +1014,6 @@ local function PlanWait(Clock, Seconds) -- a wait inside a plan (not its own wor
 	task.wait(Seconds)
 	Clock.Mark = os.clock()
 end
-
-local Conn -- the Heartbeat connection (only while someone walks)
-local FrameConn -- the frame counter for the planning budget (likewise)
 
 local function Budget(Clock)
 	Spend(Clock)
@@ -997,7 +1052,7 @@ local function Compute(H, Agent, Costs, Radius, Clock, From)
 	if #Pts < 1 then return "stale" end
 	-- (Task 4b) Valid, else the corner repair (header 1b); stale when neither passes
 	local Added
-	Pts, Labels, RawIdx, Added = Mend(Pts, Labels, RawIdx, function() Budget(Clock) end)
+	Pts, Labels, RawIdx, Added = Mend(Pts, Labels, RawIdx, function() Budget(Clock) end, Costs)
 	if not Pts then return "stale" end
 	if FlatDist(Pts[#Pts], H.Goal) > 0.05 then
 		table.insert(Pts, H.Goal)
@@ -1024,7 +1079,14 @@ local function PlanCore(H, Alive, Clock, Attempts)
 	if not Refreshed then RefreshBodies() end -- (the geometry filters; the tick keeps them fresh)
 	local Straight = FlatDist(H.Root.Position, H.Goal)
 	local Why = "no path"
+	local Base = Agent
 	for Attempt = 1, Attempts or 8 do
+		-- (Task 4b fix round 1) a re-ask after a stale result asks with another waypoint spacing: on a settled navmesh the
+		-- same question gives the same path, which the repair can't fix again; other spacings give other legs
+		if Attempt > 1 then
+			Agent = table.clone(Base)
+			Agent.WaypointSpacing = Mover.ReaskSpacings[(Attempt - 2) % #Mover.ReaskSpacings + 1]
+		end
 		local Stale, Best = false, nil
 		for _, Radius in ipairs(Radii) do
 			Budget(Clock)
@@ -1993,7 +2055,7 @@ function Mover.RepairPath(Pts)
 	if not Refreshed then RefreshBodies() end
 	local Raw = {}
 	for K = 1, #Pts do Raw[K] = K end
-	local Out, _, _, Added = Mend(Pts, {}, Raw)
+	local Out, _, _, Added = Mend(Pts, {}, Raw, nil, Mover.Costs)
 	if not Out then return nil, "stale" end
 	return Out, Added
 end
@@ -2045,7 +2107,10 @@ function Mover.WalkTo(Rig, TargetCFrame, Opts)
 	table.insert(List, H)
 	BodiesAt = 0 -- (a new walker: refresh the bodies on the next tick)
 	if not Conn then Conn = RunService.Heartbeat:Connect(Tick) end
-	if not FrameConn then FrameConn = RunService.PreSimulation:Connect(function() FrameNo += 1 end) end
+	if not FrameConn then
+		FrameNo += 1 -- (fix round 1) a fresh frame: the counter stood still while nobody walked
+		FrameConn = RunService.PreSimulation:Connect(function() FrameNo += 1 end)
+	end
 	Plan(H, "start")
 	return H
 end

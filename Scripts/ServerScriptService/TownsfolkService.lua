@@ -326,7 +326,7 @@ local function Walk(F, PostId)
 			warn(("TownsfolkService: %s couldn't walk to post %s (%s; failure %d in a row) - %s"):format(F.Id, PostId,
 				tostring(H and H.Why or "no walk"), F.Fails, Seen and ("holding, trying again in " .. Delay .. " s") or "placed there (nobody near)"))
 			if Seen then
-				F.Walk, F.RetryAt = nil, os.clock() + Delay
+				F.Walk, F.RetryAt, F.RetryDelay = nil, os.clock() + Delay, Delay
 				HoldHere(F)
 				return
 			end
@@ -729,6 +729,13 @@ function TownsfolkService.Def(Id)
 	local F = Folk[Id]
 	return F and F.Def or (Dead[Id] and Dead[Id].Def) or nil
 end
+-- (Task 4b fix round 1; tests) a failed walk's retry: RetryAt (os.clock), failures in a row on that post, the delay
+-- used for the last retry
+function TownsfolkService.Retry(Id)
+	local F = Folk[Id]
+	if not F then return nil, 0, nil end
+	return F.RetryAt, F.Fails or 0, F.RetryDelay
+end
 function TownsfolkService.ShelterOf(Id)
 	local F = Folk[Id]
 	return F and F.Shelter or nil
@@ -934,7 +941,12 @@ function TownsfolkService.Step(Hour)
 			if F.RetryAt then
 				-- a failed walk, held: try again (or place it, once nobody is within SleepRadius: Task 4b)
 				if os.clock() >= F.RetryAt then
-					if PlayerWithin(F, F.Target, TownsfolkService.SleepRadius) then Walk(F, F.Target) else Settle(F, F.Target, "AtPost") end
+					if PlayerWithin(F, F.Target, TownsfolkService.SleepRadius) then
+						Walk(F, F.Target)
+					else
+						F.Fails = 0 -- (fix round 1: placed, the backoff starts over)
+						Settle(F, F.Target, "AtPost")
+					end
 				end
 			elseif F.Target and Posts[F.Target] and PlayerWithin(F, F.Target, TownsfolkService.SleepRadius) then
 				-- watchdog: "Walking" with no live walk (it ended without settling) and a player near (Task 6b: nobody

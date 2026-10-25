@@ -257,7 +257,7 @@ return {
 			T.Eq(TS.State(A.Id), "Walking", "A walks despite the broken one")
 			T.Eq(TS.State(B.Id), "Walking", "B walks despite the broken one")
 			-- B: cancelled behind the service's back -> with the player near, the watchdog walks it on to its target
-			-- (Task 6b: nobody may see a teleport, the same 60-stud gate as a failed walk); it arrives
+			-- (Task 6b: nobody may see a teleport; the same gate as a failed walk, SleepRadius since Task 4b); it arrives
 			Mover.Place(TS.Get(B.Id), TS.Get(B.Id).HumanoidRootPart.CFrame)
 			TS.Step()
 			T.Eq(TS.State(B.Id), "Walking", "watchdog: B walks on (a player is near)")
@@ -635,6 +635,73 @@ return {
 				local Text, Kind = TestKit.Beside(Player, Rig, function() return TS.Talk(Player, D.Id) end, 6)
 				T.True(Text ~= nil and Kind ~= nil, "a Talk from 6 studs away is answered (" .. tostring(Kind) .. ")")
 			end)
+		end)
+	end,
+
+	-- Task 4b fix round 1 (Ruling 30): a walk that fails with a player 100 studs off (inside SleepRadius 300) is never
+	-- finished by a teleport: the townsperson holds where it stands, anchored, with its idle; it tries again after 5 s,
+	-- then 10 s, counting each failure (WalkFailures); once nobody is within 300 of it or its post, the next retry
+	-- places it there (and the backoff starts over). Mover.WalkTo is stubbed to fail for this townsperson only.
+	FailedWalkHoldsThenPlaces = function(T)
+		Fixture(T, function(Posts, Ids, Spawned)
+			local Mover = require(SSS.TownsfolkService.Mover)
+			WorldClock.Hold(8)
+			local D = Def({{0, 12, Ids.A}, {12, 24, Ids.B}})
+			local Rig = TS.Spawn(D, "Test")
+			table.insert(Spawned, D.Id)
+			local RRoot = Rig.HumanoidRootPart
+			local C = Player.Character
+			local Root = C.HumanoidRootPart
+			-- the player 100 studs off post A, square to the way to post B (so over 60 from both: the old PlaceRadius)
+			local AB = Flat(Stand(Posts.B) - Stand(Posts.A))
+			local Side = Vector3.new(-AB.Z, 0, AB.X)
+			Root.Anchored = true
+			C:PivotTo(CFrame.new(Stand(Posts.A) + Side * 100))
+			task.wait(0.2)
+			T.True((Root.Position - RRoot.Position).Magnitude > 60 and (Root.Position - Stand(Posts.B)).Magnitude > 60
+				and (Root.Position - RRoot.Position).Magnitude < TS.SleepRadius, "the player 60-300 studs from the rig and the post")
+			local RealWalk, Calls = Mover.WalkTo, 0
+			Mover.WalkTo = function(R, Target, Opts)
+				if R ~= Rig then return RealWalk(R, Target, Opts) end
+				Calls += 1
+				return {Rig = R, Status = "failed", Why = "test: a forced failure", Cancel = function() end}
+			end
+			local Ok, Err = pcall(function()
+				local W0 = TS.WalkFailures or 0
+				WorldClock.Hold(14)
+				TS.Step()
+				T.Eq(Calls, 1, "it set off for post B")
+				T.True((RRoot.Position - Stand(Posts.B)).Magnitude > 2, ("not placed at its post with a player 100 studs off (%.1f from it)")
+					:format((RRoot.Position - Stand(Posts.B)).Magnitude))
+				T.Eq(TS.WalkFailures, W0 + 1, "WalkFailures counted the failure")
+				T.True((RRoot.Position - Stand(Posts.A)).Magnitude < 1, "held where it stood")
+				T.True(RRoot.Anchored, "anchored")
+				T.Eq(Rig:GetAttribute("IdleAnim"), D.Idle, "with its idle")
+				T.Eq(TS.State(D.Id), "Walking", "still due at post B")
+				local At1, Fails1, Delay1 = TS.Retry(D.Id)
+				T.Eq(Delay1, 5, "the first retry after 5 s") T.Eq(Fails1, 1)
+				T.Near(At1 - os.clock(), 5, 0.3, "RetryAt 5 s on")
+				-- (the 1 Hz Step loop makes the retry)
+				local T0 = os.clock()
+				while Calls < 2 and os.clock() - T0 < 8 do task.wait(0.1) end
+				T.Eq(Calls, 2, "it tried again")
+				T.True(os.clock() >= At1 - 0.05, "not before RetryAt")
+				T.Eq(TS.WalkFailures, W0 + 2, "and counted the second failure")
+				local At2, Fails2, Delay2 = TS.Retry(D.Id)
+				T.Eq(Delay2, 10, "the next retry after 10 s") T.Eq(Fails2, 2)
+				T.Near(At2 - os.clock(), 10, 1.2, "RetryAt 10 s on")
+				T.True((RRoot.Position - Stand(Posts.B)).Magnitude > 2 and RRoot.Anchored, "still holding")
+				-- nobody near: 400 studs up, over 300 from the rig and the post
+				C:PivotTo(CFrame.new(Stand(Posts.A) + Vector3.new(0, TS.SleepRadius + 100, 0)))
+				T0 = os.clock()
+				while (RRoot.Position - Stand(Posts.B)).Magnitude > 1 and os.clock() - T0 < 13 do task.wait(0.1) end
+				T.True((RRoot.Position - Stand(Posts.B)).Magnitude < 1, "placed at its post once nobody is within 300")
+				T.True(os.clock() >= At2 - 0.05, "at the retry, not before")
+				T.Eq(Calls, 2, "placed, not walked")
+				T.Eq(select(2, TS.Retry(D.Id)), 0, "the backoff starts over once placed")
+			end)
+			Mover.WalkTo = RealWalk
+			if not Ok then error(Err, 0) end
 		end)
 	end,
 

@@ -2,12 +2,13 @@
 -- walk_fixes.lua: Foundry Yard game-data plan Task 4b (Rulings 27b, 30). The townsfolk Mover now repairs paths that
 -- cut corners (Mover.lua, header 1b), but one squeeze is in the map itself: the crate stack Cover_yard_spine_west_2_0
 -- stands in the middle of the 11-stud alley between House_spine_west_11 (its wall at z -303) and House_spine_west_12
--- (its wall at z -292, back-door leaf to -292.3), leaving 2.55 studs on the north side and 2.25 on the south. Six
+-- (its wall at z -292, back-door leaf to -292.3), leaving 2.43 studs on the north side and 2.42 on the south (2.12 to
+-- the back-door leaf; box to box, measured 2026-10-25). Six
 -- canteen walks (crane_bay_1, furnace_1, furnace_2, furnace_3, hall_gantry and casting_floor to the canteen seats) run
 -- through the north gap (measured 2026-10-25: corridor 2.45-2.49, against the 3.2 the walks need).
---   (a) the stack moves 2 studs +Z (Foundry's south: north is -Z): 4.55 studs from House_spine_west_11, and the south
---       gap shuts (0.25 to the back-door leaf, which it doesn't cover: the door is at x 29.9..33.1, the crates start at
---       x 33.5). The brief said "about 3 studs north (-Z)", but House_spine_west_11 IS the north side: -Z closes on it,
+--   (a) the stack moves 2 studs +Z (Foundry's south: north is -Z): 4.43 studs from House_spine_west_11, and the south
+--       gap shuts (0.42 to House_spine_west_12, 0.12 to the back-door leaf, which it doesn't cover: the door is at
+--       x 29.9..33.1, the crates start at x 33.42). The brief said "about 3 studs north (-Z)", but House_spine_west_11 IS the north side: -Z closes on it,
 --       and 3 studs +Z would overlap House_spine_west_12. Measured with the repaired Mover in Edit: all 70 schedule
 --       changes then pass Test_FoundryPaths' checks (the six canteen walks at corridor 4.45).
 --   (b) the boiler Cover_freight_path_32 (-500, 93) was measured and is NOT moved: no colliding part stands within 10
@@ -34,8 +35,10 @@
 --                 the moved parts): FoundryWalks not "applied"; the stack not at its new pivot or without
 --                 FoundryWalkFrom; its gap to House_spine_west_11 under 3.2; a crate overlapping another colliding part;
 --                 the boiler moved; a stall's counter not SLIDE from its measured spot, a sliding part without
---                 FoundryWalkFrom, a side entry under 3.2, or a counter or goods part overlapping a colliding part of
---                 anything but its own stall. Returns PASS n / FAIL n.
+--                 FoundryWalkFrom, a side entry under 3.2, a counter or goods part overlapping a colliding part of
+--                 anything but its own stall, a counter no longer holding its front posts (fix round 1: each front post
+--                 within the counter's length and depth, as the builder made them half in it) or its front face out
+--                 from under its canopy. Returns PASS n / FAIL n.
 -- MODE = "test"   (only while not applied) snapshot -> apply -> check -> undo -> snapshot; the two must be equal. The
 --                 check and the snapshot run inside a pcall, so an error between apply and undo still undoes.
 -- import/restore.lua refuses while FoundryWalks is set (the region file's RestoreRefuseFlags).
@@ -175,6 +178,25 @@ local function checks()
 				if not X:IsA("Terrain") then table.insert(Hit, X.Parent.Name .. "." .. X.Name) end
 			end
 			cond(#Hit > 0, D.Name .. "." .. N .. " overlaps " .. table.concat(Hit, ", "))
+		end
+		-- (fix round 1) the counter still holds its front posts: each one within its length and its depth (measured
+		-- after the slide: the posts at the counter's z 0.0 +- 0.3, x +-3.9, inside its +-0.8 and +-4.0)
+		local HZ, HX = C.Size.Z / 2, C.Size.X / 2
+		for _, PN in ipairs({"Post+1-1", "Post-1-1"}) do
+			local Post = M:FindFirstChild(PN)
+			if not (Post and Post:IsA("BasePart")) then
+				cond(true, D.Name .. " has no front post " .. PN)
+			else
+				local Q = C.CFrame:PointToObjectSpace(Post.Position)
+				local PZ, PX = Post.Size.Z / 2, Post.Size.X / 2
+				cond(Q.Z + PZ < -HZ or Q.Z - PZ > HZ or math.abs(Q.X) + PX > HX + 0.05,
+					("%s.Counter no longer holds %s (post at the counter's x %.2f, z %.2f)"):format(D.Name, PN, Q.X, Q.Z))
+			end
+		end
+		local Can = M:FindFirstChild("Canopy")
+		if Can then
+			local QC = C.CFrame:PointToObjectSpace(Can.Position)
+			cond(-HZ < QC.Z - Can.Size.Z / 2, ("%s.Counter's front is out from under its canopy"):format(D.Name))
 		end
 	end
 	return Fails, ("check: PASS %d / FAIL %d; gap to %s %.2f; narrowest stall side entry %.2f"):format(Passes, Fails, HOUSE, G, Narrow), Out

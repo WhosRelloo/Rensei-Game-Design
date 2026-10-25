@@ -15,6 +15,10 @@
 --                            clear, the vertices 1.25 or more off it.
 --   * HuggingPointIsEased    (the body rule) a waypoint 0.3 studs from a wall: moved off the wall to 1.25 or more,
 --                            every leg's body sweep clear, the ends kept.
+--   * TrenchIsNotCrossed     (fix round 1) a line clipping a post with a 1-stud trench across the floor on the side the
+--                            repair pushes to: refused, or routed round with floor under every leg (rays every 0.5).
+--   * CentredPostIsRoutedRound (fix round 1) a line dead through the middle of a 0.6-stud post (no gradient there):
+--                            repaired round it, as PostIsRoutedRound.
 local SSS = game:GetService("ServerScriptService")
 local Mover = require(SSS.TownsfolkService.Mover)
 
@@ -33,12 +37,12 @@ end
 
 -- builds the floor, runs Body(Ctx), always removes the fixture. Ctx.At(X, Z) = a floor point; Ctx.Box(X, Z, SX, SZ,
 -- H?) = a block standing on the floor (centre X, Z; sizes along X and Z)
-local function Fixture(T, Body)
+local function Fixture(T, Body, Opts)
 	local O = Site()
 	T.True(O ~= nil, "an empty spot for the test floor")
 	local Folder = Instance.new("Folder")
 	Folder.Name = "MoverRepairTest"
-	local Ctx = {Boxes = {}}
+	local Ctx = {Boxes = {}, Floors = {}}
 	local Top = O.Y + 1
 	function Ctx.At(X, Z) return Vector3.new(O.X + X, Top, O.Z + Z) end
 	local function Part(CF, Size)
@@ -50,7 +54,14 @@ local function Fixture(T, Body)
 		P.Parent = Folder
 		return P
 	end
-	Part(CFrame.new(O), Vector3.new(FLOOR, 2, FLOOR))
+	local Tr = Opts and Opts.Trench -- {Z0, Z1}: no floor between them, across the whole floor
+	if Tr then
+		local Lo, Hi = -FLOOR / 2, FLOOR / 2
+		table.insert(Ctx.Floors, Part(CFrame.new(O + Vector3.new(0, 0, (Lo + Tr[1]) / 2)), Vector3.new(FLOOR, 2, Tr[1] - Lo)))
+		table.insert(Ctx.Floors, Part(CFrame.new(O + Vector3.new(0, 0, (Tr[2] + Hi) / 2)), Vector3.new(FLOOR, 2, Hi - Tr[2])))
+	else
+		table.insert(Ctx.Floors, Part(CFrame.new(O), Vector3.new(FLOOR, 2, FLOOR)))
+	end
 	function Ctx.Box(X, Z, SX, SZ, H)
 		H = H or 8
 		local P = Part(CFrame.new(Ctx.At(X, Z) + Vector3.new(0, H / 2, 0)), Vector3.new(SX, H, SZ))
@@ -86,6 +97,25 @@ local function Clearance(Ctx, V)
 	return M
 end
 local function Same(A, B) return (A - B).Magnitude < 1e-3 end
+-- {"leg k: no floor at (x, z)"}: a ray down every 0.5 studs of each leg must meet the fixture's floor within 3
+local Down = RaycastParams.new()
+Down.FilterType = Enum.RaycastFilterType.Include
+local function GroundLegs(Ctx, Pts)
+	Down.FilterDescendantsInstances = Ctx.Floors
+	local Out = {}
+	for I = 1, #Pts - 1 do
+		local A, B = Pts[I], Pts[I + 1]
+		local N = math.max(1, math.ceil((B - A).Magnitude / 0.5))
+		for K = 0, N do
+			local P = A:Lerp(B, K / N)
+			if not workspace:Raycast(P + Vector3.new(0, 1.5, 0), Vector3.new(0, -4.5, 0), Down) then
+				table.insert(Out, ("leg %d: no floor at (%.1f, %.1f)"):format(I, P.X, P.Z))
+				break
+			end
+		end
+	end
+	return Out
+end
 local function Flat(V) return Vector3.new(V.X, 0, V.Z) end
 -- {"leg k body hits X"}: a BODY sphere swept at waist height down each leg, outside END of the path's two ends
 local function BodyLegs(Ctx, Pts)
@@ -195,6 +225,33 @@ return {
 			T.True(Near ~= nil and not Same(Near, Pts[2]), "the hugging point moved")
 			T.True(Clearance(Ctx, Near) >= MIN_CLEAR - 1e-3, ("now %.2f off the wall (at least %.2f)"):format(Clearance(Ctx, Near), MIN_CLEAR))
 			T.Eq(#ClearLegs(Ctx, Out), 0, "every leg's centre line clear")
+			local B = BodyLegs(Ctx, Out)
+			T.Eq(#B, 0, "every leg clear for the body (" .. table.concat(B, ", ") .. ")")
+		end)
+	end,
+
+	TrenchIsNotCrossed = function(T)
+		Fixture(T, function(Ctx)
+			Ctx.Box(0, 0, 0.6, 0.6) -- a post: its surface at z 0.3, the repair pushes to +z...
+			local Pts = {Ctx.At(-12, 0.1), Ctx.At(12, 0.1)}
+			T.True(#ClearLegs(Ctx, Pts) > 0, "the line runs through the post")
+			T.Eq(#GroundLegs(Ctx, Pts), 0, "the line itself has floor all along")
+			local Out, Why = Mover.RepairPath(Pts)
+			if Out then
+				local G = GroundLegs(Ctx, Out)
+				T.Eq(#G, 0, "a repair routed round keeps floor under every leg (" .. table.concat(G, ", ") .. ")")
+				T.Eq(#ClearLegs(Ctx, Out), 0, "and clears the post")
+			else
+				T.Eq(Why, "stale", "or the repair is refused")
+			end
+		end, {Trench = {0.8, 1.8}}) -- ...where a 1-stud trench crosses the floor (z 0.8..1.8)
+	end,
+
+	CentredPostIsRoutedRound = function(T)
+		Fixture(T, function(Ctx)
+			Ctx.Box(0, 0, 0.6, 0.6)
+			local Pts = {Ctx.At(-12, 0), Ctx.At(12, 0)} -- dead through its middle
+			local Out = Repaired(T, Ctx, Pts, "centred post")
 			local B = BodyLegs(Ctx, Out)
 			T.Eq(#B, 0, "every leg clear for the body (" .. table.concat(B, ", ") .. ")")
 		end)
