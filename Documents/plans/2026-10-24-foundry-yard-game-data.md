@@ -744,7 +744,7 @@ Notes on the roster:
 **`Test_FoundryRoster`** (Play VM), each failure named:
 - **Validate:** `TownsfolkLogic.Validate(Townsfolk.Regions.Foundry, PostIds)` passes, where PostIds are the RenseiPosts in `workspace.World.Map.Foundry`.
 - **Size:** 26 entries, ids unique and starting `fy_`.
-- **Names:** no full Name equals any name in `Townsfolk.Regions.Lindenmoor` or `TownsfolkLogic.NewcomerNames`. **No first name** (the Name's first word; "Su Ling" counts as one first name) equals any word of:
+- **Names:** no full Name equals any name in `Townsfolk.Regions.Lindenmoor` or `TownsfolkLogic.NewcomerNames`. **No word of a first name** (everything before the last word, so a two-word first name is checked word by word; Ruling 28) equals any word of:
   - every `Speaker` in `Rensei.Dialogues` (walk every Dialogues entry; "Coach Harlan" and "Wren" are speakers today);
   - every `DisplayName` in `Rensei.TuningConfig.Enemies`, and every `DisplayName` attribute of a model with a DialogueId in workspace;
   - every Name in `Townsfolk.Regions.Lindenmoor` and every name in `TownsfolkLogic.NewcomerNames`.
