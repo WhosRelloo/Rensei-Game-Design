@@ -82,8 +82,9 @@ local Lindenmoor = {
 --   * All 24 Home posts are used. Unused (allowed): crane_bay_2/4, canteen_cook_2, forge_wing_1/2, stack_yard, slag_lane,
 --     casting_shed_1/2, shed_hand_1/2, court_hand, shift_office_work (Ruling 16), yard_hand_2/3 and every Shelter.
 --   * Every post used has a Shelter within 145 studs (Task 4; the worst is yard_hand_4 at 140).
---   * Clue lines (Task 6, the shift ledger, foundry_ledger stage 1): Edmund Rusk (fy_furnace_d1), Sella Marsh
---     (fy_furnace_l1) and Aldous Merriweather (fy_clerk); each line gives its evidence, then signals its objective.
+--   * Clue lines (Task 6, the shift ledger, foundry_ledger stage 1; PROPOSAL wording): Edmund Rusk (fy_furnace_d1),
+--     Sella Marsh (fy_furnace_l1) and Aldous Merriweather (fy_clerk); each line gives its evidence, then signals its
+--     objective. (Task 8, Ruling 31: Rusk's shift ends at 14:00, so he tells it as he heard it: "they banked her".)
 -- The day (world clock; PROPOSAL hours):
 --   day crew        works 06-14, eats 14-15 (canteen or square), home 15-06
 --   late crew       eats 13-14, works 14-22, eats 22-23, home 23-13 (fy_crane_l2: square 13-14, no supper)
@@ -117,7 +118,7 @@ local Foundry = {
 		JobLine = "Furnace One, mornings. Twelve years, and she's never once let me forget it's her shift, not mine.",
 		Look = {Nation = "Amestrian", Gender = "Male", Seed = 3105},
 		Clue = {Quest = "foundry_ledger", Stage = 1, Signal = "foundry_ledger_rusk", Evidence = "foundry_banked_early",
-			Text = "The 14th? I was handing over to the late lot when the tuyere cracked. We banked her by six and sent them home. Nobody stood at Furnace One past six that night, and I'll swear to it."},
+			Text = "The 14th? I was handing over to the late lot when the tuyere cracked. They banked her by six and sent the crew home. Nobody stood at Furnace One past six that night, and I'll swear to it."},
 		Schedule = {{6, 14, "furnace_1"}, {14, 15, "canteen_seat_2"}, {15, 6, "workers_row_5"}}},
 	{Id = "fy_furnace_l1", Name = "Sella Marsh", Job = "Furnace hand", Faction = "Foundry", Idle = "NPC_Blacksmith",
 		JobLine = "Late shift at Furnace One. You get used to the heat. You never get used to the noise.",

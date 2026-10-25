@@ -110,7 +110,7 @@ return {
 	foundry_full_shift = {Quest = "foundry_ledger", Title = "A Full Shift Booked",
 		Text = "The shift ledger books Furnace One's late crew for a full eight hours on the 14th. The same page says the furnace was banked at 18:00, four hours in."},
 	foundry_banked_early = {Quest = "foundry_ledger", Title = "Sent Home at Six",
-		Text = "Edmund Rusk, day furnace hand: Furnace One was banked by 18:00 on the 14th and the late crew sent home. Nobody worked it after six."},
+		Text = "Edmund Rusk, day furnace hand: they banked Furnace One by six on the 14th and sent the late crew home. Nobody worked it after six."},
 	foundry_short_pay = {Quest = "foundry_ledger", Title = "Four Hours' Pay",
 		Text = "Sella Marsh, late furnace hand: her pay packet for the 14th held four hours. The ledger books eight. Someone drew pay for hours nobody worked."},
 	foundry_docket_round = {Quest = "foundry_ledger", Title = "Copied from the Dockets",

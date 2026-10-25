@@ -15,19 +15,23 @@
 --       RewardsAsDesigned             (the real Rewards back) 300 Exp, 100 Money, the deed foundry_ledger_cleared
 --                                     with Foundry standing 10; QuestService.Grant records the deed.
 --     The flow's rewards are switched off (Rewards = {}) while it runs.
---   * IdsExist (Ruling 2 / Task 2 review Minor 7): across all the data, every evidence id a quest objective, an inspect
---     def, a deduction or a townsperson's clue line names is an Evidence def, and every deed id a quest's Rewards or
---     Outcomes name is a Deeds def; foundry_ledger's own ids are among those checked.
+--   * IdsExist (Ruling 22 / Task 2 review Minor 7; broadened in Task 8, Ruling 31): across all the data, every evidence
+--     id a quest objective, an inspect def (its Evidence and its Requires.Evidence), a deduction (Requires.Evidence, a
+--     string or a list, and each slot's Answer) or a townsperson's clue line names is an Evidence def; every quest's
+--     Deduce objective targets a Deductions def; every Evidence def's Quest is a Quests def; and every deed id a
+--     quest's Rewards or Outcomes name is a Deeds def. foundry_ledger's own ids are among those checked.
 --   * CompassFindsTheClues: ReplicatedStorage.CompassPoints has an Inspect point for each clue, within 0.5 studs of
 --     its part, labelled with the clue's title and naming its evidence.
 -- Set-up (Ruling 14, Ruling 8): deep copies of Data.Quests, Data.Story and Data.Morality; the Talk cooldown 0; the clock
 -- held at 10:00 and Foundry's roster loaded (TownsfolkService.LoadRegion), so nobody walks and Rusk is at furnace_1,
 -- Marsh at workers_row_6, the clerk at shift_clerk. The test never waits for a walk: it moves the player, not them.
 -- Everything is put back afterwards: the save tables (in place), the Rewards, the cooldown, the clock, the player's
--- position and the dialogue box.
+-- position and the dialogue box. Copy and Stand are RenseiTests.SmokeKit's (Task 8, Ruling 31).
 local SSS = game:GetService("ServerScriptService")
 local CollectionService = game:GetService("CollectionService")
 local Rensei = game.ReplicatedStorage.Modules.Data.Rensei
+local SmokeKit = require(script.Parent.SmokeKit)
+local Copy, Stand = SmokeKit.Copy, SmokeKit.Stand
 
 local QUEST = "foundry_ledger"
 local DEDUCTION = "foundry_ledger_who"
@@ -45,32 +49,13 @@ local TELLERS = {
 	{Id = "fy_clerk", Post = "shift_clerk", Signal = "foundry_ledger_clerk", Evidence = "foundry_docket_round", Objective = "clerk"},
 }
 local HOUR = 10
-local CALM_WAIT = 5 -- s for a townsperson to be AtPost or Asleep before a Talk
-
-local function Copy(T)
-	if type(T) ~= "table" then return T end
-	local R = {}
-	for K, V in pairs(T) do R[K] = Copy(V) end
-	return R
-end
+local CALM_WAIT = 5 -- PROPOSAL: s for a townsperson to be AtPost or Asleep before a Talk
 
 -- the clue parts in the world: {[ClueId] = Part}
 local function CluePart(Id)
 	for _, P in ipairs(CollectionService:GetTagged("RenseiClue")) do
 		if P:IsDescendantOf(workspace) and P:GetAttribute("ClueId") == Id then return P end
 	end
-end
-
--- the player's character held still beside Pos (anchored; 5 studs off, 3 up), for an inspect or a Talk
-local function Stand(Player, Pos)
-	local C = Player.Character
-	local Root = C and C:FindFirstChild("HumanoidRootPart")
-	assert(Root, "the player has a character")
-	Root.Anchored = true
-	C:PivotTo(CFrame.new(Pos + Vector3.new(0, 3, 5)))
-	Root.AssemblyLinearVelocity = Vector3.zero
-	task.wait(0.1)
-	return Root
 end
 
 -- ===== the flow =====
@@ -328,6 +313,7 @@ Suite.IdsExist = function(T)
 	local Investigation = require(Rensei.Investigation)
 	local Rosters = require(Rensei.Townsfolk).Regions
 	local Checked, Bad = {}, {}
+	local function List(V) return type(V) == "table" and V or (V ~= nil and {V} or {}) end -- (StoryLogic's: "id" or {...})
 	local function Ev(Id, Where)
 		Checked[Id] = true
 		if type(Id) ~= "string" or Evidence[Id] == nil then table.insert(Bad, "evidence " .. tostring(Id) .. " (" .. Where .. ")") end
@@ -340,6 +326,12 @@ Suite.IdsExist = function(T)
 		for SI, S in ipairs(Q.Stages or {{Objectives = Q.Objectives or {}}}) do
 			for _, O in ipairs(S.Objectives or {}) do
 				if O.Kind == "Evidence" then Ev(O.Target, QId .. " stage " .. SI .. " " .. tostring(O.Id)) end
+				if O.Kind == "Deduce" then
+					Checked[O.Target] = true
+					if type(O.Target) ~= "string" or type(Investigation.Deductions[O.Target]) ~= "table" then
+						table.insert(Bad, "deduction " .. tostring(O.Target) .. " (" .. QId .. " stage " .. SI .. " " .. tostring(O.Id) .. ")")
+					end
+				end
 			end
 		end
 		for _, D in ipairs(Q.Rewards and Q.Rewards.Deeds or {}) do Deed(D, QId .. " Rewards") end
@@ -350,9 +342,10 @@ Suite.IdsExist = function(T)
 	end
 	for Id, D in pairs(Investigation.Inspects) do
 		if D.Evidence ~= nil then Ev(D.Evidence, "inspect " .. Id) end
+		for _, E in ipairs(List(D.Requires and D.Requires.Evidence)) do Ev(E, "inspect " .. Id .. " Requires") end
 	end
 	for Id, D in pairs(Investigation.Deductions) do
-		for _, E in ipairs(D.Requires and D.Requires.Evidence or {}) do Ev(E, "deduction " .. Id .. " Requires") end
+		for _, E in ipairs(List(D.Requires and D.Requires.Evidence)) do Ev(E, "deduction " .. Id .. " Requires") end
 		for I, S in ipairs(D.Slots or {}) do Ev(S.Answer, "deduction " .. Id .. " slot " .. I) end
 	end
 	for Region, Roster in pairs(Rosters) do
@@ -360,12 +353,20 @@ Suite.IdsExist = function(T)
 			if type(D.Clue) == "table" and D.Clue.Evidence ~= nil then Ev(D.Clue.Evidence, Region .. " " .. tostring(D.Id) .. " clue") end
 		end
 	end
+	for Id, E in pairs(Evidence) do
+		if type(E) == "table" and E.Quest ~= nil then
+			Checked[E.Quest] = true
+			if type(E.Quest) ~= "string" or type(Quests[E.Quest]) ~= "table" then
+				table.insert(Bad, "quest " .. tostring(E.Quest) .. " (evidence " .. Id .. "'s Quest)")
+			end
+		end
+	end
 	table.sort(Bad)
 	T.Eq(#Bad, 0, "ids with no def: " .. table.concat(Bad, ", "))
 	-- the shift ledger's own ids were among those checked (so the sweep covered them)
 	local Missing = {}
 	for _, Id in ipairs(EVIDENCE) do if not Checked[Id] then table.insert(Missing, Id) end end
-	if not Checked[DEED] then table.insert(Missing, DEED) end
+	for _, Id in ipairs({DEED, DEDUCTION, QUEST}) do if not Checked[Id] then table.insert(Missing, Id) end end
 	T.Eq(#Missing, 0, "the shift ledger's ids the sweep never met: " .. table.concat(Missing, ", "))
 end
 
