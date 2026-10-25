@@ -258,9 +258,11 @@
     {"Tag": "RenseiPost", "At": [-90, 0, 268], "Yaw": 0, "Attr": {"PostId": "cinder_east_shelter", "Kind": "Shelter"}}
   ],
   "Budget": 45000,
-  "RestoreRefuseFlags": ["FoundryPosts", "FoundryForge", "FoundryLedges"],
+  "RestoreRefuseFlags": ["FoundryPosts", "FoundryForge", "FoundryLedges", "FoundryWalks"],
   "Notes": [
     "Foundry Yard plan Task 4: the four market stalls' Shelf parts are walk-through in Studio (foundry_posts.lua), so traders can reach their counters; the builder still makes them solid",
-    "Foundry Yard plan Task 4: the same four stalls' Canopy parts each carry a PathfindingModifier with PassThrough (FoundryCanopyPassThrough, foundry_posts.lua), because the canopy shuts the navmesh under it although a townsperson fits beneath; the canopies stay solid; the builder doesn't add the modifiers"
+    "Foundry Yard plan Task 4: the same four stalls' Canopy parts each carry a PathfindingModifier with PassThrough (FoundryCanopyPassThrough, foundry_posts.lua), because the canopy shuts the navmesh under it although a townsperson fits beneath; the canopies stay solid; the builder doesn't add the modifiers",
+    "Foundry Yard plan Task 4b: the crate stack Cover_yard_spine_west_2_0 stands 2 studs further +Z (south) in Studio (walk_fixes.lua, flag FoundryWalks), so the alley past House_spine_west_11 is 4.4 studs wide for the townsfolk's walks to the canteen; the builder still places it where it was",
+    "Foundry Yard plan Task 4b: the four trader stalls' Counter and Goods0-2 parts (MarketStall_stall_1, _3, _10, _12) stand 0.6 studs nearer the stall's front posts in Studio (walk_fixes.lua), so each stall's side entries are 3.3 studs wide (the builder's 2.7 snagged traders); the builder still places them where they were"
   ]
 }

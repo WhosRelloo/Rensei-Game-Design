@@ -390,7 +390,7 @@ setup ok (Map.LindenmoorExpansion): Workspace.World.Map.LindenmoorExpansion.Trav
 - **Rollback:** `restore.lua` carries `Travel` out with the expansion. To drop only the road, delete `LindenmoorExpansion.Travel` (setup made no backup: there was no old `Travel`).
 
 ### Rollback
-**Superseded (import plan Task 9):** the Studio fixes, the road cut, the shelters and the names came after this. Use the full order in "The import is done" → "Rolling everything back" below. These two steps are its steps 8 and 9.
+**Superseded (import plan Task 9):** the Studio fixes, the road cut, the shelters and the names came after this. Use the full order in "The import is done" → "Rolling everything back" below. These two steps are its steps 9 and 10.
 
 In Edit, never in Play:
 1. **`import/restore.lua`.** It moves `LindenmoorExpansion` into `Post-Region_Lindenmoor_<date>`, along with its `SeamFillers` and any `Travel` built by `setup.lua`. It also pastes the terrain back under the water boxes.
@@ -480,26 +480,28 @@ The four spots:
 
 ### Rolling everything back
 Do this in Edit, never in Play, in this order. Each Studio-fix script takes its mode on its `local MODE = ...` line:
-- **`east_west_names.lua`, `shelters.lua` and `bed_fix.lua`:** copy the file to a scratch folder and edit its MODE line there.
+- **`post_fixes.lua`, `east_west_names.lua`, `shelters.lua` and `bed_fix.lua`:** copy the file to a scratch folder and edit its MODE line there.
 - **The generated scripts (`road_cut.lua`, `seam_pits.lua` and `regrade_seam.lua`):** do the same. Copy the committed file to a scratch folder and edit only its `local MODE = "apply"` line. **Never regenerate them with their `.py`**: the generator recomputes from the current survey and the current ground, so the new file would no longer match what was applied.
-- **`gorge_fix.lua`:** use its bundler (step 6).
-1. **`Art/Studio/Regions/Lindenmoor/east_west_names.lua`**, `MODE = "undo"`.
+- **`gorge_fix.lua`:** use its bundler (step 7).
+1. **`Art/Studio/Regions/Lindenmoor/post_fixes.lua`**, `MODE = "undo"` (Foundry Yard plan Task 4b). It puts `lm_lookout_seat`, `lm_haybarn_shelter`, `lm_farm4_field` and `lm_farm1_home` back where they were (inside the lookout's base, the hay barn, the farmhouse's stone floor and on the well's rim) and clears `LindenmoorPostFixes`. Nothing else depends on it.
+   - After this step, Test_YePaths fails again (the four posts can't be stood at; farm4's walks fail). That is expected.
+2. **`Art/Studio/Regions/Lindenmoor/east_west_names.lua`**, `MODE = "undo"`.
    - West Lookout and Northwest Gap go back to East Lookout and Northeast Gap.
    - The two area descriptions go back too.
-   - `Rensei.Regions.Areas` and the tests still use the new names until step 10.
-2. **`shelters.lua`**, `MODE = "undo"`. **At the same time, revert `Rensei.Townsfolk`** to its ce128ca text (`git show ce128ca:Scripts/ReplicatedStorage/Modules/Data/Rensei/Townsfolk.lua`): back up the current Studio copy, then set the old text as its Source.
+   - `Rensei.Regions.Areas` and the tests still use the new names until step 11.
+3. **`shelters.lua`**, `MODE = "undo"`. **At the same time, revert `Rensei.Townsfolk`** to its ce128ca text (`git show ce128ca:Scripts/ReplicatedStorage/Modules/Data/Rensei/Townsfolk.lua`): back up the current Studio copy, then set the old text as its Source.
    - **Why:** without that revert, the groundskeeper's night post `lm_field_shelter` no longer exists. `TownsfolkLogic.Validate` then refuses the roster, and **no Lindenmoor townsfolk spawn**.
    - After this step, Play_LindenmoorData's "a shelter within 150" check fails. That is expected.
-3. **`road_cut.lua`**, `MODE = "undo"`. This also removes the mouth ramp.
-4. **`bed_fix.lua`**, `MODE = "bedundo"`.
-5. **`seam_pits.lua`**, `MODE = "undo"`. It refuses while the road cut is applied.
-6. **`gorge_fix.lua`** `undo`: `python -I Art/Studio/Regions/Lindenmoor/bundle_gorge_fix.py fix <out.lua> undo`. It refuses while the road cut, the bed or the seam pits are applied.
-7. **`regrade_seam.lua`**, `MODE = "undo"`. It refuses while the road cut, the seam pits or the gorge fix are applied.
-8. **`import/restore.lua`.** It refuses, changing nothing, while the expansion still carries any of the seven fix flags (`LindenmoorSeamRegrade`, `LindenmoorSeamPits`, `LindenmoorGorgeFix`, `LindenmoorGorgeBed`, `LindenmoorRoadCut`, `LindenmoorShelters`, `LindenmoorEastWest`; the region file's `RestoreRefuseFlags`), so steps 1–7 come first.
+4. **`road_cut.lua`**, `MODE = "undo"`. This also removes the mouth ramp.
+5. **`bed_fix.lua`**, `MODE = "bedundo"`.
+6. **`seam_pits.lua`**, `MODE = "undo"`. It refuses while the road cut is applied.
+7. **`gorge_fix.lua`** `undo`: `python -I Art/Studio/Regions/Lindenmoor/bundle_gorge_fix.py fix <out.lua> undo`. It refuses while the road cut, the bed or the seam pits are applied.
+8. **`regrade_seam.lua`**, `MODE = "undo"`. It refuses while the road cut, the seam pits or the gorge fix are applied.
+9. **`import/restore.lua`.** It refuses, changing nothing, while the expansion still carries any of the seven fix flags (`LindenmoorSeamRegrade`, `LindenmoorSeamPits`, `LindenmoorGorgeFix`, `LindenmoorGorgeBed`, `LindenmoorRoadCut`, `LindenmoorShelters`, `LindenmoorEastWest`; the region file's `RestoreRefuseFlags`), so steps 2–8 come first. It does not check `LindenmoorPostFixes` (step 1 has no restore guard), so step 1 must already be done.
    - It moves `LindenmoorExpansion` into `Post-Region_Lindenmoor_<date>`, together with its `Travel`, its `SeamFillers` and the shelter posts.
    - It pastes the terrain back under the water boxes.
-9. **`prep_ye.lua` undo, from a fresh bundle:** `python -I Art/Studio/Regions/Lindenmoor/bundle_prep.py prep <out.lua> undo`. Then check there is exactly one `RenseiArrival` with `Point = "RoadStart"`: the old North Road's.
-10. **Revert the data and script files.** Take every Studio copy from `ServerStorage.RenseiBackups["Pre-LindenmoorImport_2026-10-24"]`. Backups are named `Rensei.<Module>`, `RenseiServer.<Service>`, `TownsfolkService.Mover`, `UI.<Module>` and `RenseiTests.<Suite>`. Back up each current copy, then set its Source from the backup.
+10. **`prep_ye.lua` undo, from a fresh bundle:** `python -I Art/Studio/Regions/Lindenmoor/bundle_prep.py prep <out.lua> undo`. Then check there is exactly one `RenseiArrival` with `Point = "RoadStart"`: the old North Road's.
+11. **Revert the data and script files.** Take every Studio copy from `ServerStorage.RenseiBackups["Pre-LindenmoorImport_2026-10-24"]`. Backups are named `Rensei.<Module>`, `RenseiServer.<Service>`, `TownsfolkService.Mover`, `UI.<Module>` and `RenseiTests.<Suite>`. Back up each current copy, then set its Source from the backup.
     - **Never take `Rensei.Puzzles` or `UI.CompassUI` from git.** The repo copies at the plan's base, `2378b54`, were behind Studio:
       - Puzzles lacks `adit_boards` and the Breakable kind;
       - CompassUI lacks the `InTruth` line (no directions at the Gate).
@@ -514,7 +516,7 @@ Do this in Edit, never in Play, in this order. Each Studio-fix script takes its 
       - Play_Road from `RenseiTests.Play_Road` (the pre-import copy, for the old North Road; `RenseiTests.Play_Road_Task7` is Task 7's);
       - Play_Station from `RenseiTests.Play_Station` (the copy from before d3606a5). That revert is optional: d3606a5's Play_Station behaves the same in Ye.
     - **Delete:** Play_LindenmoorData and Play_LindenmoorSmoke. They are new; the `RenseiTests.Play_LindenmoorData` backup is a Task 8 copy and `RenseiTests.Play_LindenmoorSmoke_Task9` a Task 9 copy, not pre-import ones.
-11. **Run the travel suites:** Play_Boot, Gate, Arrive, Station, Road, Travel and RideEvents.
+12. **Run the travel suites:** Play_Boot, Gate, Arrive, Station, Road, Travel and RideEvents.
 
 **A re-import brings the old names back.** The kit files (`Art/Studio/Regions/Lindenmoor/layout.json` and `import/chunk_*.lua`) still say East Lookout and Northeast Gap. After any re-import from them, re-apply `east_west_names.lua` with `MODE = "apply"`.
 
