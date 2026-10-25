@@ -78,6 +78,7 @@ local AppearanceService = require(ServerScriptService.AppearanceService)
 local Reputation = require(Rensei.Reputation)
 local Factions = require(Rensei.Factions)
 local Deeds = require(Rensei.Deeds)
+local StoryLogic = require(Rensei.StoryLogic) -- (Foundry Yard plan Task 2 fix round 1: StoryLogic.Stale)
 local WorldClock = require(ServerScriptService.WorldClock)
 local Mover = require(script.Mover)
 
@@ -394,7 +395,9 @@ function TownsfolkService.Talk(Player, Id)
 	local Clue, OnClue = Def.Clue, false
 	if type(Clue) == "table" and Data and type(Data.Quests) == "table" and type(Data.Quests.Active) == "table" then
 		local Q = Data.Quests.Active[Clue.Quest]
-		OnClue = type(Q) == "table" and (Clue.Stage == nil or Q.Stage == Clue.Stage)
+		-- (Foundry Yard plan Task 2 fix round 1) a stale-revision state is on no known stage until Boot upgrades it
+		OnClue = type(Q) == "table" and not StoryLogic.Stale(QuestService.Definitions[Clue.Quest], Q)
+			and (Clue.Stage == nil or Q.Stage == Clue.Stage)
 	end
 	-- standing with their faction in this region
 	local Tier = "Neutral"

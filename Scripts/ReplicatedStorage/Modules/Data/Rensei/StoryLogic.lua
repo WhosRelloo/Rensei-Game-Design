@@ -80,16 +80,31 @@ end
 -- Saved quest states follow a revised quest (Foundry Yard plan, 2026-10-24). A definition with Revision = n and
 -- Prepended = {[r] = k} put k new stages in front of its stage list at revision r. A saved Active state from an older
 -- revision (State.Revision missing = 1) moves forward past those stages, so the player stays on the stage they were
--- on. Returns true when it changed State.
+-- on. Returns true when it changed State. (Fix round 1, Ruling 22: the new stage is clamped to the last stage, and a
+-- non-number Prepended value counts as 0.)
 function StoryLogic.UpgradeQuest(Def, State)
 	if type(Def) ~= "table" or type(State) ~= "table" or type(Def.Revision) ~= "number" then return false end
 	local From = type(State.Revision) == "number" and State.Revision or 1
 	if From >= Def.Revision then return false end
 	local Shift = 0
-	for R = From + 1, Def.Revision do Shift += (type(Def.Prepended) == "table" and Def.Prepended[R]) or 0 end
-	State.Stage = (State.Stage or 1) + Shift
+	for R = From + 1, Def.Revision do
+		local K = type(Def.Prepended) == "table" and Def.Prepended[R]
+		if type(K) == "number" then Shift += K end
+	end
+	local Stage = (type(State.Stage) == "number" and State.Stage or 1) + Shift
+	local Count = (type(Def.Stages) == "table" and #Def.Stages) or (type(Def.Objectives) == "table" and 1) or 0
+	if Count > 0 then Stage = math.min(Stage, Count) end
+	State.Stage = Stage
 	State.Revision = Def.Revision
 	return true
+end
+
+-- (Fix round 1, Ruling 22) a saved state from an older revision of a revised quest, not yet upgraded (QuestService.Boot
+-- upgrades it on join). Until then its Stage means an older stage list: nothing may read or move it (QuestService
+-- skips it; stage conditions treat it as not yet known).
+function StoryLogic.Stale(Def, State)
+	if type(Def) ~= "table" or type(Def.Revision) ~= "number" or type(State) ~= "table" then return false end
+	return (type(State.Revision) == "number" and State.Revision or 1) < Def.Revision
 end
 
 -- the current stage's objectives the journal should show (Hidden ones appear once started)
@@ -105,17 +120,24 @@ end
 -- ===== conditions =====
 local function Story(Data) return Data.Story or {} end
 
+local QuestDefs -- (Rensei.Quests, required on first use)
 local function QuestIs(Data, Q)
 	local Active = Data.Quests and Data.Quests.Active[Q.Id]
 	local Completed = Data.Quests and Data.Quests.Completed[Q.Id]
+	-- (fix round 1) a stale-revision state's stage is not yet known: it meets no Stage / StageAtLeast condition
+	local Known = Active
+	if Active and (Q.Stage or Q.StageAtLeast) then
+		QuestDefs = QuestDefs or require(script.Parent.Quests)
+		if StoryLogic.Stale(QuestDefs[Q.Id], Active) then Known = nil end
+	end
 	local Is = Q.Is or "Active"
 	if Is == "Active" and not Active then return false end
 	if Is == "Completed" and not Completed then return false end
 	if Is == "NotStarted" and (Active or Completed) then return false end
 	if Is == "NotCompleted" and Completed then return false end
 	if Is == "NotActive" and Active then return false end
-	if Q.Stage and not (Active and (Active.Stage or 1) == Q.Stage) then return false end
-	if Q.StageAtLeast and not (Completed or (Active and (Active.Stage or 1) >= Q.StageAtLeast)) then return false end
+	if Q.Stage and not (Known and (Known.Stage or 1) == Q.Stage) then return false end
+	if Q.StageAtLeast and not (Completed or (Known and (Known.Stage or 1) >= Q.StageAtLeast)) then return false end
 	return true
 end
 

@@ -10,6 +10,8 @@
 --   * BootWaitsForTheSnapshot: QuestService.WaitForSnapshot (Boot's wait for the hook's save snapshot) still waits
 --     after 1 s for a player who isn't the LMSnapTaken one, stops when that player leaves, and returns at once for
 --     the real player, whose snapshot is taken.
+-- Fix round 1 (Ruling 22): NonClueLineGivesNoEvidence (Minor 5), StaleStateWaitsForUpgrade and StaleStateHearsNoClue
+-- (I1: a stale-revision state takes no signal and is on no stage until Boot upgrades it).
 -- Every test puts back what it changed: the injected defs, Data.Quests, Data.Story and Data.Morality (deep copies
 -- taken first, put back in place), the fixture parts and the townsperson; the clock hold and TalkCooldown too.
 local SSS = game:GetService("ServerScriptService")
@@ -59,6 +61,61 @@ local function Guarded(T, Body)
 	if not Ok then error(Err, 0) end
 end
 
+-- (Teller) a test townsperson on a temporary post on a temporary floor at y 300, on the first free site
+-- (Play_TownsfolkCrowd's fixture pattern), with the clock held at 10 and the Talk cooldown off (Ruling 14); every part
+-- of it is undone through OnCleanup. Returns the townsperson's Id.
+local function Teller(T, OnCleanup, Clue)
+	local TS = require(SSS.TownsfolkService)
+	local WorldClock = require(SSS.WorldClock)
+	local WasHeld, WasHour, Cool = WorldClock.IsHeld(), WorldClock.Now(), TS.TalkCooldown
+	OnCleanup(function()
+		TS.TalkCooldown = Cool
+		if WasHeld then WorldClock.Hold(WasHour) else WorldClock.Release() end
+	end)
+	WorldClock.Hold(10)
+	TS.TalkCooldown = 0
+	local O
+	for _, C in ipairs(SITES) do
+		if #workspace:GetPartBoundsInBox(CFrame.new(C + Vector3.new(0, 30, 0)), Vector3.new(FLOOR + 20, 80, FLOOR + 20)) == 0 then
+			O = C
+			break
+		end
+	end
+	T.True(O ~= nil, "an empty spot for the test floor")
+	local Folder = Instance.new("Folder")
+	Folder.Name = "QuestEngineTest"
+	OnCleanup(function() Folder:Destroy() end)
+	local Floor = Instance.new("Part")
+	Floor.Name = "Floor"
+	Floor.Anchored = true
+	Floor.Size = Vector3.new(FLOOR, 2, FLOOR)
+	Floor.CFrame = CFrame.new(O)
+	Floor.Material = Enum.Material.Concrete
+	Floor.Parent = Folder
+	local PostId = "__fy_post_" .. math.random(1e6)
+	local Post = Instance.new("Part")
+	Post.Name = PostId
+	Post.Anchored, Post.CanCollide, Post.CanQuery, Post.CanTouch = true, false, false, false
+	Post.Transparency = 0.5
+	Post.Size = Vector3.new(2, 0.2, 2)
+	Post.CFrame = CFrame.lookAt(O + Vector3.new(0, 1.1, 0), O + Vector3.new(1, 1.1, 0))
+	Post:SetAttribute("PostId", PostId)
+	Post:SetAttribute("Kind", "Counter")
+	CollectionService:AddTag(Post, "RenseiPost")
+	Post.Parent = Folder
+	Folder.Parent = workspace
+	task.wait() -- the post signal is deferred
+	T.True(TS.Posts[PostId] == Post, "the test post is registered")
+	local Id = "__fy_teller_" .. math.random(1e6)
+	OnCleanup(function() TS.Despawn(Id) end)
+	TS.Spawn({
+		Id = Id, Name = "Test Teller", Job = "Tester", JobLine = "Just testing.", Faction = "Townsfolk",
+		Idle = "NPC_CrossArms", Look = {Nation = "Amestrian", Seed = 4242}, Schedule = {{0, 24, PostId}}, Clue = Clue,
+	}, "Test")
+	T.True(TS.Get(Id) ~= nil, "the test townsperson is spawned")
+	return Id
+end
+
 local function OneStage(Id, Objectives) return {Id = Id, Text = "Test stage " .. Id, Objectives = Objectives} end
 
 return {
@@ -105,17 +162,7 @@ return {
 	ClueLineGivesEvidence = function(T)
 		Guarded(T, function(Player, Data, OnCleanup)
 			local TS = require(SSS.TownsfolkService)
-			local WorldClock = require(SSS.WorldClock)
 			local EvidenceDefs = require(Rensei.Evidence)
-			-- the clock held (Ruling 14) and the Talk cooldown off, both put back
-			local WasHeld, WasHour, Cool = WorldClock.IsHeld(), WorldClock.Now(), TS.TalkCooldown
-			OnCleanup(function()
-				TS.TalkCooldown = Cool
-				if WasHeld then WorldClock.Hold(WasHour) else WorldClock.Release() end
-			end)
-			WorldClock.Hold(10)
-			TS.TalkCooldown = 0
-
 			EvidenceDefs.__fy_ev = {Title = "Test Evidence", Text = "A test."}
 			OnCleanup(function() EvidenceDefs.__fy_ev = nil end)
 			Defs.__fy_q3 = {Title = "Test 3", Stages = {OneStage("s1", {
@@ -125,49 +172,7 @@ return {
 			OnCleanup(function() Defs.__fy_q3 = nil end)
 			Data.Story.Evidence.__fy_ev = nil
 			Data.Quests.Active.__fy_q3, Data.Quests.Completed.__fy_q3 = nil, nil
-
-			-- the fixture: a floor and a post on the first free site
-			local O
-			for _, C in ipairs(SITES) do
-				if #workspace:GetPartBoundsInBox(CFrame.new(C + Vector3.new(0, 30, 0)), Vector3.new(FLOOR + 20, 80, FLOOR + 20)) == 0 then
-					O = C
-					break
-				end
-			end
-			T.True(O ~= nil, "an empty spot for the test floor")
-			local Folder = Instance.new("Folder")
-			Folder.Name = "QuestEngineTest"
-			OnCleanup(function() Folder:Destroy() end)
-			local Floor = Instance.new("Part")
-			Floor.Name = "Floor"
-			Floor.Anchored = true
-			Floor.Size = Vector3.new(FLOOR, 2, FLOOR)
-			Floor.CFrame = CFrame.new(O)
-			Floor.Material = Enum.Material.Concrete
-			Floor.Parent = Folder
-			local PostId = "__fy_post_" .. math.random(1e6)
-			local Post = Instance.new("Part")
-			Post.Name = PostId
-			Post.Anchored, Post.CanCollide, Post.CanQuery, Post.CanTouch = true, false, false, false
-			Post.Transparency = 0.5
-			Post.Size = Vector3.new(2, 0.2, 2)
-			Post.CFrame = CFrame.lookAt(O + Vector3.new(0, 1.1, 0), O + Vector3.new(1, 1.1, 0))
-			Post:SetAttribute("PostId", PostId)
-			Post:SetAttribute("Kind", "Counter")
-			CollectionService:AddTag(Post, "RenseiPost")
-			Post.Parent = Folder
-			Folder.Parent = workspace
-			task.wait() -- the post signal is deferred
-			T.True(TS.Posts[PostId] == Post, "the test post is registered")
-
-			local Id = "__fy_teller_" .. math.random(1e6)
-			OnCleanup(function() TS.Despawn(Id) end)
-			TS.Spawn({
-				Id = Id, Name = "Test Teller", Job = "Tester", JobLine = "Just testing.", Faction = "Townsfolk",
-				Idle = "NPC_CrossArms", Look = {Nation = "Amestrian", Seed = 4242}, Schedule = {{0, 24, PostId}},
-				Clue = {Quest = "__fy_q3", Stage = 1, Signal = "__fy_sig", Evidence = "__fy_ev", Text = "x"},
-			}, "Test")
-			T.True(TS.Get(Id) ~= nil, "the test townsperson is spawned")
+			local Id = Teller(T, OnCleanup, {Quest = "__fy_q3", Stage = 1, Signal = "__fy_sig", Evidence = "__fy_ev", Text = "x"})
 
 			T.Eq(QuestService.Start(Player, "__fy_q3"), true, "the test quest starts")
 			T.Eq(Data.Quests.Active.__fy_q3.Progress.ev, 0, "the evidence isn't held yet")
@@ -177,6 +182,62 @@ return {
 			T.True(Data.Story.Evidence.__fy_ev ~= nil, "the clue line gave the evidence")
 			T.True(Data.Quests.Active.__fy_q3 == nil and Data.Quests.Completed.__fy_q3 ~= nil,
 				"the quest completed on that Talk (evidence first, then the signal)")
+		end)
+	end,
+
+	-- fix round 1, Minor 5: off the clue's quest the townsperson says an ordinary line, and gives no evidence
+	NonClueLineGivesNoEvidence = function(T)
+		Guarded(T, function(Player, Data, OnCleanup)
+			local TS = require(SSS.TownsfolkService)
+			local EvidenceDefs = require(Rensei.Evidence)
+			EvidenceDefs.__fy_ev5 = {Title = "Test Evidence 5", Text = "A test."}
+			OnCleanup(function() EvidenceDefs.__fy_ev5 = nil end)
+			Data.Story.Evidence.__fy_ev5 = nil
+			Data.Quests.Active.__fy_q5, Data.Quests.Completed.__fy_q5 = nil, nil -- (no such quest: never on its stage)
+			local Id = Teller(T, OnCleanup, {Quest = "__fy_q5", Stage = 1, Evidence = "__fy_ev5", Text = "x"})
+			local _, Kind = TS.Talk(Player, Id)
+			T.True(Kind ~= nil and Kind ~= "Clue", "an ordinary line (" .. tostring(Kind) .. ")")
+			T.True(Data.Story.Evidence.__fy_ev5 == nil, "no evidence from a non-Clue line")
+		end)
+	end,
+
+	-- fix round 1, I1: a saved state from an older revision takes no signal until Boot's upgrade (the early Arrive a
+	-- train arrival sends before Boot); once upgraded it is on the right stage and signals move it again
+	StaleStateWaitsForUpgrade = function(T)
+		Guarded(T, function(Player, Data, OnCleanup)
+			Defs.__fy_q4 = {Title = "Test 4", Revision = 2, Prepended = {[2] = 1}, Stages = {
+				OneStage("s1", {{Id = "arrive", Text = "Arrive", Kind = "Arrive", Target = "__fy_region"}}),
+				OneStage("s2", {{Id = "b", Text = "b", Kind = "Signal", Target = "__fy_sig4b"}}),
+				OneStage("s3", {{Id = "c", Text = "c", Kind = "Signal", Target = "__fy_sig4c"}}),
+			}}
+			OnCleanup(function() Defs.__fy_q4 = nil end)
+			Data.Quests.Active.__fy_q4 = {Stage = 1, Progress = {}} -- a revision-1 save: its stage 1 is now stage 2
+			QuestService.Signal(Player, "Arrive", "__fy_region")
+			local S = Data.Quests.Active.__fy_q4
+			T.True(S ~= nil, "still active")
+			T.Eq(S.Stage, 1, "a stale state takes no signal")
+			T.Eq(S.Progress.arrive, nil, "no progress recorded")
+			T.Eq(QuestService.UpgradeAll(Data), true, "upgraded")
+			T.Eq(S.Stage, 2, "on the stage it was on (old stage 1 = new stage 2)")
+			QuestService.Signal(Player, "Signal", "__fy_sig4b")
+			T.Eq(S.Stage, 3, "after the upgrade, signals move it again")
+		end)
+	end,
+
+	-- fix round 1, I1: a stale state isn't on any stage for a clue line either
+	StaleStateHearsNoClue = function(T)
+		Guarded(T, function(Player, Data, OnCleanup)
+			local TS = require(SSS.TownsfolkService)
+			Defs.__fy_q6 = {Title = "Test 6", Revision = 2, Prepended = {[2] = 1}, Stages = {
+				OneStage("s1", {{Id = "a", Text = "a", Kind = "Signal", Target = "__fy_sig6a"}}),
+				OneStage("s2", {{Id = "b", Text = "b", Kind = "Signal", Target = "__fy_sig6b"}}),
+			}}
+			OnCleanup(function() Defs.__fy_q6 = nil end)
+			local Id = Teller(T, OnCleanup, {Quest = "__fy_q6", Stage = 1, Signal = "__fy_sig6a", Text = "x"})
+			Data.Quests.Active.__fy_q6 = {Stage = 1, Progress = {}} -- stale: really on the new stage 2
+			local _, Kind = TS.Talk(Player, Id)
+			T.True(Kind ~= "Clue", "a stale state hears no stage-1 clue line (" .. tostring(Kind) .. ")")
+			T.Eq(Data.Quests.Active.__fy_q6.Stage, 1, "and nothing moved")
 		end)
 	end,
 

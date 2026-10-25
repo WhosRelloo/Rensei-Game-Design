@@ -15,7 +15,8 @@
 --     Revision; Boot (ServerHandler) moves every joining player's saved states from older revisions forward
 --     (UpgradeAll), so stages put in front of a quest never move a player back. In Studio with the test hook
 --     installed, Boot first waits for the hook's snapshot of that player (WaitForSnapshot), so the snapshot holds the
---     save as it was and a restore never puts back an upgraded save.
+--     save as it was and a restore never puts back an upgraded save. Until then a stale-revision state
+--     (StoryLogic.Stale) takes no signal and doesn't advance (fix round 1, Ruling 22).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -172,7 +173,7 @@ end
 function QuestService.Advance(Player, Data, QuestId)
 	local Def = Definitions[QuestId]
 	local State = Data.Quests.Active[QuestId]
-	if not Def or not State then return end
+	if not Def or not State or StoryLogic.Stale(Def, State) then return end -- (fix round 1: stale waits for Boot)
 	local Stages = StoryLogic.Stages(Def)
 	State.Stage = State.Stage or 1
 	while Data.Quests.Active[QuestId] and StoryLogic.StageDone(Stages[State.Stage], State.Progress) do
@@ -211,7 +212,10 @@ function QuestService.Signal(Player, Kind, Target, Amount)
 	for _, QuestId in ipairs(Ids) do
 		local State = Data.Quests.Active[QuestId]
 		local Def = Definitions[QuestId]
-		if Def and State then
+		-- (fix round 1, Ruling 22) a stale-revision state waits for Boot's upgrade: its Stage means an older stage list,
+		-- so a signal before Boot (TravelService's join-time Arrive) must not move it. The upgrade moves it past the
+		-- stages put in front anyway.
+		if Def and State and not StoryLogic.Stale(Def, State) then
 			local Stage = StoryLogic.Stage(Def, State)
 			for _, Objective in ipairs(Stage.Objectives) do
 				local Need = Objective.Count or 1
@@ -276,6 +280,9 @@ function QuestService.Boot()
 				return
 			end
 			task.wait(DATA_POLL)
+		end
+		if Player.Parent ~= nil then
+			warn("QuestService: no data for " .. Player.Name .. " after " .. DATA_TRIES .. " polls; saved quests not upgraded")
 		end
 	end
 	Players.PlayerAdded:Connect(function(Player) task.spawn(Upgrade, Player) end)

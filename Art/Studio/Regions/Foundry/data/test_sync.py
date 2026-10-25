@@ -43,6 +43,28 @@ def parse_src(bundle_text):
     return None if end < 0 else bundle_text[m.end():end]
 
 
+def boot_body(src):
+    """QuestService.Boot's text (its function line to the first `end` at column 0), or None."""
+    m = re.search(r"^function QuestService\.Boot\(\)\n(.*?)^end\n", src, re.M | re.S)
+    return m.group(0) if m else None
+
+
+def boot_order(src):
+    """(ok, why): Boot waits for the snapshot before it upgrades (Ruling 2), and warns when the data poll gives up
+    (Minor 9: a warn after the poll loop). Comment lines don't count."""
+    body = boot_body(src)
+    if body is None:
+        return False, "no function QuestService.Boot()"
+    code = "\n".join(l for l in body.split("\n") if not l.lstrip().startswith("--"))
+    w, u = code.find("WaitForSnapshot("), code.find("UpgradeAll(")
+    if not (0 <= w < u):
+        return False, f"WaitForSnapshot at {w}, UpgradeAll at {u}"
+    loop = code.find("for _ = 1, DATA_TRIES do")
+    if loop < 0 or code.find("warn(", loop) < 0:
+        return False, "no warn after the DATA_TRIES poll loop"
+    return True, ""
+
+
 def main():
     try:
         import sync
@@ -260,6 +282,19 @@ def main():
           '"LMQuestDump_TEMP"' in rem and '"LMQuestDump"' in rem and ":Destroy()" in rem, rem[:300])
     check("f: remove returns before installing", rem.find("return") < rem.find('Instance.new("Script")'), rem[:300])
     check("f: an unknown MODE is refused", re.search(r'MODE ~= "install" then return "REFUSED', code_dh) is not None, "")
+
+    # ===== Task 2 fix round 1 (Ruling 22): QuestService.Boot's order, read from the repo file =====
+    with open(os.path.join(REPO, "Scripts/ServerScriptService/QuestService.lua"), encoding="utf-8") as f:
+        qs = f.read().replace("\r\n", "\n")
+    ok, why = boot_order(qs)
+    check("boot: WaitForSnapshot before UpgradeAll, warn on giving up", ok, why)
+    # the check can fail: the two calls swapped, and the warn removed
+    body = boot_body(qs) or ""
+    swapped = qs.replace(body, body.replace("WaitForSnapshot(", "\0").replace("UpgradeAll(", "WaitForSnapshot(")
+                                     .replace("\0", "UpgradeAll(")) if body else qs
+    check("boot: a swapped order is caught", not boot_order(swapped)[0], "the check passed a swapped Boot")
+    nowarn = qs.replace(body, re.sub(r"\n\s*warn\([^\n]*", "", body)) if body else qs
+    check("boot: a missing give-up warn is caught", not boot_order(nowarn)[0], "the check passed a Boot without warn")
 
     print(f"PASS {PASSES[0]} / FAIL {len(FAILS)}")
     for f in FAILS:
