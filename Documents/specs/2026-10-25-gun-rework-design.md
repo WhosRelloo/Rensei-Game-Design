@@ -1,10 +1,11 @@
 # Gun Class Rework: Audit and Design (PROPOSAL)
 
 > **Owner update (2026-10-25):** the gun reload animation id is **97563934064498**, supplied by the owner.
-> - The `Guns_Reload` slot is created with this id, not empty.
-> - Task 1 checks in Studio that it loads, and measures its length for `AnimLength`.
-> - If it fails to load, the no-animation fallback stays.
-> - Nothing is left for the owner to upload for this plan.
+> - The `Guns_Reload` slot is created with this id.
+> - The plan's Task 1 checks it read-only (it loads, its length, and that it plays in this experience). Task 3 sets `AnimLength` to the measured length.
+> - Only if Task 1 finds it unloadable is the slot left with an empty id (no animation, no warning).
+
+> **Pre-flight amendment (2026-10-25, controller Rulings 1–2):** gun code that reaches the shared packages waits for the owner (plan header, "When to start"). The fire-request limits, the water rule, the AimFresh margin and the hold-to-fire cap below were changed by the pre-flight scan.
 
 **Date:** 2026-10-25. **Status:** draft for the owner. Every number and rule here is a **PROPOSAL** unless it quotes an owner decision. Written overnight under the owner's go-ahead (Backlog, 2026-10-25); nothing is built or published.
 
@@ -92,7 +93,7 @@ Each finding names the code that shows it.
 - At max Weapon Mastery (×1.75), a 90-stud shot deals 12.5% instead of 50%. The skill tree's "passives 25% stronger" punishes gunners.
 
 **B3. A missed shot costs extra recovery.**
-- Shots don't set `NoWhiffPenalty`, so a miss adds `Light.WhiffRecovery` 0.15 s (`AttackRunner.lua:298`). A missed bullet already costs the round.
+- Shots don't set `NoWhiffPenalty`, so a miss adds `Light.WhiffRecovery` 0.15 s (`AttackRunner.lua:292`). A missed bullet already costs the round.
 
 **B4. Shots build alchemy meter as fast as melee, from safety.** Every shot hit gives `Meter.OnLightHit` 4 (`SkillData.lua:58-60`). A Renetti fires 2.9 hits/s, so it earns 11.8 meter/s at 60 studs, against 8.6/s for a fist string up close.
 
@@ -104,6 +105,8 @@ Each finding names the code that shows it.
 - Forge Tac: 24 damage, 7 rounds.
 - Revolver: 20 damage, 6 rounds.
 - Both have the same reload and range, and Forge Tac has higher burst and sustained damage (§4). There's no reason to pick the Revolver.
+
+**B7. Shooting mode survives water** (pre-flight scan). `Shoot.lua:43` ends the mode on Combat Mode, weapon, knock, grip and carry changes, but not on `Traversal`, so a swimmer keeps shooting mode.
 
 ## 4. The balance audit
 
@@ -187,7 +190,7 @@ When you leave shooting mode, everything goes back to your shift-lock setting. S
 - at most 70° up or down;
 - at most 100° from your facing.
 
-An aim that fails is **refused**: no shot, no round, no animation. The old fallback that fired straight ahead is removed. The direction comes with the Fire request; the stored aim used by Fan the Hammer is good for 0.5 s (was 2 s).
+An aim that fails is **refused**: no shot, no round, no animation. The old fallback that fired straight ahead is removed. The direction comes with the Fire request; the stored aim used by Fan the Hammer is good for 0.75 s (was 2 s): Fan's last shot lands 0.42 s after the request, so 0.75 leaves a third of a second to spare.
 
 **7. Lag compensation** (PROPOSAL, shooter-favoured, bounded):
 - The server keeps half a second of every live character's root position.
@@ -200,6 +203,7 @@ An aim that fails is **refused**: no shot, no round, no animation. The old fallb
 - Holding RMB (or FIRE on touch) keeps firing at the gun's own rate.
 - A press up to 0.2 s before the gun is ready still fires (an input buffer).
 - The server still sets the rate.
+- **The hold loop sends at most one Fire request every 0.25 s (4 a second, PROPOSAL),** even while the server refuses shots. Every request shares ServerHandler's limit of 8 a second (burst 16), so a faster loop could starve the Y mode request.
 
 ### 5.2 Balance targets
 
@@ -245,11 +249,10 @@ Marksman still cuts reloads by 10% per rank. Magazines are still remembered whil
 - **a top-up (PROPOSAL):** leaving shooting mode with a part-empty magazine (by Y, by leaving Combat Mode, or when the mode ends by itself) starts the same automatic reload. Nobody gets stuck on 1 of 6.
 
 **The reload animation slot:**
-- **No reload animation exists today.** Nothing in `Animations.md`, `AnimationManager`, the sheet columns recorded in the docs, or the 2026-10-17 "missing assets" list has one.
-- **The slot:** an `Animation` named **`Guns_Reload`** goes in `ReplicatedStorage.Assets.Animations.Weapons`, in both places, with an **empty AnimationId**. `TuningConfig.Weapons.Guns.Reload` names it.
-- **What the owner does:** upload the reload animation to the Rensei group and add it to the animation sheet. Then paste its id into `Guns_Reload.AnimationId` and set `Reload.AnimLength` to its length.
-- **The safe fallback:** while the id is empty, the server plays nothing, logs no warning, and the reload works exactly as now, with the reload bar in CooldownUI.
-- **Once the id is set:**
+- **The owner supplied the reload animation:** id **97563934064498** (2026-10-25). No reload animation was in the game before.
+- **The slot:** an `Animation` named **`Guns_Reload`** goes in `ReplicatedStorage.Assets.Animations.Weapons`, in both places, with `AnimationId = "rbxassetid://97563934064498"`. `TuningConfig.Weapons.Guns.Reload` names it, and `Reload.AnimLength` is the length the plan's Task 1 measures.
+- **The safe fallback:** only if Task 1 finds the id unloadable is the slot made with an empty id. Then the server plays nothing, logs no warning, and the reload works exactly as now, with the reload bar in CooldownUI.
+- **With the id set:**
   - it plays at Action priority;
   - its speed fits the reload (`AnimLength / ReloadTime`);
   - it's preloaded with the other weapon animations.
@@ -261,6 +264,7 @@ Marksman still cuts reloads by 10% per rank. Magazines are still remembered whil
 - **Your own actions don't cancel it.** The pistol whip, the heavy, a dash or blocking play over it while the timer keeps running.
 - **Why:** a gunner caught reloading can be punished by being hit, and weaving the whip while you reload stays the class's skill.
 - Swapping or unequipping the gun cancels the reload, as today.
+- **Water:** shooting mode ends when you start swimming (the server watches `Traversal`), so you can't shoot from water.
 - Fan the Hammer with fewer than 3 rounds fires what's left, then reloads.
 
 ### 5.4 Feedback (existing UI assets only)
@@ -304,7 +308,7 @@ No new images, fonts or sounds are added.
   - the range comes from the server's tuning;
   - the line of fire is cast from the server's own muzzle;
   - the rewind uses the server's own ping reading, capped.
-- **Request rate:** at most 12 Fire requests per second per player; the rest are dropped.
+- **Request rate:** at most 5 Fire requests per second per player (a pure `GunAim.Limiter`, checked first); the rest are dropped. That's above the fastest gun (Renetti, 2.9 a second) and the client's hold cap (4), and under ServerHandler's shared 8 a second.
 - **Snap log (PROPOSAL):** two shots within 0.1 s whose directions differ by more than 120° are counted in a server attribute `GunSnapCount`, for admins to see. Nothing is punished automatically.
 
 ### 5.6 Touch screens
@@ -328,13 +332,13 @@ No new images, fonts or sounds are added.
 | `Modules/Managers/WeaponManager.lua` | `Resolve` (no skill scaling), `SetAim` / `AimDirection` (validate, refuse), `Fire` (per-gun range, the hit through boxes and rewind, flinch range, meter, `LastShotResult`), `DamageMult` (the Mastery rule), reload (the slot, the interrupt, the restart) |
 | `ServerScriptService/PositionHistory.lua` (new) | Half a second of root positions for every live character |
 | `ServerScriptService/ServerHandler.server.lua` | Starts PositionHistory |
-| `ServerHandler/Requests/Shoot.lua` | Validates the aim before anything runs, a request-rate limit, the top-up on leaving the mode, the snap log |
+| `ServerHandler/Requests/Shoot.lua` | The Fire limiter first, then the aim validated before anything runs; the snap log; shooting mode also ends in water (`Traversal`). The top-up lives in WeaponManager, so it reaches NPCs too |
 | `ServerScriptService/EnemyService.lua` | NPC shots: aim at the centre, spread, windup, telegraph |
 | `Modules/UI/GunAimUI.lua` (new) | The aim camera, the crosshair (existing marker), `AimDirection()`, recoil, bloom, the hit marker, touch assist |
 | `StarterPlayerScripts/ClientHandler.client.lua` | `FireInput` (hold, buffer, the new direction), `SendAim`, the Fire release |
 | `Modules/UI/SettingsUI.lua` | The shift-lock loop pauses during shooting mode |
 | `Modules/UI/HUDUI.lua` | The generated "+" goes; the hint text stays (touch wording) |
-| `Assets.Animations.Weapons.Guns_Reload` (Studio) | The empty reload slot, in both places, via a reversible script |
+| `Assets.Animations.Weapons.Guns_Reload` (Studio) | The reload slot with the owner's id (empty only if unloadable), in both places, via a reversible script |
 | Tests | `Test_GunAim`, `Test_GunBalance`, `Play_Guns`, `Play_GunReload`, `Play_GunNpc` (RenseiTests) |
 
 All `Modules/` paths are under `Scripts/ReplicatedStorage/`.
@@ -344,6 +348,7 @@ All `Modules/` paths are under `Scripts/ReplicatedStorage/`.
 Every check is run once where it **must fail** (RED), then passes (GREEN). None reads the value it checks to choose its own input.
 
 **`Test_GunAim`** (pure; run in the Play VM via `LMRunSuite`):
+- **The Fire limiter:** 5 at once, then one per 0.2 s; keys are separate. RED: a stub that allows everything.
 - **The parallax shot meets the crosshair.** A shoulder camera (offset (1.75, 1.5, 0), 12 studs back) aims at a 2-stud box (a head) 40 studs out: the new direction from the muzzle hits it. RED control: today's rule (the camera direction from the muzzle) misses it by about 1.35 studs sideways.
 - **Lock-on aims at the centre.**
 - **Validate:**
@@ -379,7 +384,6 @@ RED: today's numbers fail the bands (Revolver and Forge Tac burst, Forge Tac sus
 - Mastery doesn't deepen falloff (RED today);
 - flinch at 10 studs, none at 40 (RED today);
 - a wall stops the shot;
-- the 12-per-second rate limit;
 - `LastShotResult`;
 - **the rewind:** a dummy moved by the test at 16 studs/s is hit where it stood 0.2 s ago only with the rewind time. The same ray at the present time misses (that's the control).
 
@@ -388,8 +392,7 @@ RED: today's numbers fail the bands (Revolver and Forge Tac burst, Forge Tac sus
 - a stun mid-reload cancels it, clears the bar, and restarts from zero once free;
 - a whip or a dash mid-reload doesn't cancel it;
 - leaving shooting mode tops up;
-- the empty slot plays nothing and logs no warning;
-- a stand-in id set in Play (the world is a copy) makes an NPC's Animator play `Guns_Reload`.
+- with the id blanked in the Play copy, the server never asks to play `Guns_Reload`; with the owner's id, it does, and an NPC's Animator plays it. The two cases are each other's control.
 
 **`Play_GunNpc`:**
 - the NPC shot's windup is 0.35 s with the telegraph;
@@ -399,7 +402,8 @@ RED: today's numbers fail the bands (Revolver and Forge Tac burst, Forge Tac sus
 **Client checks (Play, client data model):**
 - the crosshair-ray centre equals the marker's centre within 1 px;
 - `AimDirection()` hits a 1-stud marker placed under the crosshair with the shoulder camera (RED: the camera-look rule misses it);
-- leaving the mode restores the mouse and camera to the shift-lock setting.
+- leaving the mode restores the mouse and camera to the shift-lock setting;
+- holding fire for 10 s while the server refuses every shot sends at most 41 requests, and a Y press afterwards still gets through (RED: a 0.1 s loop starves the shared request limit).
 
 **Regression:** Play_Stealth (`GunshotPullsTheCamp`), Play_Assault, Play_TownsfolkHurt, and the Foundry smoke and travel suites, in both places.
 
@@ -426,7 +430,9 @@ Each is a PROPOSAL the owner can reverse. The plan builds them so they're easy t
 12. **The reload top-up:** leaving shooting mode with a part-empty magazine reloads automatically. There's still no reload button.
 13. **The reload interrupt rule:** things done to you cancel it and it restarts once you're free; your own actions don't.
 14. **The magazine and reload numbers** in §5.3.
-15. **The reload slot's fallback is no animation,** with no stand-in pose. An empty id plays nothing.
+15. **The reload slot holds the owner's id (97563934064498).** If it proves unloadable, the fallback is no animation and no stand-in pose.
+22. **The hold-to-fire loop is capped at 4 requests a second,** and the server's Fire limiter at 5 a second.
+23. **Fan the Hammer's stored aim lasts 0.75 s** (the scan found 0.5 left only 0.08 s spare).
 16. **Enemy gunners:** a 0.35 s windup with the crit telegraph, 2.5° spread, aim at your centre.
 17. **No headshot multiplier.**
 18. **Touch aim assist** of 2.5°, touch only, never onto townsfolk.
@@ -454,3 +460,5 @@ These need Studio. This audit didn't open it.
 10. **`Assets.Animations.Weapons`:** its tree (is there a Guns folder?), and whether `Assets` is a package.
 11. Does the Tutorial place carry the `Modules` package (or a copy)? If so, gun code reaches it when its package updates. Without `PositionHistory`, `WeaponManager.Fire` must fall back to current positions.
 12. Does LockOn work on touch at all?
+13. **The owner's reload id 97563934064498:** that it loads (KeyframeSequenceProvider, and an Animator load in Play), its length, and that the Rensei group (206818864) or the experience's owner owns it, so it can play live.
+14. An open, flat 200 × 200 test spot in each place, for the gun suites.
