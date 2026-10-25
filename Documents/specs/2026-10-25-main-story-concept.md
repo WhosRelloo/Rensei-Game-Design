@@ -209,10 +209,10 @@ Each is told before it's chosen ("[This can't be undone.]") and recorded once, a
 
 The full version is in `Documents/Lore Bible.md`. In short:
 - **The Tally:** every working is paid now, weight for weight. **Debtwork**, working now and paying later, is forbidden. A debt is anchored in a **tallystone** and collected from wherever that stone lies.
-- **The State's secret:** in the Bright Years the **Bureau of Survey and Assay** revived debtwork using old Xerxian **sinks** (deep arrays in bedrock). The biggest debt was called in C.R. 183 (**the Eclipse**), and the province that paid is the **Corrupted Lands**. Since then the Bureau has kept the country running by moving debts around: into old mines (Lindenmoor), onto night freight (the Foundry), into frozen vaults (the Northern Wall), and over the border (Aerugo).
+- **The State's secret:** in the Bright Years the **Bureau of Survey and Assay** revived debtwork using the sinks of the old kingdom of **Sarn** (deep arrays in bedrock). The biggest debt was called in C.R. 183. The sky stayed bright, but the colour went out of a province and the ground went quiet; the papers named it **the Eclipse** when the Sunworks' "second sun" furnace went out. The province that has been paying ever since is the **Corrupted Lands**. Since then the Bureau has kept the country running by moving debts around: into old mines (Lindenmoor), onto night freight (the Foundry), into frozen vaults (the Northern Wall), and over the border (Aerugo).
 - **Strays:** when a debt is called, the Gate opens over the owed ground and things fall through from elsewhere. This year the post-Eclipse sinks are falling due, and strays come down by the dozen. **The player is one.** A stray owes this world nothing, so the Gate doesn't collect from them, which makes them the one courier who can walk into called ground.
 - **The question the story asks:** "What does the State owe, who is it owed to, and who is paying?" Stopping the debt hurts ordinary people now; hiding it poisons their grandchildren's ground. There's no clean answer.
-- **The antagonists:** **Assayer-General Odette Sallow** (the Bureau) wants to spread the Vell's debt thin over the whole State: the Even Measure. **Sorrel Kade**, the first stray the Bureau ever used, leads the Circle's **Reckoners**, who want the whole debt called at once, on the capital. Both need a clean stray.
+- **The antagonists:** **Assayer-General Odette Sallow** (the Bureau) wants to split the Vell's debt into hundreds of small sinks across the provinces, each due in a century: the Even Measure. **Sorrel Kade**, the first stray the Bureau ever used, leads the Circle's **Reckoners**, who want the Cold Store woken and every stone carried back to the people who borrowed: the foundries and the Bureau's own halls. Both need a clean stray.
 
 ### 3.2 The acts
 
@@ -233,10 +233,10 @@ Level bands are from the world spec. Act IV's three regions can be played in any
 
 The master plan's Phase 10 (endings) isn't designed yet. These PROPOSAL directions are shaped by the player's deeds, standing, licence path and Taboo marks, never by one last dialogue choice (Lore Bible §7.4):
 - **Expose:** the Deep Ledger goes public. The Bureau falls, the foundries slow, and hard but honest years follow. What's owed is still owed, so settling becomes everyone's work.
-- **Even Measure:** help Sallow. No more Paid Lands, and every field a little poorer forever. The secret is kept.
+- **Even Measure:** help Sallow. No more Paid Lands, and a hundred valleys a little poorer for a hundred years. The secret is kept.
 - **Settle:** a stray who is still clean (no Taboo marks) carries the Citadel's stone into the Gate and asks Truth the price.
 - **Harness:** take the stone's power for yourself (the Taboo path). Strong, feared, and the debt is yours.
-- **(Failure) the Reckoning:** if Kade isn't stopped, the capital pays.
+- **(Failure) the Reckoning:** if Kade isn't stopped, the Foundry Yard and the Bureau's halls in Central pay, along with everyone working in them.
 
 The **Legendary Alchemist** title stays earned, as already proposed: top Renown plus the main story's capstone.
 
@@ -262,7 +262,7 @@ The **Legendary Alchemist** title stays earned, as already proposed: top Renown 
 | **Stealth contracts** (the stealth missions spec) | Some contracts turn up evidence or contacts the main story can use (a stolen freight waybill shortens Act III). | Main acts unlock each region's job board and fixer, and the story missions run inside the same compounds (the survey camp, the rail depot, the records hall, the cold store, the containment camp). |
 | **Nemesis rivals** (`specs/2026-10-25-nemesis-design.md`, concept approved) | A rival's grudge can follow the player into main-story places as an interruption, never as a required fight. | Rivals are born in contracts. The owner's rule stands: first a **rumour warning**, then an **ambush** if the player ignores it. |
 | **Reputation in investigations** (`specs/2026-10-25-reputation-investigations-design.md`) | Witnesses answer by your standing, their trust in you and your conduct. Some **lie** (caught out by presenting evidence, which already works), some **refuse**, and some ruthless people **spill secrets more easily** to a ruthless player. Persuade, bribe and intimidate use the dialogue box on a second talk (owner decision, `Decisions.md`). **Every main-quest witness has at least two ways to the truth**, so reputation changes the route, never whether you can finish. | Main-quest choices move the standing that later witnesses react to. |
-| **Forgotten Sites** | Each region's site holds a piece of the history: a Xerxian sink, a Bright Years record, a frozen stone. | Main acts point at them through rumours. |
+| **Forgotten Sites** | Each region's site holds a piece of the history: a sink from Sarn, a Bright Years record, a frozen stone. | Main acts point at them through rumours. |
 
 ### 4.3 Rewards (PROPOSAL)
 
@@ -273,7 +273,7 @@ The **Legendary Alchemist** title stays earned, as already proposed: top Renown 
 | Trainer quests | The alchemy path, training, Mastery (as built) |
 | Clue quests | Small EXP, evidence the story can use |
 | Stealth contracts | Money by rating (Ghost / Quiet / Loud), faction standing, sometimes evidence |
-| Forgotten Sites | Caches, EXP, codex lore about the sinks and the Xerxian kingdom |
+| Forgotten Sites | Caches, EXP, codex lore about the sinks and the kingdom of Sarn |
 
 All payouts stay once only, as the quest engine already guarantees (a quest leaves Active before anything is paid).
 
@@ -337,11 +337,16 @@ All payouts stay once only, as the quest engine already guarantees (a quest leav
 
 1. **Truth's lines at the end of the Tutorial.** They're in Studio, not in the repo, so this draft couldn't read them. Use the Lore Bible's three lines ("You were not sent. You fell." ...), or keep yours and fit the lore to them?
    **Recommended:** send me your current lines; keep yours where they fit, and add "You were not sent. You fell." if nothing yet says the player came from elsewhere.
-2. **Text that already ships with the series' own events in it.** The creator's nation blurbs mention "the Promised Day", "Briggs" and the series' eastern art, and the birth deeds say "Born in Amestris" although the player is a stray. Reword them to the Lore Bible's versions?
+2. **Text that already ships with the series' own events in it.** The creator's nation blurbs mention "the Promised Day", "Briggs" and the series' eastern art, and the birth deeds say "Born in Amestris" although the player is a stray. Reword them to the Lore Bible's versions? The nation name "Xerxian" also echoes the series' ancient kingdom. The Lore Bible gives that kingdom its own name (**Sarn**) and keeps "Xerxian" only as the people's name; the nation could be renamed in the same pass if you want.
    **Recommended:** yes, as one small text pass. They're display text only, and no save data changes.
 3. **Metal's start (beat 7).** Is Brannoc's notice in Lindenmoor enough as Metal's "starting quest in Lindenmoor", or should Brannoc stand at the training field again until other maps exist?
    **Recommended:** the notice. Moving him back would undo the Foundry move, and the train ride in beat 14 carries a Metal student straight to him.
 4. **Can a stray ever go home?** This shapes the "Settle" ending and what Truth asks for.
    **Recommended:** leave it unknown until Act V. Truth's answer is a price, and the player decides whether to pay it.
-5. **The series' terms in older specs.** "Philosopher's Stone" (and the "Philosopher's Tier" rank), "Equivalent Exchange" and the Silver Watch appear in the morality specs. Adopt the Lore Bible's replacements: **tallystone**, **the Tally / the price**, the **Tallybook**?
-   **Recommended:** yes for anything players read. "Stone Abilities" can stay as an internal label, and the Marcoh rule is unchanged.
+5. **The series' terms and looks in older specs and assets.** Several appear there:
+   - "Philosopher's Stone" (and the "Philosopher's Tier" rank), "Equivalent Exchange" and the Silver Watch, in the morality specs;
+   - the spec's Taboo price for a human transmutation attempt, "a limb, leading to automail";
+   - the Truth icon: a white, seated, grinning figure with black arms (Changelog).
+
+   Adopt the Lore Bible's replacements? They are **tallystone**, **the Tally / the price**, the **Tallybook**, kinmaking costing **the worker's name** (automail stays only a prosthetics trade), and a Truth that wears borrowed faces.
+   **Recommended:** yes for anything players read or see. "Stone Abilities" can stay as an internal label, and the Marcoh rule is unchanged.
