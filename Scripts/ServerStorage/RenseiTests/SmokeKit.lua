@@ -25,7 +25,8 @@
 --     Props, in workspace, remembered until SmokeKit.ClearTemp() destroys every remembered part.
 --   * SmokeKit.Guarded(Player, Body, Before, After) (gun rework Task 4; the clean-up half of Play_Stealth's Guard):
 --     remembers the player's character pivot, runs Before() (optional), then pcall(Body); then clears the temp parts,
---     runs After() (optional), puts the character back (pivot, zero velocity) and re-raises Body's error.
+--     runs pcall(After) (optional), always puts the character back (pivot, zero velocity), and re-raises Body's error
+--     (or After's, when only After failed).
 local CollectionService = game:GetService("CollectionService")
 local SSS = game:GetService("ServerScriptService")
 local MovementState = require(game:GetService("ReplicatedStorage").Modules.Managers.MovementState)
@@ -56,11 +57,13 @@ function SmokeKit.Guarded(Player, Body, Before, After)
 	if Before then Before() end
 	local Ok, Err = pcall(Body)
 	SmokeKit.ClearTemp()
-	if After then After() end
+	local AfterOk, AfterErr = true, nil
+	if After then AfterOk, AfterErr = pcall(After) end
 	C:PivotTo(Home)
 	local Root = C:FindFirstChild("HumanoidRootPart")
 	if Root then Root.AssemblyLinearVelocity = Vector3.zero end
 	if not Ok then error(Err, 0) end
+	if not AfterOk then error(AfterErr, 0) end
 end
 
 function SmokeKit.Copy(V)

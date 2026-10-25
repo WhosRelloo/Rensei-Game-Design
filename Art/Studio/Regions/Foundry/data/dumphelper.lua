@@ -4,6 +4,8 @@
 -- Ruling 4a, 2026-10-25: it was Data.Quests only): recursive, keys sorted at every level, as one string, so two dumps
 -- compare character for character. The dump has to run in the game VM, because the execute_luau sandbox has its own
 -- require cache and can't see DataManager's profiles.
+-- It assumes DataStore-shaped data (as a profile is): no cycles, and no table or Instance keys (those would dump by
+-- address, so two equal saves could differ).
 --
 -- How to use it (Global Constraints, the Play protocol):
 --   1. In Edit, after hook.lua (step 2), install it in the playing place:

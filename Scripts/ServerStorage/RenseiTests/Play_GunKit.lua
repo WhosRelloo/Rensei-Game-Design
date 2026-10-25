@@ -45,7 +45,10 @@ return {
 		local Kept
 		Guard(function()
 			Kept = {GunKit.Dummy(Vector3.new(0, 0, -10)), GunKit.Shooter(Vector3.zero, Vector3.new(0, 0, -10), "Revolver")}
-			for _, M in ipairs(Kept) do T.True(M:IsDescendantOf(workspace.World.Live), M.Name .. " is in World.Live first") end
+			for _, M in ipairs(Kept) do
+				T.True(M:IsDescendantOf(workspace.World.Live), M.Name .. " is in World.Live first")
+				T.True(WCS.Character.GetCharacterFromInstance(M) ~= nil, M.Name .. " is fight-ready") -- (so the nil below can fail)
+			end
 		end)
 		for _, M in ipairs(Kept) do
 			T.True(not M:IsDescendantOf(workspace.World.Live), M.Name .. " is gone from World.Live")

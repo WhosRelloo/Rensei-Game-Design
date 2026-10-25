@@ -12,9 +12,10 @@
 --     PhysicalMultiplier = 1, armed with WeaponManager.Give(Model, Item).
 --   * GunKit.Shot(Shooter, Dir): WeaponManager.SetAim, then one Guns_Shot1 through WeaponManager.Fire with the held
 --     gun's numbers (WeaponManager.Resolve). Returns Fire's results, and {[Victim] = Health before - after} for each
---     victim the kit made.
+--     victim the kit made. (Play_GunKit doesn't fire it; Task 5's Play_Guns is its first use.)
 --   * GunKit.Unequip(Player) (Ruling 4c): Humanoid:UnequipTools() on the test player (the Tool goes to the Backpack;
 --     it is never destroyed), then errors if a Tool is still in the character. A gun suite runs it before its cases.
+--     Nothing re-equips it: after a suite the player's Tool stays in the Backpack (Play only; the hook restores the save).
 --   * GunKit.Settle(): waits SETTLE seconds. A suite calls it after making its rigs and before the first hit: a new
 --     Persistent rig reaches the client a little later than the hit effect a remote sends with it.
 --   * GunKit.Clean(): Settle()s when it made any Model (the last hit's effects finish), destroys every Model the kit
@@ -129,7 +130,7 @@ function GunKit.Clean()
 	if #Made > 0 then GunKit.Settle() end
 	for _, M in ipairs(Made) do
 		local WC = WCS.Character.GetCharacterFromInstance(M)
-		if WC then WC:Destroy() end
+		if WC then pcall(function() WC:Destroy() end) end -- (as EnemyService's death path: one throw can't leak the rest)
 		M:Destroy()
 	end
 	table.clear(Made)
