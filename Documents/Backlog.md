@@ -37,11 +37,15 @@ Owner's to-do list, in the owner's words. The order is the owner's, and none of 
 ## After the swimming revamp (owner, 2026-10-25)
 In the owner's order:
 1. [ ] **Assassinations** that work with the detection system (sight, light, sound). "I threw anims in the spreadsheet for it": read the animation spreadsheet first. This is the same work as the two assassination items under "Stealth and identity" below. It stays **PvE only**, as the owner said there.
-2. [ ] **Stealth missions.**
-3. [ ] **Consequences for wrong guesses** in minigames and puzzles on quests.
-4. [ ] **Nemesis system:** "Gotta make the concept first". The owner has brought it back into scope (see Decisions.md), so it starts as a concept and design for the owner to approve, not code.
-5. [ ] **Reputation shapes investigations:** expand the reputation system so it changes how NPCs answer during investigations. "some will lie to you or just refuse to tell you the truth, or some evil NPC's will spill secrets easier, etc."
-6. [ ] **The main story** (concept draft: `Documents/specs/2026-10-25-main-story-concept.md`). Placed here by the controller (the owner left the slot open on 2026-10-25): after the reputation item, before the remaining regions are built, so it can teach every system. The owner can move it.
+2. [ ] **Hostages** (owner, 2026-10-25: "The hostage design is cool it should go after the assassinations"). Design: `Documents/specs/2026-10-21-hostage-design.md`.
+   - The owner approved the design. Its numbers stay PROPOSAL.
+   - Key: **N is shared with takedowns, and the target decides** (an enemy means a takedown, a player means a hostage). This is a controller ruling (PROPOSAL); the owner raised no objection.
+   - Brask's desk stays in Ye's Foundry Yard model. Turn-ins use State desks there or later.
+3. [ ] **Stealth missions.**
+4. [ ] **Consequences for wrong guesses** in minigames and puzzles on quests.
+5. [ ] **Nemesis system:** "Gotta make the concept first". The owner has brought it back into scope (see Decisions.md), so it starts as a concept and design for the owner to approve, not code.
+6. [ ] **Reputation shapes investigations:** expand the reputation system so it changes how NPCs answer during investigations. "some will lie to you or just refuse to tell you the truth, or some evil NPC's will spill secrets easier, etc."
+7. [ ] **The main story** (concept draft: `Documents/specs/2026-10-25-main-story-concept.md`). Placed here by the controller (the owner left the slot open on 2026-10-25): after the reputation item, before the remaining regions are built, so it can teach every system. The owner can move it.
 
 ## After the main story (owner, 2026-10-25: "The older backlog can go after the main story task")
 The items below, from 2026-10-20, now come after the main story (item 6 in "After the swimming revamp").

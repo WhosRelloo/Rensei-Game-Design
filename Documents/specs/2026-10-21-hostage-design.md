@@ -1,6 +1,6 @@
 # Hostages: design
 
-**Status:** draft for owner approval, 2026-10-21. Build it after World Plan 1, whose Tasks 8–9 (roads, the papers check and stowaways) it depends on.
+**Status:** APPROVED by the owner on 2026-10-25 ("The hostage design is cool it should go after the assassinations"). Every number is still PROPOSAL. The N key is shared with takedowns: an enemy target means a takedown, a player target means a hostage (controller, PROPOSAL). Originally drafted 2026-10-21. Build it after World Plan 1, whose Tasks 8–9 (roads, the papers check and stowaways) it depends on.
 
 **Owner's request:** "make a cool option for other players to take others hostage, and have it intertwine with the game's mechanics already".
 
