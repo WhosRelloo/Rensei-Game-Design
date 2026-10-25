@@ -79,7 +79,7 @@ Every number is a **PROPOSAL** unless it is measured or the owner chose it. The 
 
 ### Discord announcement
 
-Hold: not live yet; goes out together with the Lindenmoor expansion. Post this when the owner publishes Ye, Foundry Yard and the packages together.
+**Live (owner published Ye, Foundry Yard and the packages, 2026-10-25).** Ready to post.
 
 ```md
 **Update: Foundry Yard Comes Alive**
@@ -154,7 +154,7 @@ The final review of the Lindenmoor import asked for these fixes (Ruling 43). All
 
 ### Discord announcement
 
-Hold: not live yet. Nothing here is new to players on its own: it ships inside the Lindenmoor update (see that entry's post), which goes out together with Foundry Yard.
+Live (2026-10-25). Nothing here is new to players on its own: it shipped inside the Lindenmoor update (see that entry's post).
 
 ## 2026-10-24 — The Lindenmoor expansion is in Ye (import plan Tasks 1–9; not live)
 
@@ -229,7 +229,7 @@ This follows `Documents/World Travel.md` §10. The Kit doc has the full list, in
 
 ### Discord announcement
 
-Hold: not live yet. The owner chose "Hold both" (2026-10-24): Ye and Foundry Yard stay unpublished until the Foundry Yard plan finishes Foundry's game data, then both go out together. Post this when the owner publishes Ye, Foundry Yard and the packages together. The Foundry Yard plan writes Foundry's own post.
+**Live (owner published Ye, Foundry Yard and the packages, 2026-10-25).** Ready to post, together with Foundry Yard's post.
 
 ```md
 **Update: Lindenmoor Grows**
