@@ -81,7 +81,7 @@ The current weapon skills (Dragonflash, Flurry, Barrage, Scissor Rush, Fan the H
 | Wall Ledge Walk Left | `LedgeWalk_Left` | 📦 | **standing** side-step along a narrow ledge (not a hang). **Right: no id** |
 | Walk Left | `Walk_Left` | 📦 | **Walk Right: no id** |
 | Forward Glide/Fall, Gliding Neutral | `Fall_Forward`, `Glide_Neutral` | 📦 | |
-| Berserk Transformation, Lock Pick, Assassination | `Misc_BerserkTransform`, `Misc_LockPick`, `Misc_Assassinate` | 📦 | Assassination victim: no id |
+| Berserk Transformation, Lock Pick, Assassination | `Misc_BerserkTransform`, `Misc_LockPick`, `Misc_Assassinate` | 📦 | Assassination victim: 132728216355683 (owner, 2026-10-25). Knock out 72960497872371 / Hold 131914091661838 (owner, 2026-10-25), for the takedown slots in the assassinations plan |
 | No! (emote) | `Emote_No` | 📦 | |
 | Clap / Loop / Ground Slam / Arm Extend, Fire 1–5 | `Alchemy_*` | ✅ | alchemy casts |
 | NEW UPPERCUT | `Uppercut` | ✅ | Ctrl+LMB |

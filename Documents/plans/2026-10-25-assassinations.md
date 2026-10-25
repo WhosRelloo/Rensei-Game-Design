@@ -1,5 +1,13 @@
 # Assassinations Implementation Plan
 
+> **Owner update (2026-10-25), overrides the empty-slot text below:** the owner supplied the takedown ids. Use them:
+> - `Takedown_Choke` = 72960497872371 ("Knock out")
+> - `Takedown_ChokeVictim` = 131914091661838 ("Hold")
+> - `Misc_AssassinateVictim` = 132728216355683 ("Victim")
+> - `Misc_Assassinate` = 83505608395055
+>
+> Task 3 creates the three slots with these ids, not empty. Task 1 checks that each one loads in Studio, and any id that fails keeps its fallback. The Bear Hug is now only a fallback. Task 3's undo refusal applies to these owner-given ids too. Nothing is left for the owner to upload for this plan.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Every implementer gets the **Global Constraints** and the **Facts** below together with its own task.
 
 **Goal:** the owner's Backlog item, "Assassinations that work with the detection system (sight, light, sound)", **PvE only**. When this plan is done:
@@ -787,7 +795,7 @@ return Takedown
 | Sheet | Game name | Status | Used by |
 |---|---|---|---|
 | Assassination (83505608395055) | `Misc_Assassinate`, now in `Shared.Takedown` | ✅ (moved from Registry) | assassinate; Elite backstab |
-| Assassination Victim (**needs the owner's upload**) | `Misc_AssassinateVictim` (empty) | ➖ | the victim; falls back to `Gripped` |
+| Assassination Victim (owner, 2026-10-25: 132728216355683) | `Misc_AssassinateVictim` | ➖ | the victim; falls back to `Gripped` |
 | Chokehold (**needs the owner's upload**) | `Takedown_Choke` (empty) | ➖ | knock out; falls back to `Fist_BearHug` |
 | Chokehold Victim (**needs the owner's upload**) | `Takedown_ChokeVictim` (empty) | ➖ | the victim; falls back to `Fist_BearHugVictim` |
 | Bear Hug / Victim (skill sheet) | `Fist_BearHug` / `Fist_BearHugVictim`, now in `Shared.Takedown` | ✅ | the stand-in choke |

@@ -1,5 +1,13 @@
 # Assassinations: audit and design (PROPOSAL)
 
+> **Owner update (2026-10-25):** the owner added the takedown animations to the general sheet:
+> - **Knock out:** 72960497872371
+> - **Hold** (the knocked-out victim's side): 131914091661838
+> - **Assassination:** 83505608395055
+> - **Victim:** 132728216355683
+>
+> These replace the stand-ins below. The knockout uses the owner's Knock out / Hold pair, not the Bear Hug, and the assassination victim is no longer empty. The slots `Takedown_Choke` / `Takedown_ChokeVictim` take the Knock out / Hold ids, and `Misc_AssassinateVictim` takes 132728216355683. The implementer's Task 1 checks that each id loads in Studio, as the sheet process requires. Nothing is left for the owner to upload for this plan.
+
 **Status:** written overnight on 2026-10-25 under the owner's overnight go-ahead. **Not approved by the owner yet. Nothing here is built.** The plan is `Documents/plans/2026-10-25-assassinations.md`.
 
 **The owner's request** (Backlog, "After the swimming revamp", item 1): "Assassinations that work with the detection system (sight, light, sound)", and "I threw anims in the spreadsheet for it". The same work is the two older items under "Stealth and identity": "build it on top of the detection system" and "Add assassinations to the game, like we talked about before (ONLY PVE)".
@@ -155,9 +163,9 @@ All slots live in a new folder `Assets.Animations.Shared.Takedown`, so the clien
 | Slot | Plays on | Id | Fallback while empty |
 |---|---|---|---|
 | `Misc_Assassinate` | the player (assassinate) | **83505608395055** (the sheet's), moved from `Registry` | `Gripping` |
-| `Misc_AssassinateVictim` | the victim (assassinate) | **empty: needs the owner's upload** | `Gripped`, then the body drops |
-| `Takedown_Choke` | the player (knock out) | **empty: needs the owner's upload** | `Fist_BearHug` (skill sheet, 140607038476506), moved from `Registry` |
-| `Takedown_ChokeVictim` | the victim (knock out) | **empty: needs the owner's upload** | `Fist_BearHugVictim` (skill sheet, 76737043223431), moved from `Registry` |
+| `Misc_AssassinateVictim` | the victim (assassinate) | **132728216355683** (owner, 2026-10-25) | `Gripped`, then the body drops (only if the id fails to load) |
+| `Takedown_Choke` | the player (knock out) | **72960497872371** (owner's "Knock out", 2026-10-25) | `Fist_BearHug` (skill sheet, 140607038476506), moved from `Registry` |
+| `Takedown_ChokeVictim` | the victim (knock out) | **131914091661838** (owner's "Hold", 2026-10-25) | `Fist_BearHugVictim` (skill sheet, 76737043223431), moved from `Registry` |
 
 - **The Bear Hug as the stand-in choke** is a PROPOSAL: it's the only paired restraining hold on the sheets. Task 1 plays it on a test rig in Play and the controller looks at the capture. If it reads wrong from behind, the fallback becomes the existing classic grip pair (`Gauntlets_Grip` / `Gauntlets_Gripped`), slowed.
 - **Never an invented id.** An empty slot has `AnimationId = ""`, and AnimationManager plays the fallback.
