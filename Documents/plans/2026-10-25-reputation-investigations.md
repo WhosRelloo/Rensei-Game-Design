@@ -200,7 +200,7 @@ The owner was asleep (overnight go-ahead, 2026-10-25). Each is a PROPOSAL, liste
 
 | | Decision (PROPOSAL) | Task |
 |---|---|---|
-| D1 | Levers use the existing dialogue box (`DialogueService.Ask`) on a second talk after an evasion or refusal. This bends the owner's 2026-10-23 "no reply choices" choice (`Changelog.md:598`) for this one moment. **The controller gets the owner's answer before Task 3.** If no, Task 4 offers the levers as hold-prompts instead. | 4 |
+| D1 | **Answered: yes (owner, 2026-10-25).** Levers use the existing dialogue box (`DialogueService.Ask`) on a second talk after an evasion or refusal. This bends the owner's 2026-10-23 "no reply choices" choice (`Changelog.md:598`) for this one moment. **The controller gets the owner's answer before Task 3.** If no, Task 4 offers the levers as hold-prompts instead. | 4 |
 | D2 | `Text` stays the Truth line; no separate `Truth` key | 2, 7 |
 | D3 | Deterministic answers, no dice | 2 |
 | D4 | The bands and every term's numbers | 2 |

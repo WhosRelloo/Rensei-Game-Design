@@ -152,3 +152,6 @@ This document records established project decisions to keep development consiste
 - **Clans:** roster, rarities, roll weights, bonuses; which abilities count as "Stone Abilities".
 - **Ranked arena:** timing (the doc says "later").
 - **Morality Taboo canon:** which forbidden acts exist (human transmutation, Stone use, chimeras) and whether the Authority hunts or recruits a Taboo user. PvP / permadeath rules (Grip) also gate PvP deeds.
+
+## Reputation in investigations (owner, 2026-10-25)
+- Persuade, bribe and intimidate use the existing dialogue box, on a second talk with a witness who evaded or refused: "Yes, use the dialogue box for persuade/bribe/intimidate on a second talk with a witness." This is the one exception to the 2026-10-23 rule that townsfolk give no reply choices. Spec: `Documents/specs/2026-10-25-reputation-investigations-design.md`, D1.
