@@ -73,6 +73,10 @@ local Deeds = {
 		Scope = "Local",
 	},
 
+	-- ===== Foundry Yard: the shift ledger (Foundry Yard plan, 2026-10-24): foundry_ledger's reward =====
+	foundry_ledger_cleared = {Text = "Found out who was faking hours in the Foundry's shift ledger",
+		Conduct = {Candor = 5, Order = 5}, Standing = {Foundry = 10}, Scope = "Local"}, -- PROPOSAL
+
 	-- ===== Knocked enemies: grip (finish) vs deliver (carry them in alive) =====
 	executed_bandit = {
 		Text = "Finished off a beaten bandit",

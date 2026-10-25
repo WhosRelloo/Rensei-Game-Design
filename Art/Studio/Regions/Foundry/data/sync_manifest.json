@@ -42,5 +42,7 @@
   {"Label": "Rensei.Minigames", "Studio": "ReplicatedStorage/Modules/Data/Rensei/Minigames", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/Data/Rensei/Minigames.lua", "Places": ["ye", "foundry"], "Create": false},
   {"Label": "Rensei.Trials", "Studio": "ReplicatedStorage/Modules/Data/Rensei/Trials", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/Data/Rensei/Trials.lua", "Places": ["ye", "foundry"], "Create": false},
   {"Label": "RenseiTests.Test_AcqMetal", "Studio": "ServerStorage/RenseiTests/Test_AcqMetal", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_AcqMetal.lua", "Places": ["ye", "foundry"], "Create": true},
-  {"Label": "RenseiTests.Test_FoundryRoster", "Studio": "ServerStorage/RenseiTests/Test_FoundryRoster", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_FoundryRoster.lua", "Places": ["foundry"], "Create": true}
+  {"Label": "RenseiTests.Test_FoundryRoster", "Studio": "ServerStorage/RenseiTests/Test_FoundryRoster", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_FoundryRoster.lua", "Places": ["foundry"], "Create": true},
+  {"Label": "Rensei.Deeds", "Studio": "ReplicatedStorage/Modules/Data/Rensei/Deeds", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/Data/Rensei/Deeds.lua", "Places": ["ye", "foundry"], "Create": false},
+  {"Label": "RenseiTests.Play_FoundryLedger", "Studio": "ServerStorage/RenseiTests/Play_FoundryLedger", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_FoundryLedger.lua", "Places": ["foundry"], "Create": true}
 ]}

@@ -85,6 +85,31 @@ return {
 		},
 		Rewards = {Exp = 60},
 	},
+	-- ===== Foundry Yard: the shift ledger (Foundry Yard plan, 2026-10-24; spec §7.3) =====
+	-- Started by the ledger in the shift office (Rensei.Investigation foundry_shift_ledger; "ledger" is caught up at
+	-- once). Stage 1's three Signal objectives are the clue lines of Edmund Rusk, Sella Marsh and Aldous Merriweather
+	-- (Rensei.Townsfolk, Foundry); each line also gives its evidence. The docket in the underworks opens at stage 2. The
+	-- quest ends at the deduction: C. Ashe, the charge hand, is not a townsperson. PROPOSAL wording, hours and rewards.
+	-- ("docket" is both a stage id and an objective id: objective ids are unique among objectives only.)
+	foundry_ledger = {
+		Title = "The Shift Ledger", Category = "Investigation",
+		Description = "Someone has been changing the hours in the Foundry's shift ledger. The shift office would like to know who before the paymaster does.",
+		Stages = {
+			{Id = "ask", Text = "Find out what really happened on the 14th. Ask Furnace One's crews, Edmund Rusk (days) and Sella Marsh (the late shift), and Aldous Merriweather, the clerk at the shift office.", Objectives = {
+				{Id = "ledger", Text = "Read the shift ledger", Kind = "Evidence", Target = "foundry_full_shift"},
+				{Id = "rusk", Text = "Ask Edmund Rusk (Furnace One by day; Workers' Row after 15:00)", Kind = "Signal", Target = "foundry_ledger_rusk"},
+				{Id = "marsh", Text = "Ask Sella Marsh (Furnace One, 14:00-22:00; Workers' Row in the morning)", Kind = "Signal", Target = "foundry_ledger_marsh"},
+				{Id = "clerk", Text = "Ask Aldous Merriweather at the shift office (06:00-18:00)", Kind = "Signal", Target = "foundry_ledger_clerk"},
+			}},
+			{Id = "docket", Text = "The copied dockets are filed in a store in the underworks, the tunnel along the south edge of town. Find the one for the 14th.", Objectives = {
+				{Id = "docket", Text = "Find the docket for the 14th", Kind = "Evidence", Target = "foundry_scraped_docket"},
+			}},
+			{Id = "deduce", Text = "Put it together on your Case Board (J).", Objectives = {
+				{Id = "who", Text = "Work out who altered the ledger", Kind = "Deduce", Target = "foundry_ledger_who"},
+			}},
+		},
+		Rewards = {Exp = 300, Money = 100, Deeds = {"foundry_ledger_cleared"}}, -- PROPOSAL
+	},
 	chalk_foundry = {
 		Title = "Chalk on the Foundry Wall",
 		Category = "Investigation",

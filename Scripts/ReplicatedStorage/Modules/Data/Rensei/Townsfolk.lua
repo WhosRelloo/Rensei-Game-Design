@@ -82,7 +82,8 @@ local Lindenmoor = {
 --   * All 24 Home posts are used. Unused (allowed): crane_bay_2/4, canteen_cook_2, forge_wing_1/2, stack_yard, slag_lane,
 --     casting_shed_1/2, shed_hand_1/2, court_hand, shift_office_work (Ruling 16), yard_hand_2/3 and every Shelter.
 --   * Every post used has a Shelter within 145 studs (Task 4; the worst is yard_hand_4 at 140).
---   * Clue lines (fy_furnace_d1, fy_furnace_l1, fy_clerk) come with Task 6.
+--   * Clue lines (Task 6, the shift ledger, foundry_ledger stage 1): Edmund Rusk (fy_furnace_d1), Sella Marsh
+--     (fy_furnace_l1) and Aldous Merriweather (fy_clerk); each line gives its evidence, then signals its objective.
 -- The day (world clock; PROPOSAL hours):
 --   day crew        works 06-14, eats 14-15 (canteen or square), home 15-06
 --   late crew       eats 13-14, works 14-22, eats 22-23, home 23-13 (fy_crane_l2: square 13-14, no supper)
@@ -115,10 +116,14 @@ local Foundry = {
 	{Id = "fy_furnace_d1", Name = "Edmund Rusk", Job = "Furnace hand", Faction = "Foundry", Idle = "NPC_Blacksmith",
 		JobLine = "Furnace One, mornings. Twelve years, and she's never once let me forget it's her shift, not mine.",
 		Look = {Nation = "Amestrian", Gender = "Male", Seed = 3105},
+		Clue = {Quest = "foundry_ledger", Stage = 1, Signal = "foundry_ledger_rusk", Evidence = "foundry_banked_early",
+			Text = "The 14th? I was handing over to the late lot when the tuyere cracked. We banked her by six and sent them home. Nobody stood at Furnace One past six that night, and I'll swear to it."},
 		Schedule = {{6, 14, "furnace_1"}, {14, 15, "canteen_seat_2"}, {15, 6, "workers_row_5"}}},
 	{Id = "fy_furnace_l1", Name = "Sella Marsh", Job = "Furnace hand", Faction = "Foundry", Idle = "NPC_Blacksmith",
 		JobLine = "Late shift at Furnace One. You get used to the heat. You never get used to the noise.",
 		Look = {Nation = "Amestrian", Gender = "Female", Seed = 3106},
+		Clue = {Quest = "foundry_ledger", Stage = 1, Signal = "foundry_ledger_marsh", Evidence = "foundry_short_pay",
+			Text = "Four hours. That's what was in my packet for the 14th, and I didn't argue, because I'd only done four. If the ledger says eight, somebody drew wages for hours none of us worked."},
 		Schedule = {{13, 14, "canteen_seat_2"}, {14, 22, "furnace_1"}, {22, 23, "canteen_seat_2"}, {23, 13, "workers_row_6"}}},
 	{Id = "fy_furnace_d2", Name = "Gideon Pell", Job = "Furnace hand", Faction = "Foundry", Idle = "NPC_Blacksmith",
 		JobLine = "Furnace Two. Keep back from the mouth, unless you fancy losing your eyebrows.",
@@ -155,6 +160,8 @@ local Foundry = {
 	{Id = "fy_clerk", Name = "Aldous Merriweather", Job = "Shift clerk", Faction = "Foundry", Idle = "NPC_CrossArms",
 		JobLine = "Every hour worked in this yard goes through my pen. Every hour.",
 		Look = {Nation = "Amestrian", Gender = "Male", Seed = 3115},
+		Clue = {Quest = "foundry_ledger", Stage = 1, Signal = "foundry_ledger_clerk", Evidence = "foundry_docket_round",
+			Text = "I copy the ledger every morning from the charge hands' dockets, exactly as written. Once they're copied they go down to the store in the underworks. If the ledger's wrong, the docket was wrong. Go and look, if you can stomach the company down there."},
 		Schedule = {{6, 18, "shift_clerk"}, {18, 6, "lower_home_3"}}},
 	{Id = "fy_cook_1", Name = "Peiyu Qiao", Job = "Canteen cook", Faction = "Townsfolk", Idle = "NPC_CrossArms",
 		JobLine = "Breakfast at five, and the day crew eats it whether they're awake or not.",

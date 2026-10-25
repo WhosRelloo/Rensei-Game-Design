@@ -43,6 +43,17 @@ return {
 		lm_mine_shaft = {Title = "Boarded Shaft", Evidence = "lm_shaft_ore", StartsQuest = "lm_mine",
 			Text = "A shaft under the headframe, planked over and chained shut. Ore lies spilled around the collar where it fell, and the cart rail runs right up to the boards. Whoever closed it didn't stop to tidy up.",
 			AfterText = "The boarded shaft, the ore still lying where it fell."},
+		-- ===== Foundry Yard: the shift ledger (Foundry Yard plan, 2026-10-24) =====
+		-- RenseiClue parts in Foundry's Map.Foundry.Markers: the ledger on the shift office lectern, the docket in the
+		-- underworks tunnel along the south edge (+Z on Foundry's compass). PROPOSAL wording. The ledger starts
+		-- foundry_ledger; the docket opens at its stage 2, once the crews and the clerk have been asked.
+		foundry_shift_ledger = {Title = "Shift Ledger", Evidence = "foundry_full_shift", StartsQuest = "foundry_ledger",
+			Text = "The Foundry's shift ledger lies open on the lectern, copied out fair in the clerk's tidy hand. Furnace One, late shift, the 14th: six names, eight hours each. Further down the same page, the furnace log reads \"Furnace One banked 18:00, tuyere cracked.\" A banked furnace has no crew.",
+			AfterText = "Furnace One's late crew, booked for eight hours on a day the furnace was banked four hours in."},
+		foundry_altered_docket = {Title = "Shift Docket", Evidence = "foundry_scraped_docket",
+			Requires = {Quest = {Id = "foundry_ledger", StageAtLeast = 2}}, Locked = "A bundle of damp paper wedged behind a pipe.",
+			Text = "A bundle of shift dockets, damp from the tunnel. The one for Furnace One, late shift, the 14th, reads \"8 hrs\". The paper under the 8 is scraped thin, and you can still make out a 4. It is signed by the late-shift charge hand: C. Ashe.",
+			AfterText = "The docket for the 14th: a 4 scraped into an 8, signed C. Ashe."},
 		-- ===== alchemy acquisition: Ice, Earth, Wind, Metal =====
 		ice_floor = {
 			Title = "Floor Ice", Evidence = "uneven_ice", Requires = {Quest = {Id = "acq_ice", StageAtLeast = 2}},
@@ -292,6 +303,19 @@ return {
 				{Label = "The name: someone who works here", Answer = "apprentice_notebook"},
 			},
 			Conclusion = "An apprentice. Young, untrained, and practising alone at night: the smelting apprentice who signs as \"L.\"",
+			Wrong = "That doesn't hold together. Look at what each piece actually tells you.",
+		},
+		-- Foundry Yard: the shift ledger (Foundry Yard plan, 2026-10-24; PROPOSAL wording): foundry_ledger's last stage
+		foundry_ledger_who = {
+			Title = "The Shift Ledger",
+			Question = "Who altered the shift ledger, and how?",
+			Requires = {Evidence = {"foundry_full_shift", "foundry_banked_early", "foundry_short_pay", "foundry_docket_round", "foundry_scraped_docket"}},
+			Slots = {
+				{Label = "What the ledger claims", Answer = "foundry_full_shift"},
+				{Label = "What the crew really worked", Answer = "foundry_short_pay"},
+				{Label = "Where the false hours were written", Answer = "foundry_scraped_docket"},
+			},
+			Conclusion = "The clerk copied what he was given. The lie was written on the docket before it reached him: Ashe, the late-shift charge hand, scraped a 4 into an 8 and drew pay for hours his crew never worked.",
 			Wrong = "That doesn't hold together. Look at what each piece actually tells you.",
 		},
 	},

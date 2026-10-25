@@ -104,4 +104,17 @@ return {
 		Text = "An arrow cut into the standing stone on the knoll, a row of figures beneath it. The grooves were scrubbed clean recently: someone in Lindenmoor still looks after the mark."},
 	lm_shaft_ore = {Quest = "lm_mine", Title = "Spilled Ore",
 		Text = "Ore lying around a boarded, chained shaft on the mine approach, never loaded. The cart rail still runs up to the boards. The shaft was closed in a hurry."},
+
+	-- ===== Foundry Yard: the shift ledger (Foundry Yard plan, 2026-10-24; PROPOSAL wording) =====
+	-- the ledger and the docket (Rensei.Investigation) and three townsfolk's clue lines (Rensei.Townsfolk) give these
+	foundry_full_shift = {Quest = "foundry_ledger", Title = "A Full Shift Booked",
+		Text = "The shift ledger books Furnace One's late crew for a full eight hours on the 14th. The same page says the furnace was banked at 18:00, four hours in."},
+	foundry_banked_early = {Quest = "foundry_ledger", Title = "Sent Home at Six",
+		Text = "Edmund Rusk, day furnace hand: Furnace One was banked by 18:00 on the 14th and the late crew sent home. Nobody worked it after six."},
+	foundry_short_pay = {Quest = "foundry_ledger", Title = "Four Hours' Pay",
+		Text = "Sella Marsh, late furnace hand: her pay packet for the 14th held four hours. The ledger books eight. Someone drew pay for hours nobody worked."},
+	foundry_docket_round = {Quest = "foundry_ledger", Title = "Copied from the Dockets",
+		Text = "Aldous Merriweather, the shift clerk, copies the ledger from the charge hands' dockets, word for word. Once copied, the dockets are filed in a store in the underworks."},
+	foundry_scraped_docket = {Quest = "foundry_ledger", Title = "The Scraped Docket",
+		Text = "Furnace One's late-shift docket for the 14th. Someone scraped the 4 off and wrote an 8 before the clerk copied it. Signed by the charge hand, C. Ashe."},
 }
