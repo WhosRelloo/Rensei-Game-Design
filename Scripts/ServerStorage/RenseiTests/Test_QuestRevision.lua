@@ -3,7 +3,7 @@
 -- (LMRunSuite), as StoryLogic changes in this task. Fix round 1 (Ruling 22) adds: the clamp to the last stage and
 -- non-number Prepended values (Minor 4); a state without a Stage, a second UpgradeAll and an untouched Completed
 -- (Minor 6, through QuestService.UpgradeAll with injected defs); stale-revision states as "not yet known" to stage
--- gates (I1, StoryLogic.Stale / Meets).
+-- gates (I1, StoryLogic.Stale / Meets). Task 3 adds AcqMetalOldSaveMoves (the real acq_metal at revision 2).
 local StoryLogic = require(game.ReplicatedStorage.Modules.Data.Rensei.StoryLogic)
 
 local function Copy(T)
@@ -69,6 +69,17 @@ return {
 	NonTableState = function(T)
 		T.Eq(StoryLogic.UpgradeQuest({Revision = 2, Prepended = {[2] = 1}}, 5), false, "a number")
 		T.Eq(StoryLogic.UpgradeQuest({Revision = 2, Prepended = {[2] = 1}}, nil), false, "nil")
+	end,
+
+	-- Foundry data plan Task 3: the real acq_metal (travel put in front at revision 2): a save from before it, on the
+	-- old stage 3 (experiment), is on the experiment still, now stage 4
+	AcqMetalOldSaveMoves = function(T)
+		local Quests = require(game.ReplicatedStorage.Modules.Data.Rensei.Quests)
+		local State = {Stage = 3, Progress = {}}
+		T.Eq(StoryLogic.UpgradeQuest(Quests.acq_metal, State), true, "an old acq_metal save is upgraded")
+		T.Eq(State.Stage, 4, "old stage 3 is now stage 4")
+		T.Eq(State.Revision, 2, "recorded at revision 2")
+		T.Eq(StoryLogic.Stages(Quests.acq_metal)[State.Stage].Id, "experiment", "still the experiment")
 	end,
 
 	-- ===== fix round 1 (Ruling 22) =====

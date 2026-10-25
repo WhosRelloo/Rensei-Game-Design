@@ -581,7 +581,10 @@ end
 do
 	local function Trainer(T)
 		local Q = "acq_" .. T.Id
-		local function At(N) return {Quest = {Id = Q, Is = "Active", Stage = N}} end
+		-- Offset (Foundry Yard plan): stages put in front of the questline (acq_metal's travel stage) shift every line
+		-- by that many; the stages in front open on "sent" too
+		local O = T.Offset or 0
+		local function At(N) return {Quest = {Id = Q, Is = "Active", Stage = N + O}} end
 		local Leave = {Text = T.Leave or "\"That's all.\""}
 		local Back = {Text = "\"Something else.\"", Next = "menu_back"}
 		local Others = {}
@@ -592,6 +595,8 @@ do
 			{Requires = At(6), Node = "recognize"}, {Requires = At(5), Node = "exam"}, {Requires = At(4), Node = "trial"},
 			{Requires = At(3), Node = "experiment"}, {Requires = At(2), Node = "fieldwork"}, {Requires = At(1), Node = "sent"},
 		}
+		-- directly after At(1) (the list's last entry so far), before the "busy" entries below
+		if O > 0 then table.insert(Starts, {Requires = {Quest = {Id = Q, Is = "Active", Stage = 1}}, Node = "sent"}) end
 		for _, P in ipairs({"flame", "ice", "earth", "wind", "metal"}) do
 			if P ~= T.Id then table.insert(Starts, {Requires = {Quest = {Id = "acq_" .. P, Is = "Active"}}, Node = "busy"}) end
 		end
@@ -713,11 +718,12 @@ do
 	}})
 
 	Trainer({Id = "metal", Path = "Metal", Speaker = "Brannoc, Metal Alchemist", Exam = "metal_exam", LessonTitle = "Material Drill", ExerciseTitle = "Forge Cadence",
+		Offset = 1, -- acq_metal's travel stage (Foundry Yard plan)
 		Clues = {"sheared_shaft", "sample_rack", "bad_weld"}, Note = "experiment_record", Lines = {
 		start = "[He doesn't stop filing.] Strength is cheap. Precision isn't. If you came for strength, the Foundry's hiring.",
 		who = "Brannoc. Metal. I shape what others break. I don't waste stock, and I don't waste words.",
-		demo = "There's a forge west of the Foundry Yard. Went cold mid-shift. Find out why. Touch nothing until you can tell me what failed and why.",
-		sent = "West of the Foundry Yard. Look at the break, the stock and the repair. In that order.",
+		demo = "There's a forge at the back of the great hall, north-east of here past the rail yards. Went cold mid-shift. Find out why. Touch nothing until you can tell me what failed and why.",
+		sent = "The great hall. Through the forge wing at the back, north-east past the rail yards. Look at the break, the stock and the repair. In that order.",
 		fieldwork = "Report.",
 		fieldwork_all = "You've seen it all. Write it up on your Case Board. What broke, why, and why the repair failed.",
 		hint_field = "A break tells you how it failed. The stock tells you why. A bad repair tells you who was in a hurry.",

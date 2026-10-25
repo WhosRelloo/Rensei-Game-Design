@@ -1,18 +1,28 @@
 -- Play_Exams (Region Foundation Task 1, 2026-10-23): the five alchemy trainers' examinations open from the
 -- conversation. Run inside the game VM (LMRunSuite) with the Play client connected, inside the snapshot / restore
 -- runner (Conventions §S).
--- For each exam: the acquisition quest at stage 5 (Act V) and no saved path, the player beside the trainer. Open
+-- For each exam: the acquisition quest on its exam stage (Act V) and no saved path, the player beside the trainer. Open
 -- the conversation (DialogueService.Open, as the Talk prompt does), take the exam choice through
 -- DialogueService.Choose (the function the Dialogue remote calls), then check:
 --   * the conversation was already closed when the minigame opened (the client's UIState refuses a menu over an
 --     open conversation, so the panel closed at once and the server cancelled the exam);
 --   * a moment later the exam is still running (the client kept the panel instead of sending "Close").
 -- Quest state, the saved path and the character's position are put back after each test.
+-- Foundry data plan Task 3 (2026-10-24): the exam stage is read by id (StoryLogic.StageIndex), since acq_metal gained a
+-- travel stage; the fixture state carries the quest's Revision (a state without it is stale and on no stage, Ruling
+-- 22). Each trainer is tested in the place that has them (WHERE, against TravelService.Here()); in any other place the
+-- test checks that no model with that trainer's DialogueId is in the workspace (the trainer moved away).
 local SSS = game.ServerScriptService
 local DialogueService = require(SSS.DialogueService)
 local MinigameService = require(SSS.MinigameService)
 local PS = require(SSS.ProgressionService)
+local TravelService = require(SSS.TravelService)
+local StoryLogic = require(game.ReplicatedStorage.Modules.Data.Rensei.StoryLogic)
+local Quests = require(game.ReplicatedStorage.Modules.Data.Rensei.Quests)
 local Player = game.Players:GetPlayers()[1]
+
+-- where each trainer teaches (a region id, TravelService.Here())
+local WHERE = {flame = "Lindenmoor", ice = "Lindenmoor", earth = "Lindenmoor", wind = "Lindenmoor", metal = "Foundry"}
 
 local function Copy(V)
 	if type(V) ~= "table" then return V end
@@ -46,7 +56,9 @@ local function ExamOpens(T, Path)
 		-- finished questline forward and pay its rewards again on a save that already passed it.
 		Data.Identity.Affinity = "" -- with a saved path the trainers open on their mentor / other-path lines instead
 		Data.Quests.Completed[Quest] = nil
-		Data.Quests.Active[Quest] = {Stage = 5, Progress = {}, Started = os.time()}
+		local Stage = StoryLogic.StageIndex(Quests[Quest], "exam")
+		T.True(Stage ~= nil, Quest .. " has an exam stage")
+		Data.Quests.Active[Quest] = {Stage = Stage, Progress = {}, Started = os.time(), Revision = Quests[Quest].Revision}
 		-- beside the trainer: DialogueService needs 16 studs, MinigameService 22
 		local At = Model:GetPivot().Position + Vector3.new(-6, 0, 0)
 		Character:PivotTo(CFrame.lookAt(At, Model:GetPivot().Position))
@@ -79,10 +91,17 @@ local function ExamOpens(T, Path)
 	if not Ok then error(Err, 0) end
 end
 
+-- the exam where the trainer teaches; elsewhere, the trainer is not in this place's world
+local function ExamOrMovedAway(T, Path)
+	local Here = TravelService.Here()
+	if WHERE[Path] == Here then return ExamOpens(T, Path) end
+	T.Eq(Trainer("trainer_" .. Path), nil, "trainer_" .. Path .. " teaches in " .. WHERE[Path] .. ", not here (" .. tostring(Here) .. ")")
+end
+
 return {
-	FlameExamOpens = function(T) ExamOpens(T, "flame") end,
-	IceExamOpens = function(T) ExamOpens(T, "ice") end,
-	EarthExamOpens = function(T) ExamOpens(T, "earth") end,
-	WindExamOpens = function(T) ExamOpens(T, "wind") end,
-	MetalExamOpens = function(T) ExamOpens(T, "metal") end,
+	FlameExamOpens = function(T) ExamOrMovedAway(T, "flame") end,
+	IceExamOpens = function(T) ExamOrMovedAway(T, "ice") end,
+	EarthExamOpens = function(T) ExamOrMovedAway(T, "earth") end,
+	WindExamOpens = function(T) ExamOrMovedAway(T, "wind") end,
+	MetalExamOpens = function(T) ExamOrMovedAway(T, "metal") end,
 }

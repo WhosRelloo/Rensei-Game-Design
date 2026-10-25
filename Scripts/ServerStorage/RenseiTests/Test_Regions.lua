@@ -16,7 +16,7 @@ return {
 		T.Eq(Regions.OfArea("Foundry Yard"), "Foundry")
 		T.Eq(Regions.OfArea("Workshop Hill"), "Lindenmoor")
 		T.Eq(Regions.OfArea("Halvard's Adit"), "Adit")
-		T.Eq(Regions.OfArea("Silent Forge"), "Wilds")
+		T.Eq(Regions.OfArea("Silent Forge"), "Foundry", "the Silent Forge is in the Foundry Yard's great hall now (Foundry data Task 3)")
 		-- World plan 1 Task 10: outside every area volume is this place's own region. Lindenmoor import Task 8 (owner
 		-- 2026-10-24, "Lindenmoor's (Recommended)"): the hub is gone, so Ye's unnamed ground follows Lindenmoor's law
 		-- (it was the City, State law, under the 2026-10-23 "Keep State law" ruling)
@@ -47,6 +47,19 @@ return {
 		T.Eq(Regions.OfArea("Burned Laboratory"), "Wilds")
 		T.Eq(Regions.Areas["East Lookout"], nil, "the old name is gone")
 		T.Eq(Regions.Areas["Northeast Gap"], nil, "the old name is gone")
+	end,
+	-- Foundry data plan Task 3 (2026-10-24): Foundry Yard's areas (Art/Regions/Foundry/layout.json) are Foundry's, under
+	-- the State's law, with the Foundry hands and the townsfolk present
+	FoundryAreasAreFoundry = function(T)
+		for _, Name in ipairs({"Foundry Station", "The Underworks", "Practice Court", "Cinder Lane", "Lower Town", "Freight Yard",
+			"South Road", "Rail Yards", "Workers' Row", "Foundry Square", "The Foundry"}) do
+			T.Eq(Regions.Areas[Name], "Foundry", Name)
+			T.Eq(Regions.OfArea(Name), "Foundry", Name)
+		end
+		T.Eq(Regions.Areas["Silent Forge"], "Foundry", "the Silent Forge")
+		T.Eq(Regions.Regions.Foundry.Jurisdiction, "State", "Foundry is under State law")
+		T.True(Regions.Present("Foundry", "Foundry"), "the Foundry hands are present in Foundry")
+		T.True(Regions.Present("Foundry", "Townsfolk"), "the townsfolk are present in Foundry")
 	end,
 	-- Lindenmoor import Task 8 fix round 4 (Ruling 38b): north per place, and the compass is never mirrored
 	NorthPerPlace = function(T)

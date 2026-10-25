@@ -50,8 +50,9 @@ def boot_body(src):
 
 
 def boot_order(src):
-    """(ok, why): Boot waits for the snapshot before it upgrades (Ruling 2), and warns when the data poll gives up
-    (Minor 9: a warn after the poll loop). Comment lines don't count."""
+    """(ok, why): Boot waits for the snapshot before it upgrades (Ruling 2); its data poll runs until the player leaves,
+    with no try cap (Task 3, Ruling 23: a slow profile load must not leave a stale state frozen for the session); and
+    it warns once, at DATA_NOTICE polls, as a notice (Minor 9). Comment lines don't count."""
     body = boot_body(src)
     if body is None:
         return False, "no function QuestService.Boot()"
@@ -59,9 +60,14 @@ def boot_order(src):
     w, u = code.find("WaitForSnapshot("), code.find("UpgradeAll(")
     if not (0 <= w < u):
         return False, f"WaitForSnapshot at {w}, UpgradeAll at {u}"
-    loop = code.find("for _ = 1, DATA_TRIES do")
-    if loop < 0 or code.find("warn(", loop) < 0:
-        return False, "no warn after the DATA_TRIES poll loop"
+    if re.search(r"\bfor\s+\w+\s*=", code) or re.search(r"\brepeat\b", code):
+        return False, "a counted (numeric for / repeat) loop: the data poll must run until the player leaves"
+    loop = code.find("while Player.Parent ~= nil do")
+    if not (w < loop < u):
+        return False, "no `while Player.Parent ~= nil do` poll loop between WaitForSnapshot and UpgradeAll"
+    notice = code.find("== DATA_NOTICE then", loop)
+    if notice < 0 or code.find("warn(", notice) < 0:
+        return False, "no one-time warn (`== DATA_NOTICE then` ... `warn(`) inside the poll loop"
     return True, ""
 
 
@@ -89,8 +95,8 @@ def main():
         check(f"{p['Label']} places", p["Places"] and set(p["Places"]) <= {"ye", "foundry"}, p["Places"])
         check(f"{p['Label']} class", p["Class"] in ("ModuleScript", "Script", "LocalScript"), p["Class"])
         check(f"{p['Label']} path", len(p["Studio"].split("/")) >= 2 and p["Studio"].split("/")[-1], p["Studio"])
-    check("pair count foundry", len(sync.pairs_for(manifest, "foundry")) == 38, len(sync.pairs_for(manifest, "foundry")))
-    check("pair count ye", len(sync.pairs_for(manifest, "ye")) == 39, len(sync.pairs_for(manifest, "ye")))
+    check("pair count foundry", len(sync.pairs_for(manifest, "foundry")) == 41, len(sync.pairs_for(manifest, "foundry")))
+    check("pair count ye", len(sync.pairs_for(manifest, "ye")) == 42, len(sync.pairs_for(manifest, "ye")))
 
     # 3. norm_hash against Studio's value
     with open(os.path.join(REPO, "Art/Studio/Regions/TownsfolkClient.lua"), "rb") as f:
@@ -287,7 +293,7 @@ def main():
     with open(os.path.join(REPO, "Scripts/ServerScriptService/QuestService.lua"), encoding="utf-8") as f:
         qs = f.read().replace("\r\n", "\n")
     ok, why = boot_order(qs)
-    check("boot: WaitForSnapshot before UpgradeAll, warn on giving up", ok, why)
+    check("boot: WaitForSnapshot before UpgradeAll, uncapped poll, one-time notice", ok, why)
     # the check can fail: the two calls swapped, and the warn removed
     body = boot_body(qs) or ""
     swapped = qs.replace(body, body.replace("WaitForSnapshot(", "\0").replace("UpgradeAll(", "WaitForSnapshot(")
@@ -295,6 +301,12 @@ def main():
     check("boot: a swapped order is caught", not boot_order(swapped)[0], "the check passed a swapped Boot")
     nowarn = qs.replace(body, re.sub(r"\n\s*warn\([^\n]*", "", body)) if body else qs
     check("boot: a missing give-up warn is caught", not boot_order(nowarn)[0], "the check passed a Boot without warn")
+    # Task 3 (Ruling 23): a capped poll (Task 2's counted loop) and a warn on every poll are caught too
+    capped = qs.replace(body, body.replace("while Player.Parent ~= nil do", "for _ = 1, DATA_NOTICE do")) if body else qs
+    check("boot: a capped poll loop is caught", capped != qs and not boot_order(capped)[0], "the check passed a capped Boot")
+    everypoll = qs.replace(body, body.replace("== DATA_NOTICE then", "> 0 then")) if body else qs
+    check("boot: a warn on every poll is caught", everypoll != qs and not boot_order(everypoll)[0],
+          "the check passed a Boot that warns on every poll")
 
     print(f"PASS {PASSES[0]} / FAIL {len(FAILS)}")
     for f in FAILS:

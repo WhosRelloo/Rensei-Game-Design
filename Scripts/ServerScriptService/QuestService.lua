@@ -214,7 +214,9 @@ function QuestService.Signal(Player, Kind, Target, Amount)
 		local Def = Definitions[QuestId]
 		-- (fix round 1, Ruling 22) a stale-revision state waits for Boot's upgrade: its Stage means an older stage list,
 		-- so a signal before Boot (TravelService's join-time Arrive) must not move it. The upgrade moves it past the
-		-- stages put in front anyway.
+		-- stages put in front anyway. (Task 3, Ruling 23) A signal dropped here is not replayed after the upgrade, so
+		-- only signals for prepended stages are safe to drop while stale: a revision must only ever put stages in
+		-- front (Prepended), never add an objective to a stage an old save may already be on.
 		if Def and State and not StoryLogic.Stale(Def, State) then
 			local Stage = StoryLogic.Stage(Def, State)
 			for _, Objective in ipairs(Stage.Objectives) do
@@ -263,26 +265,28 @@ function QuestService.WaitForSnapshot(Player)
 end
 
 -- Once (ServerHandler): every player in the game now and every one who joins has their saved quest states upgraded
--- (UpgradeAll) once their data is there, polled every DATA_POLL s up to DATA_TRIES times, stopping when they leave.
--- (Not "Start": QuestService.Start(Player, QuestId) starts a quest.)
-local DATA_POLL, DATA_TRIES = 0.5, 240 -- s, polls (PROPOSAL)
+-- (UpgradeAll) once their data is there, polled every DATA_POLL s for as long as they stay (Task 3, Ruling 23: no try
+-- cap, since a slow profile load would otherwise leave a stale state frozen for the whole session). After DATA_NOTICE
+-- polls it warns once, as a notice, and keeps polling. (Not "Start": QuestService.Start(Player, QuestId) starts a quest.)
+local DATA_POLL, DATA_NOTICE = 0.5, 240 -- s, polls before the one-time notice (PROPOSAL)
 local Booted = false
 function QuestService.Boot()
 	if Booted then return end
 	Booted = true
 	local function Upgrade(Player)
 		if not QuestService.WaitForSnapshot(Player) then return end -- the test hook first (Studio only)
-		for _ = 1, DATA_TRIES do
-			if Player.Parent == nil then return end
+		local Tries = 0
+		while Player.Parent ~= nil do
 			local Data = ProgressionService.GetData(Player)
 			if Data then
 				if QuestService.UpgradeAll(Data) then ProgressionService.Sync(Player) end
 				return
 			end
+			Tries += 1
+			if Tries == DATA_NOTICE then
+				warn("QuestService: no data for " .. Player.Name .. " after " .. DATA_NOTICE .. " polls; still waiting to upgrade saved quests")
+			end
 			task.wait(DATA_POLL)
-		end
-		if Player.Parent ~= nil then
-			warn("QuestService: no data for " .. Player.Name .. " after " .. DATA_TRIES .. " polls; saved quests not upgraded")
 		end
 	end
 	Players.PlayerAdded:Connect(function(Player) task.spawn(Upgrade, Player) end)

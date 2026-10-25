@@ -18,6 +18,10 @@
 -- Shared optional fields: Requires (StoryLogic conditions to open it) + Locked (line when not met),
 --   Evidence (given on the FIRST pass only).
 
+-- (Foundry Yard plan, Ruling 6) acq_metal's stage numbers come from its stage ids; neither module requires this one
+local StoryLogic = require(script.Parent.StoryLogic)
+local Quests = require(script.Parent.Quests)
+
 return {
 	pressure_board = {
 		Kind = "PressureBoard", Title = "VALVE BOARD",
@@ -136,12 +140,14 @@ return {
 		Hint = "Choose a material for each part. Each piece of stock can only be used once.",
 		Pass = "The new parts seat with a sound like a lock closing.", Fail = "That part won't hold.",
 		LateHint = "Start with the part only one material can meet. The rest follow.",
-		Empty = "Choose a material for every part first.", Requires = {Quest = {Id = "acq_metal", Is = "Active", Stage = 3}}, Locked = "A material bench. Talk to the Metal trainer first."},
+		Empty = "Choose a material for every part first.", Requires = {Quest = {Id = "acq_metal", Is = "Active", Stage = StoryLogic.StageIndex(Quests.acq_metal, "experiment")}},
+		Locked = "A material bench. Talk to the Metal trainer first."},
 	metal_exam = {Kind = "MaterialMatch", Title = "THE UNYIELDING PRINCIPLE", Parts = 4, Materials = 6,
 		Hint = "Four parts, six materials, no second chances on stock.",
 		Pass = "Brannoc turns the finished piece over twice and sets it down without a word. That's the highest praise he has.", Fail = "Wrong stock.",
 		LateHint = "A 'at most' requirement rules out more than an 'at least'. Use it to narrow things first.",
-		Empty = "Choose a material for every part first.", Requires = {Quest = {Id = "acq_metal", Is = "Active", Stage = 5}}, Locked = "Brannoc's examination. Not yet."},
+		Empty = "Choose a material for every part first.", Requires = {Quest = {Id = "acq_metal", Is = "Active", Stage = StoryLogic.StageIndex(Quests.acq_metal, "exam")}},
+		Locked = "Brannoc's examination. Not yet."},
 	lesson_metal = {Kind = "MaterialMatch", Title = "MATERIAL DRILL", Parts = 4, Materials = 6,
 		Hint = "Again.", Pass = "Acceptable.", Fail = "Wasteful.", Empty = "Choose a material for every part first.", Requires = {SavedAffinity = "Metal"}},
 	-- ===== World challenges (MinigameService.WorldChallenges, 2026-10-17) =====

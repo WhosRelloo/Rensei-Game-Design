@@ -56,6 +56,15 @@ function StoryLogic.Stage(Def, State)
 	return Stages[math.clamp((State and State.Stage) or 1, 1, #Stages)], #Stages
 end
 
+-- the index of the stage with this Id in Def's stage list, or nil (Foundry Yard plan: data modules name stages by id)
+function StoryLogic.StageIndex(Def, StageId)
+	if type(Def) ~= "table" then return nil end
+	for I, S in ipairs(StoryLogic.Stages(Def)) do
+		if S.Id == StageId then return I end
+	end
+	return nil
+end
+
 -- all objectives across every stage (unique ids are required across the whole quest)
 function StoryLogic.AllObjectives(Def)
 	local Out = {}

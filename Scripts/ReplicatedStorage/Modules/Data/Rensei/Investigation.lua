@@ -17,6 +17,9 @@
 -- PLACEHOLDER content (Foundry Yard investigation).
 
 local Q = {Quest = {Id = "chalk_foundry", Is = "Active"}}
+-- (Foundry Yard plan, Ruling 6) acq_metal's stage numbers come from its stage ids; neither module requires this one
+local StoryLogic = require(script.Parent.StoryLogic)
+local Quests = require(script.Parent.Quests)
 
 return {
 	Inspects = {
@@ -113,26 +116,31 @@ return {
 			AfterText = "The pressure log and its last note.",
 			Locked = "A desk of instruments.",
 		},
+		-- Brannoc's notice (Foundry Yard plan, owner decision D): on the post at Ye's Metal TrainerSpot, where he used to
+		-- stand. PROPOSAL wording. No Evidence, so Requires gates only the quest: a player who already has a path reads it
+		-- and gets no toast.
+		brannoc_moved = {Title = "Brannoc's Notice", StartsQuest = "acq_metal", Requires = {NoAffinity = true},
+			Text = "A notice nailed to the post where the Metal Alchemist used to stand, in square, careful capitals: \"GONE TO THE FOUNDRY YARD. A FORGE THERE NEEDS LOOKING AT. STUDENTS: TRAIN FROM LINDENMOOR STATION, OR THE NORTH ROAD. - B.\""},
 		metal_shaft = {
-			Title = "Drive Shaft", Evidence = "sheared_shaft", Requires = {Quest = {Id = "acq_metal", StageAtLeast = 2}},
+			Title = "Drive Shaft", Evidence = "sheared_shaft", Requires = {Quest = {Id = "acq_metal", StageAtLeast = StoryLogic.StageIndex(Quests.acq_metal, "fieldwork")}},
 			Text = "The drive shaft sheared clean through. The break is bright and grainy: it was too hard and brittle for the load, not too weak.",
 			AfterText = "The brittle, sheared shaft.",
 			Locked = "A broken drive shaft.",
 		},
 		metal_samples = {
-			Title = "Sample Rack", Evidence = "sample_rack", Requires = {Quest = {Id = "acq_metal", StageAtLeast = 2}},
+			Title = "Sample Rack", Evidence = "sample_rack", Requires = {Quest = {Id = "acq_metal", StageAtLeast = StoryLogic.StageIndex(Quests.acq_metal, "fieldwork")}},
 			Text = "A rack of material samples, each tagged: strength, flex, heat. The shaft's tag reads \"cast iron - DO NOT USE FOR SHAFTS\", in someone else's hand.",
 			AfterText = "The tagged samples. Cast iron, marked not for shafts.",
 			Locked = "A rack of metal samples.",
 		},
 		metal_gear = {
-			Title = "Repaired Gear", Evidence = "bad_weld", Requires = {Quest = {Id = "acq_metal", StageAtLeast = 2}},
+			Title = "Repaired Gear", Evidence = "bad_weld", Requires = {Quest = {Id = "acq_metal", StageAtLeast = StoryLogic.StageIndex(Quests.acq_metal, "fieldwork")}},
 			Text = "The gear was soldered back on with soft solder. By the soot around it, the repair held about an hour.",
 			AfterText = "The soft-soldered gear.",
 			Locked = "A gear on a cold machine.",
 		},
 		metal_note = {
-			Title = "Workshop Desk", Evidence = "experiment_record", Requires = {Quest = {Id = "acq_metal", StageAtLeast = 2}},
+			Title = "Workshop Desk", Evidence = "experiment_record", Requires = {Quest = {Id = "acq_metal", StageAtLeast = StoryLogic.StageIndex(Quests.acq_metal, "fieldwork")}},
 			Text = "A workshop record: \"Plated the subject with cast iron. It moves. It shouldn't.\" Under it, the forge's fire log, cut short.",
 			AfterText = "The record of the plated experiment.",
 			Locked = "A soot-black desk.",

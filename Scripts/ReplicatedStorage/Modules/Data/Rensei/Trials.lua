@@ -15,6 +15,9 @@
 --   }
 
 local function Stage(Quest, N) return {Quest = {Id = Quest, Is = "Active", Stage = N}} end
+-- (Foundry Yard plan, Ruling 6) acq_metal's stage numbers come from its stage ids; neither module requires this one
+local StoryLogic = require(script.Parent.StoryLogic)
+local Quests = require(script.Parent.Quests)
 
 return {
 	flame_apprentice = {
@@ -67,8 +70,11 @@ return {
 	},
 	metal_experiment = {
 		Title = "The Armored Experiment", Path = "Metal",
-		Requires = Stage("acq_metal", 4), Locked = "Something heavy shifts behind the forge doors.",
-		Foe = "TrialMetal", Nation = "Xerxian", Weapon = nil, FoeDistance = 16, Radius = 34, TimeLimit = 280, FirstHazard = 4,
+		Requires = {Quest = {Id = "acq_metal", Is = "Active", Stage = StoryLogic.StageIndex(Quests.acq_metal, "trial")}},
+		Locked = "Something heavy shifts behind the forge doors.",
+		-- PROPOSAL (Foundry Yard plan, owner decision E): fits the great hall's 38.8 x 49.8 Forge Floor shell; were 34 / 16
+		Radius = 24, FoeDistance = 14,
+		Foe = "TrialMetal", Nation = "Xerxian", Weapon = nil, TimeLimit = 280, FirstHazard = 4,
 		Hazard = {Kind = "Metal", Every = {5.5, 7}, Count = 3, Length = 30, Width = 4, Warn = 1.5, Damage = 28, Spread = 22},
 		Opening = {For = 3.5, DamageMult = 1.5, GuardedMult = 0.25, ShellColor = Color3.fromRGB(200, 205, 215),
 			Text = "Its plating vents and opens at the joints after every cleave. Armour turns your blows; the joints don't."},

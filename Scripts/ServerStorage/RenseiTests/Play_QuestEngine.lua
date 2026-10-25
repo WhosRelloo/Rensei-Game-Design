@@ -11,7 +11,8 @@
 --     after 1 s for a player who isn't the LMSnapTaken one, stops when that player leaves, and returns at once for
 --     the real player, whose snapshot is taken.
 -- Fix round 1 (Ruling 22): NonClueLineGivesNoEvidence (Minor 5), StaleStateWaitsForUpgrade and StaleStateHearsNoClue
--- (I1: a stale-revision state takes no signal and is on no stage until Boot upgrades it).
+-- (I1: a stale-revision state takes no signal and is on no stage until Boot upgrades it). Task 3 (Ruling 23):
+-- StaleStateHearsNoClue also checks that Talk answered at all.
 -- Every test puts back what it changed: the injected defs, Data.Quests, Data.Story and Data.Morality (deep copies
 -- taken first, put back in place), the fixture parts and the townsperson; the clock hold and TalkCooldown too.
 local SSS = game:GetService("ServerScriptService")
@@ -236,6 +237,8 @@ return {
 			local Id = Teller(T, OnCleanup, {Quest = "__fy_q6", Stage = 1, Signal = "__fy_sig6a", Text = "x"})
 			Data.Quests.Active.__fy_q6 = {Stage = 1, Progress = {}} -- stale: really on the new stage 2
 			local _, Kind = TS.Talk(Player, Id)
+			-- (Task 3, Ruling 23) Talk answered with some line: a nil Kind would pass the next check without a talk
+			T.True(Kind ~= nil, "the townsperson answered (Talk gave a Kind)")
 			T.True(Kind ~= "Clue", "a stale state hears no stage-1 clue line (" .. tostring(Kind) .. ")")
 			T.Eq(Data.Quests.Active.__fy_q6.Stage, 1, "and nothing moved")
 		end)

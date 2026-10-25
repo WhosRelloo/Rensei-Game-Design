@@ -112,9 +112,14 @@ Regions.Areas = {
 	["Ridge Marker"] = "Lindenmoor", ["North Meadows"] = "Lindenmoor", ["Cypress Ridge Rim"] = "Lindenmoor",
 	["Northwest Gap"] = "Lindenmoor", -- (fix round 4, Ruling 38b: +Z is north in Ye, so +X is west; were East Lookout
 	-- and Northeast Gap, named in the layout's x = east frame)
+	-- Foundry Yard's areas (Foundry Yard plan, 2026-10-24; Art/Regions/Foundry/layout.json): Foundry's law (State) and people (Foundry hands, townsfolk)
+	["Foundry Station"] = "Foundry", ["The Underworks"] = "Foundry", ["Practice Court"] = "Foundry",
+	["Cinder Lane"] = "Foundry", ["Lower Town"] = "Foundry", ["Freight Yard"] = "Foundry", ["South Road"] = "Foundry",
+	["Rail Yards"] = "Foundry", ["Workers' Row"] = "Foundry", ["Foundry Square"] = "Foundry", ["The Foundry"] = "Foundry",
 	["Halvard's Adit"] = "Adit",
 	["Frozen Research Station"] = "Wilds", ["Cracked Footbridge"] = "Wilds", ["Burned Laboratory"] = "Wilds",
-	["Silent Forge"] = "Wilds", ["Silent Observatory"] = "Wilds",
+	["Silent Observatory"] = "Wilds",
+	["Silent Forge"] = "Foundry", -- (Foundry Yard plan: the forge room at the back of the great hall; was Wilds)
 }
 
 function Regions.OfArea(AreaName)
