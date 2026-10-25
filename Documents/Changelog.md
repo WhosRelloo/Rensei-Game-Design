@@ -101,7 +101,7 @@ Hold: not live yet; goes out together with the Lindenmoor expansion. Post this w
 - The Metal path now starts with a trip to Foundry Yard: take the train, or walk the road. Already partway through? Your progress carries over.
 
 **Danger below, water above**
-- Bandits lurk in the tunnels under the town, the only enemies in Foundry Yard.
+- Bandits lurk in the tunnels under the town. The streets above are safe.
 - An alchemist guards the Silent Forge in the great hall.
 - The cooling pond in the crane yard is deep enough to swim and dive in.
 

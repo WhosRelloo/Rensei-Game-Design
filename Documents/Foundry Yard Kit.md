@@ -221,7 +221,7 @@ Every number below is a **PROPOSAL** unless it is measured or the owner chose it
   - The trial fits its shell with Radius 24 and FoeDistance 14 (owner decision E).
   - The Forge Floor's shell anvil (`ForgeFloorAnvil`) sat inside the arena. `hide_anvil.lua` hides it (Task 9, reversible).
 - **The Ward Alchemist spawn** stands inside the Silent Forge room at (386, 5.2, −348) (owner decision B).
-- **The four Grunts in the underworks** are the only enemies in Foundry (owner: they stay live). None spawns in the town above.
+- **The four Grunts in the underworks** are the only enemies there (owner: they stay live). No Grunt spawns in the town above; the one other enemy spawn is the Ward Alchemist inside the Silent Forge.
 - **`acq_metal`** (the Metal path) now opens with a travel stage, "Travel to the Foundry Yard" (an `Arrive` objective). Then come the invite, fieldwork, the experiment, the trial, the exam and recognition.
   - A save from before the change moves forward one stage on join (decision C). In Studio, that upgrade waits for the test hook's snapshot.
   - In Ye, a notice at the Metal TrainerSpot starts the quest for a student with no path (decision D). It says "...OR WALK THE NORTH ROAD OUT NORTH-WEST" (Ye's compass).
