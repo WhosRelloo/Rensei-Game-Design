@@ -1,8 +1,12 @@
--- StealthUI (2026-10-20, Morality × Reputation spec §17.4; Plan 2, slice S2): the eye sigil, bottom left. Original
--- art in the transmutation-circle style (not a copy of any game's "light gem"):
---   * an outer circle with an inscribed square, like a chalk array;
---   * an eye in the middle whose iris glows with your Exposure: dark in deep shadow, gold in bright light;
---   * a ring that flares outward when you make a sound, sized by how far it carries, then fades.
+-- StealthUI (2026-10-20, Morality & Reputation spec 17.4; Plan 2, slice S2): the stealth sigil, bottom left.
+-- Restyled 2026-10-21 (owner rule: "ONLY use existing UI assets"): built only from the game's own art, the same
+-- pieces as the alchemy slots (AlchemyUI) and the interact prompt (PromptUI):
+--   * the hotbar slot plate (Uis.HUD.Bottom, 108980512067469) as the sigil's frame;
+--   * the transmutation circle (132299053523633) inside it, tinted with your Exposure: dark in deep shadow, gold in
+--     bright light (it was the eye's iris);
+--   * crouching lowers a lid over the circle: its top 45% is hidden (a clipping layout frame, no drawn shape);
+--   * a sound sends a second transmutation circle out from the plate, sized by how far it carries, then fading
+--     (it was a drawn ring; louder sounds also show brighter, where the ring drew thicker).
 -- Reads the character attributes Exposure (LightService), Noise / NoiseAt (NoiseService) and Crouching; it
 -- never decides anything. Hidden with the HUD's rules (menus, dialogue, cutscenes, death).
 local Players = game:GetService("Players")
@@ -12,10 +16,14 @@ local UIState = require(script.Parent.UIState)
 
 local Player = Players.LocalPlayer
 
+local SLOT_IMAGE = "rbxassetid://108980512067469" -- Rensei hotbar slot plate (as AlchemyUI / PromptUI)
+local CIRCLE_IMAGE = "rbxassetid://132299053523633" -- Rensei transmutation circle, white, tinted (as AlchemyUI)
 local INK = Color3.fromRGB(236, 228, 206)
 local GOLD = Color3.fromRGB(240, 196, 104)
-local DARK = Color3.fromRGB(40, 44, 62)
+local DARK = Color3.fromRGB(92, 104, 146) -- deep shadow: a dim cold blue (the old iris's (40, 44, 62) vanished on the dark plate)
 local SIZE = 46
+local CIRCLE = math.floor(SIZE * 0.78 + 0.5) -- the circle inside the plate (PromptUI's proportion)
+local LID = 0.45 -- how much of the circle crouching covers (as the old eyelid)
 local LOUDEST = 30 -- a sound this far-reaching fills the ring (an alchemy cast)
 local FADE = 1.2 -- seconds a sound's ring takes to fade
 
@@ -28,7 +36,7 @@ local function Make(Class, Props, Parent)
 	return O
 end
 
-local Gui, Root, Iris, Pupil, Ring, RingStroke, Lid
+local Gui, Root, Iris, Ring, Lid
 
 local function Build()
 	Gui = Make("ScreenGui", {Name = "Stealth", ResetOnSpawn = false, DisplayOrder = 4, IgnoreGuiInset = true,
@@ -36,32 +44,18 @@ local function Build()
 	Root = Make("CanvasGroup", {Name = "Sigil", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 22, 1, -245), -- above the party-name row
 		Size = UDim2.fromOffset(SIZE + 30, SIZE + 30), BackgroundTransparency = 1}, Gui)
 	local Centre = UDim2.fromScale(0.5, 0.5)
-	-- the sound ring (behind everything)
-	Ring = Make("Frame", {Name = "Sound", AnchorPoint = Vector2.new(0.5, 0.5), Position = Centre, Size = UDim2.fromOffset(SIZE, SIZE),
-		BackgroundTransparency = 1}, Root)
-	Make("UICorner", {CornerRadius = UDim.new(1, 0)}, Ring)
-	RingStroke = Make("UIStroke", {Color = INK, Thickness = 2, Transparency = 1}, Ring)
-	-- the array: a circle and an inscribed square
-	local Circle = Make("Frame", {Name = "Circle", AnchorPoint = Vector2.new(0.5, 0.5), Position = Centre, Size = UDim2.fromOffset(SIZE, SIZE),
-		BackgroundColor3 = Color3.fromRGB(12, 12, 15), BackgroundTransparency = 0.35}, Root)
-	Make("UICorner", {CornerRadius = UDim.new(1, 0)}, Circle)
-	Make("UIStroke", {Color = INK, Thickness = 1.4, Transparency = 0.25}, Circle)
-	local Square = Make("Frame", {Name = "Square", AnchorPoint = Vector2.new(0.5, 0.5), Position = Centre,
-		Size = UDim2.fromOffset(SIZE * 0.7, SIZE * 0.7), Rotation = 45, BackgroundTransparency = 1}, Root)
-	Make("UIStroke", {Color = INK, Thickness = 1, Transparency = 0.55}, Square)
-	-- the eye: an almond (a squashed circle), an iris that glows with Exposure, a pupil
-	local Eye = Make("Frame", {Name = "Eye", AnchorPoint = Vector2.new(0.5, 0.5), Position = Centre, Size = UDim2.fromOffset(30, 14),
-		BackgroundColor3 = INK, BackgroundTransparency = 0.1, ClipsDescendants = true}, Root)
-	Make("UICorner", {CornerRadius = UDim.new(1, 0)}, Eye)
-	Iris = Make("Frame", {Name = "Iris", AnchorPoint = Vector2.new(0.5, 0.5), Position = Centre, Size = UDim2.fromOffset(12, 12),
-		BackgroundColor3 = GOLD}, Eye)
-	Make("UICorner", {CornerRadius = UDim.new(1, 0)}, Iris)
-	Pupil = Make("Frame", {Name = "Pupil", AnchorPoint = Vector2.new(0.5, 0.5), Position = Centre, Size = UDim2.fromOffset(4, 4),
-		BackgroundColor3 = Color3.fromRGB(10, 10, 12)}, Iris)
-	Make("UICorner", {CornerRadius = UDim.new(1, 0)}, Pupil)
-	-- crouching lowers the lid
-	Lid = Make("Frame", {Name = "Lid", Position = UDim2.fromScale(0, 0), Size = UDim2.new(1, 0, 0, 0),
-		BackgroundColor3 = Color3.fromRGB(12, 12, 15), BorderSizePixel = 0, ZIndex = 3}, Eye)
+	-- the sound ring (behind everything): a transmutation circle that grows out from the plate
+	Ring = Make("ImageLabel", {Name = "Sound", AnchorPoint = Vector2.new(0.5, 0.5), Position = Centre, Size = UDim2.fromOffset(SIZE, SIZE),
+		BackgroundTransparency = 1, Image = CIRCLE_IMAGE, ImageColor3 = INK, ImageTransparency = 1, ZIndex = 1}, Root)
+	-- the frame: the hotbar slot plate
+	local Plate = Make("ImageLabel", {Name = "Plate", AnchorPoint = Vector2.new(0.5, 0.5), Position = Centre,
+		Size = UDim2.fromOffset(SIZE, SIZE), BackgroundTransparency = 1, Image = SLOT_IMAGE, ZIndex = 2}, Root)
+	-- the lid: a transparent clipping frame over the circle, anchored at its foot; crouching shortens it from the top
+	Lid = Make("Frame", {Name = "Lid", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0.5, CIRCLE / 2),
+		Size = UDim2.fromOffset(CIRCLE, CIRCLE), BackgroundTransparency = 1, ClipsDescendants = true, ZIndex = 3}, Plate)
+	-- the circle that glows with Exposure (kept at full size, pinned to the lid's foot, so the lid hides its top)
+	Iris = Make("ImageLabel", {Name = "Iris", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromScale(0.5, 1),
+		Size = UDim2.fromOffset(CIRCLE, CIRCLE), BackgroundTransparency = 1, Image = CIRCLE_IMAGE, ImageColor3 = GOLD, ZIndex = 3}, Lid)
 end
 
 local function Hidden()
@@ -78,20 +72,20 @@ function StealthUI.Draw()
 	Root.GroupTransparency = 0
 	local C = Player.Character
 	local E = math.clamp(tonumber(C:GetAttribute("Exposure")) or 1, 0, 1)
-	Iris.BackgroundColor3 = DARK:Lerp(GOLD, E)
-	Iris.BackgroundTransparency = 0.05
-	Lid.Size = UDim2.new(1, 0, C:GetAttribute("Crouching") and 0.45 or 0, 0)
-	-- the last sound: a ring out to its reach, fading
+	Iris.ImageColor3 = DARK:Lerp(GOLD, E)
+	Iris.ImageTransparency = 0.05
+	Lid.Size = UDim2.fromOffset(CIRCLE, math.floor(CIRCLE * (C:GetAttribute("Crouching") and 1 - LID or 1) + 0.5))
+	-- the last sound: a circle out to its reach, fading
 	local Noise = tonumber(C:GetAttribute("Noise")) or 0
 	local Age = workspace:GetServerTimeNow() - (tonumber(C:GetAttribute("NoiseAt")) or -math.huge)
 	if Noise > 0 and Age < FADE then
 		local K = math.clamp(Noise / LOUDEST, 0.1, 1)
 		local D = SIZE + 4 + 26 * K * math.clamp(Age / 0.25, 0, 1)
 		Ring.Size = UDim2.fromOffset(D, D)
-		RingStroke.Transparency = 0.15 + 0.85 * (Age / FADE)
-		RingStroke.Thickness = 1 + 2 * K
+		local Fading = 0.15 + 0.85 * (Age / FADE) -- as the old ring's stroke
+		Ring.ImageTransparency = 1 - (1 - Fading) * (0.45 + 0.55 * K) -- a louder sound shows brighter
 	else
-		RingStroke.Transparency = 1
+		Ring.ImageTransparency = 1
 	end
 end
 

@@ -7,6 +7,9 @@
 --     active; mechanisms in range with a Reaction for that element respond
 --   * prompts: take coal / feed coal / open a minigame (MinigameService calls OnMinigamePassed)
 --   * standing on a plate (checked every 0.25s)
+--   * melee: HitboxManager.Sweep calls Strike(Player, Position, Heavy) for each of a player's strikes; a
+--     Breakable mechanism (boards) breaks after Def.Hits of them (2026-10-20)
+-- A mechanism with Party = true shares a player's break with their party members in this server.
 -- Timed states revert by themselves (failures are recoverable). Permanent states (a sealed vent)
 -- and solved puzzles are saved (Story.Flags["Mech_<Id>"], Story.Puzzles) and restored on rejoin.
 
@@ -27,6 +30,8 @@ local PuzzleService = {}
 
 local Remote
 local States = {} -- [Player] = {[MechanismId] = {State, Until}} (plain table; cleared on leave)
+local Strikes = {} -- [Player] = {[MechanismId] = melee hits so far} (Breakable; cleared on leave / state change)
+local STRIKE_RANGE = 7 -- studs from a strike's hitbox centre to the nearest part of the boards (PROPOSAL)
 local Instances = {} -- [MechanismId] = {Instance, ...} (a mechanism may exist more than once)
 
 local function PartOf(Inst)
@@ -87,6 +92,7 @@ function PuzzleService.SetState(Player, Id, State, For, Permanent)
 	local Data = ProgressionService.GetData(Player)
 	if Data and Data.Story.Flags["Mech_" .. Id] and not Permanent then return false end
 	Mech[Id] = {State = State, Until = For and (workspace:GetServerTimeNow() + For) or nil}
+	if Strikes[Player] then Strikes[Player][Id] = nil end -- a new state starts the hit count over
 	if Permanent and Data then
 		Data.Story.Flags["Mech_" .. Id] = State
 		ProgressionService.Sync(Player)
@@ -95,6 +101,21 @@ function PuzzleService.SetState(Player, Id, State, For, Permanent)
 	if Was ~= State then QuestService.Signal(Player, "Mechanism", Id .. ":" .. State) end
 	CheckPuzzles(Player, Id)
 	return true
+end
+
+-- Party = true: the same saved state for the breaker's party members who are in this server
+local function ShareWithParty(Player, Id, State)
+	local Def = Content.Mechanisms[Id]
+	if not (Def and Def.Party) then return end
+	local Module = ServerScriptService:FindFirstChild("PartyService")
+	local Ok, Party = pcall(function() return Module and require(Module).Get(Player) end)
+	if not Ok or type(Party) ~= "table" then return end
+	for _, Member in ipairs(Party.Members or {}) do
+		if Member ~= Player and Member.Parent == Players then
+			local Had = States[Member] and States[Member][Id]
+			if not (Had and Had.State == State) then PuzzleService.SetState(Member, Id, State, nil, true) end
+		end
+	end
 end
 
 -- ===== alchemy reactions =====
@@ -130,10 +151,56 @@ function PuzzleService.React(Player, Element, Position, Direction)
 				if Part and InRange(Part, Position, Direction) then
 					if R then
 						if PuzzleService.StateOf(Player, Id) ~= R.State or R.For then
-							if PuzzleService.SetState(Player, Id, R.State, R.For, R.Permanent) then Say(Player, R.Text) end
+							if PuzzleService.SetState(Player, Id, R.State, R.For, R.Permanent) then
+								Say(Player, R.Text)
+								if R.Permanent then ShareWithParty(Player, Id, R.State) end
+							end
 						end
 					else
 						Say(Player, No)
+					end
+					break
+				end
+			end
+		end
+	end
+end
+
+-- ===== melee: Breakable mechanisms =====
+-- the distance from Position to the nearest point of any part of Inst
+local function Gap(Inst, Position)
+	local Best = math.huge
+	local Parts = Inst:IsA("BasePart") and {Inst} or Inst:GetDescendants()
+	for _, P in ipairs(Parts) do
+		if P:IsA("BasePart") then
+			local L = P.CFrame:PointToObjectSpace(Position)
+			local H = P.Size / 2
+			local Near = Vector3.new(math.clamp(L.X, -H.X, H.X), math.clamp(L.Y, -H.Y, H.Y), math.clamp(L.Z, -H.Z, H.Z))
+			Best = math.min(Best, (L - Near).Magnitude)
+		end
+	end
+	return Best
+end
+
+-- HitboxManager.Sweep, once per strike of a player's attack (Position = the hitbox centre, server-side).
+-- Each strike within STRIKE_RANGE of a Breakable the player still has Whole counts 1 (a heavy 2); every hit
+-- before the break sends that player a "Cracked" cue; Def.Hits of them break it (saved, shared with the party).
+function PuzzleService.Strike(Player, Position, Heavy)
+	if typeof(Position) ~= "Vector3" then return end
+	for Id, Def in pairs(Content.Mechanisms) do
+		if Def.Kind == "Breakable" and Def.Hits and PuzzleService.StateOf(Player, Id) == "Whole" then
+			for _, Inst in ipairs(Instances[Id] or {}) do
+				if Gap(Inst, Position) <= STRIKE_RANGE then
+					local Count = Strikes[Player] or {}
+					Strikes[Player] = Count
+					Count[Id] = (Count[Id] or 0) + (Heavy and 2 or 1)
+					if Count[Id] >= Def.Hits then
+						if PuzzleService.SetState(Player, Id, "Broken", nil, true) then
+							Say(Player, Def.BreakText)
+							ShareWithParty(Player, Id, "Broken")
+						end
+					elseif Remote then
+						Remote:FireClient(Player, "Cracked", Id, Position)
 					end
 					break
 				end
@@ -252,7 +319,7 @@ function PuzzleService.Start()
 	for _, Inst in ipairs(CollectionService:GetTagged(TAG)) do Attach(Inst) end
 	CollectionService:GetInstanceAddedSignal(TAG):Connect(function(Inst) task.defer(Attach, Inst) end)
 
-	Players.PlayerRemoving:Connect(function(Player) States[Player] = nil end)
+	Players.PlayerRemoving:Connect(function(Player) States[Player] = nil Strikes[Player] = nil end)
 	Players.PlayerAdded:Connect(function(Player)
 		Player.CharacterAdded:Connect(function(Character)
 			-- carried things don't survive a death

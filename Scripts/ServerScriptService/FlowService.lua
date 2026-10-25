@@ -50,6 +50,14 @@ local function PlayerAdded(Player)
 	end
 end
 
+-- Send a player to the menu now (TruthService: a character lost at the Gate makes a new one there). Returns
+-- false in Studio, which can't teleport.
+function FlowService.ToMenu(Player)
+	if RunService:IsStudio() then return false end
+	ToMenu(Player)
+	return true
+end
+
 function FlowService.Start()
 	Players.PlayerAdded:Connect(PlayerAdded)
 	for _, P in ipairs(Players:GetPlayers()) do task.spawn(PlayerAdded, P) end

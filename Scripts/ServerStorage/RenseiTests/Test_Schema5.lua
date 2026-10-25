@@ -1,4 +1,5 @@
-local Migrations = require(game.ServerScriptService.ProfileMigrations)
+-- server modules live in ServerStorage.RenseiServer in Edit mode (World Plan 1 Task 3); ServerScriptService at runtime
+local Migrations = require(game.ServerScriptService:FindFirstChild("ProfileMigrations") or game.ServerStorage.RenseiServer.ProfileMigrations)
 return {
 	FourToFive = function(T)
 		local Data = {SchemaVersion = 4, Morality = {Deeds = {reported_lise = {At = 1, Count = 1, Seen = 1}}, Standing = {}, Renown = 0}}

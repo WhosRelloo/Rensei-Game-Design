@@ -3,6 +3,15 @@
 --     "Inspect" prompt. {Title, Text, AfterText (shown once already examined), Evidence, Requires}
 --     Requires (StoryLogic conditions) gates the evidence; without it the player just reads Locked
 --     (or Text when Locked is absent).
+--     StartsQuest = "<QuestId>" (optional, 2026-10-23): after an inspect whose Requires pass (the evidence was
+--     given, or it was already held and AfterText shown), the quest starts if QuestService.CanStart allows it.
+--     A failed Requires never starts it: not a Locked inspect, and not a def with no Evidence either (on such a
+--     def Requires gates only the quest; the text is the same either way). Put any other gate on the quest's own
+--     Requires (CanStart checks it). An active or completed quest is never restarted, but a Repeatable quest
+--     starts again on a later inspect once its Cooldown has passed.
+--     Region-map clue markers: a part tagged "RenseiClue" with attribute ClueId = Id is an inspect point for
+--     Inspects[Id] (InvestigationService gives it the RenseiInspect tag and InspectId = ClueId; ClueId wins over
+--     an InspectId the part already carries).
 --   Deductions[Id]: Case Board questions. {Title, Question, Slots = {{Label, Answer = evidence id}},
 --     Requires (evidence needed before it shows), Wrong (line for a wrong answer)}
 -- PLACEHOLDER content (Foundry Yard investigation).
@@ -23,6 +32,14 @@ return {
 		adit_ledger = {Title = "Assay Ledger", Evidence = "halvard_ledger", Requires = {Puzzle = "adit_vault"},
 			Text = "A ledger on a lectern, its last page dated the month the adit was sealed.",
 			AfterText = "\"No. 4 is not ore.\"", Locked = "A ledger behind the vault bars."},
+		-- ===== the Lindenmoor expansion's clue markers (Lindenmoor import Task 8, 2026-10-24): RenseiClue parts in
+		-- Map.LindenmoorExpansion. PROPOSAL wording; each starts a short quest a townsperson answers (Rensei.Townsfolk Clue) =====
+		lm_ridge_marker = {Title = "Ridge Marker", Evidence = "lm_ridge_survey", StartsQuest = "lm_ridge",
+			Text = "A standing stone on the knoll, taller than a man, with a cairn of field stones at its foot. A surveyor's arrow is cut into its face, and under it a row of figures. The grooves have been scrubbed clean, and not long ago.",
+			AfterText = "The surveyor's arrow, scrubbed clean. Somebody looks after this stone."},
+		lm_mine_shaft = {Title = "Boarded Shaft", Evidence = "lm_shaft_ore", StartsQuest = "lm_mine",
+			Text = "A shaft under the headframe, planked over and chained shut. Ore lies spilled around the collar where it fell, and the cart rail runs right up to the boards. Whoever closed it didn't stop to tidy up.",
+			AfterText = "The boarded shaft, the ore still lying where it fell."},
 		-- ===== alchemy acquisition: Ice, Earth, Wind, Metal =====
 		ice_floor = {
 			Title = "Floor Ice", Evidence = "uneven_ice", Requires = {Quest = {Id = "acq_ice", StageAtLeast = 2}},
@@ -61,10 +78,10 @@ return {
 			Locked = "A stone pier.",
 		},
 		earth_soil = {
-			Title = "East Footing", Evidence = "washed_soil", Requires = {Quest = {Id = "acq_earth", StageAtLeast = 2}},
-			Text = "The soil under the east footing is gone - washed into a gully. Water has been running under it for months.",
-			AfterText = "The washed-out ground under the east footing.",
-			Locked = "The east footing of the bridge.",
+			Title = "West Footing", Evidence = "washed_soil", Requires = {Quest = {Id = "acq_earth", StageAtLeast = 2}},
+			Text = "The soil under the west footing is gone - washed into a gully. Water has been running under it for months.",
+			AfterText = "The washed-out ground under the west footing.",
+			Locked = "The west footing of the bridge.",
 		},
 		earth_note = {
 			Title = "Survey Case", Evidence = "survey_report", Requires = {Quest = {Id = "acq_earth", StageAtLeast = 2}},
@@ -74,14 +91,14 @@ return {
 		},
 		wind_flags = {
 			Title = "Pennants", Evidence = "still_flags", Requires = {Quest = {Id = "acq_wind", StageAtLeast = 2}},
-			Text = "Every pennant hangs dead - except the one by the west vent, which stirs. Air still comes in there, and nowhere else.",
-			AfterText = "Only the west pennant moves.",
+			Text = "Every pennant hangs dead - except the one by the east vent, which stirs. Air still comes in there, and nowhere else.",
+			AfterText = "Only the east pennant moves.",
 			Locked = "Pennants hanging from the beams.",
 		},
 		wind_dust = {
 			Title = "Dust on the Floor", Evidence = "dust_lines", Requires = {Quest = {Id = "acq_wind", StageAtLeast = 2}},
-			Text = "Dust lies in long streaks, all pointing at the north duct. The air used to leave that way - it carried the dust with it.",
-			AfterText = "Dust streaks pointing at the north duct.",
+			Text = "Dust lies in long streaks, all pointing at the south duct. The air used to leave that way - it carried the dust with it.",
+			AfterText = "Dust streaks pointing at the south duct.",
 			Locked = "A dusty floor.",
 		},
 		wind_vents = {
@@ -123,7 +140,7 @@ return {
 		-- ===== alchemy acquisition: Flame (the burned laboratory) =====
 		flame_scorch = {
 			Title = "Scorch Marks", Evidence = "burn_pattern", Requires = {Quest = {Id = "acq_flame", StageAtLeast = 2}},
-			Text = "Black scorch fans out from the bench in a circle - then one straight line of it climbs the north wall to the vent, as if the fire ran up a rope.",
+			Text = "Black scorch fans out from the bench in a circle - then one straight line of it climbs the south wall to the vent, as if the fire ran up a rope.",
 			AfterText = "The scorch line, bench to vent.",
 			Locked = "Old scorch marks. Somebody's experiment ended badly.",
 		},

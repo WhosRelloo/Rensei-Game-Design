@@ -4,6 +4,101 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-24 — The Lindenmoor expansion is in Ye (import plan Tasks 1–9; not live)
+
+The approved Blender expansion now fills Lindenmoor's 2,048 × 2,048 footprint around the village in Ye (106992859583940). All of it is in Ye's Studio Edit session, and **nothing is published**. The owner's decisions:
+- "The Lindenmoor expansion is gonna go in Ye";
+- the hub's pieces "move into the new map";
+- exits "Together, NE corner" (north-west on Ye's compass, below);
+- ungrippable edges with no invisible walls;
+- "Lindenmoor's (Recommended)" law for Ye's unnamed ground.
+
+Every number is a **PROPOSAL** unless the owner chose it. The details, the rollback order and the publish checkpoint are in `Documents/Lindenmoor Kit.md`, "The import is done".
+
+**What went in:**
+- **The land (Tasks 1–6):**
+  - a read-only survey of Ye, then a reversible prep (`prep_ye.lua`) that moved the trainers, the five trial sites, the LedgeCourse, spawns and four lifted items onto their pads, and retired the old NorthRoad, HubRoad and buffer stop into a backup;
+  - the import itself: 1,734 models, 40,645 parts and 218 water boxes, with the crag tagged `RenseiNoGrip` (2,141 parts);
+  - seam fillers.
+- **The owner's Studio fixes:**
+  - the seam regrade and the seam pits, so the new ground meets the village without walls, trenches or holes;
+  - the gorge: a straight, centred footbridge and water wall to wall;
+  - a slate creek bed under the water.
+- **Travel (Task 7):** the road to Foundry Yard is built from its marker by `setup.lua`, with a road cutting so it sits on the ground and a ramp at its mouth. There is one RoadStart, one Platform and one platform train in the place.
+- **Game data (Task 8):**
+  - the 10 new areas, all under Lindenmoor's law; `AreaAt` now picks the smallest box;
+  - two clue quests (the Ridge Marker and the Boarded Shaft);
+  - a roster of 8 townsfolk for the expansion's posts, plus 7 more Shelter posts so everyone has a shelter within 150 studs;
+  - the acquisition quests' directions to the trial sites' new homes;
+  - townsfolk give way to someone in a hurry in time, and only run to a shelter within 150 studs;
+  - the compass reads north per place: Ye's north is +Z, so its east is −X. Lindenmoor's East/West words are swapped to match: West Lookout, Northwest Gap.
+- **Task 9:**
+  - a new smoke suite, `Play_LindenmoorSmoke`;
+  - the d3606a5 Play_Station and Play_Road installed in Ye;
+  - a Studio == repo sweep of every `Scripts/` copy and the Adit boards kit;
+  - these docs.
+
+**Tests (hooked Play in Ye; the owner's save restored before every Stop; one Play session at a time across Ye and Foundry):**
+- **Play_LindenmoorSmoke 7/0, twice:**
+  - the crag refuses a climb and a wall run on all four edges, and a control proves it is the tag;
+  - water in the creek and the gorge;
+  - the expansion's 10 lamps lit at 23:00 and dark at 12:00;
+  - one RoadStart, one Platform and one LindenmoorFoundry platform train;
+  - the gorge ledge faces its wall;
+  - all five trials start;
+  - the five trainers stand at their spots and can be talked to.
+- **Travel suites:**
+  - Boot 2/0, Gate 13/0, Arrive 5/0, Station 20/0 and Road 11/0;
+  - Travel 5/2 and RideEvents 8/1 fail only on the Cabin / Second ticket in the owner's real save.
+- **Also:** NoGrip 6/0, Clock 5/0 and LindenmoorData 3/0. Task 8's suites passed in its own rounds.
+
+**Part budget:**
+- **Workspace:** 76,369 of the place's 80,000.
+- **The expansion:** 45,421. That is over its own 42,000 ceiling, which Ruling 25 accepts.
+
+**Repo brought up to Studio (the sweep):** these files were stale copies of what is already in Studio, and the game is unchanged:
+- `Scripts/`: ProfileData, JumpManager, StealthUI, PuzzleClient, FlowService, PuzzleService, Test_Schema5, Test_Witness and `ClientHandler/Run`;
+- the boards kit: `Art/Studio/HalvardsAdit/boards/Investigation.lua`.
+
+Two whitespace-only differences in `Art/Studio/Travel/src` (Play_Boot, RenseiBoot) were left alone.
+
+**For the owner:**
+1. Save Ye in Studio. Don't publish yet.
+2. Walk the new land in Play once.
+3. Then publish:
+   - the Ye place;
+   - the Modules package: Regions, Townsfolk, TownsfolkLogic, Quests, Dialogues, Investigation, Evidence, Puzzles, CompassUI and MasteryUI;
+   - the RenseiServer package: WorldService, TownsfolkService, TownsfolkService.Mover and MoralityService.
+
+The Kit doc has the full list.
+
+### Discord announcement
+
+Hold: not live yet. Post this when the owner publishes Ye and the packages:
+
+```md
+**Update: Lindenmoor Grows**
+
+**A whole valley around the village**
+- Lindenmoor is no longer a lone village. The land around it is open to explore, ringed by forested ridges and tall cliffs that can't be climbed.
+- Four farmsteads and a roadside market, with a watermill on the creek.
+- Mill Creek's gorge, with a footbridge, a waterfall and a narrow ledge walk along the cliff.
+- The old mine above Halvard's Adit, the Bramble woods, and wide meadows of fields, orchards and hay barns to the north.
+- The road to Foundry Yard now leaves Lindenmoor to the north-west, beside the railway, through a gap in the ridge.
+
+**Training and trials**
+- The alchemy trainers have a new training field just north of the village.
+- The five alchemy trial sites have new homes out in the valley. Ask your trainer where to go.
+
+**Getting around**
+- Your compass now matches the land. North on the compass is north on the map, and east and west are where you'd expect.
+
+**Townsfolk**
+- New townsfolk live and work around the valley: farmers, a miller, a mine hand, a groundskeeper and a signalman.
+- They give way better when someone is in a hurry, and in trouble they run to a shelter close by.
+- Some of them know a thing or two. Look around and ask.
+```
+
 ## 2026-10-24 — Foundry Yard's new map imported into the Foundry Yard place (not live)
 
 On the owner's request ("Import Foundry Yard into the Foundry Yard place"), the approved Blender build replaced the hand-built World Plan 1 map in the Foundry Yard place (109591196441030). It was done in Edit mode with the region tools. Ye wasn't touched, and nothing is published: **the place needs the owner's save**.

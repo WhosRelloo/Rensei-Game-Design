@@ -107,6 +107,7 @@ return {
 	},
 	-- The Licence path (schema 5; LicenceService, Plan 4, is the only writer). Path "" | "State" | "Circle".
 	Licence = {Path = "", Since = 0, Orders = {}, Refused = {}, Revoked = 0},
+	Travel = {Region = "", Tickets = {}}, -- World plan 1: last region (rejoin goes there) and unused tickets ["Route|Class"] = count
 	-- Player Identities (2026-10-18; IdentityService is the only writer): this investigator's records of
 	-- other players' characters. Bounded (Rensei.Identities.MaxRecords). Additive: Reconcile fills old saves.
 	Identities = {

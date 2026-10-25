@@ -4,7 +4,7 @@ Owner's to-do list, in the owner's words. The order is the owner's, and none of 
 
 ## Order after the region foundation (owner, 2026-10-24)
 "I want the lindenmoor expansion to go first after foundation."
-1. **Lindenmoor expansion import into Ye** (owner: "The Lindenmoor expansion is gonna go in Ye"). The village stays where it is; the hub's trainers and trial sites move onto their reserved spots; the cliff gets `RenseiNoGrip`. Steps: `Documents/Lindenmoor Kit.md`, "Expansion (Blender)".
+1. [x] **Lindenmoor expansion import into Ye** (owner: "The Lindenmoor expansion is gonna go in Ye"). The village stays where it is; the hub's trainers and trial sites move onto their reserved spots; the cliff gets `RenseiNoGrip`. Steps: `Documents/Lindenmoor Kit.md`, "Expansion (Blender)". *(Done 2026-10-24, import plan Tasks 1–9: in Ye's Studio Edit session, smoke-tested; not live until the owner saves Ye, walks it once in Play and publishes the place, Modules and RenseiServer. See `Documents/Lindenmoor Kit.md`, "The import is done".)*
 2. **The Foundry Yard plan** (the first full region).
 3. **The gun class rework and the swimming revamp** (below), still after all the Foundry tasks.
 

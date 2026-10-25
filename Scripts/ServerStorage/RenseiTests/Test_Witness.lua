@@ -1,4 +1,5 @@
-local W = require(game.ServerScriptService.WitnessService)
+-- server modules live in ServerStorage.RenseiServer in Edit mode (World Plan 1 Task 3); ServerScriptService at runtime
+local W = require(game.ServerScriptService:FindFirstChild("WitnessService") or game.ServerStorage.RenseiServer.WitnessService)
 return {
 	StrengthCountsWitnessesAndEvidence = function(T)
 		T.Eq(W.Strength({}, 0), 0, "a ghost")

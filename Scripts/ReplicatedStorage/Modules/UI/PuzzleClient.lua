@@ -10,11 +10,20 @@
 --              "Stream" parts run while Open (Halvard's Adit sluices, 2026-10-18)
 --   Water:     (instance attribute Draw = "Water") a water part that turns to ice while Frozen; Murk
 --              particles stop. Draw on an instance overrides its mechanism's Kind.
+--   Breakable: (Halvard's Adit boards, 2026-10-20) its parts named *Plank all collide while Whole, so the gap
+--              is closed (locally, per player, like the cracked wall), and so does a part named "Blocker" (the
+--              frame's inner opening, invisible and non-colliding on the server; the loose planks hang at an angle
+--              and left a gap). Broken hides the planks and drops the Blocker; a LIVE break (a State
+--              message) also throws loose plank pieces with physics, a dust burst and the model's BreakSound
+--              attribute if it has one. A player who joins already Broken just sees the opening. Each hit before
+--              the break ("Cracked") puffs splinters at the nearest plank (+ the CrackSound attribute, if set).
 -- Doors: parts tagged RenseiPuzzleDoor with attribute PuzzleId open once that puzzle is solved.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
 local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local Debris = game:GetService("Debris")
 
 local Content = require(ReplicatedStorage.Modules.Data.Rensei.Puzzles)
 
@@ -96,13 +105,158 @@ function Draw.Water(Inst, State)
 	end
 end
 
-local function Apply(Id)
+-- ===== Breakable (boards) =====
+local Rng = Random.new()
+local DUST = Color3.fromRGB(150, 130, 105)
+local WOOD = Color3.fromRGB(120, 85, 50)
+
+local function Planks(Inst)
+	local Out = {}
+	for _, D in ipairs(Inst:GetDescendants()) do
+		if D:IsA("BasePart") and D.Name:find("Plank$") then table.insert(Out, D) end
+	end
+	return Out
+end
+
+local function Visuals()
+	local World = workspace:FindFirstChild("World")
+	return World and World:FindFirstChild("Visuals") or workspace
+end
+
+local function Spin(Max)
+	return Vector3.new(Rng:NextNumber(-Max, Max), Rng:NextNumber(-Max, Max), Rng:NextNumber(-Max, Max))
+end
+
+-- a one-shot particle burst at Position (an invisible anchored holder, gone after 3 s)
+local function Burst(Position, Count, Color, Size, Speed)
+	local Holder = Instance.new("Part")
+	Holder.Name = "PuzzleBurst"
+	Holder.Anchored, Holder.CanCollide, Holder.CanQuery, Holder.CanTouch = true, false, false, false
+	Holder.Transparency = 1
+	Holder.Size = Vector3.new(0.2, 0.2, 0.2)
+	Holder.CFrame = CFrame.new(Position)
+	local E = Instance.new("ParticleEmitter")
+	E.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	E.Color = ColorSequence.new(Color)
+	E.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, Size), NumberSequenceKeypoint.new(1, Size * 2.5)})
+	E.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1)})
+	E.Lifetime = NumberRange.new(0.8, 1.6)
+	E.Speed = NumberRange.new(Speed * 0.4, Speed)
+	E.SpreadAngle = Vector2.new(180, 180)
+	E.Drag = 3
+	E.Acceleration = Vector3.new(0, -2, 0)
+	E.Rate = 0
+	E.Parent = Holder
+	Holder.Parent = Visuals()
+	E:Emit(Count)
+	Debris:AddItem(Holder, 3)
+	return Holder
+end
+
+-- the mechanism's own sound attribute (BreakSound / CrackSound = an rbxassetid). The game has no wood-break sound
+-- yet (2026-10-20), so none plays until one is set on the model.
+local function Sound(Inst, Attribute, Parent)
+	local Id = Inst:GetAttribute(Attribute)
+	if type(Id) ~= "string" or Id == "" then return end
+	local S = Instance.new("Sound")
+	S.SoundId = Id
+	S.Volume = 0.8
+	S.RollOffMaxDistance = 120
+	S.Parent = Parent
+	S:Play()
+	Debris:AddItem(S, 5)
+end
+
+-- the live break: every plank snaps into loose pieces that fly off (an outward impulse, away from this player, plus a
+-- random spin; they collide and are removed after 6 s), with a dust burst
+local function Smash(Inst, List)
+	if #List == 0 then return end
+	local Character = Players.LocalPlayer.Character
+	local Root = Character and Character:FindFirstChild("HumanoidRootPart")
+	local Folder = Visuals()
+	local Center = Vector3.zero
+	for _, P in ipairs(List) do
+		Center += P.Position
+		local Away = Root and (P.Position - Root.Position) or nil
+		Away = Away and Away.Magnitude < 40 and Vector3.new(Away.X, 0, Away.Z) or nil
+		if not Away or Away.Magnitude < 0.1 then Away = P.CFrame.RightVector end -- the plank's face
+		Away = Away.Unit
+		local Count = 3 -- pieces per plank
+		local Length = P.Size.Z / Count
+		for I = 1, Count do
+			local Piece = Instance.new("Part")
+			Piece.Name = "PlankDebris"
+			Piece.Material, Piece.Color = P.Material, P.Color
+			Piece.Transparency = P:GetAttribute("BaseTransparency") or P.Transparency
+			Piece.Size = Vector3.new(P.Size.X, P.Size.Y, Length * 0.92)
+			Piece.CFrame = P.CFrame * CFrame.new(0, 0, (I - (Count + 1) / 2) * Length) * CFrame.Angles(0, 0, Rng:NextNumber(-0.2, 0.2))
+			Piece.Anchored, Piece.CanCollide, Piece.CanQuery, Piece.CanTouch = false, true, false, false
+			Piece.Parent = Folder
+			Piece:ApplyImpulse((Away * Rng:NextNumber(18, 30) + Vector3.new(0, Rng:NextNumber(6, 14), 0) + Spin(4)) * Piece.AssemblyMass)
+			Piece.AssemblyAngularVelocity = Spin(12)
+			Debris:AddItem(Piece, 6)
+		end
+	end
+	local Holder = Burst(Center / #List, 60, DUST, 3, 10)
+	Sound(Inst, "BreakSound", Holder)
+end
+
+-- a hit that didn't break it yet: splinters at the nearest plank
+local function Crack(Id, Position)
+	if typeof(Position) ~= "Vector3" then return end
+	Each(Id, function(Inst)
+		local Best, Point, Gap = nil, nil, math.huge
+		for _, P in ipairs(Planks(Inst)) do
+			if P.Transparency < 1 then
+				local L = P.CFrame:PointToObjectSpace(Position)
+				local H = P.Size / 2
+				local Near = P.CFrame:PointToWorldSpace(Vector3.new(math.clamp(L.X, -H.X, H.X), math.clamp(L.Y, -H.Y, H.Y), math.clamp(L.Z, -H.Z, H.Z)))
+				local D = (Near - Position).Magnitude
+				if D < Gap then Best, Point, Gap = P, Near, D end
+			end
+		end
+		if not Best then return end
+		local Holder = Burst(Point, 14, WOOD, 0.6, 8)
+		for _ = 1, 4 do
+			local Chip = Instance.new("Part")
+			Chip.Name = "Splinter"
+			Chip.Material, Chip.Color = Best.Material, Best.Color
+			Chip.Size = Vector3.new(0.15, 0.15, Rng:NextNumber(0.4, 0.9))
+			Chip.CFrame = CFrame.new(Point) * CFrame.Angles(Rng:NextNumber(0, 6.28), Rng:NextNumber(0, 6.28), 0)
+			Chip.Anchored, Chip.CanCollide, Chip.CanQuery, Chip.CanTouch = false, false, false, false
+			Chip.Parent = Holder.Parent
+			Chip.AssemblyLinearVelocity = Spin(10) + Vector3.new(0, 8, 0)
+			Chip.AssemblyAngularVelocity = Spin(20)
+			Debris:AddItem(Chip, 1.5)
+		end
+		Sound(Inst, "CrackSound", Holder)
+	end)
+end
+
+function Draw.Breakable(Inst, State, Live)
+	local Broken = State ~= "Whole"
+	local List = Planks(Inst)
+	if Broken and Live and Inst:GetAttribute("DrawnBroken") ~= true then pcall(Smash, Inst, List) end
+	for _, P in ipairs(List) do
+		local T = Base(P, "BaseTransparency", P.Transparency)
+		local Q = Base(P, "BaseCanQuery", P.CanQuery)
+		P.Transparency = Broken and 1 or T
+		P.CanCollide = not Broken -- Whole: every plank blocks, the loose ones too
+		P.CanQuery = (not Broken) and Q
+	end
+	local Blocker = Inst:FindFirstChild("Blocker")
+	if Blocker and Blocker:IsA("BasePart") then Blocker.CanCollide = not Broken end -- like the SteamVent Blocker
+	Inst:SetAttribute("DrawnBroken", Broken)
+end
+
+-- Live = a state change that just happened (a State message), not a sync or a part streaming in
+local function Apply(Id, Live)
 	local Def = Content.Mechanisms[Id]
 	if not Def then return end
 	local State = States[Id] or Def.Default
 	Each(Id, function(Inst)
 		local Fn = Draw[Inst:GetAttribute("Draw") or Def.Kind]
-		if Fn then pcall(Fn, Inst, State) end
+		if Fn then pcall(Fn, Inst, State, Live) end
 	end)
 end
 
@@ -123,6 +277,8 @@ local function ApplyAll()
 	for _, Door in ipairs(CollectionService:GetTagged("RenseiPuzzleDoor")) do ApplyDoor(Door) end
 end
 
+PuzzleClient.Draw = Draw -- read by ServerStorage.RenseiTests.Play_AditBoards (Draw.Breakable on a copy)
+
 function PuzzleClient.Start()
 	task.spawn(PuzzleClient.Run) -- never hold up the other UI modules while the remote appears
 end
@@ -138,12 +294,14 @@ function PuzzleClient.Run()
 			ApplyAll()
 		elseif Kind == "State" then
 			States[A] = B
-			Apply(A)
+			Apply(A, true)
 		elseif Kind == "Solved" then
 			Solved[A] = true
 			for _, Door in ipairs(CollectionService:GetTagged("RenseiPuzzleDoor")) do
 				if Door:GetAttribute("PuzzleId") == A then ApplyDoor(Door) end
 			end
+		elseif Kind == "Cracked" then
+			pcall(Crack, A, B)
 		end
 	end)
 	-- streamed-in parts get drawn as they arrive

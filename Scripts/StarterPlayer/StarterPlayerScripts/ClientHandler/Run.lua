@@ -1,6 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local States = ReplicatedStorage.Modules.Skills.States
 local WCS = require(ReplicatedStorage.Modules.Framework.WCS)
@@ -25,6 +26,42 @@ local Player = RunService:IsClient() and game.Players.LocalPlayer
 local Run = {}
 local Running = true
 
+-- Slide -> sprint (owner 2026-10-21): Session = the sprint that owns the run right now (nil = none), so a
+-- second start never stacks a second Heartbeat on the first. Toggled = the touch RUN toggle is on (set by
+-- ClientHandler's "Sprint" action). Crouch asks Run:Wanted() when a slide ends.
+local Session = nil
+Run.Toggled = false
+
+-- a sprint is running (started and not yet ended by key release / stopping / a speed change)
+function Run:IsActive()
+	return Session ~= nil and Running == true
+end
+
+-- the speed a sprint starts at (the run phase; SpeedyRun raises it after 2 s)
+function Run.StartSpeed(Character)
+	return 24 * (Character:GetAttribute("SpeedMultiplier") or 1) * SkillMods.Mult(Character, "SprintSpeed")
+end
+
+-- the player wants to sprint: LeftShift held (not typing; LeftShift is the only sprint key ClientHandler
+-- binds), the touch toggle on, or a sprint still running (Auto Sprint keeps one going, and a sprint started
+-- during a slide counts)
+function Run:Wanted()
+	if Run:IsActive() or Run.Toggled then return true end
+	return not UserInputService:GetFocusedTextBox() and UserInputService:IsKeyDown(Enum.KeyCode.LeftShift)
+end
+
+-- a new character (ClientHandler's CharacterAdded): forget the old character's sprint
+function Run.Reset()
+	local Old = Session
+	Session = nil
+	Running = false
+	Run.Toggled = false
+	if Old then
+		pcall(function() if Old.Track then Old.Track:Stop() end end)
+		pcall(AnimationManager.Stop, Old.Character, "SpeedyRun")
+	end
+end
+
 -- WalkSpeed is stored as a 32-bit float: 24 x 1.018 never reads back equal. Comparing exactly ended every
 -- sprint on its first frame for anyone with Speed points (no run animation, stuck at sprint speed).
 local function Same(A, B) return math.abs(A - B) < 0.01 end
@@ -32,11 +69,20 @@ local function Same(A, B) return math.abs(A - B) < 0.01 end
 function Run:OnStartClient()
 	local Character = Player.Character
 	local CharacterState = WCSCharacter.GetCharacterFromInstance(Character)
-	
+
 	if CharacterState:HasStatusEffects({Stun,Climbing,Attacking}) then
 		return
 	end
-	
+	-- already sprinting (Shift pressed while Auto Sprint runs, or during a slide): keep that sprint
+	if Run:IsActive() then return end
+	-- an ended sprint whose Heartbeat hasn't cleaned up yet hands over to this one (it stops silently)
+	if Session ~= nil then
+		if Session.Track then Session.Track:Stop() end
+		AnimationManager.Stop(Character, "SpeedyRun")
+	end
+	local Me = {Character = Character}
+	Session = Me
+
 	local Humanoid = Character.Humanoid
 	local Camera = workspace.CurrentCamera
 	local Root = Character.HumanoidRootPart
@@ -55,6 +101,7 @@ function Run:OnStartClient()
 	local WeaponRun = Weapon and Weapon.RunAnim and AnimationManager.Has(Character, Weapon.RunAnim) and Weapon.RunAnim
 	local RunName = WeaponRun or "Run"
 	local RunAnimation = AnimationManager.Play(Character,RunName,{Looped = true,Priority = Enum.AnimationPriority.Movement})
+	Me.Track = RunAnimation
 	RunFX.locally(Player.Character)
 	
 	local function CheckVault(Character)
@@ -89,6 +136,15 @@ function Run:OnStartClient()
 	end
 
 	local RunConnection; RunConnection = RunService.Heartbeat:Connect(function()
+		-- a newer sprint took over: it owns the animation and the speed now
+		if Session ~= Me then RunConnection:Disconnect() return end
+		-- died or respawned: this sprint belongs to a gone character
+		if Humanoid.Health <= 0 or Character ~= Player.Character then
+			RunConnection:Disconnect()
+			Session = nil
+			Running = false
+			return
+		end
 		-- drawing / sheathing mid-sprint swaps between the weapon run and the normal run
 		if Running and WantedRun() ~= WeaponRun then
 			RunAnimation:Stop()
@@ -96,6 +152,7 @@ function Run:OnStartClient()
 			WeaponRun = WantedRun()
 			RunName = WeaponRun or "Run"
 			RunAnimation = AnimationManager.Play(Character, RunName, {Looped = true, Priority = Enum.AnimationPriority.Movement})
+			Me.Track = RunAnimation
 			SpeedyRun = false
 			TimeToSpeedy = os.clock()
 		end
@@ -144,6 +201,8 @@ function Run:OnStartClient()
 			end
 			
 			RunConnection:Disconnect()
+			Session = nil
+			return
 		end
 		if Humanoid.MoveDirection == Vector3.new() or CharacterState:HasStatusEffects({Stun}) or not Same(Humanoid.WalkSpeed, CurrentWalkSpeed) then
 			Running = false

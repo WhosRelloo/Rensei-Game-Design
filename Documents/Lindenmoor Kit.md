@@ -303,8 +303,8 @@ The order after the foundation is: this import first, then the Foundry Yard plan
 - [x] **No Station marker.** *(Checked: the import carries 6 `RenseiMarker`s, RoadPassage 1 + TrainerSpot 5.)* The station stays in the village. The expansion must not carry a `Station` marker, or `setup.lua` refuses a second Platform arrival and platform train.
 - [x] **`RenseiNoGrip` on the crag.** *(Done: 2,141 tagged crag parts, checked by the dry run and in Ye; the owner chose ungrippable edges.)* The crag must carry the tag (on its parts or its model). The import's dry run should show the tag on the crag. Tell the owner first: a boundary vault, or a leap with no hold, can't chain over an all-tagged wall.
 - [x] **Part budget.** *(Counted 2026-10-24: 71,593 workspace BaseParts after the import, under 80k.)* Count Ye's parts in Studio. The estimate is ~30.5k today plus ~40.4k for the expansion, against the place's 80k ceiling. `kit.py` refuses an export over the file's `Budget` (42,000).
-- [ ] **Open: HubLaw.** This doc's step 7 says to set `Regions.HubLaw` for Ye to Lindenmoor once the hub is gone. But the owner chose "Keep State law" for Ye's unnamed ground (2026-10-23). **Ask the owner before changing it.**
-- [ ] **New areas against the village's.** `WorldService.AreaAt` returns the first tagged match. Check in Studio that the 10 new `RenseiArea` boxes don't overlap the kept village's own areas.
+- [x] **HubLaw.** *(Done: import plan Task 8. The owner chose "Lindenmoor's (Recommended)" for Ye's unnamed ground, 2026-10-24, so `Regions.HubLaw = {[Ye] = "Lindenmoor"}`.)* This doc's step 7 says to set `Regions.HubLaw` for Ye to Lindenmoor once the hub is gone. But the owner chose "Keep State law" for Ye's unnamed ground (2026-10-23). **Ask the owner before changing it.**
+- [x] **New areas against the village's.** *(Done: import plan Task 8. `WorldService.AreaAt` now returns the smallest containing box, with a name tie-break, and only boxes in `workspace` count; Play_LindenmoorData's AreaLookup checks it.)* `WorldService.AreaAt` returned the first tagged match. Check in Studio that the 10 new `RenseiArea` boxes don't overlap the kept village's own areas.
 
 ### Rolling back the import in Ye
 `restore.lua` undoes **`finish.lua` only**:
@@ -373,7 +373,7 @@ Three openings in the **village's** ground faced the new ground. Village side pa
 - No road or path part intersects a filler. `Filler_Slit` runs through a village oak's `Trunk` and `Root3` (`OakBig_Rim45`).
 - **Left as it is:** a ~1-stud crack under the ramp edge at z −549.75..−548, y 0.9..2. It sits under the creek water, and a plate there would stand on the open creek-mouth floor.
 
-### Travel setup: the north-east road (2026-10-24, import plan Task 7)
+### Travel setup: the north-west road (2026-10-24, import plan Task 7; "north-east" in the builder's x = east frame)
 Run in Ye (Edit), after the Studio fixes (seam regrade, gorge, seam pits, bed):
 ```
 python -I Art/Studio/Regions/bundle_setup.py setup <scratch>/setup.lua --region Lindenmoor --map-child LindenmoorExpansion --origin 0,0,0
@@ -390,6 +390,8 @@ setup ok (Map.LindenmoorExpansion): Workspace.World.Map.LindenmoorExpansion.Trav
 - **Rollback:** `restore.lua` carries `Travel` out with the expansion. To drop only the road, delete `LindenmoorExpansion.Travel` (setup made no backup: there was no old `Travel`).
 
 ### Rollback
+**Superseded (import plan Task 9):** the Studio fixes, the road cut, the shelters and the names came after this. Use the full order in "The import is done" → "Rolling everything back" below. These two steps are its steps 8 and 9.
+
 In Edit, never in Play:
 1. **`import/restore.lua`.** It moves `LindenmoorExpansion` into `Post-Region_Lindenmoor_<date>`, along with its `SeamFillers` and any `Travel` built by `setup.lua`. It also pastes the terrain back under the water boxes.
 2. **`prep_ye.lua` undo, from a fresh bundle:**
@@ -399,3 +401,139 @@ In Edit, never in Play:
    ```
    It puts the 43 moved instances back where they were, returns the 5 retired pieces to their old parents, deletes `Pre-LindenmoorExpansion_2026-10-24` and clears `LindenmoorPrep`. Afterwards, check that there is exactly one `RenseiArrival` with `Point = "RoadStart"`.
 3. **Re-run the travel suites** (`Play_Road`, `Play_Travel`) before the owner publishes. Also revert any data edits made after the import: `Rensei.Regions.Areas`, `HubLaw`, the roster, and the clue quests.
+
+## The import is done (2026-10-24, import plan Task 9)
+The Lindenmoor expansion is in Ye's Studio Edit session, tested, and **not live**. The counts below are measured; every design number elsewhere in this doc is a **PROPOSAL**.
+
+**Compass (Ruling 38b).** Ye's north is **+Z**, so east is **−X**. This doc's builder sections and the layout files use the builder's frame (x = east), in which the road leaves to the "north-east". On Ye's compass, the one players see, the road and the rails leave Lindenmoor to the **north-west**. Ye's area names are **West Lookout** and **Northwest Gap**.
+
+### Final part count
+- **Workspace:** 76,369 BaseParts, against the place's 80,000 ceiling.
+- **`World.Map.LindenmoorExpansion`:** 45,421, including the north-west road's `Travel` (1,592).
+  - The import itself brought 40,645.
+  - The seam regrade, the seam pits, the gorge fix, the road cut and the shelter posts added the rest.
+  - That is over the expansion's own 42,000 ceiling. Ruling 25 accepts it, because the binding limit is the place's 80,000.
+- **Attributes:**
+  - the expansion carries `LindenmoorSeamRegrade`, `LindenmoorSeamPits`, `LindenmoorGorgeFix`, `LindenmoorGorgeBed`, `LindenmoorRoadCut`, `LindenmoorShelters` and `LindenmoorEastWest`;
+  - `World.Map` has `LindenmoorPrep = "applied"`.
+
+### Checklist
+- [x] Orientation and keeping the village (Tasks 4–6).
+- [x] Hub pieces moved onto their pads (Task 5).
+- [x] Exits together in one corner (Task 7). That corner is north-west on Ye's compass.
+- [x] Crag `RenseiNoGrip` (Task 2).
+- [x] Water (Task 3, then the gorge fix).
+- [x] Budget (above).
+- [x] Areas: the smallest box wins (Task 8).
+- [x] TrainerSpots (Tasks 5 and 7).
+- [x] Old road retired (Task 5).
+- [x] `ORIGIN (0, 0, 0)` (Task 7).
+- [x] First real run watched (Task 6).
+- [x] No Station marker (Task 4).
+- [x] HubLaw (Task 8, the owner's answer).
+- [x] Game data: areas, clues, the roster, shelters and spawns (Task 8).
+- [x] Play tests (Tasks 7–9).
+
+### Smoke test (`ServerStorage.RenseiTests.Play_LindenmoorSmoke`)
+The repo copy is `Scripts/ServerStorage/RenseiTests/Play_LindenmoorSmoke.lua`. Run it in hooked Play through `LMRunSuite`. It passed **7/7 twice**, in two sessions.
+
+| Check | What it proves |
+|---|---|
+| CragCantBeGrabbed | On each of the four edges, the player stands at the crag's foot facing it. The crag face is within the server's reach, `MovementState.Grippable` says no, and the server refuses a climb and a wall run (`Refused:NoWall`). **Control:** with the crag's tags off for a moment, the same climb is accepted. |
+| WaterIsReal | Terrain Water voxels, and a water surface at about 5.2, at three west-creek and three gorge centreline points. |
+| LampsFollowTheClock | The expansion's 10 `NightOnly` lamps are all in WorldClock's set. Held at 23:00 they are lit, with their own material; held at 12:00 they are dark, with `DayMaterial`. The clock is held through `WorldClock.Hold` and put back afterwards. |
+| TravelIsSingle | There is exactly one RoadStart arrival (on RoadLindenmoorFoundry, in the expansion's `Travel`), one Platform arrival, and one platform train for LindenmoorFoundry. `TravelService.ArrivalPoint` finds them. |
+| LedgeWorks | The gorge's one `RenseiLedge` strip faces its wall: there is a wall 0.7 studs in front at both ends and in the middle, and nothing behind. |
+| EveryTrialStarts | All five `RenseiTrial` markers are in workspace, one per trial, each with a known `TrialId` and its Begin Trial prompt. |
+| TrainersCanBeTalkedTo | The five trainers (Calda, Veyra, Holt, Ansel and Brannoc) each have their `trainer_<element>` dialogue and a talk prompt, and stand within 6 studs of their TrainerSpot. |
+
+**Where the crag check stands.** On each edge it uses the first spot (from s −400) with nothing else grippable in reach. On the +Z edge an oak trunk stands 3.5 studs off at s −400, and a tree is a fair climb, so that edge uses s −360. The four spots:
+- (990, 48, −400);
+- (−990, 54, −400);
+- (−360, 54, 986);
+- (−400, 38, −994).
+
+**Travel suites in Ye, the same day:**
+- **Passing:**
+  - Boot 2/0, Gate 13/0 and Arrive 5/0;
+  - Station 20/0 and Road 11/0. These are the d3606a5 versions, now installed in Ye too.
+- **Failing only on the real save:** Travel 5/2 and RideEvents 8/1. The owner's real save holds a Cabin / Second ticket, so this is not a regression.
+- **Also run:** NoGrip 6/0, Clock 5/0 and LindenmoorData 3/0.
+
+### Rolling everything back
+Do this in Edit, never in Play, in this order. Each Studio-fix script takes its mode on its `local MODE = ...` line.
+1. **`Art/Studio/Regions/Lindenmoor/east_west_names.lua`**, `MODE = "undo"`.
+   - West Lookout and Northwest Gap go back to East Lookout and Northeast Gap.
+   - The two area descriptions go back too.
+   - `Rensei.Regions.Areas` and the tests still use the new names until step 10.
+2. **`shelters.lua`**, `MODE = "undo"`. **At the same time, revert `Rensei.Townsfolk`** to its ce128ca text (`git show ce128ca:Scripts/ReplicatedStorage/Modules/Data/Rensei/Townsfolk.lua`): back up the current Studio copy, then set the old text as its Source.
+   - **Why:** without that revert, the groundskeeper's night post `lm_field_shelter` no longer exists. `TownsfolkLogic.Validate` then refuses the roster, and **no Lindenmoor townsfolk spawn**.
+   - After this step, Play_LindenmoorData's "a shelter within 150" check fails. That is expected.
+3. **`road_cut.lua`**, `MODE = "undo"`. This also removes the mouth ramp.
+4. **`bed_fix.lua`**, `MODE = "bedundo"`.
+5. **`seam_pits.lua`**, `MODE = "undo"`. It refuses while the road cut is applied.
+6. **`gorge_fix.lua`** `undo`: `python -I Art/Studio/Regions/Lindenmoor/bundle_gorge_fix.py fix <out.lua> undo`.
+7. **`regrade_seam.lua`**, `MODE = "undo"`. It refuses while the seam pits are applied.
+8. **`import/restore.lua`.**
+   - It moves `LindenmoorExpansion` into `Post-Region_Lindenmoor_<date>`, together with its `Travel`, its `SeamFillers` and the shelter posts.
+   - It pastes the terrain back under the water boxes.
+9. **`prep_ye.lua` undo, from a fresh bundle:** `python -I Art/Studio/Regions/Lindenmoor/bundle_prep.py prep <out.lua> undo`. Then check there is exactly one `RenseiArrival` with `Point = "RoadStart"`: the old North Road's.
+10. **Revert the data and script files.**
+    - Studio copies are in `ServerStorage.RenseiBackups["Pre-LindenmoorImport_2026-10-24"]`, named `Rensei.<Module>`, `RenseiServer.<Service>`, `UI.<Module>` and `RenseiTests.<Suite>`. The repo copies are in git at `2378b54`.
+    - **Data modules:** Regions, Townsfolk, TownsfolkLogic, Quests, Dialogues, Investigation, Evidence and Puzzles.
+    - **UI:** CompassUI and MasteryUI.
+    - **Services:** WorldService, TownsfolkService, TownsfolkService.Mover and MoralityService.
+    - **Tests:** the test suites.
+    - **Which backup to use:**
+      - `RenseiServer.WorldService` is the pre-import copy; the plain `WorldService` is Task 8's.
+      - Of Play_Road's two backups, `RenseiTests.Play_Road` is the pre-import copy; `RenseiTests.Play_Road_Task7` is Task 7's.
+      - Play_LindenmoorData and Play_LindenmoorSmoke are new: delete them.
+11. **Run the travel suites:** Play_Boot, Gate, Arrive, Station, Road, Travel and RideEvents.
+
+**A re-import brings the old names back.** The kit files (`Art/Studio/Regions/Lindenmoor/layout.json` and `import/chunk_*.lua`) still say East Lookout and Northeast Gap. After any re-import from them, re-apply `east_west_names.lua` with `MODE = "apply"`.
+
+### Publish checkpoint (for the owner)
+**First:** Ye's Edit session holds every change below, unsaved.
+1. **Save the place in Studio. Don't publish it yet.**
+2. Walk the new land in Play once: the farms, the gorge and its ledge, the mine, the woods, the meadows, the training field, and the north-west road to the gap.
+3. Then publish.
+
+**1. The Ye place itself:**
+- **The map:**
+  - `World.Map.LindenmoorExpansion`, with its `Travel` (the north-west road), `SeamFillers`, `SeamRegradeFill` and `SeamPitsFill`;
+  - the hub pieces that `prep_ye.lua` moved onto their pads: trainers, trial sites, LedgeCourse, spawns and the lifted items;
+  - the retired NorthRoad, HubRoad and BufferStop (now in the backups).
+- **The Studio fixes:**
+  - the seam regrade and the seam pits;
+  - the gorge (bridge and water) and its bed;
+  - the road cut and its mouth ramp.
+- **The 7 Shelter posts.**
+- **The names:** the West Lookout and Northwest Gap AreaNames, and the Bramble Hollow and Halvard's Adit descriptions.
+- **Place-owned scripts** in `ServerStorage.RenseiTests` (not a package):
+  - new: Play_LindenmoorData and Play_LindenmoorSmoke;
+  - changed: Test_Regions, Test_TownsfolkLogic, Play_TownsfolkCrowd and Play_TownsfolkHurt;
+  - Play_Road and Play_Station (the d3606a5 versions).
+- **`ServerStorage.RenseiBackups`.**
+
+**2. The Modules package** (`ReplicatedStorage.Modules`):
+- `Data.Rensei`: Regions, Townsfolk, TownsfolkLogic, Quests, Dialogues, Investigation, Evidence and Puzzles;
+- `UI`: CompassUI and MasteryUI.
+
+This package also reaches Foundry Yard when it is published. Foundry's compass stays −Z north.
+
+**3. The RenseiServer package** (`ServerStorage.RenseiServer`):
+- WorldService;
+- TownsfolkService and TownsfolkService.Mover;
+- MoralityService (a comment only).
+
+**Older changes that go out with the same publishes.** The Studio == repo sweep found these Studio copies ahead of the repo, from before this plan, and brought the repo up to date. If they aren't live already, they go out with the same publishes:
+- **Modules:**
+  - StealthUI (the restyle);
+  - PuzzleClient (Breakable boards);
+  - ProfileData (the `Travel` default);
+  - JumpManager (a trailing newline only).
+- **RenseiServer:** PuzzleService (Breakable boards) and FlowService (`ToMenu`).
+- **ClientHandler package:** `ClientHandler.Run` (slide into sprint).
+- **RenseiTests:** Test_Schema5 and Test_Witness.
+
+**Two travel tests fail in your save.** Play_Travel and Play_RideEvents fail because your real save holds a Cabin / Second ticket. That isn't a regression.
