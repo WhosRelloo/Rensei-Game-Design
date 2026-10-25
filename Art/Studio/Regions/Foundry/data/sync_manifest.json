@@ -73,5 +73,7 @@
   {"Label": "Requests.WeaponSkill", "Studio": "ServerStorage/RenseiServer/ServerHandler/Requests/WeaponSkill", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/ServerHandler/Requests/WeaponSkill.lua", "Places": ["ye", "foundry"], "Create": false},
   {"Label": "Requests.Aim", "Studio": "ServerStorage/RenseiServer/ServerHandler/Requests/Aim", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/ServerHandler/Requests/Aim.lua", "Places": ["ye", "foundry"], "Create": false},
   {"Label": "SPScripts.ClientHandler", "Studio": "StarterPlayer/StarterPlayerScripts/ClientHandler", "Class": "LocalScript", "Repo": "Scripts/StarterPlayer/StarterPlayerScripts/ClientHandler.client.lua", "Places": ["ye", "foundry"], "Create": false},
-  {"Label": "RenseiTests.Play_Stealth", "Studio": "ServerStorage/RenseiTests/Play_Stealth", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Stealth.lua", "Places": ["ye"], "Create": false}
+  {"Label": "RenseiTests.Play_Stealth", "Studio": "ServerStorage/RenseiTests/Play_Stealth", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Stealth.lua", "Places": ["ye"], "Create": false},
+  {"Label": "Rensei.GunAim", "Studio": "ReplicatedStorage/Modules/Data/Rensei/GunAim", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/Data/Rensei/GunAim.lua", "Places": ["ye", "foundry"], "Create": true},
+  {"Label": "RenseiTests.Test_GunAim", "Studio": "ServerStorage/RenseiTests/Test_GunAim", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_GunAim.lua", "Places": ["ye", "foundry"], "Create": true}
 ]}
