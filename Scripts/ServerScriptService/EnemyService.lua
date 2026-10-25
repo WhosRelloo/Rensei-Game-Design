@@ -444,6 +444,18 @@ local function OnWindup(Attacker)
 	end
 end
 
+-- A rig made fight-ready (gun rework Task 4, 2026-10-25; moved out of Spawn, no behaviour change): its WCS character,
+-- WCS's default props and BlockManager. GunKit's test dummies use it too, so DamageManager doesn't call them IFramed.
+-- Returns the WCS character.
+function EnemyService.MakeCombatant(Rig, WalkSpeed)
+	local WC = WCS.Character.new(Rig)
+	-- WCS's default props (walk 16) would replace the enemy's own walk speed whenever a status effect
+	-- ends; its tuned speed is the default instead (speed audit 2026-10-18)
+	WC:SetDefaultProps({WalkSpeed = WalkSpeed, JumpPower = Rig.Humanoid.JumpPower, JumpHeight = Rig.Humanoid.JumpHeight, AutoRotate = true})
+	BlockManager.Initiate(Rig)
+	return WC
+end
+
 function Spawn(Part)
 	-- a part in the DataModel but not in workspace is a backup (RenseiBackups keep their tags): never spawn from it.
 	-- (An unparented mark, not in the DataModel at all, is a runtime spawn: allowed.)
@@ -455,11 +467,7 @@ function Spawn(Part)
 		return
 	end
 	local Rig = BuildRig(Type, Def, Part)
-	local WC = WCS.Character.new(Rig)
-	-- WCS's default props (walk 16) would replace the enemy's own walk speed whenever a status effect
-	-- ends; its tuned speed is the default instead (speed audit 2026-10-18)
-	WC:SetDefaultProps({WalkSpeed = Def.WalkSpeed, JumpPower = Rig.Humanoid.JumpPower, JumpHeight = Rig.Humanoid.JumpHeight, AutoRotate = true})
-	BlockManager.Initiate(Rig)
+	local WC = EnemyService.MakeCombatant(Rig, Def.WalkSpeed)
 	local E = {Rig = Rig, Def = Def, Type = Type, Home = Part, WCS = WC}
 	E.Block = Def.ParryChance and BlockSkill.new(WC) or nil
 	local WeaponName = PickWeapon(Part)

@@ -8,6 +8,7 @@ local LS = require(SSS.LightService)
 local WorldClock = require(SSS.WorldClock) -- Region Foundation Task 2: the clock moves, so the test holds it
 local P = require(game.ReplicatedStorage.Modules.Data.Rensei.Perception)
 local Lighting = game:GetService("Lighting")
+local SmokeKit = require(script.Parent.SmokeKit) -- gun rework Task 4: the temp parts and the guard live there
 local Player = game.Players:GetPlayers()[1]
 local C = Player.Character
 
@@ -25,27 +26,16 @@ local function Put(Rig, Local)
 	C.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
 	task.wait(0.15)
 end
-local Temp = {}
-local function Part(Props)
-	local X = Instance.new("Part")
-	X.Anchored = true
-	for K, V in pairs(Props) do X[K] = V end
-	X.Parent = workspace
-	table.insert(Temp, X)
-	return X
-end
+local Part = SmokeKit.TempPart
 local function Guard(Rig, Body)
-	local Home = C:GetPivot()
-	PS.SetAuto(false); LS.SetAuto(false)
-	if Rig then Rig:SetAttribute("AIPassive", true); PS.Reset(Rig) end
-	local Ok, Err = pcall(Body)
-	for _, X in ipairs(Temp) do X:Destroy() end
-	table.clear(Temp)
-	if Rig then PS.Reset(Rig); Rig:SetAttribute("AIPassive", nil) end
-	C:SetAttribute("Crouching", nil)
-	PS.SetAuto(true); LS.SetAuto(true)
-	C:PivotTo(Home)
-	if not Ok then error(Err, 0) end
+	SmokeKit.Guarded(Player, Body, function()
+		PS.SetAuto(false); LS.SetAuto(false)
+		if Rig then Rig:SetAttribute("AIPassive", true); PS.Reset(Rig) end
+	end, function()
+		if Rig then PS.Reset(Rig); Rig:SetAttribute("AIPassive", nil) end
+		C:SetAttribute("Crouching", nil)
+		PS.SetAuto(true); LS.SetAuto(true)
+	end)
 end
 
 return {

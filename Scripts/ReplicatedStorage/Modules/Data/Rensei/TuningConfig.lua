@@ -560,8 +560,9 @@ TuningConfig.Weapons = {
 			AimFresh = 0.75, -- seconds a stored aim stays good (was 2). Fan the Hammer's last shot is 0.42 s after its request: 0.33 s spare -- PROPOSAL (gun rework 2026-10-25)
 			Interp = 0.1, MaxRewind = 0.25, -- lag compensation: one-way ping + Interp, capped -- PROPOSAL (gun rework 2026-10-25)
 			-- a character's box around its root, from Task 1's measured R6 extents (StarterCharacter: min (-2, -3, -0.5),
-			-- max (2, 2, 0.5) -> size 4 x 5 x 1, centre 0.5 below the root; measured 2026-10-25)
-			HitBox = Vector3.new(4, 5, 1), HitBoxOffset = Vector3.new(0, -0.5, 0), -- PROPOSAL (gun rework 2026-10-25)
+			-- max (2, 2, 0.5) -> width 4 x height 5, centre 0.5 below the root; measured 2026-10-25). Depth 2, not the body's 1
+			-- (gun rework Ruling 5): side-on shots get a little depth forgiveness; the height and top stay as measured.
+			HitBox = Vector3.new(4, 5, 2), HitBoxOffset = Vector3.new(0, -0.5, 0), -- PROPOSAL (gun rework 2026-10-25)
 			FlinchRange = 25, -- shots stun only this close -- PROPOSAL (gun rework 2026-10-25)
 			FireRate = 5, FireBurst = 5, -- the Fire request's own limiter (GunAim.Limiter), per player -- PROPOSAL (gun rework 2026-10-25)
 			HoldGap = 0.25, -- client hold-to-fire: at most one Fire request this often (4 a second, under ServerHandler's shared 8) -- PROPOSAL (gun rework 2026-10-25)

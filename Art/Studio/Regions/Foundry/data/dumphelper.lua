@@ -1,8 +1,9 @@
 -- dumphelper.lua (Foundry data plan, Ruling 19): the save check for every hooked Play session in this plan.
 -- It installs a TEMP Script, LMQuestDump_TEMP, in ServerScriptService. In Play that Script adds the BindableFunction
--- ServerStorage.LMQuestDump, which returns a canonical dump of a player's Data.Quests: recursive, keys sorted, as one
--- string. The dump has to run in the game VM, because the execute_luau sandbox has its own require cache and can't
--- see DataManager's profiles.
+-- ServerStorage.LMQuestDump, which returns a canonical dump of a player's WHOLE save (Prof.Data, every key; gun rework
+-- Ruling 4a, 2026-10-25: it was Data.Quests only): recursive, keys sorted at every level, as one string, so two dumps
+-- compare character for character. The dump has to run in the game VM, because the execute_luau sandbox has its own
+-- require cache and can't see DataManager's profiles.
 --
 -- How to use it (Global Constraints, the Play protocol):
 --   1. In Edit, after hook.lua (step 2), install it in the playing place:
@@ -13,7 +14,8 @@
 --      Save it to the scratch folder as quests_<task>_1.txt. A dump over ~25,000 characters goes into a StringValue
 --      in ServerStorage instead; read it back in 25,000-character chunks, then delete the value.
 --   3. After LMTestHook:Invoke("restore") returns "restored", dump again (quests_<task>_2.txt). It must equal the
---      first dump character for character. If it differs: stop, keep Play running and report both dumps.
+--      first dump character for character: that is the save check (Ruling 4a; the hook's "diff" JSON listing is a
+--      known key-order quirk, not the check). If it differs: stop, keep Play running and report both dumps.
 --   4. After Stop, in Edit, with unhook.lua (step 7), remove the helper: copy this file to the scratch folder, set
 --      its MODE line to "remove" there (only that line), and run the copy in Edit. It returns "removed <n>". Then
 --      clear PlayLock as usual.
@@ -37,7 +39,7 @@ local S = Instance.new("Script")
 S.Name = "LMQuestDump_TEMP"
 S.Source = [==[
 if not game:GetService("RunService"):IsStudio() then return end
--- TEMP (Foundry data plan, the Play protocol's save check): canonical dump of a player's Data.Quests. Delete after.
+-- TEMP (Foundry data plan, the Play protocol's save check): canonical dump of a player's whole save. Delete after.
 local Players = game:GetService("Players")
 local DM = require(game.ServerScriptService:WaitForChild("CharacterHandler", 60):WaitForChild("DataManager", 60))
 local function Key(K) return type(K) == "string" and string.format("%q", K) or (type(K) .. ":" .. tostring(K)) end
@@ -59,7 +61,7 @@ BF.OnInvoke = function(Name)
 	local P = Players:FindFirstChild(Name or "") or Players:GetPlayers()[1]
 	local Prof = P and DM:GetProfile(P)
 	if not Prof then return "no profile" end
-	return Dump(Prof.Data.Quests)
+	return Dump(Prof.Data)
 end
 BF.Parent = game.ServerStorage
 ]==]

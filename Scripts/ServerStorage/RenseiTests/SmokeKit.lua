@@ -21,6 +21,11 @@
 --       AreaOf = function(Part) -> AreaName or nil: WorldService.AreaAt at each workspace spawn is that name.
 -- (Moved here from Play_LindenmoorSmoke and Play_FoundryLedger with the same behaviour; Task 9, Ruling 37: the Copy
 -- helpers of Play_Exams, Play_FoundryForge, Play_QuestEngine and Test_QuestRevision too.)
+--   * SmokeKit.TempPart(Props) (gun rework Task 4, 2026-10-25; moved from Play_Stealth's Part): an anchored Part with
+--     Props, in workspace, remembered until SmokeKit.ClearTemp() destroys every remembered part.
+--   * SmokeKit.Guarded(Player, Body, Before, After) (gun rework Task 4; the clean-up half of Play_Stealth's Guard):
+--     remembers the player's character pivot, runs Before() (optional), then pcall(Body); then clears the temp parts,
+--     runs After() (optional), puts the character back (pivot, zero velocity) and re-raises Body's error.
 local CollectionService = game:GetService("CollectionService")
 local SSS = game:GetService("ServerScriptService")
 local MovementState = require(game:GetService("ReplicatedStorage").Modules.Managers.MovementState)
@@ -28,6 +33,35 @@ local MovementState = require(game:GetService("ReplicatedStorage").Modules.Manag
 local SmokeKit = {}
 
 SmokeKit.SPAWN_GROUND = 6 -- PROPOSAL: studs from a spawn's centre down to the ground under it (Ye's spawns: 0.5..1.5)
+
+local Temp = {} -- the parts TempPart made, until ClearTemp
+
+function SmokeKit.TempPart(Props)
+	local X = Instance.new("Part")
+	X.Anchored = true
+	for K, V in pairs(Props) do X[K] = V end
+	X.Parent = workspace
+	table.insert(Temp, X)
+	return X
+end
+
+function SmokeKit.ClearTemp()
+	for _, X in ipairs(Temp) do X:Destroy() end
+	table.clear(Temp)
+end
+
+function SmokeKit.Guarded(Player, Body, Before, After)
+	local C = Player.Character
+	local Home = C:GetPivot()
+	if Before then Before() end
+	local Ok, Err = pcall(Body)
+	SmokeKit.ClearTemp()
+	if After then After() end
+	C:PivotTo(Home)
+	local Root = C:FindFirstChild("HumanoidRootPart")
+	if Root then Root.AssemblyLinearVelocity = Vector3.zero end
+	if not Ok then error(Err, 0) end
+end
 
 function SmokeKit.Copy(V)
 	if type(V) ~= "table" then return V end
