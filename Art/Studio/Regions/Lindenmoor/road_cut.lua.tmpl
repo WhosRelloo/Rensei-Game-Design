@@ -12,8 +12,10 @@
 --            (not under the road) by its height change (old CFrame in LindenmoorRoadCutFrom); then runs the checks.
 --            The road and its travel pieces (Ground slabs, Passage legs, RoadPoints, Threshold, Encounters, the
 --            RoadStart arrival, the RoadGate arch) are never touched.
---   "undo":  reverses all of it. Nothing is planned after it; the other steps' undos refuse while it is applied
---            (rollback order: road_cut, bed, seam_pits, gorge, regrade, restore.lua, prep_ye).
+--   "undo":  reverses all of it. Nothing is planned after it. While it is applied, seam_pits.lua, gorge_fix.lua and
+--            regrade_seam.lua refuse to undo, and import/restore.lua refuses to run; bed_fix.lua's bedundo,
+--            shelters.lua and east_west_names.lua don't check it.
+--            Rollback order: east_west_names, shelters, road_cut, bed, seam_pits, gorge, regrade, restore.lua, prep_ye.
 --   "check": the checks only: RoadPoints vs the ground under them, a hollow under any road column, the ground tops
 --            as planned, the bare-Baseplate scan, moved objects' bases, the part count, route steps.
 --   "test":  snapshot, apply, checks, undo, snapshot.

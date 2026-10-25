@@ -38,6 +38,9 @@ local function Build()
 	local Points = {} -- [Id] = attributes
 	local Count = {}
 	local function Add(Kind, Key, Label, I, Extra)
+		-- only what is in the world (final review C1, 2026-10-24): RenseiBackups keep their tags (the retired old-hub
+		-- GruntSpawns), and a point there is somewhere no player can go
+		if not I:IsDescendantOf(workspace) then return end
 		local P = Pos(I)
 		if not P or Key == nil or Key == "" then return end
 		local Base = Kind .. "_" .. tostring(Key)

@@ -1,7 +1,10 @@
 -- EnemyService: PvE enemies (controls doc: "Dummy, Grunt, Elite (block/parry AI). Uses the same
 -- combat rules as players.").
 --
--- Spawns: any BasePart tagged "RenseiEnemySpawn" with attribute EnemyType ("Grunt" | "Elite").
+-- Spawns: any BasePart tagged "RenseiEnemySpawn" with attribute EnemyType ("Grunt" | "Elite"), in workspace only
+-- (final review C1, 2026-10-24): a retired spawn kept in ServerStorage.RenseiBackups keeps its tag, and must not spawn.
+-- Spawn() also takes a part outside the DataModel (RoadService's ambush marks and RideEvents' holdup marks are
+-- unparented on purpose, so they never respawn); it refuses only a part that sits in the DataModel outside workspace.
 -- Looks (owner 2026-10-15): every spawn is dressed from the character creator's assets, true to a
 -- nation (Customization.RandomLook): the spawn part's Nation attribute, else the enemy type's Nation,
 -- else a random nation. The rig carries Nation / Gender attributes.
@@ -442,6 +445,9 @@ local function OnWindup(Attacker)
 end
 
 function Spawn(Part)
+	-- a part in the DataModel but not in workspace is a backup (RenseiBackups keep their tags): never spawn from it.
+	-- (An unparented mark, not in the DataModel at all, is a runtime spawn: allowed.)
+	if Part:IsDescendantOf(game) and not Part:IsDescendantOf(workspace) then return nil end
 	local Type = Part:GetAttribute("EnemyType")
 	local Def = Type and Tuning.Enemies[Type]
 	if not Def then
@@ -484,7 +490,7 @@ function Spawn(Part)
 		local Dungeon = Def.Dungeon == true
 		local Wait = Part:GetAttribute("RespawnTime") or (Dungeon and Tuning.DungeonRespawn.Time) or Def.RespawnTime
 		task.delay(Wait, function()
-			while Dungeon and Part.Parent do
+			while Dungeon and Part:IsDescendantOf(workspace) do
 				local Near = false
 				for _, P in ipairs(Players:GetPlayers()) do
 					local Root = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
@@ -493,7 +499,7 @@ function Spawn(Part)
 				if not Near then break end
 				task.wait(10)
 			end
-			if Part.Parent then Spawn(Part) end
+			if Part:IsDescendantOf(workspace) then Spawn(Part) end -- (a spawn retired since then stays retired)
 		end)
 	end)
 	-- notices players through sight and alert phases (PerceptionService); arena / trial foes keep distance aggro
@@ -523,8 +529,13 @@ function EnemyService.Start()
 	while not Handler:GetAttribute("WCSStarted") and os.clock() - T0 < 15 do task.wait(0.1) end
 	Players.PlayerAdded:Connect(WatchPlayer)
 	for _, Player in ipairs(Players:GetPlayers()) do WatchPlayer(Player) end
-	for _, Part in ipairs(CollectionService:GetTagged(SPAWN_TAG)) do task.spawn(Spawn, Part) end
-	CollectionService:GetInstanceAddedSignal(SPAWN_TAG):Connect(function(Part) task.spawn(Spawn, Part) end)
+	-- only spawns in workspace: a tagged spawn in a backup (ServerStorage.RenseiBackups) stays retired
+	for _, Part in ipairs(CollectionService:GetTagged(SPAWN_TAG)) do
+		if Part:IsDescendantOf(workspace) then task.spawn(Spawn, Part) end
+	end
+	CollectionService:GetInstanceAddedSignal(SPAWN_TAG):Connect(function(Part)
+		if Part:IsDescendantOf(workspace) then task.spawn(Spawn, Part) end
+	end)
 end
 
 return EnemyService

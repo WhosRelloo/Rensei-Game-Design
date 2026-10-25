@@ -41,6 +41,17 @@ if not (Dest and Dest.Parent == Map) then
 	return "restore refused: the World.Map." .. (B:GetAttribute("MapChild") or MAPCHILD) .. " made with backup " .. B.Name
 		.. " is not in World.Map; nothing changed"
 end
+-- Later fixes made in place on World.Map.<MapChild> (the region file's RestoreRefuseFlags): each one marks it with
+-- an attribute and has its own undo. restore.lua would carry them off half-undone, so it refuses while any is set.
+local REFUSE_FLAGS = HS:JSONDecode([==[["LindenmoorSeamRegrade", "LindenmoorSeamPits", "LindenmoorGorgeFix", "LindenmoorGorgeBed", "LindenmoorRoadCut", "LindenmoorShelters", "LindenmoorEastWest"]]==])
+local StillSet = {}
+for _, F in ipairs(REFUSE_FLAGS) do
+	if Dest:GetAttribute(F) then table.insert(StillSet, F) end
+end
+if #StillSet > 0 then
+	return "restore refused: World.Map." .. Dest.Name .. " still carries " .. table.concat(StillSet, ", ")
+		.. " (undo those fixes first, in the Kit's rollback order); nothing changed"
+end
 local BMap = B:FindFirstChild("Map")
 local Clash = {}
 for _, C in ipairs(BMap and BMap:GetChildren() or {}) do

@@ -20,6 +20,12 @@
 --     Start; each of the five trials has exactly one.
 --   * TrainersCanBeTalkedTo: each of the five elemental trainers has its DialogueId (a dialogue that exists), got its
 --     talk prompt at Start, and stands within 6 studs of its TrainerSpot.
+--   * EnemiesStandInTheWorld (final review C1, 2026-10-24): every enemy EnemyService has live has its Home (the part
+--     it spawned from) in workspace, or outside the DataModel altogether (a runtime mark: RoadService's ambushes,
+--     RideEvents' holdups); never in the DataModel outside workspace (the retired old-hub GruntSpawns in RenseiBackups
+--     keep their tag). No tagged spawn outside workspace has an enemy, and a downward ray from each RenseiEnemySpawn
+--     in use meets ground within SPAWN_GROUND studs. Before the fix, the two retired GruntSpawns spawned Grunts from
+--     ServerStorage.
 -- Everything the tests change (the player's root, the clock hold, the crag tags) is put back.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
@@ -372,6 +378,62 @@ function Suite.TrainersCanBeTalkedTo(T)
 		local Off = (Root.Position - Spot.Position).Magnitude
 		T.True(Off <= 6, ("%s stands %.1f studs from the TrainerSpot (at most 6)"):format(Name, Off))
 	end
+end
+
+-- ===== enemies =====
+local SPAWN_GROUND = 6 -- PROPOSAL: studs from a spawn's centre down to the ground under it (Ye's spawns: 0.5..1.5)
+
+function Suite.EnemiesStandInTheWorld(T)
+	local ES = require(SSS.EnemyService)
+	local Live = workspace.World:FindFirstChild("Live")
+	-- the spawns in use: the Home of every live enemy
+	local Used, Homes, N, Marks = {}, {}, 0, 0
+	for Rig, E in pairs(ES.Active) do
+		N += 1
+		local Home = E.Home
+		T.True(Home ~= nil, Rig.Name .. " has a Home")
+		if Home:IsDescendantOf(game) then
+			T.True(Home:IsDescendantOf(workspace), ("%s's Home %s is in workspace"):format(Rig.Name, Home:GetFullName()))
+			if not Used[Home] then Used[Home] = true table.insert(Homes, Home) end
+		else
+			Marks += 1 -- (a runtime mark outside the DataModel: an ambush or holdup; it never respawns)
+		end
+	end
+	T.True(N > 0, "EnemyService has live enemies")
+	-- a tagged spawn outside workspace (a backup) has no enemy
+	local Out = 0
+	for _, P in ipairs(CollectionService:GetTagged("RenseiEnemySpawn")) do
+		if not P:IsDescendantOf(workspace) then
+			Out += 1
+			T.True(not Used[P], P:GetFullName() .. " (not in workspace) has no enemy")
+		end
+	end
+	-- no live enemy model stands on a spawn EnemyService doesn't know (a Grunt from a backup, before its Home check)
+	if Live then
+		for _, M in ipairs(Live:GetDescendants()) do
+			if M:IsA("Model") and M:GetAttribute("EnemyType") and M:FindFirstChildOfClass("Humanoid")
+				and M:FindFirstChildOfClass("Humanoid").Health > 0 and not M:GetAttribute("TownsfolkId") then
+				T.True(ES.Active[M] ~= nil, M:GetFullName() .. " is one of EnemyService's live enemies")
+			end
+		end
+	end
+	-- each spawn in use stands on ground (not on a live rig or a player)
+	local Skip = {Live}
+	for _, Pl in ipairs(game.Players:GetPlayers()) do if Pl.Character then table.insert(Skip, Pl.Character) end end
+	local RP = RaycastParams.new()
+	RP.FilterType = Enum.RaycastFilterType.Exclude
+	for _, Home in ipairs(Homes) do
+		if not CollectionService:HasTag(Home, "RenseiEnemySpawn") then continue end -- (a trial / admin / test mark)
+		local Where = Home:IsA("BasePart") and Home.Position or Home:GetPivot().Position
+		local Ex = table.clone(Skip)
+		table.insert(Ex, Home)
+		RP.FilterDescendantsInstances = Ex
+		local Hit = workspace:Raycast(Where, Vector3.new(0, -SPAWN_GROUND, 0), RP)
+		T.True(Hit ~= nil, ("%s at (%.0f, %.1f, %.0f): ground within %d studs below"):format(Home:GetFullName(),
+			Where.X, Where.Y, Where.Z, SPAWN_GROUND))
+	end
+	print(("[Play_LindenmoorSmoke] EnemiesStandInTheWorld: %d live enemies on %d spawns (+%d runtime marks); %d tagged spawns outside workspace")
+		:format(N, #Homes, Marks, Out))
 end
 
 return Suite

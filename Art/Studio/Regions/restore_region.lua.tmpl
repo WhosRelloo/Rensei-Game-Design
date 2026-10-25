@@ -41,7 +41,7 @@ if not (Dest and Dest.Parent == Map) then
 	return "restore refused: the World.Map." .. (B:GetAttribute("MapChild") or MAPCHILD) .. " made with backup " .. B.Name
 		.. " is not in World.Map; nothing changed"
 end
-local BMap = B:FindFirstChild("Map")
+{{REFUSE_FLAGS}}local BMap = B:FindFirstChild("Map")
 local Clash = {}
 for _, C in ipairs(BMap and BMap:GetChildren() or {}) do
 	for _, Live in ipairs(Map:GetChildren()) do

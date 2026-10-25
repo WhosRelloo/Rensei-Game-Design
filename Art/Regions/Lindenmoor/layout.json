@@ -3,6 +3,7 @@
   "PlaceId": 106992859583940,
   "KeepMapChildren": ["AlchemistSpawns", "Lindenmoor", "Ground", "HalvardsAdit", "BurnedLaboratory", "FoundryYard", "SilentObservatory", "UnstableQuarry", "SilentForge", "GaleFloor", "Wall", "Curve", "Hill", "Step", "CrackedFootbridge", "FrozenStation", "ForgeFloor", "Baseplate", "LedgeCourse", "AshPit", "FrozenChamber", "TrainingGround"],
   "MapChild": "LindenmoorExpansion",
+  "RestoreRefuseFlags": ["LindenmoorSeamRegrade", "LindenmoorSeamPits", "LindenmoorGorgeFix", "LindenmoorGorgeBed", "LindenmoorRoadCut", "LindenmoorShelters", "LindenmoorEastWest"],
   "Footprint": [2048, 2048],
   "Notes": [
     "Lindenmoor expansion (owner-approved layout, 2026-10-23). Every number here is a PROPOSAL unless marked measured.",

@@ -408,11 +408,21 @@ The Lindenmoor expansion is in Ye's Studio Edit session, tested, and **not live*
 **Compass (Ruling 38b).** Ye's north is **+Z**, so east is **−X**. This doc's builder sections and the layout files use the builder's frame (x = east), in which the road leaves to the "north-east". On Ye's compass, the one players see, the road and the rails leave Lindenmoor to the **north-west**. Ye's area names are **West Lookout** and **Northwest Gap**.
 
 ### Final part count
-- **Workspace:** 76,373 BaseParts, against the place's 80,000 ceiling. It read 76,369 an hour earlier the same day; the 4 extra parts are inside the expansion, with no duplicates and no test names, and their source wasn't found.
+- **Workspace:** 76,373 BaseParts, against the place's 80,000 ceiling (76,372 at the final fix pass). It read 76,369 an hour earlier the same day; the 4 extra parts are inside the expansion (see "The unexplained parts" below).
 - **`World.Map.LindenmoorExpansion`:** 45,425, including the north-west road's `Travel` (1,592).
   - The import itself brought 40,645.
   - The seam regrade, the seam pits, the gorge fix, the road cut and the shelter posts added the rest.
   - That is over the expansion's own 42,000 ceiling. Ruling 25 accepts it, because the binding limit is the place's 80,000.
+- **The unexplained parts (final fix pass, read-only, 2026-10-24).** Every part is accounted for: the export's 40,645, minus 1,888 export parts now in the fix backups (Ground 1,848, Gorge 37, Routes 3), plus 4,940 parts the fixes built (each carries `LindenmoorSeamNew`, `LindenmoorSeamPitsNew`, `LindenmoorRoadCutNew`, `GorgeFixNew` or `LindenmoorShelterAdd`), plus `Travel` 1,592, `SeamFillers` 12, `SeamPitsFill` 95 and `SeamRegradeFill` 19, plus **10 parts with no provenance marker and no row in the export**. Those 10 are the drift. None is an exact copy (same CFrame and Size) of another part, and none carries a tag or an attribute. They look like Studio duplicates (Ctrl+D keeps the source's name), moved or resized by hand. No repo script makes unmarked parts with these names. **They were not deleted;** the owner decides.
+
+  | Group | Part | Copies (export had) | Where | Looks like |
+  |---|---|---|---|---|
+  | Gorge | `GorgeLedge_gorge_ledge` → `Gorge part` | 4 (0) | x 757..773, z −568.4, y 12..27, beside the footbridge's south end | Ground-material wall blocks (#4b392f), two of them tilted −22°: a hand patch of the south gorge wall |
+  | Routes | `Route_creek_walk_west` → `Ribbon143` | 5 (1) | around (−611, 14, −488) | resized, re-tilted ribbon pieces |
+  | Routes | `Route_market_road` → `Ribbon91` | 2 (1) | (−601.7, 12.2, −472.1), 13.8 × 16.3 × 18.1 | a resized ribbon block by the west creek |
+  | Farmsteads | `Farmyard_farm_3` → `CartShaft` | 2 (1) | (−884.6, 25.0, −607.7), 5.3 studs from the original | a moved copy of the cart's shaft |
+
+  The 71 exact-geometry pairs elsewhere in the expansion are the export's own corner fence posts (Farmsteads 24, Fields 45, Routes 2), each pair with two different names. Every `RenseiBackups.Pre-*` folder the plan made still holds what its script reported: Pre-SeamRegrade 1,631, Pre-SeamPits 3,093, Pre-RoadCut 207, Pre-LindenmoorExpansion 5 pieces, Pre-GorgeFix 44 pieces (the bridge's 37, Ribbon184 and 6 pit cells) with 2 terrain snapshots.
 - **Attributes:**
   - the expansion carries `LindenmoorSeamRegrade`, `LindenmoorSeamPits`, `LindenmoorGorgeFix`, `LindenmoorGorgeBed`, `LindenmoorRoadCut`, `LindenmoorShelters` and `LindenmoorEastWest`;
   - `World.Map` has `LindenmoorPrep = "applied"`.
@@ -435,7 +445,7 @@ The Lindenmoor expansion is in Ye's Studio Edit session, tested, and **not live*
 - [x] Play tests (Tasks 7–9).
 
 ### Smoke test (`ServerStorage.RenseiTests.Play_LindenmoorSmoke`)
-The repo copy is `Scripts/ServerStorage/RenseiTests/Play_LindenmoorSmoke.lua`. Run it in hooked Play through `LMRunSuite`. Before review it passed 7/0 in two of three sessions (the first was 6/1 on a test spot), under an older crag check that could not fail. After review fix round 1, with the stricter check, it passed 7/0 (with Play_NoGrip 6/0). With the crag tags taken off around one spot, it **failed**, as it must.
+The repo copy is `Scripts/ServerStorage/RenseiTests/Play_LindenmoorSmoke.lua`. Run it in hooked Play through `LMRunSuite`. Before review it passed 7/0 in two of three sessions (the first was 6/1 on a test spot), under an older crag check that could not fail. After review fix round 1, with the stricter check, it passed 7/0 (with Play_NoGrip 6/0). With the crag tags taken off around one spot, it **failed**, as it must. At the final fix pass, with EnemiesStandInTheWorld added, it was 7/1 before the EnemyService fix and **8/0** after.
 
 | Check | What it proves |
 |---|---|
@@ -446,6 +456,7 @@ The repo copy is `Scripts/ServerStorage/RenseiTests/Play_LindenmoorSmoke.lua`. R
 | LedgeWorks | The gorge's one `RenseiLedge` strip faces its wall: there is a wall 0.7 studs in front at both ends and in the middle, and nothing behind. |
 | EveryTrialStarts | All five `RenseiTrial` markers are in workspace, one per trial, each with a known `TrialId` and its Begin Trial prompt. |
 | TrainersCanBeTalkedTo | The five trainers (Calda, Veyra, Holt, Ansel and Brannoc) each have their `trainer_<element>` dialogue and a talk prompt, and stand within 6 studs of their TrainerSpot. |
+| EnemiesStandInTheWorld | (Final fix pass.) Every enemy EnemyService has live has its Home spawn in `workspace`; no tagged spawn outside `workspace` has an enemy; every live enemy model is one of EnemyService's; a ray down from each spawn in use meets ground within 6 studs (PROPOSAL). Before the fix it **failed**: the two retired old-hub GruntSpawns in `Pre-LindenmoorExpansion_2026-10-24` kept their tag and spawned two Grunts at (−17, _, −70) and (26.5, _, −70). |
 
 **Where the crag check stands.** Choosing the spot never reads the `RenseiNoGrip` tag:
 - **The crag's foot** is the last expansion Ground cell before the ground rises more than 40 studs in one 2-stud step.
@@ -482,9 +493,9 @@ Do this in Edit, never in Play, in this order. Each Studio-fix script takes its 
 3. **`road_cut.lua`**, `MODE = "undo"`. This also removes the mouth ramp.
 4. **`bed_fix.lua`**, `MODE = "bedundo"`.
 5. **`seam_pits.lua`**, `MODE = "undo"`. It refuses while the road cut is applied.
-6. **`gorge_fix.lua`** `undo`: `python -I Art/Studio/Regions/Lindenmoor/bundle_gorge_fix.py fix <out.lua> undo`.
-7. **`regrade_seam.lua`**, `MODE = "undo"`. It refuses while the seam pits are applied.
-8. **`import/restore.lua`.**
+6. **`gorge_fix.lua`** `undo`: `python -I Art/Studio/Regions/Lindenmoor/bundle_gorge_fix.py fix <out.lua> undo`. It refuses while the road cut, the bed or the seam pits are applied.
+7. **`regrade_seam.lua`**, `MODE = "undo"`. It refuses while the road cut, the seam pits or the gorge fix are applied.
+8. **`import/restore.lua`.** It refuses, changing nothing, while the expansion still carries any of the seven fix flags (`LindenmoorSeamRegrade`, `LindenmoorSeamPits`, `LindenmoorGorgeFix`, `LindenmoorGorgeBed`, `LindenmoorRoadCut`, `LindenmoorShelters`, `LindenmoorEastWest`; the region file's `RestoreRefuseFlags`), so steps 1–7 come first.
    - It moves `LindenmoorExpansion` into `Post-Region_Lindenmoor_<date>`, together with its `Travel`, its `SeamFillers` and the shelter posts.
    - It pastes the terrain back under the water boxes.
 9. **`prep_ye.lua` undo, from a fresh bundle:** `python -I Art/Studio/Regions/Lindenmoor/bundle_prep.py prep <out.lua> undo`. Then check there is exactly one `RenseiArrival` with `Point = "RoadStart"`: the old North Road's.
@@ -496,17 +507,54 @@ Do this in Edit, never in Play, in this order. Each Studio-fix script takes its 
     - **Every other file below:** the Studio backup equals git at `2378b54` (checked by normalised hash, 2026-10-24). Either source works; the Studio backup is still preferred.
     - **Data modules:** Regions, Townsfolk, TownsfolkLogic, Quests, Dialogues, Investigation, Evidence and Puzzles.
     - **UI:** CompassUI and MasteryUI.
-    - **Services:** WorldService (from `RenseiServer.WorldService`, the pre-import copy; the plain `WorldService` backup is Task 8's), TownsfolkService, TownsfolkService.Mover and MoralityService.
+    - **Services:** WorldService (from `RenseiServer.WorldService`, the pre-import copy; the plain `WorldService` backup is Task 8's), TownsfolkService (from `RenseiServer.TownsfolkService`; `RenseiServer.TownsfolkService_Task8` is the copy from just before the final fix pass), TownsfolkService.Mover and MoralityService.
+    - **EnemyService and CompassService** (`RenseiServer.EnemyService`, `RenseiServer.CompassService`): optional. Their backups are from before the final fix pass and equal git at `2378b54`. The workspace filter they lack is what keeps the retired GruntSpawns from spawning, so keep the fixed copies unless you need the exact pre-import text.
     - **Test suites:**
       - from their `RenseiTests.*` backups: Test_Regions, Test_TownsfolkLogic, Play_TownsfolkCrowd and Play_TownsfolkHurt;
       - Play_Road from `RenseiTests.Play_Road` (the pre-import copy, for the old North Road; `RenseiTests.Play_Road_Task7` is Task 7's);
       - Play_Station from `RenseiTests.Play_Station` (the copy from before d3606a5). That revert is optional: d3606a5's Play_Station behaves the same in Ye.
-    - **Delete:** Play_LindenmoorData and Play_LindenmoorSmoke. They are new; the `RenseiTests.Play_LindenmoorData` backup is a Task 8 copy, not a pre-import one.
+    - **Delete:** Play_LindenmoorData and Play_LindenmoorSmoke. They are new; the `RenseiTests.Play_LindenmoorData` backup is a Task 8 copy and `RenseiTests.Play_LindenmoorSmoke_Task9` a Task 9 copy, not pre-import ones.
 11. **Run the travel suites:** Play_Boot, Gate, Arrive, Station, Road, Travel and RideEvents.
 
 **A re-import brings the old names back.** The kit files (`Art/Studio/Regions/Lindenmoor/layout.json` and `import/chunk_*.lua`) still say East Lookout and Northeast Gap. After any re-import from them, re-apply `east_west_names.lua` with `MODE = "apply"`.
 
+### Ye differs from the kit
+Ye's expansion is **not** what the kit files build. The kit is `Art/Studio/Regions/Lindenmoor/layout.json`, `import/chunk_*.lua` and the Blender scene `Lindenmoor_Expansion.blend`. After the import, these Studio fixes changed Ye in place, and none of them is in the kit:
+- the **seam regrade** (`regrade_seam.lua`) and its `SeamRegradeFill` slabs;
+- the **seam pits** (`seam_pits.lua`) and their `SeamPitsFill` blocks;
+- the **gorge fix** (`gorge_fix.lua`): the straight, centred footbridge, its landings and the gorge and west-creek water;
+- the **gorge bed** (`bed_fix.lua`): the slate channel bed;
+- the **road cut** (`road_cut.lua`) and its mouth ramp;
+- the **seam fillers** (`SeamFillers`, Ruling 20, placed by hand);
+- the **7 Shelter posts** (`shelters.lua`);
+- the **east/west names** (`east_west_names.lua`): West Lookout, Northwest Gap and the two village descriptions.
+
+The north-west road's `Travel` is built by `setup.lua` from the kit's marker, so a re-run of `setup.lua` brings it back.
+
+**A re-import from the kit, or a Blender rebuild and fresh export, silently drops all of the list above.** Nothing warns you: the import's own checks pass, because they compare against the kit. After any re-import:
+1. Re-apply the fixes in the order they first ran: the seam fillers (by hand), the seam regrade, the gorge fix, the seam pits, the bed, `setup.lua`, the road cut, the shelters, then the east/west names. Regenerate the generated ones (`regrade_seam.lua`, `seam_pits.lua`, `road_cut.lua`) from a fresh survey with their `.py` first, each right before it runs: their committed plans are for the ground as it was. Every fix checks the ground or targets it expects, and refuses instead of half-applying when they don't match.
+2. Re-run the smoke and travel suites.
+
+`test_ye_fixes.py` (beside the kit scripts) fails if the kit gains an east/west name that `east_west_names.lua` doesn't swap.
+
+### Known issues (accepted or parked, 2026-10-24)
+Each is recorded in the import plan's ledger. None blocks the publish.
+- **19 corner steps at the village seam, up to 8 studs** (Ruling 30). Where Ye's two edge cells differ by 3–17 studs, no single height meets both. The steps are jumpable. The owner can point at one, and it gets fixed by hand.
+- **Dry pocket cells by Halvard's Adit.** 191 low cells south of the gorge mouth (x 328..560, z −608..−576, tops 1–5) lie behind the south bank and don't connect to the channel, so the gorge fix left them dry.
+- **About 1.2 studs of water over the village creek mouth.** The gorge's upstream water caps reach over the village's creek bed (top 4) at x 316..332 and fill the hollow under the village there. Cosmetic: it may read as the creek flowing out, or as a flooded bed.
+- **A village oak's trunk runs through `Filler_Slit`** (`OakBig_Rim45`, its `Trunk` and `Root3`).
+- **Test-order flakes, not game bugs:**
+  - Play_Rumours R2 fails when it repeats in one session;
+  - Play_Gate has an ordering flake;
+  - Play_TownsfolkHurt goes 10/1 when it runs 13th in a session: Gossip hears an earlier rumour.
+  Each passes on a fresh session.
+- **The miller and the groundskeeper sleep curled up in the open.** Their night posts are Shelter posts, whose idle is `NPC_CurledUp`, so they spend every night curled up at the mill's and the training field's shelters.
+- **Trains reach Foundry Yard from its east, and the road from its south.** The lines can curve in between, so it isn't a contradiction, but a player may notice.
+- **The expansion is over its own 42,000 ceiling.** It is at 45,425 (Ruling 25 accepts it; the binding limit is the place's 80,000). Ye has **about 3.6k parts of headroom** left (76,372 of 80,000), and the next region work must fit in it.
+
 ### Publish checkpoint (for the owner)
+**On hold (owner, 2026-10-24: "Hold both").** Ye (the Lindenmoor expansion) and Foundry Yard stay unpublished until the Foundry Yard plan has finished Foundry's game data. Then both are published together, in the order below. **Publishing Foundry Yard ships its new map**, the one the Foundry Yard plan imported, so it must be ready too. The steps stay as written, for when that happens.
+
 **First:** Ye's Edit session holds every change below, unsaved.
 1. **Save the place in Studio. Don't publish anything yet.**
 2. Walk the new land in Play once: the farms, the gorge and its ledge, the mine, the woods, the meadows, the training field, and the north-west road to the gap.
@@ -537,8 +585,9 @@ Foundry Yard gets these through step 2 of the order. Its compass stays −Z nort
 
 **2. The RenseiServer package** (`ServerStorage.RenseiServer`):
 - WorldService;
-- TownsfolkService and TownsfolkService.Mover;
-- MoralityService (a comment change only).
+- TownsfolkService (since the final fix pass its posts count only in `workspace`) and TownsfolkService.Mover;
+- MoralityService (a comment change only);
+- **EnemyService and CompassService** (final fix pass): only spawns and compass points in `workspace` count, so the retired GruntSpawns in the backups no longer spawn Grunts by the old hub.
 
 **3. The ClientHandler package** (`StarterPlayer.StarterPlayerScripts.ClientHandler`): `ClientHandler.Run` (slide into sprint). The sweep found the repo behind Studio here. It predates this plan, and may already be live.
 
@@ -554,7 +603,7 @@ Foundry Yard gets these through step 2 of the order. Its compass stays −Z nort
 - **The 7 Shelter posts.**
 - **The names:** the West Lookout and Northwest Gap AreaNames, and the Bramble Hollow and Halvard's Adit descriptions.
 - **Place-owned scripts** in `ServerStorage.RenseiTests` (not a package):
-  - new: Play_LindenmoorData and Play_LindenmoorSmoke;
+  - new: Play_LindenmoorData and Play_LindenmoorSmoke (with EnemiesStandInTheWorld since the final fix pass);
   - changed: Test_Regions, Test_TownsfolkLogic, Play_TownsfolkCrowd and Play_TownsfolkHurt;
   - Play_Road and Play_Station, the d3606a5 versions.
 - **`ServerStorage.RenseiBackups`.**

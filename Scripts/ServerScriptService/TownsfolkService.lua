@@ -136,7 +136,8 @@ end
 -- ===== posts =====
 local function AddPost(P)
 	local Id = P:GetAttribute("PostId")
-	if P:IsA("BasePart") and type(Id) == "string" and Id ~= "" then Posts[Id] = P end
+	-- in workspace only (final review M1, 2026-10-24): a post kept in a backup keeps its tag
+	if P:IsA("BasePart") and P:IsDescendantOf(workspace) and type(Id) == "string" and Id ~= "" then Posts[Id] = P end
 end
 local function RemovePost(P)
 	local Id = P:GetAttribute("PostId")

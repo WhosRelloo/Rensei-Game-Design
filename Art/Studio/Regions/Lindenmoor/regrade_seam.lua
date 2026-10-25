@@ -20,7 +20,9 @@
 --                LindenmoorSeamFrom (and old Size in LindenmoorSeamSize for a re-tilted piece);
 --            then runs the checks below.
 --   "undo":  destroys the new parts, puts every backed-up part back with its tags, returns every moved object, deletes
---            the backup and clears the attribute. Refuses if nothing is applied.
+--            the backup and clears the attribute. Refuses if nothing is applied, and while a later fix built on the
+--            regrade is applied: the road cut (LindenmoorRoadCut), the seam pits (LindenmoorSeamPits) or the gorge fix
+--            (LindenmoorGorgeFix, final review I2). Undo those first.
 --   "check": the checks only: the boundary jumps (Ye's top vs the expansion's, every Ye<->expansion boundary pair, by
 --            class), the bare-Baseplate scan (4-stud grid over the whole map), moved objects' bases against the
 --            ground under them, the part count, and steps along every route's centreline.
@@ -216,9 +218,17 @@ end
 -- ------------------------------------------------------------------ undo (also the rollback of a failed apply)
 local function undo(strict)
 	local B = backupFolder(false)
-	if strict and EX:GetAttribute("LindenmoorRoadCut") then error("undo road_cut.lua first") end
+	if strict then -- fixes applied after the regrade, on top of it (the gorge fix: final review I2)
+		local later = {}
+		for _, a in ipairs({ "LindenmoorRoadCut", "LindenmoorSeamPits", "LindenmoorGorgeFix" }) do
+			if EX:GetAttribute(a) then table.insert(later, a) end
+		end
+		if #later > 0 then
+			error("regrade_seam undo: still applied: " .. table.concat(later, ", ")
+				.. "; undo those first (rollback order: road_cut, bed_fix bedundo, seam_pits, gorge_fix, then regrade_seam)")
+		end
+	end
 	if strict and not EX:GetAttribute(FLAG) and not B then error("regrade_seam undo: nothing is applied") end
-	if strict and EX:GetAttribute("LindenmoorSeamPits") then error("regrade_seam undo: undo seam_pits.lua first") end
 	local n = { destroyed = 0, restored = 0, returned = 0 }
 	for _, d in ipairs(EX:GetDescendants()) do
 		if d.Parent and d:GetAttribute(NEWATTR) then

@@ -4,8 +4,8 @@ Owner's to-do list, in the owner's words. The order is the owner's, and none of 
 
 ## Order after the region foundation (owner, 2026-10-24)
 "I want the lindenmoor expansion to go first after foundation."
-1. [x] **Lindenmoor expansion import into Ye** (owner: "The Lindenmoor expansion is gonna go in Ye"). The village stays where it is; the hub's trainers and trial sites move onto their reserved spots; the cliff gets `RenseiNoGrip`. Steps: `Documents/Lindenmoor Kit.md`, "Expansion (Blender)". *(Done 2026-10-24, import plan Tasks 1–9: in Ye's Studio Edit session, smoke-tested; not live until the owner saves Ye, walks it once in Play and publishes the place, Modules and RenseiServer. See `Documents/Lindenmoor Kit.md`, "The import is done".)*
-2. **The Foundry Yard plan** (the first full region).
+1. [x] **Lindenmoor expansion import into Ye** (owner: "The Lindenmoor expansion is gonna go in Ye"). The village stays where it is; the hub's trainers and trial sites move onto their reserved spots; the cliff gets `RenseiNoGrip`. Steps: `Documents/Lindenmoor Kit.md`, "Expansion (Blender)". *(Done 2026-10-24, import plan Tasks 1–9: in Ye's Studio Edit session, smoke-tested; not live until the owner saves Ye, walks it once in Play and publishes the place, Modules and RenseiServer. See `Documents/Lindenmoor Kit.md`, "The import is done".)* **Publish on hold** (owner, 2026-10-24: "Hold both"): Ye and Foundry Yard stay unpublished until the Foundry Yard plan finishes Foundry's game data, then both are published together. Publishing Foundry ships its new map.
+2. **The Foundry Yard plan** (the first full region). When it has finished Foundry's game data, Ye (with the Lindenmoor expansion) and Foundry Yard are published together (owner, 2026-10-24: "Hold both"); the checkpoint is in `Documents/Lindenmoor Kit.md`.
 3. **The gun class rework and the swimming revamp** (below), still after all the Foundry tasks.
 
 ## Next, right after World Plan 1 (owner, 2026-10-21 and 2026-10-23)

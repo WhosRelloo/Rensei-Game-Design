@@ -116,6 +116,15 @@ def main(argv):
     for name, src in (("finish", fin), ("restore", res)):
         check(f"{name}: the swap is recorded with ChangeHistoryService",
               "TryBeginRecording" in src and "FinishRecording" in src and src.count("EndRecording()") == 3)
+    # final review I2 (Lindenmoor import): RestoreRefuseFlags -> restore.lua refuses while a later fix flag is set
+    check("restore: no RestoreRefuseFlags = no guard (the template's text unchanged)", kit.refuse_guard({}) == ""
+          and "{{REFUSE_FLAGS}}local BMap" in res)
+    g = kit.refuse_guard({"RestoreRefuseFlags": ["FixA", "FixB"]})
+    check("restore: the guard lists the flags and refuses before any change",
+          '[==[["FixA", "FixB"]]==]' in g and "nothing changed" in g and "Dest:GetAttribute(F)" in g
+          and res.index("{{REFUSE_FLAGS}}") < res.index("TryBeginRecording"))
+    check("restore: RestoreRefuseFlags refuses a bad list", raises(kit.refuse_guard, {"RestoreRefuseFlags": "FixA"})
+          and raises(kit.refuse_guard, {"RestoreRefuseFlags": ["Two words"]}))
 
     # bundle_setup: --region / --map-child / --origin set the three lines in the bundle only
     import bundle_setup as BS
@@ -193,7 +202,7 @@ def main(argv):
         # the templates fill completely
         fill = {"{{REGION}}": '"T"', "{{REGION_TEXT}}": "T", "{{PLACE_ID}}": "0", "{{GENERATED}}": '"2026-10-24"',
                 "{{GENERATED_TEXT}}": "2026-10-24", "{{EXPECTED}}": "{}", "{{WATER}}": "[]", "{{KEEP}}": "[]", "{{ORIGIN}}": "0, 0, 0",
-                "{{MAPCHILD}}": '"T"', "{{MAPCHILD_TEXT}}": "T"}
+                "{{MAPCHILD}}": '"T"', "{{MAPCHILD_TEXT}}": "T", "{{REFUSE_FLAGS}}": ""}
         for name, path in kit.TEMPLATES.items():
             check(f"{name} template fills every slot", not raises(kit.fill_template, path, fill))
         # a test run (--out, --offset): the scripts go elsewhere, the committed import/ is untouched, everything moves

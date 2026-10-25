@@ -6,7 +6,8 @@ python -I Art/Studio/Regions/kit.py <Region> [--date YYYY-MM-DD] [--keep Name1,N
          Art/Regions/<Region>/materials.json        (optional: else studio_kit's built-in table)
          Art/Regions/<Region>/water.json            (optional: terrain water boxes)
          Art/Regions/<Region>/layout.json           (the region file: PlaceId, Budget and the optional
-                                                     KeepMapChildren, MapChild, NoCollide and NoCollideKinds)
+                                                     KeepMapChildren, MapChild, NoCollide, NoCollideKinds and
+                                                     RestoreRefuseFlags)
   writes Art/Studio/Regions/<Region>/import/chunk_NN.lua, expected.json, finish.lua, restore.lua and unstrip.lua
          (from finish_region.lua.tmpl, restore_region.lua.tmpl and unstrip_region.lua.tmpl).
   --date  the generation date written into the headers (default today; the backup is named by the RUN date).
@@ -28,7 +29,11 @@ attribute on RegionStaging and run finish.lua:
   DryRun = true          checks the staging against expected.json, then removes it again (and any MaterialVariant
                          the chunks made): the place is left as it was.
   Confirm = "<Region>"   the real run (only in the region's place): backs up and swaps World.Map (see the template).
-With neither, finish.lua refuses and changes nothing. restore.lua undoes a real run from its backup."""
+With neither, finish.lua refuses and changes nothing. restore.lua undoes a real run from its backup.
+
+RestoreRefuseFlags (optional, final review I2 of the Lindenmoor import): attribute names that later Studio fixes set on
+World.Map.<MapChild> when they change the import in place, each with its own undo. restore.lua then refuses while any of
+them is set. Without the key, restore.lua is generated exactly as before."""
 import datetime, json, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -114,6 +119,34 @@ def no_collide(spec, region, names=None, kinds=None):
     return out[0], out[1]
 
 
+# restore.lua's guard for a region file with RestoreRefuseFlags (filled into the template's {{REFUSE_FLAGS}} slot, at the
+# start of a line, so a region without the key gets the template's text unchanged)
+REFUSE_GUARD = """-- Later fixes made in place on World.Map.<MapChild> (the region file's RestoreRefuseFlags): each one marks it with
+-- an attribute and has its own undo. restore.lua would carry them off half-undone, so it refuses while any is set.
+local REFUSE_FLAGS = HS:JSONDecode([==[{flags}]==])
+local StillSet = {{}}
+for _, F in ipairs(REFUSE_FLAGS) do
+	if Dest:GetAttribute(F) then table.insert(StillSet, F) end
+end
+if #StillSet > 0 then
+	return "restore refused: World.Map." .. Dest.Name .. " still carries " .. table.concat(StillSet, ", ")
+		.. " (undo those fixes first, in the Kit's rollback order); nothing changed"
+end
+"""
+
+
+def refuse_guard(spec):
+    """The restore.lua guard text for the region file's RestoreRefuseFlags ("" without the key)."""
+    flags = spec.get("RestoreRefuseFlags")
+    if flags is None:
+        return ""
+    names = _names(flags, "RestoreRefuseFlags")
+    bad = [n for n in names if not NAME.fullmatch(n)]
+    if bad:
+        raise SystemExit(f"RestoreRefuseFlags: {bad!r} are not attribute names (letters, digits and _)")
+    return REFUSE_GUARD.format(flags=long_json(list(names)))
+
+
 def offset(text):
     """--offset x,y,z -> three numbers (None without the option)."""
     if text is None:
@@ -188,7 +221,7 @@ def main(argv):
     fill = {"{{REGION}}": lua_str(region), "{{REGION_TEXT}}": region, "{{PLACE_ID}}": str(place),
             "{{GENERATED}}": lua_str(date), "{{GENERATED_TEXT}}": date,
             "{{EXPECTED}}": long_json(exp, sort_keys=True), "{{WATER}}": long_json(water.get("Boxes", []), sort_keys=True),
-            "{{KEEP}}": long_json(keep), "{{MAPCHILD}}": lua_str(child), "{{MAPCHILD_TEXT}}": child, "{{ORIGIN}}": ", ".join(repr(float(v)) if isinstance(v, float) else str(v) for v in origin)}
+            "{{KEEP}}": long_json(keep), "{{MAPCHILD}}": lua_str(child), "{{MAPCHILD_TEXT}}": child, "{{REFUSE_FLAGS}}": refuse_guard(spec), "{{ORIGIN}}": ", ".join(repr(float(v)) if isinstance(v, float) else str(v) for v in origin)}
     for name, tmpl in TEMPLATES.items():
         with open(os.path.join(folder, "import", name), "w", encoding="utf-8") as f:
             f.write(fill_template(tmpl, fill))

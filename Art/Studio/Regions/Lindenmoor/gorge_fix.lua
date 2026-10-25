@@ -28,6 +28,8 @@
 --   Every change is journaled; any error rolls the journal back. One ChangeHistory recording/waypoint.
 -- MODE = "undo"  puts every original back where it was, removes the clones, pastes the terrain snapshots back,
 --   clears the attribute, removes the backup folder (and RenseiBackups if apply created it and it is empty).
+--   Refuses, changing nothing, while a later fix built on the gorge fix is applied (final review I2): the seam pits
+--   (LindenmoorSeamPits), the bed (LindenmoorGorgeBed) or the road cut (LindenmoorRoadCut). Undo those first.
 -- MODE = "check" read-only: the post-apply checks (water grid, deck straight/level/centred/walkable, arches, the
 --   ledge walk and waterfall signatures recorded at apply).
 -- Every invented number below is a PROPOSAL.
@@ -710,6 +712,13 @@ elseif MODE == "undo" then
 	local bk = rb and rb:FindFirstChild(BACKUP)
 	if not bk then return refuse("no ServerStorage.RenseiBackups." .. BACKUP) end
 	if not E:GetAttribute(ATTR) then return refuse("LindenmoorExpansion has no " .. ATTR .. " attribute") end
+	local later = {} -- (final review I2) fixes applied after this one, on top of it
+	for _, a in ipairs({"LindenmoorRoadCut", "LindenmoorGorgeBed", "LindenmoorSeamPits"}) do
+		if E:GetAttribute(a) then table.insert(later, a) end
+	end
+	if #later > 0 then
+		return refuse("still applied: " .. table.concat(later, ", ") .. "; undo those first (rollback order: road_cut, bed_fix bedundo, seam_pits, then gorge_fix)")
+	end
 	beginRecording()
 	local ok, a, b, c = pcall(doUndo, bk)
 	if not ok then

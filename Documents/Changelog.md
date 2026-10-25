@@ -4,6 +4,51 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-24 — Lindenmoor import: final fix pass (retired spawns, rollback guards, docs; not live)
+
+The final review of the Lindenmoor import asked for these fixes (Ruling 43). All of it is in Ye's Studio Edit session (106992859583940). **Nothing is published.** The publish is on hold until the Foundry Yard plan finishes Foundry's game data. Then Ye and Foundry Yard go out together (the owner's "Hold both", 2026-10-24).
+
+**Retired enemy spawns no longer spawn (C1).**
+- `prep_ye.lua` moved the old hub's two `GruntSpawn`s into `RenseiBackups["Pre-LindenmoorExpansion_2026-10-24"]`, and they kept their `RenseiEnemySpawn` tag. `EnemyService` found them through `GetTagged`, so two Grunts stood by the old hub at (−17, _, −70) and (26.5, _, −70) and kept respawning.
+- **EnemyService** now spawns only from tagged spawns in `workspace`, at Start, when a tag is added, and on respawn. `Spawn()` refuses a part that sits in the DataModel outside `workspace`. It still takes an unparented mark, because the road ambushes and the ride holdups spawn from those on purpose.
+- **CompassService** publishes only points in `workspace`.
+- **TownsfolkService** counts only posts in `workspace` (review M1).
+- **The audit:** every tagged instance in `ServerStorage.RenseiBackups` was checked against every server consumer of its tag. Only `RenseiEnemySpawn` reached a consumer without a filter. The road and travel tags were already filtered, and the other backed-up tags have no consumer.
+- **New smoke check, `EnemiesStandInTheWorld`:** every live enemy's Home is in `workspace` (or is a runtime mark), no backed-up spawn has an enemy, and the ground is under every spawn in use. Before the fix it failed on exactly this bug (7/1).
+
+**Rollback guards (I2).**
+- `import/restore.lua` refuses while the expansion carries any of the seven fix flags. They come from the region file's new `RestoreRefuseFlags`, through `kit.py` and the restore template. A region without the key gets byte-for-byte the same `restore.lua` as before (Foundry and Testbed regenerate unchanged).
+- `gorge_fix.lua` undo refuses while the seam pits, the bed or the road cut is applied.
+- `regrade_seam` undo refuses while the gorge fix is applied, as well as the road cut or the seam pits.
+- `road_cut`'s header now says which undos refuse.
+- **Tested in Ye (Edit):** the template and committed copies were changed alike. Each guard refused on today's applied state, with the state unchanged. A control copy with a dummy flag got past each guard, and stopped there.
+
+**Docs.**
+- **`Documents/Lindenmoor Kit.md`** has two new sections:
+  - "Ye differs from the kit": a re-import or Blender rebuild drops every Studio fix;
+  - "Known issues".
+- The Kit's publish checkpoint now opens with the hold, and its package list has EnemyService and CompassService.
+- **The unexplained parts** are identified (read-only): 10 hand-made Studio duplicates in the expansion, listed in the Kit's part count. None was deleted.
+- **The Lindenmoor Discord post** now says the compass matches the land, says the open land falls under Lindenmoor's law, and puts the mine beside the Adit hill.
+
+**Tests:**
+- **New `test_ye_fixes.py`:** 27/0. It pins the east/west name swap against the kit's layout.json and chunks (review M5), keeps the generated scripts equal to their templates, and checks every guard.
+- **`test_kit.py`:** 75/0.
+- **Hooked Play in Ye** (the owner's save restored before every Stop):
+  - **The RED run, before the EnemyService fix:** Smoke 7/1, failing on EnemiesStandInTheWorld. Two Grunts stood within 60 studs of (5, _, −70).
+  - **The first fixed session** caught a regression in the first version of the guard: Play_Road 8/3, with no ambush bandits. The guard had also refused the road's unparented spawn marks, so `Spawn()` now refuses only parts in the DataModel outside `workspace`.
+  - **The final session:**
+    - Smoke 8/0, LindenmoorData 3/0, Townsfolk 16/0 and TownsfolkHurt 11/0;
+    - Road 11/0, Stealth 9/0, Perception 6/0, Assault 1/0 and Heat 8/0;
+    - RideEvents 8/1: the known Cabin ticket in the owner's save.
+
+    No live enemy within 60 studs of (5, _, −70), and 16 live enemies, one per spawn in `workspace`.
+  - **In the earlier session:** TownsfolkHurt 10/1 on its first run (NewcomerAtSix read Asleep for AtPost, a timing race with the sleep step), then 11/0. Stealth 8/1 on GunshotPullsTheCamp: it picks any live Grunt, and that one didn't hear the shot. Both passed in the final session.
+
+### Discord announcement
+
+Hold: not live yet. Nothing here is new to players on its own: it ships inside the Lindenmoor update (see that entry's post), which goes out together with Foundry Yard.
+
 ## 2026-10-24 — The Lindenmoor expansion is in Ye (import plan Tasks 1–9; not live)
 
 The approved Blender expansion now fills Lindenmoor's 2,048 × 2,048 footprint around the village in Ye (106992859583940). All of it is in Ye's Studio Edit session, and **nothing is published**. The owner's decisions:
@@ -62,12 +107,12 @@ Every number is a **PROPOSAL** unless the owner chose it. The details, the rollb
 
 Two whitespace-only differences in `Art/Studio/Travel/src` (Play_Boot, RenseiBoot) were left alone.
 
-**For the owner:**
+**For the owner:** the publish is **on hold** until the Foundry Yard plan finishes Foundry's game data (the owner's "Hold both", 2026-10-24). Then Ye and Foundry Yard go out together, and publishing Foundry ships its new map. The steps, for then:
 1. Save Ye in Studio. Don't publish yet.
 2. Walk the new land in Play once.
 3. Publish the packages from Ye:
    - Modules: Regions, Townsfolk, TownsfolkLogic, Quests, Dialogues, Investigation, Evidence, Puzzles, CompassUI and MasteryUI;
-   - RenseiServer: WorldService, TownsfolkService, TownsfolkService.Mover and MoralityService;
+   - RenseiServer: WorldService, TownsfolkService, TownsfolkService.Mover and MoralityService, plus EnemyService and CompassService (the final fix pass, below);
    - ClientHandler (`Run`).
 4. Update those three packages in Foundry Yard by hand, and check they match Ye.
 5. Publish Ye and Foundry Yard.
@@ -77,7 +122,7 @@ This follows `Documents/World Travel.md` §10. The Kit doc has the full list, in
 
 ### Discord announcement
 
-Hold: not live yet. Post this when the owner publishes Ye and the packages:
+Hold: not live yet. The owner chose "Hold both" (2026-10-24): Ye and Foundry Yard stay unpublished until the Foundry Yard plan finishes Foundry's game data, then both go out together. Post this when the owner publishes Ye, Foundry Yard and the packages together. The Foundry Yard plan writes Foundry's own post.
 
 ```md
 **Update: Lindenmoor Grows**
@@ -86,7 +131,7 @@ Hold: not live yet. Post this when the owner publishes Ye and the packages:
 - Lindenmoor is no longer a lone village. The land around it is open to explore, ringed by forested ridges and tall cliffs that can't be climbed.
 - Four farmsteads and a roadside market, with a watermill on the creek.
 - Mill Creek's gorge, with a footbridge, a waterfall and a narrow ledge walk along the cliff.
-- The old mine above Halvard's Adit, the Bramble woods, and wide meadows of fields, orchards and hay barns to the north.
+- The old mine, up on its plateau beside the hill of Halvard's Adit, the Bramble woods, and wide meadows of fields, orchards and hay barns to the north.
 - The road to Foundry Yard now leaves Lindenmoor to the north-west, beside the railway, through a gap in the ridge.
 
 **Training and trials**
@@ -94,7 +139,8 @@ Hold: not live yet. Post this when the owner publishes Ye and the packages:
 - The five alchemy trial sites have new homes out in the valley. Ask your trainer where to go.
 
 **Getting around**
-- Your compass now matches the land. North on the compass is north on the map, and east and west are where you'd expect.
+- Your compass now matches the land: north, south, east and west point where you'd expect.
+- All the open land around the village now falls under Lindenmoor's law.
 
 **Townsfolk**
 - New townsfolk live and work around the valley: farmers, a miller, a mine hand, a groundskeeper and a signalman.
