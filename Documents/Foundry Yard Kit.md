@@ -192,3 +192,6 @@ Follow `Documents/Region Builder.md` §§3–9. What is particular to Foundry:
     - **Enemies:** confirm the 4 Grunt spawns in the underworks are wanted live.
 12. **Terrain water:** the import fills the pond from `water.json` (Task 11). Check in Play that SwimService swims you in it.
 13. **Tags that need the export's row field 16:** `RenseiNoGrip` on every edge wall and portal part, `RenseiLedge` on the rail walks and the houses' ledges, the markers, and `NightOnly` lamps (an attribute). The Task 9 export already writes them.
+
+## Test notes (Foundry Yard game-data plan, Task 9; Task 10 owns the Kit)
+- **`Play_FoundryWalks` quick mode** (owner, 2026-10-25: "one full walk of every route, then repeats only for routes that needed repairs or failed before"). Set `game.ServerStorage:SetAttribute("WalksQuick", true)` before running the suite (clear it after); without it the suite walks the whole day. Quick mode walks only the hours of the routes in `Scripts/ServerStorage/RenseiTests/RiskyWalks.lua` (`{Id, From, To}`), checks every listed route was walked and fails with "no risky list" on an empty list. Each run prints the routes that needed a repair or failed (`[FoundryWalks] risky: ...`, also ServerStorage's `FoundryWalksRisky`): after a full run, copy those lines into `RiskyWalks.lua` (keep the seeds) and sync it.

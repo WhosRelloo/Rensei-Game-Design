@@ -14,6 +14,17 @@
 --   * Performance (Ruling 18's Foundry check): Mover.Stats().StepMs (the average steering tick) at most STEP_MS; the
 --     99th percentile (Mover.P99StepMs) and the rest of Mover.Stats() are reported in ServerStorage's attribute
 --     FoundryWalksStats and printed as "[FoundryWalks] ..." lines.
+--   * Quick mode (owner request, Foundry Yard plan Task 9: "one full walk of every route, then repeats only for routes
+--     that needed repairs or failed before"): opt-in only, with ServerStorage's attribute WalksQuick = true; without it
+--     the suite runs the whole day as above. Quick mode reads the risky list (RenseiTests.RiskyWalks: {Id, From, To}
+--     routes) and steps only the hours those routes change at: for each, the clock is held half an hour before
+--     (everyone placed by LoadRegion at the post that covers it: every listed route's From), then at the hour
+--     (TownsfolkService.Step sends everyone due walking, as in the full day). The same checks judge every walk made;
+--     Coverage checks every listed route was walked (and is a schedule change) and reports the list's coverage. An
+--     empty or missing list never passes: the run breaks with "no risky list".
+--   * Every run (full or quick) writes the routes that needed a repair or failed, as RiskyWalks.lua lines, to
+--     ServerStorage's attribute FoundryWalksRisky and prints them ("[FoundryWalks] risky: ..."): the list is updated by
+--     copying those into Scripts/ServerStorage/RenseiTests/RiskyWalks.lua after a full run.
 -- Everything is put back afterwards: the two radii, the clock, the player.
 local SSS = game:GetService("ServerScriptService")
 local RunService = game:GetService("RunService")
@@ -33,6 +44,23 @@ local TESTS = {"AllArrive", "Coverage", "OnTheirPosts", "Performance", "Replans"
 
 local function Stand(Post) return (Post.CFrame * CFrame.new(0, 3, 0)).Position end
 
+-- (quick mode) the switches a run-once control sets: Opt.Quick (quick mode without the attribute), Opt.List (a list
+-- in place of RiskyWalks.Routes)
+local Opt = {}
+-- the hour Id's schedule moves it From -> To, or nil (not one of its schedule changes)
+local function SwitchHour(Roster, Id, From, To)
+	for _, D in ipairs(Roster) do
+		if D.Id == Id then
+			local S = D.Schedule
+			for I = 1, #S do
+				local Nx = S[I % #S + 1]
+				if S[I][3] == From and Nx[3] == To then return Nx[1] end
+			end
+		end
+	end
+	return nil
+end
+
 local function RunDay()
 	local TS = require(SSS.TownsfolkService)
 	local Mover = require(SSS.TownsfolkService.Mover)
@@ -51,22 +79,9 @@ local function RunDay()
 		TS.SleepRadius, TS.PlaceRadius = math.huge, math.huge
 		Root.Anchored = true
 		Char:PivotTo(CFrame.new(Saved.Pivot.Position.X, 400, Saved.Pivot.Position.Z))
-		-- the hours any schedule changes, in order
-		local Hours, Seen = {}, {}
-		for _, D in ipairs(Roster) do
-			for _, E in ipairs(D.Schedule) do
-				if not Seen[E[1]] then Seen[E[1]] = true table.insert(Hours, E[1]) end
-			end
-		end
-		table.sort(Hours)
-		table.insert(Hours, Hours[1]) -- (round to the first hour again: the night's last change)
-		WorldClock.Hold(Hours[1])
-		assert(TS.LoadRegion("Foundry", Roster), "LoadRegion accepted Foundry's roster")
-		task.wait(1)
-		Mover.ResetStats()
 		local Posts = TS.Posts
-		for I = 2, #Hours do
-			local H = Hours[I]
+		-- one hour's walks: the clock to H, Step, wait until every walk started there has ended
+		local function StepHour(H)
 			WorldClock.Hold(H)
 			-- who changes post now: {Id, From, To, Rig}
 			local Movers = {}
@@ -125,6 +140,47 @@ local function RunDay()
 				table.insert(R.Walks, W)
 			end
 		end
+		R.Quick = Opt.Quick == true or game.ServerStorage:GetAttribute("WalksQuick") == true
+		if not R.Quick then
+			-- the hours any schedule changes, in order
+			local Hours, Seen = {}, {}
+			for _, D in ipairs(Roster) do
+				for _, E in ipairs(D.Schedule) do
+					if not Seen[E[1]] then Seen[E[1]] = true table.insert(Hours, E[1]) end
+				end
+			end
+			table.sort(Hours)
+			table.insert(Hours, Hours[1]) -- (round to the first hour again: the night's last change)
+			WorldClock.Hold(Hours[1])
+			assert(TS.LoadRegion("Foundry", Roster), "LoadRegion accepted Foundry's roster")
+			task.wait(1)
+			Mover.ResetStats()
+			for I = 2, #Hours do StepHour(Hours[I]) end
+		else
+			-- (quick mode) only the hours the risky routes change at, each from half an hour before
+			local Ok0, List = pcall(function() return Opt.List or require(script.Parent.RiskyWalks).Routes end)
+			if not Ok0 or type(List) ~= "table" or #List == 0 then error("no risky list", 0) end
+			R.List, R.Unknown = List, {}
+			local Need, Hours = {}, {}
+			for _, E in ipairs(List) do
+				local H = SwitchHour(Roster, E[1], E[2], E[3])
+				if H == nil then
+					table.insert(R.Unknown, ("%s %s>%s"):format(tostring(E[1]), tostring(E[2]), tostring(E[3])))
+				elseif not Need[H] then
+					Need[H] = true
+					table.insert(Hours, H)
+				end
+			end
+			table.sort(Hours)
+			R.QuickHours = Hours
+			Mover.ResetStats()
+			for _, H in ipairs(Hours) do
+				WorldClock.Hold((H - 0.5) % 24)
+				assert(TS.LoadRegion("Foundry", Roster), "LoadRegion accepted Foundry's roster")
+				task.wait(1)
+				StepHour(H)
+			end
+		end
 		local S = Mover.Stats()
 		S.P99StepMs = Mover.P99StepMs()
 		S.WalkFailures = TS.WalkFailures -- (nil before Task 4b)
@@ -146,8 +202,20 @@ local function RunDay()
 		table.insert(Lines, ("%s %s>%s %s why=%s replans %d repaired %d maxstep %.2f off %.2f"):format(W.Id, tostring(W.From),
 			tostring(W.To), W.Result, tostring(W.Why), W.Replans, W.Repaired, W.MaxStep, W.Off))
 	end
-	local Report = {Hours = R.Hours, Stats = R.Stats, Error = R.Error, Walks = Lines}
+	local Report = {Hours = R.Hours, Stats = R.Stats, Error = R.Error, Walks = Lines, Quick = R.Quick}
 	pcall(function() game.ServerStorage:SetAttribute("FoundryWalksStats", HttpService:JSONEncode(Report)) end)
+	-- the routes that needed a repair or failed, as RiskyWalks.lua lines (the list is updated from a full run)
+	local Risky = {}
+	for _, W in ipairs(R.Walks) do
+		local Failed = W.Result ~= "arrived" or W.Why ~= nil or W.Replans > MAX_REPLANS or W.MaxStep > MAX_STEP or W.Off > END_OFF
+		if Failed or W.Repaired > 0 then
+			table.insert(Risky, ('{"%s", "%s", "%s"}, -- %s'):format(W.Id, tostring(W.From), tostring(W.To),
+				Failed and ("failed: " .. W.Result .. " " .. tostring(W.Why)) or ("repaired " .. W.Repaired)))
+		end
+	end
+	pcall(function() game.ServerStorage:SetAttribute("FoundryWalksRisky", table.concat(Risky, "\n")) end)
+	print(("[FoundryWalks] risky: %d routes needed a repair or failed%s"):format(#Risky, R.Quick and " (quick run)" or ""))
+	for _, L in ipairs(Risky) do print("[FoundryWalks] risky: " .. L) end
 	if R.Stats then
 		local Keys = {}
 		for K, V in pairs(R.Stats) do if type(V) == "number" then table.insert(Keys, ("%s %.3f"):format(K, V)) end end
@@ -173,6 +241,21 @@ local Checks = {
 		T.Eq(#Out, 0, ("every walk arrives with no Why; not %d of %d: %s"):format(#Out, #R.Walks, table.concat(Out, " | ")))
 	end,
 	Coverage = function(T, R)
+		if R.Quick then
+			-- (quick mode) every listed route walked, and each one a schedule change
+			T.Eq(#R.Unknown, 0, "listed routes that are no schedule change: " .. table.concat(R.Unknown, ", "))
+			local Got = {}
+			for _, W in ipairs(R.Walks) do Got[W.Id .. " " .. tostring(W.From) .. ">" .. tostring(W.To)] = true end
+			local Missing, N = {}, 0
+			for _, E in ipairs(R.List) do
+				local K = ("%s %s>%s"):format(E[1], E[2], E[3])
+				if Got[K] then N += 1 else table.insert(Missing, K) end
+			end
+			print(("[FoundryWalks] quick: %d of %d listed routes walked, at hours %s (%d walks in all)"):format(N, #R.List,
+				table.concat(R.QuickHours, ","), #R.Walks))
+			T.Eq(#Missing, 0, ("every listed route was walked (%d of %d); not: %s"):format(N, #R.List, table.concat(Missing, ", ")))
+			return
+		end
 		local Want = PathKit.Pairs(require(Rensei.Townsfolk).Regions.Foundry)
 		T.Eq(#Want, PAIRS, "Foundry's schedule changes")
 		local Got = {}
@@ -218,4 +301,5 @@ for _, Name in ipairs(TESTS) do
 		Checks[Name](T, R)
 	end
 end
-return Suite
+-- (quick mode's switches for the run-once controls; not a test: TestKit runs only the suite's own keys)
+return setmetatable(Suite, {__index = {Opt = Opt, SwitchHour = SwitchHour}})

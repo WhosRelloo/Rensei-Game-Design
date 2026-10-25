@@ -56,5 +56,6 @@
   {"Label": "RenseiTests.Play_LindenmoorSmoke", "Studio": "ServerStorage/RenseiTests/Play_LindenmoorSmoke", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_LindenmoorSmoke.lua", "Places": ["ye"], "Create": false},
   {"Label": "RenseiTests.Play_FoundrySmoke", "Studio": "ServerStorage/RenseiTests/Play_FoundrySmoke", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_FoundrySmoke.lua", "Places": ["foundry"], "Create": true},
   {"Label": "RenseiTests.Play_FoundryData", "Studio": "ServerStorage/RenseiTests/Play_FoundryData", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_FoundryData.lua", "Places": ["foundry"], "Create": true},
-  {"Label": "RenseiServer.MinigameService", "Studio": "ServerStorage/RenseiServer/MinigameService", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/MinigameService.lua", "Places": ["ye", "foundry"], "Create": false}
+  {"Label": "RenseiServer.MinigameService", "Studio": "ServerStorage/RenseiServer/MinigameService", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/MinigameService.lua", "Places": ["ye", "foundry"], "Create": false},
+  {"Label": "RenseiTests.RiskyWalks", "Studio": "ServerStorage/RenseiTests/RiskyWalks", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/RiskyWalks.lua", "Places": ["foundry"], "Create": true}
 ]}
