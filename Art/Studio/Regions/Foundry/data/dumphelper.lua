@@ -14,15 +14,24 @@
 --      in ServerStorage instead; read it back in 25,000-character chunks, then delete the value.
 --   3. After LMTestHook:Invoke("restore") returns "restored", dump again (quests_<task>_2.txt). It must equal the
 --      first dump character for character. If it differs: stop, keep Play running and report both dumps.
---   4. After Stop, in Edit, with unhook.lua (step 7), remove the helper:
---        for _, p in ipairs({game.ServerScriptService, game.ServerStorage}) do
---        	for _, c in ipairs(p:GetChildren()) do
---        		if c.Name == "LMQuestDump_TEMP" or c.Name == "LMQuestDump" then c:Destroy() end
---        	end
---        end
---      Then clear PlayLock as usual.
+--   4. After Stop, in Edit, with unhook.lua (step 7), remove the helper: copy this file to the scratch folder, set
+--      its MODE line to "remove" there (only that line), and run the copy in Edit. It returns "removed <n>". Then
+--      clear PlayLock as usual.
+-- MODE (Task 2, Ruling 20f): "install" | "remove". Both refuse while Play runs: the helper is put in and taken out
+-- in Edit only.
 -- Studio only: the Script does nothing outside Studio. Never publish a place with LMQuestDump_TEMP in it.
-if game:GetService("RunService"):IsRunning() then return "REFUSED: install in Edit, before Play" end
+local MODE = "install"
+if game:GetService("RunService"):IsRunning() then return "REFUSED: " .. MODE .. " in Edit, not while Play runs" end
+if MODE == "remove" then
+	local N = 0
+	for _, P in ipairs({game.ServerScriptService, game.ServerStorage}) do
+		for _, C in ipairs(P:GetChildren()) do
+			if C.Name == "LMQuestDump_TEMP" or C.Name == "LMQuestDump" then C:Destroy() N += 1 end
+		end
+	end
+	return "removed " .. N
+end
+if MODE ~= "install" then return "REFUSED: unknown MODE " .. tostring(MODE) end
 if game.ServerScriptService:FindFirstChild("LMQuestDump_TEMP") then return "dump helper already installed" end
 local S = Instance.new("Script")
 S.Name = "LMQuestDump_TEMP"
