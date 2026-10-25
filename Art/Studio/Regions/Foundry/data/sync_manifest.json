@@ -44,5 +44,11 @@
   {"Label": "RenseiTests.Test_AcqMetal", "Studio": "ServerStorage/RenseiTests/Test_AcqMetal", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_AcqMetal.lua", "Places": ["ye", "foundry"], "Create": true},
   {"Label": "RenseiTests.Test_FoundryRoster", "Studio": "ServerStorage/RenseiTests/Test_FoundryRoster", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_FoundryRoster.lua", "Places": ["foundry"], "Create": true},
   {"Label": "Rensei.Deeds", "Studio": "ReplicatedStorage/Modules/Data/Rensei/Deeds", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/Data/Rensei/Deeds.lua", "Places": ["ye", "foundry"], "Create": false},
-  {"Label": "RenseiTests.Play_FoundryLedger", "Studio": "ServerStorage/RenseiTests/Play_FoundryLedger", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_FoundryLedger.lua", "Places": ["foundry"], "Create": true}
+  {"Label": "RenseiTests.Play_FoundryLedger", "Studio": "ServerStorage/RenseiTests/Play_FoundryLedger", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_FoundryLedger.lua", "Places": ["foundry"], "Create": true},
+  {"Label": "RenseiTests.PathKit", "Studio": "ServerStorage/RenseiTests/PathKit", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/PathKit.lua", "Places": ["ye", "foundry"], "Create": true},
+  {"Label": "RenseiTests.Test_MoverRepair", "Studio": "ServerStorage/RenseiTests/Test_MoverRepair", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_MoverRepair.lua", "Places": ["ye", "foundry"], "Create": true},
+  {"Label": "RenseiTests.Test_FoundryPaths", "Studio": "ServerStorage/RenseiTests/Test_FoundryPaths", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_FoundryPaths.lua", "Places": ["foundry"], "Create": true},
+  {"Label": "RenseiTests.Test_YePaths", "Studio": "ServerStorage/RenseiTests/Test_YePaths", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_YePaths.lua", "Places": ["ye"], "Create": true},
+  {"Label": "RenseiTests.Play_FoundryWalks", "Studio": "ServerStorage/RenseiTests/Play_FoundryWalks", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_FoundryWalks.lua", "Places": ["foundry"], "Create": true},
+  {"Label": "RenseiTests.Play_LindenmoorData", "Studio": "ServerStorage/RenseiTests/Play_LindenmoorData", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_LindenmoorData.lua", "Places": ["ye"], "Create": false}
 ]}

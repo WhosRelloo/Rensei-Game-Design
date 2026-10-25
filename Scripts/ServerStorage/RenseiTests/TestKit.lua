@@ -47,4 +47,26 @@ function TestKit.Run(Suite)
 	return table.concat(Lines, "\n"), Fail == 0
 end
 
+-- (Foundry Yard plan Task 4b) runs Fn() with Player's character held still Dist (default 6) studs in front of Model's
+-- root, facing it, then puts the character back as it was (pivot, anchoring, velocity) and returns Fn's results. For
+-- a server call that checks the player is near (TownsfolkService.Talk's range, Ruling 31). Yields only if Fn does.
+function TestKit.Beside(Player, Model, Fn, Dist)
+	local C = Player and Player.Character
+	local Root = C and C:FindFirstChild("HumanoidRootPart")
+	local At = Model and Model:FindFirstChild("HumanoidRootPart")
+	if not (Root and At) then return Fn() end
+	local Pivot, Anchored = C:GetPivot(), Root.Anchored
+	local Look = Vector3.new(At.CFrame.LookVector.X, 0, At.CFrame.LookVector.Z)
+	Look = Look.Magnitude > 1e-3 and Look.Unit or Vector3.new(0, 0, -1)
+	local P = At.Position + Look * (Dist or 6)
+	Root.Anchored = true
+	C:PivotTo(CFrame.lookAt(P, Vector3.new(At.Position.X, P.Y, At.Position.Z)))
+	local R = table.pack(pcall(Fn))
+	C:PivotTo(Pivot)
+	Root.AssemblyLinearVelocity = Vector3.zero
+	Root.Anchored = Anchored
+	if not R[1] then error(R[2], 0) end
+	return table.unpack(R, 2, R.n)
+end
+
 return TestKit

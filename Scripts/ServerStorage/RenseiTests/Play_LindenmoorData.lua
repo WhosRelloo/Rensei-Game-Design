@@ -14,6 +14,7 @@
 local SSS = game:GetService("ServerScriptService")
 local CollectionService = game:GetService("CollectionService")
 local Rensei = game.ReplicatedStorage.Modules.Data.Rensei
+local TestKit = require(script.Parent.TestKit) -- (Task 4b: TestKit.Beside, for Talk's range check)
 
 -- (fix round 4, Ruling 38b: +Z is north in Ye and +X west, so West Lookout and Northwest Gap, were East / Northeast)
 local AREAS = {"Outlying Farmsteads", "Mine Approach", "Mill Creek Gorge", "West Lookout", "Bramble Woods",
@@ -198,7 +199,8 @@ return {
 
 				-- the townsperson's clue line finishes it
 				T.True(TS.Get(Teller.Id) ~= nil, Teller.Id .. " is spawned")
-				local Text, Kind = TS.Talk(Player, Teller.Id)
+				-- (Task 4b, Ruling 31: Talk refuses a player out of range) from 6 studs in front of them
+				local Text, Kind = TestKit.Beside(Player, TS.Get(Teller.Id), function() return TS.Talk(Player, Teller.Id) end)
 				T.Eq(Kind, "Clue", Teller.Id .. " says the clue line")
 				T.Eq(Text, Teller.Clue.Text)
 				T.True(Data.Quests.Active[C.Quest] == nil and Data.Quests.Completed[C.Quest] ~= nil, C.Quest .. " is complete")

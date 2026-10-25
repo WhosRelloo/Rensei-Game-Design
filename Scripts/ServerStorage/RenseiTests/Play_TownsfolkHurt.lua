@@ -20,6 +20,7 @@ local HitboxManager = require(Managers.HitboxManager)
 local DownedManager = require(Managers.DownedManager)
 local TownsfolkLogic = require(game.ReplicatedStorage.Modules.Data.Rensei.TownsfolkLogic)
 local Player = game.Players:GetPlayers()[1]
+local TestKit = require(script.Parent.TestKit) -- (Task 4b: TestKit.Beside, for Talk's range check)
 
 local GAP = 40
 
@@ -350,7 +351,10 @@ return {
 			TS.TalkCooldown = 0
 			local Lines = {}
 			NoQuestSignals(function()
-				for I = 1, 4 do Lines[I] = TS.Talk(Player, L.Id) or "" end
+				-- (Task 4b, Ruling 31: Talk refuses a player out of range) from 6 studs in front of them
+				TestKit.Beside(Player, TS.Get(L.Id), function()
+					for I = 1, 4 do Lines[I] = TS.Talk(Player, L.Id) or "" end
+				end)
 			end)
 			local Got = nil
 			for _, Line in ipairs(Lines) do if Line:find("killed a townsperson", 1, true) then Got = Line end end

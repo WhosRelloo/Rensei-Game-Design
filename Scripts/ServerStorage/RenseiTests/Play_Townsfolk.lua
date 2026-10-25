@@ -20,6 +20,7 @@ local Deeds = require(Rensei.Deeds)
 local NoiseService = require(SSS.NoiseService)
 local QuestService = require(SSS.QuestService)
 local PS = require(SSS.ProgressionService)
+local TestKit = require(script.Parent.TestKit) -- (Task 4b: TestKit.Beside)
 
 local GAP = 40 -- studs between the test posts (the brief)
 
@@ -120,6 +121,11 @@ local function Fixture(T, Body)
 end
 
 local function Stand(PostPart) return (PostPart.CFrame * CFrame.new(0, 3, 0)).Position end
+-- (Task 4b, Ruling 31: TownsfolkService.Talk refuses a player out of range) the test player talks from 6 studs in
+-- front of the townsperson, then is put back where it was
+local function Talk(Id)
+	return TestKit.Beside(Player, TS.Get(Id), function() return TS.Talk(Player, Id) end)
+end
 local function Flat(V) return Vector3.new(V.X, 0, V.Z).Unit end
 
 -- Task 6: the test player beside the line (20 studs off the middle post): near enough that townsfolk walk, out of
@@ -370,7 +376,7 @@ return {
 				T.True((Rig.HumanoidRootPart.Position - Stand(Shelter)).Magnitude < 1.5, "at the shelter")
 				T.Eq(Rig:GetAttribute("IdleAnim"), "NPC_CurledUp", "curled up")
 				T.Eq(Rig.HumanoidRootPart.TalkPrompt.Enabled, false, "no talking while sheltering")
-				T.Eq(TS.Talk(Player, D.Id), nil, "Talk says nothing while sheltering")
+				T.Eq(Talk(D.Id), nil, "Talk says nothing while sheltering")
 				-- calm: back to the post within 17 s (the rest of the 6 s calm, then the walk back)
 				T0 = os.clock()
 				local SawReturn = false
@@ -423,7 +429,7 @@ return {
 			local Ok, Err = pcall(function()
 				RecordSignals(function(Calls)
 					Reputation.PlaceStanding = function() return {Townsfolk = 70} end
-					local Text, Kind = TS.Talk(Player, D.Id)
+					local Text, Kind = Talk(D.Id)
 					Reputation.PlaceStanding = Real
 					T.Eq(Kind, "Greeting")
 					T.Eq(Text, TownsfolkLogic.Greeting("Honoured", D), "70 with the Townsfolk: Honoured")
@@ -452,7 +458,7 @@ return {
 					-- (no yield from here until News is put back)
 					M.News = table.clone(Saved or {})
 					table.insert(M.News, {At = os.time() + 100000, Place = "Test", Deed = "__test_t6_rumour", Heard = {"Townsfolk"}})
-					for I = 1, 5 do Lines[I] = {TS.Talk(Player, D.Id)} end
+					for I = 1, 5 do Lines[I] = {Talk(D.Id)} end
 					M.News = Saved
 				end)
 			end)
@@ -488,12 +494,12 @@ return {
 					RumourService.HeardIn = function() return {{At = 1, Text = "Struck a townsperson", Subject = Other}} end
 					IdentityService.KnownNameFor = function(Viewer, Subject) return Subject == Other and Known or nil end
 					IdentityService.LabelFor = function() return "Subject 03" end -- (the journal's label must not be spoken)
-					for I = 1, 2 do Lines[I] = {TS.Talk(Player, D.Id)} end -- greeting, then the rumour, unidentified
+					for I = 1, 2 do Lines[I] = {Talk(D.Id)} end -- greeting, then the rumour, unidentified
 					Known = "Ansel"
 					local D2 = Def({{0, 24, Ids.B}}) -- (a fresh townsperson: this rumour is new to the player again)
 					TS.Spawn(D2, "Test")
 					table.insert(Spawned, D2.Id)
-					for I = 3, 4 do Lines[I] = {TS.Talk(Player, D2.Id)} end
+					for I = 3, 4 do Lines[I] = {Talk(D2.Id)} end
 				end)
 			end)
 			RumourService.HeardIn, IdentityService.KnownNameFor, IdentityService.LabelFor = RealHeard, RealKnown, RealLabel
@@ -526,12 +532,12 @@ return {
 					M.News = table.clone(Saved or {})
 					table.insert(M.News, {At = os.time() + 100000, Place = "Test", Deed = "__test_t6_private", Heard = {"Townsfolk"}})
 					for I = 1, 3 do
-						local Text, Kind = TS.Talk(Player, D.Id)
+						local Text, Kind = Talk(D.Id)
 						local To, Only = TS.LastRecipients(D.Id)
 						Got[I] = {Kind = Kind, To = To, Only = Only}
 					end
 					Data.Quests.Active.__t6_quest2 = {Stage = 1, Progress = {}}
-					local _, Kind = TS.Talk(Player, D.Id)
+					local _, Kind = Talk(D.Id)
 					local To, Only = TS.LastRecipients(D.Id)
 					Got[4] = {Kind = Kind, To = To, Only = Only}
 					Data.Quests.Active.__t6_quest2 = nil
@@ -604,13 +610,30 @@ return {
 			RecordSignals(function()
 				TS.TalkCooldown = 0.5
 				task.wait(0.6) -- (clear of the earlier tests' Talks)
-				local First = TS.Talk(Player, D.Id)
-				local Second = TS.Talk(Player, D.Id)
+				local First = Talk(D.Id)
+				local Second = Talk(D.Id)
 				task.wait(0.6)
-				local Third, Kind = TS.Talk(Player, D.Id)
+				local Third, Kind = Talk(D.Id)
 				T.True(First ~= nil, "the first Talk speaks")
 				T.Eq(Second, nil, "a second Talk within 0.5 s says nothing")
 				T.True(Third ~= nil and Kind == "Job", "after the cooldown, the next line (" .. tostring(Kind) .. ")")
+			end)
+		end)
+	end,
+
+	-- Task 4b (Ruling 31): the server refuses a Talk from beyond TalkRange + TalkMargin (the prompt's reach and a
+	-- margin for lag, PROPOSAL 4): from 40 studs away nothing is said; from 6 studs away a line is
+	TalkRange = function(T)
+		Fixture(T, function(Posts, Ids, Spawned)
+			WorldClock.Hold(8)
+			local D = Def({{0, 24, Ids.A}})
+			local Rig = TS.Spawn(D, "Test")
+			table.insert(Spawned, D.Id)
+			RecordSignals(function()
+				local Far, FarKind = TestKit.Beside(Player, Rig, function() return TS.Talk(Player, D.Id) end, 40)
+				T.Eq(Far, nil, "a Talk from 40 studs away is refused (" .. tostring(FarKind) .. ")")
+				local Text, Kind = TestKit.Beside(Player, Rig, function() return TS.Talk(Player, D.Id) end, 6)
+				T.True(Text ~= nil and Kind ~= nil, "a Talk from 6 studs away is answered (" .. tostring(Kind) .. ")")
 			end)
 		end)
 	end,
@@ -628,9 +651,9 @@ return {
 				RecordSignals(function(Calls)
 					-- (no yield from here until the quest entry is removed)
 					Data.Quests.Active.__t6_quest = {Stage = 1, Progress = {}}
-					local _, K1 = TS.Talk(Player, D.Id)
+					local _, K1 = Talk(D.Id)
 					Data.Quests.Active.__t6_quest.Stage = 2
-					local Text, K2 = TS.Talk(Player, D.Id)
+					local Text, K2 = Talk(D.Id)
 					Data.Quests.Active.__t6_quest = nil
 					T.Eq(K1, "Greeting", "another stage: the usual rotation")
 					T.Eq(K2, "Clue") T.Eq(Text, D.Clue.Text)

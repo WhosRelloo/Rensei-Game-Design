@@ -21,6 +21,7 @@ local Rensei = game.ReplicatedStorage.Modules.Data.Rensei
 local PS = require(SSS.ProgressionService)
 local QuestService = require(SSS.QuestService)
 local Defs = QuestService.Definitions
+local TestKit = require(script.Parent.TestKit) -- (Task 4b: TestKit.Beside, for Talk's range check)
 
 -- empty spots far outside the maps (tried in order; the first with nothing in its box is used: Play_TownsfolkCrowd)
 local SITES = {Vector3.new(-700, 300, 700), Vector3.new(700, 300, 700), Vector3.new(-700, 300, -3300)}
@@ -177,7 +178,7 @@ return {
 
 			T.Eq(QuestService.Start(Player, "__fy_q3"), true, "the test quest starts")
 			T.Eq(Data.Quests.Active.__fy_q3.Progress.ev, 0, "the evidence isn't held yet")
-			local Text, Kind = TS.Talk(Player, Id)
+			local Text, Kind = TestKit.Beside(Player, TS.Get(Id), function() return TS.Talk(Player, Id) end)
 			T.Eq(Kind, "Clue", "the clue line")
 			T.Eq(Text, "x")
 			T.True(Data.Story.Evidence.__fy_ev ~= nil, "the clue line gave the evidence")
@@ -196,7 +197,7 @@ return {
 			Data.Story.Evidence.__fy_ev5 = nil
 			Data.Quests.Active.__fy_q5, Data.Quests.Completed.__fy_q5 = nil, nil -- (no such quest: never on its stage)
 			local Id = Teller(T, OnCleanup, {Quest = "__fy_q5", Stage = 1, Evidence = "__fy_ev5", Text = "x"})
-			local _, Kind = TS.Talk(Player, Id)
+			local _, Kind = TestKit.Beside(Player, TS.Get(Id), function() return TS.Talk(Player, Id) end)
 			T.True(Kind ~= nil and Kind ~= "Clue", "an ordinary line (" .. tostring(Kind) .. ")")
 			T.True(Data.Story.Evidence.__fy_ev5 == nil, "no evidence from a non-Clue line")
 		end)
@@ -236,7 +237,7 @@ return {
 			OnCleanup(function() Defs.__fy_q6 = nil end)
 			local Id = Teller(T, OnCleanup, {Quest = "__fy_q6", Stage = 1, Signal = "__fy_sig6a", Text = "x"})
 			Data.Quests.Active.__fy_q6 = {Stage = 1, Progress = {}} -- stale: really on the new stage 2
-			local _, Kind = TS.Talk(Player, Id)
+			local _, Kind = TestKit.Beside(Player, TS.Get(Id), function() return TS.Talk(Player, Id) end)
 			-- (Task 3, Ruling 23) Talk answered with some line: a nil Kind would pass the next check without a talk
 			T.True(Kind ~= nil, "the townsperson answered (Talk gave a Kind)")
 			T.True(Kind ~= "Clue", "a stale state hears no stage-1 clue line (" .. tostring(Kind) .. ")")

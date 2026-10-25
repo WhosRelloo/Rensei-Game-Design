@@ -38,8 +38,10 @@
 --   * Walking: ONLY through the child module Mover (Mover.WalkTo / Mover.Place): crowd-quality movement (Task 5b:
 --     smoothed paths, steering around each other and players, giving way in doorways, re-planning). A walk's handle
 --     is cancellable; a newer WalkTo or Place on the same rig cancels it, so a newer schedule change (or a flee) wins.
---     A walk that fails is finished by placing the townsperson at its post only when no player is within
---     PlaceRadius (nobody sees a teleport); otherwise it tries the walk again every RetryDelay seconds.
+--     A walk that fails (Foundry Yard plan Task 4b, Ruling 30) is never finished by a teleport anyone could see: with
+--     no player within SleepRadius of the townsperson or of the post it is placed there; otherwise it holds where it
+--     stands with its idle and tries the walk again after RetryDelays (5, 10, 20, 40, then 40 s), placed at the post
+--     only once nobody is within SleepRadius of either. Every failure is warned and counted (WalkFailures).
 --   * Collision: the rigs are in the "Townsfolk" collision group (created if missing), which collides with Default
 --     and with itself: townsfolk don't pass through each other or through players.
 --   * States: AtPost, Walking, Asleep (calm), Fleeing, Sheltering, and (Task 6b) Hurt, Knocked, Dead.
@@ -49,7 +51,9 @@
 --     the run fails, they curl up where they stand. CalmSeconds after the last combat sound in that range, Step sends
 --     them back to their schedule. The Talk prompt is off while they flee or shelter.
 --   * Talk (Task 6; owner 2026-10-23: speech over their heads in Special Elite, no reply choices): a TalkPrompt on
---     the root. Talk(Player, Id) signals the quest "Talk", then says ONE line (TownsfolkLogic.NextTalk): the clue line
+--     the root. Talk(Player, Id) is refused (nil) when the player's root is more than TalkRange + TalkMargin studs from
+--     the townsperson's (Foundry Yard plan Task 4b, Ruling 31: the server's own range check; the margin is for lag).
+--     Otherwise it signals the quest "Talk", then says ONE line (TownsfolkLogic.NextTalk): the clue line
 --     while the player is on Def.Clue's quest stage (then gives Def.Clue.Evidence, if any, through
 --     StoryService.GiveEvidence, and only then signals Def.Clue.Signal, so the next stage's catch-up already sees the
 --     evidence: Foundry Yard plan Task 2), otherwise that player's rotation
@@ -86,8 +90,11 @@ local TownsfolkService = {}
 TownsfolkService.SleepRadius = 300 -- PROPOSAL: no player this close -> held still, placed at posts instead of walking
 TownsfolkService.WalkSpeed = 8 -- PROPOSAL: an unhurried stroll (players walk 16)
 TownsfolkService.GenderTries = 64 -- seeds tried to find a look of Def.Look.Gender
-TownsfolkService.PlaceRadius = 60 -- PROPOSAL (Task 5b): a failed walk is placed at its post only with no player this close
-TownsfolkService.RetryDelay = 5 -- PROPOSAL (Task 5b): ...otherwise the walk is tried again after this many seconds
+TownsfolkService.PlaceRadius = 60 -- PROPOSAL (Task 5b): a newcomer appears only with no player this close to its post
+-- (Foundry Yard plan Task 4b, Ruling 30) a failed walk holds and tries again after these many seconds (the last one
+-- repeats); it is placed at its post only with no player within SleepRadius of it or of the post. PROPOSAL
+TownsfolkService.RetryDelays = {5, 10, 20, 40}
+TownsfolkService.WalkFailures = 0 -- (Task 4b) failed walks since the server started (each one is warned)
 -- Task 6 (all PROPOSALS)
 TownsfolkService.FleeSpeed = 16 -- running for shelter
 TownsfolkService.FleeMargin = 20 -- a combat sound within its radius + this many studs sends them running
@@ -98,6 +105,7 @@ TownsfolkService.PassRadius = 12 -- a player first coming this close gets a pass
 TownsfolkService.PassEvery = 300 -- ...at most once per player per townsperson in this many seconds
 TownsfolkService.ShiftChance = 0.5 -- a remark when the schedule moves them on
 TownsfolkService.TalkRange = 10 -- the Talk prompt's reach
+TownsfolkService.TalkMargin = 4 -- PROPOSAL (Task 4b, Ruling 31): the server refuses a Talk from beyond TalkRange + this
 TownsfolkService.TalkCooldown = 0.5 -- s between one player's Talks (server side: no spamming the rotation)
 -- Task 6b (all PROPOSALS)
 TownsfolkService.MaxHealth = 100
@@ -291,22 +299,39 @@ local function PlayerWithin(F, PostId, Radius)
 	return false
 end
 
+-- (Task 4b) a failed walk: held still where it stands, upright, with its own idle (it tries again later)
+local function HoldHere(F)
+	local L = F.Root.CFrame.LookVector
+	local Flat = Vector3.new(L.X, 0, L.Z)
+	Mover.Place(F.Rig, CFrame.lookAt(F.Root.Position, F.Root.Position + (Flat.Magnitude > 1e-3 and Flat or Vector3.new(0, 0, -1))))
+	F.Rig:SetAttribute("IdleAnim", F.Def.Idle or TownsfolkLogic.KindIdles.Home)
+end
+
 -- walks to PostId through the Mover; a newer Walk / Settle / Despawn cancels it
 local function Walk(F, PostId)
+	if F.FailPost ~= PostId then F.FailPost, F.Fails = PostId, 0 end -- (the backoff counts failures on one post)
 	F.Target, F.RetryAt = PostId, nil
 	SetState(F, "Walking")
 	F.Rig:SetAttribute("IdleAnim", nil) -- NpcIdles stops the pose and stops re-anchoring the root
 	local H
 	local function Done(Result)
 		if Result == "failed" then
-			if PlayerWithin(F, PostId, TownsfolkService.PlaceRadius) then
-				-- someone would see the teleport: stand where it is and try again shortly (Step, below)
-				WarnOnce("retry " .. F.Id .. ">" .. PostId, F.Id, "couldn't walk to post", PostId, "- trying again")
-				F.Walk, F.RetryAt = nil, os.clock() + TownsfolkService.RetryDelay
+			-- (Task 4b, Ruling 30) never a teleport a player within SleepRadius could see: hold, and try again later
+			F.Fails += 1
+			TownsfolkService.WalkFailures += 1
+			-- (a post removed meanwhile: Settle holds it where it stands, as before)
+			local Seen = Posts[PostId] ~= nil and PlayerWithin(F, PostId, TownsfolkService.SleepRadius)
+			local Delays = TownsfolkService.RetryDelays
+			local Delay = Delays[math.min(F.Fails, #Delays)]
+			warn(("TownsfolkService: %s couldn't walk to post %s (%s; failure %d in a row) - %s"):format(F.Id, PostId,
+				tostring(H and H.Why or "no walk"), F.Fails, Seen and ("holding, trying again in " .. Delay .. " s") or "placed there (nobody near)"))
+			if Seen then
+				F.Walk, F.RetryAt = nil, os.clock() + Delay
+				HoldHere(F)
 				return
 			end
-			WarnOnce("walk " .. F.Id .. ">" .. PostId, F.Id, "couldn't walk to post", PostId, "- placed there instead")
 		end
+		F.Fails = 0
 		Settle(F, PostId, "AtPost")
 	end
 	H = Mover.WalkTo(F.Rig, StandAt(Posts[PostId]), {Speed = TownsfolkService.WalkSpeed, OnDone = function(Result)
@@ -383,6 +408,10 @@ local LastTalk = {} -- [UserId] = os.clock() of their last Talk (the cooldown)
 function TownsfolkService.Talk(Player, Id)
 	local F = Folk[Id]
 	if not F or not F.Rig.Parent or not Calm(F.State) then return nil end
+	-- (Task 4b, Ruling 31) the server's own range check: the prompt's reach plus a margin for lag
+	local Char = Player.Character
+	local Me = Char and Char:FindFirstChild("HumanoidRootPart")
+	if not (Me and (Me.Position - F.Root.Position).Magnitude <= TownsfolkService.TalkRange + TownsfolkService.TalkMargin) then return nil end
 	local Now = os.clock()
 	if Now - (LastTalk[Player.UserId] or -math.huge) < TownsfolkService.TalkCooldown then return nil end
 	LastTalk[Player.UserId] = Now
@@ -903,13 +932,13 @@ function TownsfolkService.Step(Hour)
 		end
 		if F.State == "Walking" and not (F.Walk and F.Walk.Status == "walking") then
 			if F.RetryAt then
-				-- a failed walk with a player near: try again (or place it, once nobody is near)
+				-- a failed walk, held: try again (or place it, once nobody is within SleepRadius: Task 4b)
 				if os.clock() >= F.RetryAt then
-					if PlayerWithin(F, F.Target, TownsfolkService.PlaceRadius) then Walk(F, F.Target) else Settle(F, F.Target, "AtPost") end
+					if PlayerWithin(F, F.Target, TownsfolkService.SleepRadius) then Walk(F, F.Target) else Settle(F, F.Target, "AtPost") end
 				end
-			elseif F.Target and Posts[F.Target] and PlayerWithin(F, F.Target, TownsfolkService.PlaceRadius) then
+			elseif F.Target and Posts[F.Target] and PlayerWithin(F, F.Target, TownsfolkService.SleepRadius) then
 				-- watchdog: "Walking" with no live walk (it ended without settling) and a player near (Task 6b: nobody
-				-- may see a teleport, the same gate as a failed walk) -> walk on to the post it was walking to
+				-- may see a teleport, the same gate as a failed walk; Task 4b: SleepRadius) -> walk on to the post
 				WarnOnce("watchdog " .. Id, Id, "was Walking with no walk in progress - walking on to", F.Target)
 				Walk(F, F.Target)
 			else
