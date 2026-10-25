@@ -25,12 +25,14 @@
 --                 (BaselineInspect, BaselineTrainers, BaselineYardParts, BaselineYardPivot, StrippedTags), then, in a
 --                 pcall with a journal (an error half-way is rolled back) and one ChangeHistory recording: strips and
 --                 moves each piece, builds the notice, sets the flag; then runs check.
--- MODE = "undo"   refuses while Play runs or PlayLock is set, or unless the flag is "applied". Destroys the notice,
+-- MODE = "undo"   refuses while Play runs or PlayLock is set, or unless the flag is "applied". Destroys the notice
+--                 (only one carrying FoundryMoveAdd: Ruling 38),
 --                 moves each piece back to its FoundryMoveFrom parent (else its FoundryMoveFromPath parent) with its
 --                 tags restored from RegionKitTags, clears the baseline, deletes the backup folder if this script made
 --                 it, clears the flag. Journalled and rolled back on an error, like apply. Undo this BEFORE prep_ye.lua's
 --                 undo: prep_ye refuses while FoundryMove is set.
--- MODE = "check"  read-only failure list (see checks()); PASS n / FAIL n.
+-- MODE = "check"  read-only failure list (see checks()); PASS n / FAIL n. (Ruling 38 adds: NoticePost exists, the board
+--                 faces -Z, and no RenseiInspect in workspace has a metal_* InspectId.)
 -- MODE = "test"   (only while not applied) snapshot -> apply -> check -> undo -> snapshot; the two must be equal (by
 --                 instance: full name, class, sorted attributes, sorted tags, a part's CFrame; plus every tag's count,
 --                 workspace's BasePart count and the RenseiBackups children). check and snapshot run inside a pcall.
@@ -184,11 +186,25 @@ local function checks()
 		if P:GetAttribute("TrialId") == "metal_experiment" then table.insert(Trial, P:GetFullName()) end
 	end
 	cond(#Trial > 0, "a RenseiTrial with TrialId metal_experiment is in the DataModel: " .. table.concat(Trial, ", "))
+	-- (Ruling 38) none of the forge's metal_* inspects is left in Ye's world
+	local Metal = {}
+	for _, P in ipairs(CS:GetTagged("RenseiInspect")) do
+		local Id = P:GetAttribute("InspectId")
+		if P:IsDescendantOf(workspace) and type(Id) == "string" and string.sub(Id, 1, 6) == "metal_" then
+			table.insert(Metal, Id .. " at " .. P:GetFullName())
+		end
+	end
+	cond(#Metal > 0, "a RenseiInspect with a metal_* InspectId is in Ye's workspace: " .. table.concat(Metal, ", "))
 	-- the notice
 	local Notice = Map:FindFirstChild("BrannocNotice")
 	local Board = Notice and Notice:FindFirstChild("NoticeBoard")
 	cond(not Board, "World.Map.BrannocNotice.NoticeBoard is missing")
+	-- (Ruling 38) the post is there, and the board faces -Z (toward the training field, Ye's south)
+	local Post = Notice and Notice:FindFirstChild("NoticePost")
+	cond(not (Post and Post:IsA("BasePart")), "World.Map.BrannocNotice.NoticePost is missing")
 	if Board then
+		local L = Board.CFrame.LookVector
+		cond(L:Dot(Vector3.new(0, 0, -1)) <= 0.99, ("the NoticeBoard faces (%.2f, %.2f, %.2f), not -Z"):format(L.X, L.Y, L.Z))
 		cond(not CS:HasTag(Board, "RenseiInspect"), "the NoticeBoard is not tagged RenseiInspect")
 		cond(Board:GetAttribute("InspectId") ~= NOTICE_ID, "the NoticeBoard's InspectId is " .. tostring(Board:GetAttribute("InspectId")) .. ", not " .. NOTICE_ID)
 		local Spot
@@ -319,16 +335,16 @@ local function apply()
 			RB = Instance.new("Folder")
 			RB.Name = "RenseiBackups"
 			RB:SetAttribute(ADD, true)
+			did(function() RB:Destroy() end) -- (Ruling 38: the journal entry before the Parent)
 			RB.Parent = SS
-			did(function() RB:Destroy() end)
 		end
 		local BK = BK0
 		if not BK then
 			BK = Instance.new("Folder")
 			BK.Name = BACKUP
 			BK:SetAttribute(ADD, true)
+			did(function() BK:Destroy() end) -- (Ruling 38: the journal entry before the Parent)
 			BK.Parent = RB
-			did(function() BK:Destroy() end)
 		end
 		-- the baseline, before anything moves (Ruling 5)
 		local Stripped = 0
@@ -453,7 +469,8 @@ local function undo()
 	local Gone = {} -- destroyed at the end, once nothing can fail
 	local Ok, Err = pcall(function()
 		local Notice = Map:FindFirstChild("BrannocNotice")
-		if Notice then
+		-- (Ruling 38) only the notice apply made (FoundryMoveAdd): a BrannocNotice someone else built stays
+		if Notice and Notice:GetAttribute(ADD) == true then
 			did(function() Notice.Parent = Map end)
 			Notice.Parent = nil
 			table.insert(Gone, Notice)
@@ -562,7 +579,9 @@ elseif MODE == "test" then
 	local Ok, Msg = apply()
 	if not Ok then return refuse(Msg) end
 	local COk, Fails, Head, Lines = pcall(checks)
-	local UOk, UMsg = undo()
+	-- (Ruling 38) undo in a pcall: an error in it is reported, not raised past the report
+	local PUOk, UOk, UMsg = pcall(undo)
+	if not PUOk then UOk, UMsg = false, "error: " .. tostring(UOk) end
 	local SOk, After, AfterX = pcall(snapshot)
 	local Diff, N = {}, 0
 	if SOk then Diff, N = compare(Before, BeforeX, After, AfterX) end

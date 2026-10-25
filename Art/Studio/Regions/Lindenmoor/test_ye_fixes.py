@@ -13,6 +13,9 @@ python -I Art/Studio/Regions/Lindenmoor/test_ye_fixes.py
    seam pits, bed and road cut, regrade_seam undo refuses on the gorge fix, seam_pits undo on the road cut.
 4. prep_ye.lua's undo refuses while the Foundry move is applied (Foundry Yard plan Task 8, Ruling 12): the FoundryMove
    guard is planUndo()'s first statement, before any journal step or change.
+5. retire_ye.lua (Foundry Yard plan Task 9, Ruling 38): apply journals the RenseiBackups and backup folders it makes
+   before it parents them; undo destroys BrannocNotice only when it carries FoundryMoveAdd; test mode runs undo in a
+   pcall; check has the NoticePost, board-faces-minus-Z and no-metal_*-inspect conditions.
 """
 import glob, json, os, re, sys
 
@@ -225,10 +228,60 @@ def test_prep_guard():
         check("self-test: a journal step before the guard is caught", bool(guard_problems(moved)))
 
 
+# ---------------------------------------------------------------- 5. retire_ye.lua (Ruling 38)
+RETIRE = os.path.join(HERE, "..", "Foundry", "forge", "retire_ye.lua")
+
+
+def retire_problems(src):
+    """Why src (retire_ye.lua) misses a Ruling 38 rule (empty when it has them all)."""
+    out = []
+    lines = src.split("\n")
+    for var, parent in (("RB", "SS"), ("BK", "RB")):
+        j = next((i for i, l in enumerate(lines) if re.match(r"^\s*did\(function\(\) %s:Destroy\(\) end\)" % var, l)), None)
+        p = next((i for i, l in enumerate(lines) if re.match(r"^\s*%s\.Parent = %s\s*$" % (var, parent), l)), None)
+        if j is None or p is None:
+            out.append(f"apply: no journal entry / Parent line for {var}")
+        elif j > p:
+            out.append(f"apply: {var}.Parent = {parent} (line {p + 1}) comes before its journal entry (line {j + 1})")
+    _, body = function_body(src, "local function undo()")
+    text = "\n".join(body or [])
+    if not re.search(r'local Notice = Map:FindFirstChild\("BrannocNotice"\)\s*\n(?:\s*--[^\n]*\n)?\s*if Notice and Notice:GetAttribute\(ADD\) == true then', text):
+        out.append("undo: BrannocNotice is not destroyed only when it carries FoundryMoveAdd (ADD)")
+    test_part = src[src.index('elseif MODE == "test" then'):] if 'elseif MODE == "test" then' in src else ""
+    if not re.search(r"=\s*pcall\(undo\)", test_part):
+        out.append("test mode: undo() is not run in a pcall")
+    _, cbody = function_body(src, "local function checks()")
+    ctext = "\n".join(cbody or [])
+    for what, rx in (("NoticePost", r'FindFirstChild\("NoticePost"\)'),
+                     ("the board faces -Z", r"Dot\(Vector3\.new\(0, 0, -1\)\) <= 0\.99"),
+                     ("no metal_* inspect", r'string\.sub\(Id, 1, 6\) == "metal_"')):
+        if not re.search(rx, ctext):
+            out.append("check: no condition for " + what)
+    return out
+
+
+def test_retire():
+    with open(RETIRE, encoding="utf-8") as f:
+        src = f.read().replace("\r\n", "\n")
+    problems = retire_problems(src)
+    check("retire_ye.lua: Ruling 38's journal order, notice guard, test pcall and check conditions", not problems, problems)
+    # self-tests: each rule is caught when broken
+    good = "\t\t\tdid(function() RB:Destroy() end) -- (Ruling 38: the journal entry before the Parent)\n\t\t\tRB.Parent = SS"
+    swapped = src.replace(good, "\t\t\tRB.Parent = SS\n\t\t\tdid(function() RB:Destroy() end)", 1)
+    check("self-test: RenseiBackups parented before its journal entry is caught", swapped != src and bool(retire_problems(swapped)))
+    unguarded = src.replace("if Notice and Notice:GetAttribute(ADD) == true then", "if Notice then", 1)
+    check("self-test: an unguarded notice destroy is caught", unguarded != src and bool(retire_problems(unguarded)))
+    bare = src.replace("pcall(undo)", "undo()", 1)
+    check("self-test: a bare undo() in test mode is caught", bare != src and bool(retire_problems(bare)))
+    nopost = src.replace('FindFirstChild("NoticePost")', 'FindFirstChild("Post")', 1)
+    check("self-test: a check without the NoticePost condition is caught", nopost != src and bool(retire_problems(nopost)))
+
+
 if __name__ == "__main__":
     test_names()
     test_generated()
     test_guards()
     test_prep_guard()
+    test_retire()
     print(f"{'FAIL' if FAILS else 'PASS'}: {len(FAILS)} failed")
     sys.exit(1 if FAILS else 0)

@@ -118,7 +118,7 @@ local Foundry = {
 		JobLine = "Furnace One, mornings. Twelve years, and she's never once let me forget it's her shift, not mine.",
 		Look = {Nation = "Amestrian", Gender = "Male", Seed = 3105},
 		Clue = {Quest = "foundry_ledger", Stage = 1, Signal = "foundry_ledger_rusk", Evidence = "foundry_banked_early",
-			Text = "The 14th? I was handing over to the late lot when the tuyere cracked. They banked her by six and sent the crew home. Nobody stood at Furnace One past six that night, and I'll swear to it."},
+			Text = "The 14th? I was handing over to the late lot when the tuyere cracked. They banked her by six and sent the crew home. Nobody stood at Furnace One past six that night. Ask any of the late lot."},
 		Schedule = {{6, 14, "furnace_1"}, {14, 15, "canteen_seat_2"}, {15, 6, "workers_row_5"}}},
 	{Id = "fy_furnace_l1", Name = "Sella Marsh", Job = "Furnace hand", Faction = "Foundry", Idle = "NPC_Blacksmith",
 		JobLine = "Late shift at Furnace One. You get used to the heat. You never get used to the noise.",

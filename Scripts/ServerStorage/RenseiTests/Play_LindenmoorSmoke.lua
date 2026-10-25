@@ -30,6 +30,10 @@
 --     starts at stage 1 (travel) with Progress.foundry 0, since TravelService.Here() is Lindenmoor. The notice's text
 --     names the way the road leaves on Ye's compass (north +Z): the 8-point word for Regions.Bearing(dx, dz, "+Z")
 --     from the board to the road's RoadStart arrival. The save's Quests and Identity are put back after.
+--   * BrannocNoticeLeavesAPathAlone (Foundry Yard plan Task 9, Ruling 38): a player with Affinity "Flame" who inspects
+--     the notice gets no acq_metal. And the direction word above is matched as a whole word (a hyphen is part of a
+--     word; the roads' names "NORTH ROAD" / "SOUTH ROAD" are taken out first), with controls on the old notice text
+--     (no direction word), "NORTH ROAD" and "NORTH-WEST".
 --   * EnemiesStandInTheWorld (final review C1, 2026-10-24): SmokeKit.EnemiesStandInTheWorld with no Opts. Every enemy
 --     EnemyService has live has its Home (the part it spawned from) in workspace, or outside the DataModel altogether
 --     (a runtime mark: RoadService's ambushes, RideEvents' holdups); never in the DataModel outside workspace (the
@@ -409,28 +413,27 @@ local function Compass8(Deg)
 	return COMPASS8[(math.floor((Deg % 360) / 45 + 0.5) % 8) + 1]
 end
 
-function Suite.BrannocNoticeStartsTheQuest(T)
+-- (Foundry Yard plan Task 9, Ruling 38) does Text name the way Word (an 8-point word: "NORTH", "NORTH-WEST", ...)?
+-- Upper case; the roads' own names ("NORTH ROAD", "SOUTH ROAD") are taken out first; then Word must stand as a whole
+-- word, where a hyphen counts as part of a word: "NORTH ROAD" can't satisfy NORTH, and "NORTH-WEST" satisfies neither
+-- NORTH nor WEST.
+local function NamesWay(Text, Word)
+	local U = string.upper(Text):gsub("NORTH ROAD", ""):gsub("SOUTH ROAD", "")
+	local Pat = "%f[%w%-]" .. Word:gsub("%-", "%%-") .. "%f[^%w%-]"
+	return string.find(U, Pat) ~= nil
+end
+-- the notice's text as Task 8's brief first worded it (no direction word): NamesWay must refuse it (Ruling 38's control)
+local OLD_NOTICE = "A notice nailed to the post where the Metal Alchemist used to stand, in square, careful capitals: \"GONE TO THE FOUNDRY YARD. A FORGE THERE NEEDS LOOKING AT. STUDENTS: TRAIN FROM LINDENMOOR STATION, OR THE NORTH ROAD. - B.\""
+
+-- with acq_* cleared from the save and Affinity set to Affinity, the player stands within 9 studs of the notice and
+-- runs Fn(Data, Board); the save's Quests and Identity, the character and the dialogue box are put back after
+local function AtTheNotice(T, Affinity, Fn)
 	local PS = require(SSS.ProgressionService)
-	local Investigation = require(SSS.InvestigationService)
-	local TravelService = require(SSS.TravelService)
-	local Regions = require(Rensei.Regions)
-	local Def = require(Rensei.Investigation).Inspects[NOTICE]
-	T.True(Def ~= nil, NOTICE .. " has an inspect def")
 	local _, Elements = TrainerSpots(T)
 	local Spot = Elements.Metal
 	T.True(Spot ~= nil, "the Metal TrainerSpot")
 	local Board, Off = NearestInspect(NOTICE, Spot.Position)
 	T.True(Board ~= nil and Off <= 6, "the " .. NOTICE .. " notice at the Metal TrainerSpot")
-	-- the notice's direction word is Ye's (north +Z), toward where the road to Foundry leaves (read live, not written)
-	local RoadStart = TravelService.ArrivalPoint("RoadStart")
-	T.True(RoadStart ~= nil, "Ye's RoadStart arrival (the road to Foundry)")
-	local D = RoadStart.Position - Board.Position
-	local Deg = Regions.Bearing(D.X, D.Z, "+Z")
-	local Word = Compass8(Deg)
-	T.True(string.find(string.upper(Def.Text), Word, 1, true) ~= nil,
-		("the notice names the road's way out on Ye's compass, %s (bearing %.0f): %s"):format(Word, Deg, Def.Text))
-	T.Eq(TravelService.Here(), "Lindenmoor", "TravelService.Here()")
-
 	local Data = Player and PS.GetData(Player)
 	T.True(Data ~= nil and type(Data.Quests) == "table", "a player with a loaded save")
 	local Char = Player.Character
@@ -442,32 +445,24 @@ function Suite.BrannocNoticeStartsTheQuest(T)
 		Identity = {Was = Data.Identity, Copy = SmokeKit.Copy(Data.Identity)},
 	}
 	local Ok, Err = pcall(function()
-		-- a player with no path and no acquisition quest
 		Data.Identity = Data.Identity or {}
-		Data.Identity.Affinity = ""
+		Data.Identity.Affinity = Affinity
 		for _, Box in ipairs({Data.Quests.Active, Data.Quests.Completed}) do
 			for Id in pairs(Box) do if string.sub(Id, 1, 4) == "acq_" then Box[Id] = nil end end
 		end
 		local Me = SmokeKit.Stand(Player, Board.Position)
 		T.True((Me.Position - Board.Position).Magnitude <= 9, "the player stands within 9 studs of the notice")
-		T.True(Investigation.Inspect(Player, NOTICE, Board), "the notice was inspected")
-		local State = Data.Quests.Active.acq_metal
-		T.True(State ~= nil, "the notice started acq_metal")
-		T.Eq(State.Stage, 1, "acq_metal at stage 1 (travel)")
-		T.Eq(State.Progress and State.Progress.foundry, 0, "the travel objective is still open in Lindenmoor")
+		Fn(Data, Board)
 	end)
 	-- everything back: the save tables (in place), the character, the dialogue box
 	local Back = {}
-	local function Try(What, Fn)
-		local K, E = pcall(Fn)
+	local function Try(What, F)
+		local K, E = pcall(F)
 		if not K then table.insert(Back, What .. ": " .. tostring(E)) end
 	end
 	Try("save", function()
 		for K, S in pairs(Saved) do
-			if type(S.Was) == "table" then
-				for Key in pairs(S.Was) do S.Was[Key] = nil end
-				for Key, V in pairs(S.Copy) do S.Was[Key] = SmokeKit.Copy(V) end
-			end
+			if type(S.Was) == "table" then SmokeKit.PutBack(S.Was, S.Copy) end
 			Data[K] = S.Was
 		end
 	end)
@@ -480,6 +475,48 @@ function Suite.BrannocNoticeStartsTheQuest(T)
 	Try("sync", function() PS.Sync(Player) end)
 	if not Ok then error(Err, 0) end
 	T.Eq(#Back, 0, "NOT PUT BACK: " .. table.concat(Back, " | "))
+end
+
+function Suite.BrannocNoticeStartsTheQuest(T)
+	local Investigation = require(SSS.InvestigationService)
+	local TravelService = require(SSS.TravelService)
+	local Regions = require(Rensei.Regions)
+	local Def = require(Rensei.Investigation).Inspects[NOTICE]
+	T.True(Def ~= nil, NOTICE .. " has an inspect def")
+	local _, Elements = TrainerSpots(T)
+	local Board = NearestInspect(NOTICE, Elements.Metal.Position)
+	-- the notice's direction word is Ye's (north +Z), toward where the road to Foundry leaves (read live, not written)
+	local RoadStart = TravelService.ArrivalPoint("RoadStart")
+	T.True(RoadStart ~= nil, "Ye's RoadStart arrival (the road to Foundry)")
+	local D = RoadStart.Position - Board.Position
+	local Deg = Regions.Bearing(D.X, D.Z, "+Z")
+	local Word = Compass8(Deg)
+	-- (Ruling 38) controls: the matcher refuses the old wording, a road's name and half of a hyphenated word
+	T.Eq(NamesWay(OLD_NOTICE, Word), false, "control: the old notice text (no direction word) doesn't name " .. Word)
+	T.Eq(NamesWay("WALK THE NORTH ROAD.", "NORTH"), false, "control: \"NORTH ROAD\" doesn't name NORTH")
+	T.Eq(NamesWay("OUT NORTH-WEST.", "NORTH"), false, "control: \"NORTH-WEST\" doesn't name NORTH")
+	T.Eq(NamesWay("OUT NORTH-WEST.", "WEST"), false, "control: \"NORTH-WEST\" doesn't name WEST")
+	T.Eq(NamesWay("OUT NORTH-WEST.", "NORTH-WEST"), true, "control: \"OUT NORTH-WEST.\" names NORTH-WEST")
+	T.True(NamesWay(Def.Text, Word), ("the notice names the road's way out on Ye's compass, %s (bearing %.0f): %s"):format(Word, Deg, Def.Text))
+	T.Eq(TravelService.Here(), "Lindenmoor", "TravelService.Here()")
+	AtTheNotice(T, "", function(Data, B)
+		T.True(Investigation.Inspect(Player, NOTICE, B), "the notice was inspected")
+		local State = Data.Quests.Active.acq_metal
+		T.True(State ~= nil, "the notice started acq_metal")
+		T.Eq(State.Stage, 1, "acq_metal at stage 1 (travel)")
+		T.Eq(State.Progress and State.Progress.foundry, 0, "the travel objective is still open in Lindenmoor")
+	end)
+end
+
+-- (Foundry Yard plan Task 9, Ruling 38) the behavioural negative: a player who already has a path reads the notice
+-- and gets no acq_metal (its Requires is NoAffinity)
+function Suite.BrannocNoticeLeavesAPathAlone(T)
+	local Investigation = require(SSS.InvestigationService)
+	AtTheNotice(T, "Flame", function(Data, B)
+		T.True(Investigation.Inspect(Player, NOTICE, B), "the notice was inspected (its text is read)")
+		T.Eq(Data.Quests.Active.acq_metal, nil, "a Flame student gets no acq_metal from the notice")
+		T.Eq(Data.Quests.Completed.acq_metal, nil, "nor a completed one")
+	end)
 end
 
 -- ===== enemies =====

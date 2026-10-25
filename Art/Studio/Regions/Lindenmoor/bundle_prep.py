@@ -7,7 +7,10 @@ python -I Art/Studio/Regions/Lindenmoor/bundle_prep.py test <out.lua>
     test_prep.lua, with pads.json inlined and prep_ye.lua wrapped as `local function Prep(MODE_ARG)`. With no
     prep_ye.lua yet, Prep is nil (the test fails: Task 5 step 1).
 Both refuse if pads.json is stale: every file in its "Inputs" must still hash as recorded (Ruling 18; CRLF counts
-as LF). The bundle also sets PADS_HASH, the first 8 hex of pads.json's sha256, which apply echoes in its summary.
+as LF). The one exception (Foundry Yard plan Task 9, Ruling 38): a `prep <out.lua> undo` bundle skips that check,
+since prep_ye.lua's undo reads no pad data (it moves everything back by its LindenmoorPrepFrom marks); pads.json is
+still inlined, as prep_ye.lua needs PADS_JSON to start. The bundle also sets PADS_HASH, the first 8 hex of pads.json's
+sha256, which apply echoes in its summary.
 """
 import hashlib, json, os, re, sys
 
@@ -45,9 +48,10 @@ def check_fresh(text):
                          "\nRe-run: python -I Art/Studio/Regions/Lindenmoor/make_pads.py (and lift_survey.lua first if Ye's items changed)")
 
 
-def pads_literal():
+def pads_literal(fresh=True):
     text = read("pads.json")
-    check_fresh(text)
+    if fresh:
+        check_fresh(text)
     if "]==]" in text:
         raise SystemExit("pads.json contains ]==]; pick a longer bracket level")
     short = sha(text.encode("utf-8"))[:8]
@@ -68,7 +72,8 @@ def main(argv):
     kind, out = argv[0], argv[1]
     have_prep = os.path.exists(os.path.join(HERE, "prep_ye.lua"))
     if kind == "prep":
-        src = sub_once(PADS_LINE, pads_literal(), read("prep_ye.lua"), "PADS_JSON")
+        # (Ruling 38) an undo bundle doesn't need fresh pads: prep_ye.lua's undo reads no pad data
+        src = sub_once(PADS_LINE, pads_literal(fresh=argv[2] != "undo"), read("prep_ye.lua"), "PADS_JSON")
         lua = sub_once(MODE_LINE, f'local MODE = "{argv[2]}" -- set by bundle_prep.py', src, "MODE")
     else:
         lua = pads_literal() + "\n"
