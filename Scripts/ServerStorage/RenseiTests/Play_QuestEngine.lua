@@ -27,12 +27,7 @@ local TestKit = require(script.Parent.TestKit) -- (Task 4b: TestKit.Beside, for 
 local SITES = {Vector3.new(-700, 300, 700), Vector3.new(700, 300, 700), Vector3.new(-700, 300, -3300)}
 local FLOOR = 40
 
-local function Copy(T)
-	if type(T) ~= "table" then return T end
-	local R = {}
-	for K, V in pairs(T) do R[K] = Copy(V) end
-	return R
-end
+local Copy = require(script.Parent.SmokeKit).Copy -- (Task 9, Ruling 37: the shared helper)
 
 -- runs Body(Player, Data, OnCleanup) with the player's Quests / Story / Morality copied first and put back after (in
 -- place, the same tables), then every OnCleanup function (last first); a failure is raised after the cleanup

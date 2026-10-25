@@ -24,12 +24,7 @@ local Player = game.Players:GetPlayers()[1]
 -- where each trainer teaches (a region id, TravelService.Here())
 local WHERE = {flame = "Lindenmoor", ice = "Lindenmoor", earth = "Lindenmoor", wind = "Lindenmoor", metal = "Foundry"}
 
-local function Copy(V)
-	if type(V) ~= "table" then return V end
-	local R = {}
-	for K, X in pairs(V) do R[K] = Copy(X) end
-	return R
-end
+local Copy = require(script.Parent.SmokeKit).Copy -- (Task 9, Ruling 37: the shared helper)
 
 local function Trainer(Id)
 	for _, D in ipairs(workspace:GetDescendants()) do

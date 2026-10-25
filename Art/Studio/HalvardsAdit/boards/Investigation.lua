@@ -17,6 +17,9 @@
 -- PLACEHOLDER content (Foundry Yard investigation).
 
 local Q = {Quest = {Id = "chalk_foundry", Is = "Active"}}
+-- (Foundry Yard plan, Ruling 6) acq_metal's stage numbers come from its stage ids; neither module requires this one
+local StoryLogic = require(script.Parent.StoryLogic)
+local Quests = require(script.Parent.Quests)
 
 return {
 	Inspects = {
@@ -40,6 +43,17 @@ return {
 		lm_mine_shaft = {Title = "Boarded Shaft", Evidence = "lm_shaft_ore", StartsQuest = "lm_mine",
 			Text = "A shaft under the headframe, planked over and chained shut. Ore lies spilled around the collar where it fell, and the cart rail runs right up to the boards. Whoever closed it didn't stop to tidy up.",
 			AfterText = "The boarded shaft, the ore still lying where it fell."},
+		-- ===== Foundry Yard: the shift ledger (Foundry Yard plan, 2026-10-24) =====
+		-- RenseiClue parts in Foundry's Map.Foundry.Markers: the ledger on the shift office lectern, the docket in the
+		-- underworks tunnel along the south edge (+Z on Foundry's compass). PROPOSAL wording. The ledger starts
+		-- foundry_ledger; the docket opens at its stage 2, once the crews and the clerk have been asked.
+		foundry_shift_ledger = {Title = "Shift Ledger", Evidence = "foundry_full_shift", StartsQuest = "foundry_ledger",
+			Text = "The Foundry's shift ledger lies open on the lectern, copied out fair in the clerk's tidy hand. Furnace One, late shift, the 14th: six names, eight hours each. Further down the same page, the furnace log reads \"Furnace One banked 18:00, tuyere cracked.\" A banked furnace has no crew.",
+			AfterText = "Furnace One's late crew, booked for eight hours on a day the furnace was banked four hours in."},
+		foundry_altered_docket = {Title = "Shift Docket", Evidence = "foundry_scraped_docket",
+			Requires = {Quest = {Id = "foundry_ledger", StageAtLeast = 2}}, Locked = "A bundle of damp paper wedged behind a pipe.",
+			Text = "A bundle of shift dockets, damp from the tunnel. The one for Furnace One, late shift, the 14th, reads \"8 hrs\". The paper under the 8 is scraped thin, and you can still make out a 4. It is signed by the late-shift charge hand: C. Ashe.",
+			AfterText = "The docket for the 14th: a 4 scraped into an 8, signed C. Ashe."},
 		-- ===== alchemy acquisition: Ice, Earth, Wind, Metal =====
 		ice_floor = {
 			Title = "Floor Ice", Evidence = "uneven_ice", Requires = {Quest = {Id = "acq_ice", StageAtLeast = 2}},
@@ -113,26 +127,31 @@ return {
 			AfterText = "The pressure log and its last note.",
 			Locked = "A desk of instruments.",
 		},
+		-- Brannoc's notice (Foundry Yard plan, owner decision D): on the post at Ye's Metal TrainerSpot, where he used to
+		-- stand. PROPOSAL wording. No Evidence, so Requires gates only the quest: a player who already has a path reads it
+		-- and gets no toast.
+		brannoc_moved = {Title = "Brannoc's Notice", StartsQuest = "acq_metal", Requires = {NoAffinity = true},
+			Text = "A notice nailed to the post where the Metal Alchemist used to stand, in square, careful capitals: \"GONE TO THE FOUNDRY YARD. A FORGE THERE NEEDS LOOKING AT. STUDENTS: TRAIN FROM LINDENMOOR STATION, OR WALK THE NORTH ROAD OUT NORTH-WEST. - B.\""},
 		metal_shaft = {
-			Title = "Drive Shaft", Evidence = "sheared_shaft", Requires = {Quest = {Id = "acq_metal", StageAtLeast = 2}},
+			Title = "Drive Shaft", Evidence = "sheared_shaft", Requires = {Quest = {Id = "acq_metal", StageAtLeast = StoryLogic.StageIndex(Quests.acq_metal, "fieldwork")}},
 			Text = "The drive shaft sheared clean through. The break is bright and grainy: it was too hard and brittle for the load, not too weak.",
 			AfterText = "The brittle, sheared shaft.",
 			Locked = "A broken drive shaft.",
 		},
 		metal_samples = {
-			Title = "Sample Rack", Evidence = "sample_rack", Requires = {Quest = {Id = "acq_metal", StageAtLeast = 2}},
+			Title = "Sample Rack", Evidence = "sample_rack", Requires = {Quest = {Id = "acq_metal", StageAtLeast = StoryLogic.StageIndex(Quests.acq_metal, "fieldwork")}},
 			Text = "A rack of material samples, each tagged: strength, flex, heat. The shaft's tag reads \"cast iron - DO NOT USE FOR SHAFTS\", in someone else's hand.",
 			AfterText = "The tagged samples. Cast iron, marked not for shafts.",
 			Locked = "A rack of metal samples.",
 		},
 		metal_gear = {
-			Title = "Repaired Gear", Evidence = "bad_weld", Requires = {Quest = {Id = "acq_metal", StageAtLeast = 2}},
+			Title = "Repaired Gear", Evidence = "bad_weld", Requires = {Quest = {Id = "acq_metal", StageAtLeast = StoryLogic.StageIndex(Quests.acq_metal, "fieldwork")}},
 			Text = "The gear was soldered back on with soft solder. By the soot around it, the repair held about an hour.",
 			AfterText = "The soft-soldered gear.",
 			Locked = "A gear on a cold machine.",
 		},
 		metal_note = {
-			Title = "Workshop Desk", Evidence = "experiment_record", Requires = {Quest = {Id = "acq_metal", StageAtLeast = 2}},
+			Title = "Workshop Desk", Evidence = "experiment_record", Requires = {Quest = {Id = "acq_metal", StageAtLeast = StoryLogic.StageIndex(Quests.acq_metal, "fieldwork")}},
 			Text = "A workshop record: \"Plated the subject with cast iron. It moves. It shouldn't.\" Under it, the forge's fire log, cut short.",
 			AfterText = "The record of the plated experiment.",
 			Locked = "A soot-black desk.",
@@ -284,6 +303,19 @@ return {
 				{Label = "The name: someone who works here", Answer = "apprentice_notebook"},
 			},
 			Conclusion = "An apprentice. Young, untrained, and practising alone at night: the smelting apprentice who signs as \"L.\"",
+			Wrong = "That doesn't hold together. Look at what each piece actually tells you.",
+		},
+		-- Foundry Yard: the shift ledger (Foundry Yard plan, 2026-10-24; PROPOSAL wording): foundry_ledger's last stage
+		foundry_ledger_who = {
+			Title = "The Shift Ledger",
+			Question = "Who altered the shift ledger, and how?",
+			Requires = {Evidence = {"foundry_full_shift", "foundry_banked_early", "foundry_short_pay", "foundry_docket_round", "foundry_scraped_docket"}},
+			Slots = {
+				{Label = "What the ledger claims", Answer = "foundry_full_shift"},
+				{Label = "What the crew really worked", Answer = "foundry_short_pay"},
+				{Label = "Where the false hours were written", Answer = "foundry_scraped_docket"},
+			},
+			Conclusion = "The clerk copied what he was given. The lie was written on the docket before it reached him: Ashe, the late-shift charge hand, scraped a 4 into an 8 and drew pay for hours his crew never worked.",
 			Wrong = "That doesn't hold together. Look at what each piece actually tells you.",
 		},
 	},

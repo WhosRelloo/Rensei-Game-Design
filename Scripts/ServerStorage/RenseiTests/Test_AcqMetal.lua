@@ -4,7 +4,8 @@
 --   * every stage number the other data modules need for it comes from StoryLogic.StageIndex (Ruling 6), so the
 --     inspects, minigames, trial and Brannoc's lines all moved one stage on together;
 --   * the forge trial fits its room (owner decision E): the great hall's Forge Floor shell is 38.8 x 49.8 studs;
---   * Brannoc's notice in Ye starts the quest (owner decision D).
+--   * Brannoc's notice in Ye starts the quest (owner decision D);
+--   * (Task 9, Ruling 37) the travel stage's text names the North Road's way out on Ye's compass: "out north-west".
 local Rensei = game.ReplicatedStorage.Modules.Data.Rensei
 local StoryLogic = require(Rensei.StoryLogic)
 local Quests = require(Rensei.Quests)
@@ -40,6 +41,11 @@ return {
 		T.Eq(#S.Objectives, 1, "one travel objective")
 		T.Eq(S.Objectives[1].Kind, "Arrive", "the travel objective is an Arrive")
 		T.Eq(S.Objectives[1].Target, "Foundry", "it arrives in the Foundry region")
+		-- (Task 9, Ruling 37) the travel text names the road's way out on Ye's compass, as Brannoc's notice does
+		-- (Play_LindenmoorSmoke checks the notice's word against live positions in Ye: NORTH-WEST)
+		T.True(string.find(S.Text, "out north-west", 1, true) ~= nil, "the travel text says the North Road leaves \"out north-west\": " .. S.Text)
+		local Notice = string.upper(Investigation.Inspects.brannoc_moved.Text)
+		T.True(string.find(Notice, "OUT NORTH-WEST", 1, true) ~= nil, "the notice names the same way: " .. Notice)
 	end,
 	RevisionTwoPrependsOne = function(T)
 		T.Eq(Quests.acq_metal.Revision, 2, "acq_metal is at revision 2")

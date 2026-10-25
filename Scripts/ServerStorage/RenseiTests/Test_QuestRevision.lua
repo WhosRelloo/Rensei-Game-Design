@@ -3,15 +3,11 @@
 -- (LMRunSuite), as StoryLogic changes in this task. Fix round 1 (Ruling 22) adds: the clamp to the last stage and
 -- non-number Prepended values (Minor 4); a state without a Stage, a second UpgradeAll and an untouched Completed
 -- (Minor 6, through QuestService.UpgradeAll with injected defs); stale-revision states as "not yet known" to stage
--- gates (I1, StoryLogic.Stale / Meets). Task 3 adds AcqMetalOldSaveMoves (the real acq_metal at revision 2).
+-- gates (I1, StoryLogic.Stale / Meets). Task 3 adds AcqMetalOldSaveMoves (the real acq_metal at revision 2); Task 9
+-- (Ruling 24) adds AcqMetalEveryOldStageMoves (old stages 1..6 -> 2..7 through UpgradeAll, Completed untouched).
 local StoryLogic = require(game.ReplicatedStorage.Modules.Data.Rensei.StoryLogic)
 
-local function Copy(T)
-	if type(T) ~= "table" then return T end
-	local R = {}
-	for K, V in pairs(T) do R[K] = Copy(V) end
-	return R
-end
+local Copy = require(script.Parent.SmokeKit).Copy -- (Task 9, Ruling 37: the shared helper)
 
 -- runs Body(QuestService) with two revised test quests (__fy_tq, __fy_tq_done) injected, and removes them after
 local function WithRevisedDefs(Body)
@@ -80,6 +76,26 @@ return {
 		T.Eq(State.Stage, 4, "old stage 3 is now stage 4")
 		T.Eq(State.Revision, 2, "recorded at revision 2")
 		T.Eq(StoryLogic.Stages(Quests.acq_metal)[State.Stage].Id, "experiment", "still the experiment")
+	end,
+
+	-- (Task 9, Ruling 24) table-driven, the real acq_metal through QuestService.UpgradeAll: every old stage 1..6 (a
+	-- revision-1 save: no Revision) lands on new stage 2..7, the same stage id as before, and Completed is untouched
+	AcqMetalEveryOldStageMoves = function(T)
+		local Quests = require(game.ReplicatedStorage.Modules.Data.Rensei.Quests)
+		local QuestService = require(game.ServerScriptService.QuestService)
+		local Stages = StoryLogic.Stages(Quests.acq_metal)
+		T.Eq(#Stages, 7, "acq_metal has 7 stages")
+		local OldIds = {"invite", "fieldwork", "experiment", "trial", "exam", "recognition"} -- revision 1's stage list
+		for Old = 1, 6 do
+			local Done = {acq_flame = 111, acq_metal = 222}
+			local Data = {Quests = {Active = {acq_metal = {Stage = Old, Progress = {}}}, Completed = Copy(Done)}}
+			T.Eq(QuestService.UpgradeAll(Data), true, ("old stage %d: UpgradeAll changes it"):format(Old))
+			local State = Data.Quests.Active.acq_metal
+			T.Eq(State.Stage, Old + 1, ("old stage %d is new stage %d"):format(Old, Old + 1))
+			T.Eq(State.Revision, Quests.acq_metal.Revision, ("old stage %d: recorded at the current revision"):format(Old))
+			T.Eq(Stages[State.Stage].Id, OldIds[Old], ("old stage %d: still the %s stage"):format(Old, OldIds[Old]))
+			T.Same(Data.Quests.Completed, Done, ("old stage %d: Completed is untouched"):format(Old))
+		end
 	end,
 
 	-- ===== fix round 1 (Ruling 22) =====

@@ -300,7 +300,7 @@ return {
 		Requires = {NoAffinity = true, Quests = {{Id = "acq_flame", Is = "NotActive"}, {Id = "acq_ice", Is = "NotActive"}, {Id = "acq_earth", Is = "NotActive"}, {Id = "acq_wind", Is = "NotActive"}}},
 		Revision = 2, Prepended = {[2] = 1}, -- Foundry Yard plan: the travel stage was put in front at revision 2; QuestService.Boot moves older saves forward
 		Stages = {
-			{Id = "travel", Text = "Brannoc teaches at the Foundry Yard now. Take the train from Lindenmoor Station, or walk the North Road out of the valley.", Objectives = {
+			{Id = "travel", Text = "Brannoc teaches at the Foundry Yard now. Take the train from Lindenmoor Station, or walk the North Road out north-west.", Objectives = {
 				{Id = "foundry", Text = "Travel to the Foundry Yard", Kind = "Arrive", Target = "Foundry"},
 			}},
 			{Id = "invite", Text = "Go to the silent forge at the back of the great hall, north-east of the practice court past the rail yards.", Objectives = {
