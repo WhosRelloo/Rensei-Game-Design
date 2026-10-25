@@ -87,7 +87,7 @@ Implementers use these numbers as given. Re-measure only where a step says so.
   - `hall_gantry` is reached only at AgentRadius 2. The Mover tries 2 (`Mover.NarrowRadii = {2, 1.5}`), so it is reachable.
   - **No path at any radius, even with jumps:** `market_trader_1..4`. Each trader stands in a 2.3-stud slot between the stall's Counter and Shelf. For example, stall 1 has its Counter at (−250, 5.5, −313.6), size 8 × 3 × 1.6, and its Shelf at (−250, 5.1, −310), size 7 × 2.2 × 1.
   - **No path without jumps:** `yard_hand_2` and `yard_hand_3`. The platform's south face is at z 160, and south of it the ground top is 4 (part `Top4` of `Ground_18_14`, x 384..448, z 160..192).
-- **Shelters.** There are 7 Shelter posts: station, yard, hall, foundry, square, workers and lower. **47 of the 76 posts have no shelter within 150 studs**; the worst is `cinder_home_6` at 473 studs.
+- **Shelters.** There are 7 Shelter posts: station, yard, hall, foundry, square, workers and lower. **37 of the 76 posts have no shelter within 150 studs**; the worst is `cinder_home_6` at 473 studs.
 
 **Foundry's areas.** The box centres and sizes, in world studs (y 50, height 140):
 
@@ -190,13 +190,16 @@ The walls are 12 tall (y 4..16), and the rooms are open to the hall roof.
   1. In Ye (Edit), set `game.ServerStorage:SetAttribute("PlayLock", "<Ye|Foundry>:<task>")`. When playing Foundry, set the same attribute in Foundry too.
   2. In the playing place (Edit), run `C:/Users/Owner/.claude/jobs/0c39df78/tmp/blender/hook.lua`.
   3. Start Play. In the Server data model, wait until `game.ServerStorage:GetAttribute("LMSnapTaken")` is set.
+     - **Then take a canonical dump of the player's `Data.Quests`** (Server): a recursive dump with keys sorted, written as one string, saved to the scratch folder as `quests_<task>_<n>.txt`. That is the snapshot the save must return to.
   4. Run the suites: `game.ServerStorage.LMRunSuite:Invoke("<Suite>")` (Server).
   5. `game.ServerStorage.LMTestHook:Invoke("restore")` (Server). It must return "restored".
      - `LMTestHook:Invoke("diff")` still lists Settings, Story, Morality and other keys after a restore. That is an encode quirk, not a real change.
+     - **Then dump `Data.Quests` again, the same way.** It must equal the dump from step 3, character for character. If it differs, stop, keep Play running, and report both dumps to the controller: the owner's real save would be written wrong at Stop.
   6. Stop Play.
   7. In Edit, run `C:/Users/Owner/.claude/jobs/0c39df78/tmp/blender/unhook.lua`.
   8. Only then, clear PlayLock in both places.
 - Script edits are refused while Play runs.
+- **The save upgrade waits for the snapshot.** From Task 2 on, `QuestService.Boot` upgrades saved quest stages on join. In Studio, while the test hook is installed, it first waits for the hook's snapshot of that player (Task 2), so a restore puts back the owner's save as it was, un-upgraded.
 - **Run Play_Boot first** in every travel run: Play_Station fails 4/20 when it is the first suite of a fresh session.
 - **Known failures:** Play_Travel 5/2 and Play_RideEvents 8/1 fail only on the Cabin/Second ticket in the owner's real save. They are not regressions.
 - **In Play, the world is a copy.** Map changes made in Play vanish at Stop, so RED controls that break the map belong in Play. Save data is real: the hook's restore puts it back.
@@ -249,13 +252,15 @@ The walls are 12 tall (y 4..16), and the rooms are open to the hall roof.
   - `check`: read-only;
   - `test`: allowed only while not applied. It snapshots, applies, checks, undoes and snapshots again; the two snapshots must be equal; it leaves the place as it was.
 - **`apply`:**
-  - refuses, changing nothing, when its flag attribute is already set;
+  - refuses, changing nothing, when its flag attribute is already set, while Play is running (`RunService:IsRunning()`), or while the `ServerStorage` attribute `PlayLock` is set (as `prep_ye.lua` does). Read the PlayLock of the place the script runs in; for a Foundry script, also check that Ye's is nil before running it;
   - runs inside a pcall with a journal, so an error mid-way is rolled back;
   - makes one ChangeHistoryService recording, and cancels it on a refusal;
   - marks every instance it creates with its `...Add = true` attribute, and every instance it moves or changes with its `...From` attribute (the old CFrame as 12 numbers, or the old value).
 - **`undo`:**
   - restores exactly those, and clears the flag;
+  - refuses while Play is running or PlayLock is set, as `apply` does;
   - refuses while any fix that has to be undone first is applied (each task names its guards).
+- **`check`** is written as a list of failure conditions only. Each condition that holds is reported by name, and `check` returns `PASS n / FAIL n`. It compares against measured values or a baseline that `apply` recorded, never against a value it reads at check time from the thing it checks.
 - Each mode returns a one-paragraph summary.
 - **Generated scripts** carry the header `-- generated by <tool> from <inputs> (<date>): do not edit by hand.` To run another MODE, copy the committed file to the scratch folder and edit only its MODE line there. Never regenerate a generated script to undo it: the generator reads the current place.
 - **A backup this plan makes carries no live CollectionService tags.**
@@ -281,6 +286,7 @@ The walls are 12 tall (y 4..16), and the rooms are open to the hall roof.
 - **The Mover:** the time-to-meet give-way and same-tick step-aside (Ruling 36) come with Task 1's Mover sync. Don't change the Mover. Play_TownsfolkCrowd must stay green.
 
 **Tests:**
+- **No duplicated test logic.** Helpers shared by more than one suite live in one module (`RenseiTests.SmokeKit`, made in Task 8) and are required, never copied.
 - **RED then GREEN.** Every new check is run once where it **must fail** (before the change, or with a deliberate break made in Play), and fails. Then it passes after.
 - A check that cannot fail is not a check (Lindenmoor decision 3, Ruling 41). Never pick a test spot or input by reading the property under test.
 - When a check fails, fix the cause in the task that owns it (the controller rules), never by loosening the check.
@@ -354,6 +360,7 @@ All `Rensei/` paths are `Scripts/ReplicatedStorage/Modules/Data/Rensei/`, and al
   - `Create: true` lets the tool create a missing script of `Class` in its parent. The parent must exist.
 - **`sync.py`:**
   - `--place ye|foundry`, plus one of:
+    - **Every mode considers only the pairs whose `Places` include the `--place` given.** A pair for the other place is never checked, generated or run here.
     - `--check`: prints one line per pair, `SAME`, `DIFFER <studio hash> vs <repo hash>` or `MISSING`, then `SAME n / DIFFER n / MISSING n`, and exits 1 when DIFFER or MISSING > 0;
     - `--only <labels>` or `--all`, with `--run`: generates and runs one bundle per pair, then re-runs `--check` for those labels;
     - `--out <dir>` without `--run`: generates only.
@@ -386,10 +393,14 @@ All `Rensei/` paths are `Scripts/ReplicatedStorage/Modules/Data/Rensei/`, and al
   - **RenseiTests** (`ServerStorage/RenseiTests/<X>`, repo `Scripts/ServerStorage/RenseiTests/<X>.lua`, `Create: true`), label `RenseiTests.<X>`, X = Test_Regions, Test_TownsfolkLogic, Play_Townsfolk, Play_TownsfolkCrowd, Play_TownsfolkHurt, Play_Clue, Play_Clock, Play_Exams, Play_NoGrip.
   - **`SPScripts.TownsfolkClient`:** `StarterPlayer/StarterPlayerScripts/TownsfolkClient`, LocalScript, repo `Art/Studio/Regions/TownsfolkClient.lua`, `Create: true`.
   - **`SCScripts.Health`:** `StarterPlayer/StarterCharacterScripts/Health`, Script, repo `Scripts/StarterPlayer/StarterCharacterScripts/Health.server.lua`, `Create: true`.
-- [ ] **Step 3: Run `test_sync.py`.** Expected: all pass.
+  - **The travel suites and TestKit**, so the sweep covers all of Foundry's RenseiTests (`ServerStorage/RenseiTests/<X>`, ModuleScript, label `RenseiTests.<X>`):
+    - `TestKit`, repo `Scripts/ServerStorage/RenseiTests/TestKit.lua`, Places both (measured equal in both places: `2019:483080569:61585387`);
+    - `Play_Travel`, `Play_Road`, `Play_RideEvents`, `Play_Arrive`, `Play_Gate` and `Play_Station`, repo `Art/Studio/Travel/src/<X>.lua`, Places both (each measured equal to the repo in both places);
+    - `Play_Boot`, repo `Art/Studio/Travel/src/Play_Boot.lua`, **Places `["foundry"]` only.** Foundry's copy equals the repo (`712:27271326:449683957`). Ye's is one byte shorter (`711:...`, the trailing newline, as the Lindenmoor sweep recorded); leave Ye's alone.
+- [ ] **Step 3: Run `test_sync.py`.** Expected: all pass. Add a test that `--check` for a place lists only the pairs whose `Places` include it (a fixture manifest with one ye-only and one foundry-only pair).
 - [ ] **Step 4: RED in Studio.**
-  - `sync.py --place foundry --check`. Expected: DIFFER 17 (the 16, plus Test_Regions) and MISSING 10 (8 suites, TownsfolkClient and Health).
-  - `sync.py --place ye --check`. Expected: `SAME 27 / DIFFER 0 / MISSING 0`. Ye isn't changed in this task. If Ye differs anywhere, stop and report: Ye must equal the repo before anything is copied from the repo.
+  - `sync.py --place foundry --check`. Expected: `SAME 8 / DIFFER 17 / MISSING 10`. SAME is TestKit and the 7 travel suites; DIFFER is the 16, plus Test_Regions; MISSING is the 8 suites, TownsfolkClient and Health.
+  - `sync.py --place ye --check`. Expected: `SAME 34 / DIFFER 0 / MISSING 0` (Play_Boot isn't a Ye pair). Ye isn't changed in this task. If Ye differs anywhere, stop and report: Ye must equal the repo before anything is copied from the repo.
 - [ ] **Step 5: Sync Foundry** with `sync.py --place foundry --all --run`. Then run `--check` for both places. Expected: both `DIFFER 0 / MISSING 0`, and Foundry's `RenseiBackups["Pre-FoundryData_2026-10-24"]` holds 17 backups.
 - [ ] **Step 6: Play in Foundry** (the Play protocol; PlayLock `Foundry:task1`). Suites, in this order: Play_Boot, Play_Station, Play_Road, Play_Gate, Play_Arrive, Play_Travel, Play_RideEvents, Test_Regions, Test_TownsfolkLogic, Play_Clock, Play_NoGrip, Play_Townsfolk, Play_TownsfolkCrowd, Play_TownsfolkHurt and Play_Clue.
   - Expected: the travel suites as before the import (Boot 2/0, Station 20/0, Road 11/0, Gate 13/0, Arrive 5/0; Travel 5/2 and RideEvents 8/1 on the known ticket), and every other suite 0 FAIL.
@@ -434,12 +445,13 @@ All `Rensei/` paths are `Scripts/ReplicatedStorage/Modules/Data/Rensei/`, and al
 - **`QuestService.Boot()`:**
   - once only (a module-level `Booted` flag);
   - for every player now in the game and every `Players.PlayerAdded`, it polls `ProgressionService.GetData(Player)` every 0.5 s, up to 240 times, stopping when the player leaves;
+  - **The test hook comes first.** When `RunService:IsStudio()` and either `ServerScriptService.LMTestHook_TEMP` or `ServerStorage.LMTestHook` exists, it waits until `ServerStorage:GetAttribute("LMSnapTaken") == Player.Name`, polling every 0.25 s for up to 120 s; on a timeout it warns and does not upgrade. (The hook script is in the DataModel from the first frame of Play, before its BindableFunction is made, so both names are checked.) Only then does it upgrade. So the hook's snapshot holds the save as it was, and "restore" never puts back an upgraded save. The wait is its own function, `QuestService.WaitForSnapshot(Player) -> boolean` (true at once outside Studio or with no hook; false on a timeout), so it can be tested.
   - when the data is there, it runs `UpgradeAll(Data)`, and calls `ProgressionService.Sync(Player)` if anything changed.
   - It isn't named `Start`, because `QuestService.Start(Player, QuestId)` already starts a quest.
 - **`QuestService.Start`:** the new state is `{Stage = 1, Progress = Progress, Started = os.time(), Revision = Def.Revision}`.
 - **`GiveRewards`:** after Training, `for _, Deed in ipairs(Rewards.Deeds or {}) do require(ServerScriptService.MoralityService).Record(Player, Deed) end`.
 - **`ServerHandler.server.lua`:** directly after the `InvestigationService` Start line, add `require(ServerScriptService.QuestService).Boot() -- saved quest stages follow revised quests (Foundry Yard plan)`.
-- **`TownsfolkService.Talk`:** when `Kind == "Clue"` and `type(Clue.Evidence) == "string"`, call `require(ServerScriptService.StoryService).GiveEvidence(Player, Clue.Evidence)` (pcall, warn on error) **before** the existing Signal block, so the next stage's catch-up sees the evidence. Update the header comment's Talk paragraph to say so.
+- **`TownsfolkService.Talk`:** when `Kind == "Clue"` and `type(Clue.Evidence) == "string"`, call `require(ServerScriptService.StoryService).GiveEvidence(Player, Clue.Evidence)` (pcall, warn on error). It goes **after** the `TownsfolkLogic.NextTalk` call and **before** the existing `Clue.Signal` pcall, so the next stage's catch-up sees the evidence. Update the header comment's Talk paragraph to say so.
 - **`Quests.lua` header schema:**
   - `Rewards = {Exp, Money, Items, Codex, Deeds = {"deedId"} (recorded once each on completion)}`;
   - `Revision = n, Prepended = {[r] = k}` (see `StoryLogic.UpgradeQuest`).
@@ -460,27 +472,28 @@ All `Rensei/` paths are `Scripts/ReplicatedStorage/Modules/Data/Rensei/`, and al
     - **`ClueLineGivesEvidence`:** inject an evidence def `__fy_ev` into `Rensei.Evidence`, and a one-stage quest whose objectives are Evidence `__fy_ev` and Signal `__fy_sig`.
       - Spawn a test townsperson with `Clue = {Quest = "__fy_q3", Stage = 1, Signal = "__fy_sig", Evidence = "__fy_ev", Text = "x"}`, on a temporary RenseiPost on a floor at y 300. Use Play_Townsfolk's fixture pattern: its first free site.
       - Start the quest. `TownsfolkService.Talk` then gives Kind "Clue", the player holds `__fy_ev`, and the quest is Completed.
+    - **`BootWaitsForTheSnapshot`:** Boot's wait is a function of its own (`QuestService.WaitForSnapshot(Player)`, used by Boot). Called with a player whose name isn't the `LMSnapTaken` value (a table stand-in with a `Name` and a `Parent`), it is still waiting after 1 s; with the real player, whose snapshot is taken, it returns at once.
     - **Every test puts back** what it changed: the injected defs, `Data.Quests`, `Data.Story`, `Data.Morality` (deep copies taken first), the fixture parts, and the townsperson (`TownsfolkService.Despawn`).
 - [ ] **Step 2: Add the pairs to the manifest.** Places ye and foundry:
   - `Rensei.StoryLogic`;
   - `RenseiServer.QuestService`;
   - `RenseiServer.ServerHandler`: Studio `ServerStorage/RenseiServer/ServerHandler`, Class Script, repo `Scripts/ServerScriptService/ServerHandler.server.lua`;
-  - `RenseiTests.Test_QuestRevision` and `RenseiTests.Play_QuestEngine` (`Create: true`).
+  - `RenseiTests.Test_QuestRevision` and `RenseiTests.Play_QuestEngine` (`Create: true`, Places both: they need no map).
   - `RenseiServer.TownsfolkService` and `Rensei.Quests` are already listed.
-- [ ] **Step 3: RED.** Sync **only the two test pairs** to Foundry. In Play in Foundry (PlayLock `Foundry:task2`), run Test_QuestRevision and Play_QuestEngine. Expected: Test_QuestRevision errors (no `UpgradeQuest`); Play_QuestEngine has 4 FAIL.
+- [ ] **Step 3: RED.** Sync **only the two test pairs** to Foundry. In Play in Foundry (PlayLock `Foundry:task2`), run Test_QuestRevision and Play_QuestEngine. Expected: Test_QuestRevision errors (no `UpgradeQuest`); Play_QuestEngine has 5 FAIL.
 - [ ] **Step 4: Implement** as specified, then sync every changed pair to **both** places.
 - [ ] **Step 5: GREEN.**
-  - **Play in Foundry:** Test_QuestRevision 6/0 and Play_QuestEngine 4/0. Regressions: Play_Clue, Play_Townsfolk, Play_TownsfolkHurt and Play_Exams. Play_Exams: in Foundry no trainer exists yet, so record its result; it is fixed in Task 3.
+  - **Play in Foundry:** Test_QuestRevision 6/0 and Play_QuestEngine 5/0. Regressions: Play_Clue, Play_Townsfolk and Play_TownsfolkHurt. Play_Exams also runs; it fails in Foundry, which has no trainer until Task 7. Record its result.
   - **Then Play in Ye** (PlayLock `Ye:task2`): Test_QuestRevision, Play_QuestEngine, Play_LindenmoorData, Play_Clue, Play_Townsfolk, Play_Exams (5/0) and Play_LindenmoorSmoke (8/0).
 - [ ] **Step 6:** `sync.py --check` in both places: `DIFFER 0 / MISSING 0`.
-- [ ] **Step 7: Commit** the six repo files, the two tests, `Region Builder.md` and the manifest: `"Foundry data Task 2: revised quests keep saved stages, quest deeds, clue lines give evidence"`.
+- [ ] **Step 7: Commit** the five repo files, the two tests, `Region Builder.md` and the manifest: `"Foundry data Task 2: revised quests keep saved stages, quest deeds, clue lines give evidence"`.
 
 ---
 
 ### Task 3: Areas, law, and `acq_metal`'s travel stage (data)
 
 **Files:**
-- Modify: `Rensei/Regions.lua`, `Quests.lua`, `Investigation.lua`, `Minigames.lua`, `Trials.lua` and `Dialogues.lua`; `RenseiTests/Test_Regions.lua` and `Play_Exams.lua`; `sync_manifest.json`.
+- Modify: `Rensei/StoryLogic.lua`, `Regions.lua`, `Quests.lua`, `Investigation.lua`, `Minigames.lua`, `Trials.lua` and `Dialogues.lua`; `RenseiTests/Test_Regions.lua`, `Play_Exams.lua` and `Test_QuestRevision.lua`; `sync_manifest.json`.
 - Create: `RenseiTests/Test_AcqMetal.lua`.
 
 **Interfaces:**
@@ -500,19 +513,23 @@ All `Rensei/` paths are `Scripts/ReplicatedStorage/Modules/Data/Rensei/`, and al
 - **The `trial` stage text** keeps "on the forge floor west of the workshop". It is still true in Foundry: the Forge Floor room (x 325) is west (−X) of the Silent Forge (x 373).
 - The stage order is then travel, invite, fieldwork, experiment, trial, exam and recognition (1–7).
 
-**Stage look-ups, by stage id, so no stage number is written by hand.** At the top of `Investigation.lua`, `Minigames.lua` and `Trials.lua` (before their `return`):
+**Stage look-ups, by stage id, so no stage number is written by hand.** One pure function in `StoryLogic.lua`, beside `StoryLogic.Stage`:
 ```lua
--- acq_metal's stage numbers by stage id (the Foundry Yard plan put a "travel" stage first)
-local function MetalStage(Id)
-	for I, S in ipairs(require(script.Parent.Quests).acq_metal.Stages) do
-		if S.Id == Id then return I end
+-- the index of the stage with this Id in Def's stage list, or nil (Foundry Yard plan: data modules name stages by id)
+function StoryLogic.StageIndex(Def, StageId)
+	if type(Def) ~= "table" then return nil end
+	for I, S in ipairs(StoryLogic.Stages(Def)) do
+		if S.Id == StageId then return I end
 	end
-	error("acq_metal has no stage " .. tostring(Id))
+	return nil
 end
 ```
-- **Investigation:** `metal_shaft`, `metal_samples`, `metal_gear` and `metal_note` get `Requires = {Quest = {Id = "acq_metal", StageAtLeast = MetalStage("fieldwork")}}` (3).
-- **Minigames:** `metal_match` gets `Stage = MetalStage("experiment")` (4), and `metal_exam` gets `Stage = MetalStage("exam")` (6).
-- **Trials:** `metal_experiment` gets `Requires = Stage("acq_metal", MetalStage("trial"))` (5). Also `Radius = 24` and `FoeDistance = 14`, with the comment `-- PROPOSAL (Foundry Yard plan, owner decision E): fits the great hall's 38.8 x 49.8 Forge Floor shell; were 34 / 16`. The rest is unchanged.
+`Investigation.lua`, `Minigames.lua` and `Trials.lua` each add, before their `return`, `local StoryLogic = require(script.Parent.StoryLogic)` and `local Quests = require(script.Parent.Quests)`. Neither module requires them back, so there is no require loop. Then:
+- **Investigation:** `metal_shaft`, `metal_samples`, `metal_gear` and `metal_note` get `Requires = {Quest = {Id = "acq_metal", StageAtLeast = StoryLogic.StageIndex(Quests.acq_metal, "fieldwork")}}` (3).
+- **Minigames:** the table is written out in full, naming `Requires.Quest.Stage`:
+  - `metal_match` gets `Requires = {Quest = {Id = "acq_metal", Is = "Active", Stage = StoryLogic.StageIndex(Quests.acq_metal, "experiment")}}` (4);
+  - `metal_exam` gets `Requires = {Quest = {Id = "acq_metal", Is = "Active", Stage = StoryLogic.StageIndex(Quests.acq_metal, "exam")}}` (6).
+- **Trials:** `metal_experiment` gets `Requires = {Quest = {Id = "acq_metal", Is = "Active", Stage = StoryLogic.StageIndex(Quests.acq_metal, "trial")}}` (5), written out in full rather than through the file's `Stage(...)` helper. Also `Radius = 24` and `FoeDistance = 14`, with the comment `-- PROPOSAL (Foundry Yard plan, owner decision E): fits the great hall's 38.8 x 49.8 Forge Floor shell; were 34 / 16`. The rest is unchanged.
 
 **The notice def** (Investigation, owner decision D):
 ```lua
@@ -537,10 +554,13 @@ brannoc_moved = {Title = "Brannoc's Notice", StartsQuest = "acq_metal", Requires
   - each of the 11 names maps to "Foundry";
   - `Regions.Regions.Foundry.Jurisdiction == "State"`;
   - `Regions.Present("Foundry", "Foundry")`.
-- **`Play_Exams`, the exam stage by id:** `local Stage = 0; for I, S in ipairs(require(game.ReplicatedStorage.Modules.Data.Rensei.Quests)["acq_" .. Path].Stages) do if S.Id == "exam" then Stage = I end end`, used instead of 5.
+- **`Play_Exams`, the exam stage by id:** `StoryLogic.StageIndex(Quests["acq_" .. Path], "exam")`, used instead of 5.
 - **`Play_Exams`, per place:** `local WHERE = {flame = "Lindenmoor", ice = "Lindenmoor", earth = "Lindenmoor", wind = "Lindenmoor", metal = "Foundry"}`.
   - Each test runs `ExamOpens` when `WHERE[Path] == TravelService.Here()`.
-  - Otherwise it asserts that **no** model with DialogueId `trainer_<path>` is in `workspace` (moved away). That assertion fails in Ye until Task 8, and in Foundry until Task 7, as it should.
+  - Otherwise it asserts that **no** model with DialogueId `trainer_<path>` is in `workspace` (moved away).
+  - **What that means for each place:**
+    - **Foundry:** the four "moved away" checks pass at once (no Ye trainer was ever there). `MetalExamOpens` runs the exam and fails until Task 7 builds Brannoc.
+    - **Ye:** the four exams open as before. Metal's "moved away" check fails until Task 8 retires Brannoc.
 
 **`Test_AcqMetal`** (new, pure, Play VM). Each assertion has its message:
 - the stage ids in order: travel, invite, fieldwork, experiment, trial, exam, recognition;
@@ -553,10 +573,15 @@ brannoc_moved = {Title = "Brannoc's Notice", StartsQuest = "acq_metal", Requires
 - in `trainer_metal`'s Starts, the first entry whose `Requires.Quest.Stage` is 1 and the first whose Stage is 2 both name "sent", then 3 fieldwork, 4 experiment, 5 trial, 6 exam and 7 recognize;
 - `trainer_ice` still maps Stage 1 to "sent" (offset 0);
 - `brannoc_moved.StartsQuest == "acq_metal"`;
-- `Regions.Bearing(600, -830, "-Z")` (the court (−200, 490) to the hall (400, −340)) lies between 0 and 90, and the invite text contains "north-east".
+- the invite text contains "north-east". The bearing itself is checked against live positions in Foundry, by Task 7's `Play_FoundryForge`;
+- `StoryLogic.StageIndex` returns nil for an unknown stage id and for a non-table Def.
 
 **Steps:**
-- [ ] **Step 1:** Write `Test_AcqMetal` and the `Test_Regions` additions. Add the pairs `Rensei.Minigames`, `Rensei.Trials` and `RenseiTests.Test_AcqMetal` (`Create: true`) to the manifest. Sync only the two tests to Foundry. In Play in Foundry (PlayLock `Foundry:task3`), expected: both FAIL.
+- [ ] **Step 1:** Write `Test_AcqMetal` and the `Test_Regions` additions.
+  - Add a case to `Test_QuestRevision`: `StoryLogic.UpgradeQuest(Quests.acq_metal, {Stage = 3, Progress = {}})` moves it to Stage 4 with Revision 2.
+  - Add the pairs `Rensei.Minigames`, `Rensei.Trials` and `RenseiTests.Test_AcqMetal` (`Create: true`, Places both) to the manifest.
+  - Sync only the tests to Foundry. In Play in Foundry (PlayLock `Foundry:task3`), expected: all three FAIL.
+  - **In that session, before any suite runs,** record the owner's own `acq_metal` state from the step-3 dump in the report: Active with its Stage and Revision, Completed, or absent. After the restore, confirm the dump still equals it. This is the session in which `acq_metal` first gets a Revision, so it is the one where an early upgrade would show.
 - [ ] **Step 2:** Implement every data change. Run `luau-analyze` if it is on PATH; otherwise `require` each changed module once in the Play VM. Sync all changed pairs to **both** places.
 - [ ] **Step 3: GREEN in Play in Foundry:**
   - Test_AcqMetal 0 FAIL and Test_Regions 0 FAIL;
@@ -573,7 +598,14 @@ brannoc_moved = {Title = "Brannoc's Notice", StartsQuest = "acq_metal", Requires
 **Files:**
 - Create: `Art/Studio/Regions/Foundry/foundry_posts.lua` (hand-written; the MODE line as in the Global Constraints).
 - Modify:
-  - `Art/Regions/Foundry/layout.json`: the 12 new Shelter markers, the two moved posts, and a top-level `"RestoreRefuseFlags": ["FoundryPosts", "FoundryForge"]`;
+  - `Art/Regions/Foundry/layout.json`:
+    - the 12 new Shelter markers and the two moved posts;
+    - a top-level `"RestoreRefuseFlags": ["FoundryPosts", "FoundryForge", "FoundryLedges"]`. `FoundryLedges` is reserved for Task 9's ledge fix, so `restore.lua` is regenerated only once;
+    - a top-level `"Notes"` list;
+  - `Art/Blender/region_builder/schema.py`: lines 85–93 reject any unknown top-level key. Add `"RestoreRefuseFlags"` and `"Notes"` to `OPTIONAL_KEYS`, and describe both in the comment above it:
+    - `RestoreRefuseFlags`: the Studio fix flags that make the import's `restore.lua` refuse;
+    - `Notes`: free-text strings for later readers, never read by the builder;
+  - `Documents/Region Builder.md` §1, "Top-level keys": the same two keys, one line each;
   - `Art/Blender/region_builder/tests/foundry_check.py`;
   - `Art/Studio/Regions/Foundry/import/restore.lua`: regenerated with `python -I Art/Studio/Regions/kit.py Foundry --date 2026-10-24`. Only this file may change; check `git status --short Art/Studio/Regions/Foundry`.
 
@@ -584,10 +616,10 @@ brannoc_moved = {Title = "Brannoc's Notice", StartsQuest = "acq_metal", Requires
 - `crane_shelter` (303, −150)
 - `stack_shelter` (350, −515)
 - `casting_shelter` (600, −610)
-- `square_east_shelter` (−90, −340)
+- `square_south_shelter` (−90, −340): the square spans z −768..−250, so z −340 is its south end on Foundry's −Z-north compass
 - `boarding_shelter` (−400, −370)
-- `row_north_shelter` (−560, −330)
-- `row_south_shelter` (−480, −650)
+- `row_south_shelter` (−560, −330): the south end of Workers' Row
+- `row_north_shelter` (−480, −650): the north end of Workers' Row
 - `court_shelter` (−170, 470)
 - `shed_shelter` (−200, −120)
 - `cinder_west_shelter` (−400, 280)
@@ -626,7 +658,7 @@ How each one is placed:
 - moves the `FoundryPostFrom` parts back and clears the attribute;
 - sets every `FoundryShelfFrom` Shelf back to CanCollide true;
 - clears the flag.
-- Guard: it refuses while `Map.Foundry` has `FoundryRoster` (set by nothing yet; reserved). There are no other guards.
+- No other guard: nothing later in this plan builds on these posts' geometry. Task 9's ledge fix, if it is needed, is independent of the posts.
 
 **The region file** (`Art/Regions/Foundry/layout.json`):
 - add 12 `{"Tag": "RenseiPost", "At": [x, 0, z], "Yaw": 0, "Attr": {"PostId": "<id>", "Kind": "Shelter"}}` markers, at the spots `apply` really used (rounded to 0.1);
@@ -637,8 +669,9 @@ How each one is placed:
 
 **Steps:**
 - [ ] **Step 1: RED.**
-  - Add the `foundry_check.py` check and run `python -I Art/Blender/region_builder/tests/foundry_check.py`. Expected: the new check FAILs, listing 47 posts; the 35 old checks pass.
-  - Write `foundry_posts.lua`, and run it with `MODE = "check"` in Foundry (Edit) **before apply**. Expected: it FAILs on 6 unreachable posts (`market_trader_1..4` and `yard_hand_2/3`) and on 47 posts without a shelter in reach. This proves the check can fail.
+  - Add the `foundry_check.py` check and run `python -I Art/Blender/region_builder/tests/foundry_check.py`. Expected: the new check FAILs, listing 37 posts; the 36 old checks pass.
+  - Add `RestoreRefuseFlags` and `Notes` to `layout.json` **before** the `schema.py` change, and run `python -I Art/Blender/region_builder/tests/run.py`: it must fail on the unknown keys. Then change `schema.py`; it passes.
+  - Write `foundry_posts.lua`, and run it with `MODE = "check"` in Foundry (Edit) **before apply**. Expected: it FAILs on 6 unreachable posts (`market_trader_1..4` and `yard_hand_2/3`) and on 37 posts without a shelter in reach. This proves the check can fail.
 - [ ] **Step 2: Test.** `MODE = "test"`. Expected: `0 FAIL`; the round trip is exact. The snapshot covers:
   - every BasePart under `Map.Foundry.Markers` and every `MarketStall_*` model: path, CFrame rounded to 0.01, CanCollide, sorted attributes and tags;
   - the per-tag counts in workspace;
@@ -646,8 +679,8 @@ How each one is placed:
   Foundry stays un-applied after it.
 - [ ] **Step 3: Apply** (`MODE = "apply"`), then `check`. Expected: 88 posts, all reachable, worst shelter distance ≤ 145. Record the 12 shelter spots used, the two yard posts' new z, and whether any trader post moved.
 - [ ] **Step 4: Update** `layout.json` with the real spots. Re-run `foundry_check.py` (the new check passes; all checks pass) and `python -I Art/Blender/region_builder/tests/run.py` (expected: all pass).
-- [ ] **Step 5: Regenerate** `restore.lua` with `kit.py Foundry --date 2026-10-24`. `git status` must show only `import/restore.lua` changed under `Art/Studio/Regions/Foundry/`. Read the diff: the guard lists `FoundryPosts` and `FoundryForge`.
-- [ ] **Step 6: Commit** `foundry_posts.lua`, `layout.json`, `foundry_check.py` and `import/restore.lua`: `"Foundry data Task 4: shelters within reach of every post, every post reachable (reversible)"`.
+- [ ] **Step 5: Regenerate** `restore.lua` with `kit.py Foundry --date 2026-10-24`. `git status` must show only `import/restore.lua` changed under `Art/Studio/Regions/Foundry/`. Read the diff: the guard lists `FoundryPosts`, `FoundryForge` and `FoundryLedges`.
+- [ ] **Step 6: Commit** `foundry_posts.lua`, `layout.json`, `schema.py`, `Region Builder.md`, `foundry_check.py` and `import/restore.lua`: `"Foundry data Task 4: shelters within reach of every post, every post reachable (reversible)"`.
 
 ---
 
@@ -675,7 +708,7 @@ How each one is placed:
 | Id | Name (Gender) | Job | Faction | Nation, Seed | Idle | Schedule | JobLine |
 |---|---|---|---|---|---|---|---|
 | fy_crane_d1 | Hollis Brandt (M) | Crane hand | Foundry | Amestrian 3101 | NPC_HandInPocket | {6,14,crane_bay_1},{14,15,canteen_seat_1},{15,6,workers_row_1} | "Bay one, mornings. If the hook's moving, you're not standing under it." |
-| fy_crane_l1 | Wren Coller (F) | Crane hand | Foundry | Amestrian 3102 | NPC_HandInPocket | {13,14,canteen_seat_1},{14,22,crane_bay_1},{22,23,canteen_seat_1},{23,13,workers_row_2} | "I take the bay crane after Hollis. He leaves the cab warm and the levers sticky." |
+| fy_crane_l1 | Maud Coller (F) | Crane hand | Foundry | Amestrian 3102 | NPC_HandInPocket | {13,14,canteen_seat_1},{14,22,crane_bay_1},{22,23,canteen_seat_1},{23,13,workers_row_2} | "I take the bay crane after Hollis. He leaves the cab warm and the levers sticky." |
 | fy_crane_d2 | Piotr Sabelev (M) | Crane hand | Foundry | Drachman 3103 | NPC_HandInPocket | {6,14,crane_bay_3},{14,15,square_seat_1},{15,6,workers_row_3} | "Came south for the wages. Stayed for the canteen, heaven help me." |
 | fy_crane_l2 | Agna Thorley (F) | Crane hand | Foundry | Amestrian 3104 | NPC_CrossArms | {13,14,square_seat_2},{14,22,crane_bay_3},{22,13,workers_row_4} | "Bay three, afternoons. Don't wave at the cab. I can't wave back." |
 | fy_furnace_d1 | Edmund Rusk (M) | Furnace hand | Foundry | Amestrian 3105 | NPC_Blacksmith | {6,14,furnace_1},{14,15,canteen_seat_2},{15,6,workers_row_5} | "Furnace One, mornings. Twelve years, and she's never once let me forget it's her shift, not mine." |
@@ -690,7 +723,7 @@ How each one is placed:
 | fy_porter | Dunstan Rook (M) | Station porter | Townsfolk | Amestrian 3114 | NPC_CrossArms | {6,14,station_porter_platform},{14,22,station_porter_yard},{22,6,lower_home_1} | "Platform in the morning, the freight side after. Bags, crates, lost children. I've carried all three." |
 | fy_clerk | Aldous Merriweather (M) | Shift clerk | Foundry | Amestrian 3115 | NPC_CrossArms | {6,18,shift_clerk},{18,6,lower_home_3} | "Every hour worked in this yard goes through my pen. Every hour." |
 | fy_cook_1 | Su Ling Pao (F) | Canteen cook | Townsfolk | Xingnese 3116 | NPC_CrossArms | {5,14,canteen_cook},{14,5,boarding_home_2} | "Breakfast at five, and the day crew eats it whether they're awake or not." |
-| fy_cook_2 | Harlan Dace (M) | Canteen cook | Townsfolk | Amestrian 3117 | NPC_CrossArms | {14,23,canteen_cook},{23,14,boarding_home_3} | "Stew at two, stew at ten. Ask what's in it and you'll get less." |
+| fy_cook_2 | Barnaby Dace (M) | Canteen cook | Townsfolk | Amestrian 3117 | NPC_CrossArms | {14,23,canteen_cook},{23,14,boarding_home_3} | "Stew at two, stew at ten. Ask what's in it and you'll get less." |
 | fy_trader_1 | Ottilie Brack (F) | Market trader | Townsfolk | Amestrian 3118 | NPC_CrossArms | {8,20,market_trader_1},{20,8,boarding_home_4} | "Gloves, aprons, goggles. Everything the Foundry wears out, I sell back to it." |
 | fy_trader_2 | Cassio Benedetti (M) | Market trader | Townsfolk | Aerugonian 3119 | NPC_CrossArms | {8,20,market_trader_2},{20,8,cinder_home_4} | "Oil and olives from the south. The olives are real. The oil is mostly real." |
 | fy_trader_3 | Mabel Ferris (F) | Market trader | Townsfolk | Amestrian 3120 | NPC_CrossArms | {8,20,market_trader_3},{20,8,cinder_home_5} | "Bread from the bakehouse on Mill Street. Still warm if you're early." |
@@ -705,24 +738,28 @@ Notes on the roster:
 - **Shared posts at different hours** (allowed: Validate's half-open slots):
   - `canteen_seat_1..4`, `crane_bay_1/3`, `furnace_1/2` and `square_seat_2`;
   - `canteen_seat_4`, which has `fy_keeper` 06–07 and 21–22, `fy_casting_l` 13–14 and 22–23, and `fy_gantry_d` 14–15.
-- **All 24 Home posts are used.** Unused (allowed): `crane_bay_2/4`, `canteen_cook_2`, `forge_wing_1/2`, `stack_yard`, `slag_lane`, `casting_shed_1/2`, `shed_hand_1/2`, `court_hand`, `yard_hand_2/3`, and every Shelter.
+- **All 24 Home posts are used.** Unused (allowed): `crane_bay_2/4`, `canteen_cook_2`, `forge_wing_1/2`, `stack_yard`, `slag_lane`, `casting_shed_1/2`, `shed_hand_1/2`, `court_hand`, `shift_office_work`, `yard_hand_2/3`, and every Shelter.
 - **The guards' faction is Townsfolk** (PROPOSAL). An Authority agent counts as law and adds Heat on sight, and these two are off duty.
 
 **`Test_FoundryRoster`** (Play VM), each failure named:
 - **Validate:** `TownsfolkLogic.Validate(Townsfolk.Regions.Foundry, PostIds)` passes, where PostIds are the RenseiPosts in `workspace.World.Map.Foundry`.
 - **Size:** 26 entries, ids unique and starting `fy_`.
-- **Names:** no Name equals any name in `Townsfolk.Regions.Lindenmoor`, `TownsfolkLogic.NewcomerNames`, or the DisplayName of a DialogueId model in workspace.
+- **Names:** no full Name equals any name in `Townsfolk.Regions.Lindenmoor` or `TownsfolkLogic.NewcomerNames`. **No first name** (the Name's first word; "Su Ling" counts as one first name) equals any word of:
+  - every `Speaker` in `Rensei.Dialogues` (walk every Dialogues entry; "Coach Harlan" and "Wren" are speakers today);
+  - every `DisplayName` in `Rensei.TuningConfig.Enemies`, and every `DisplayName` attribute of a model with a DialogueId in workspace;
+  - every Name in `Townsfolk.Regions.Lindenmoor` and every name in `TownsfolkLogic.NewcomerNames`.
+  - **Control:** the same function, given a fake entry named "Wren Test", reports it.
 - **Nations:** every Look.Nation is in `Customization.NationLooks`, and every Idle is a child of `ReplicatedStorage.Assets.Animations` (search its descendants by name).
 - **Shelters:** for every post a schedule uses, the nearest Shelter in `Map.Foundry` is ≤ 145.
 - **Hours:** at each hour h = 0..23, the posts in use are distinct (a direct check alongside Validate). The canteen seats hold at least 4 people at 13:00, 14:00 and 22:00 (the canteen fills at shift change), and every `market_trader_N` is in use at 08:00 and at 19:00, and at no hour from 20:00 to 07:00.
 
 **Steps:**
-- [ ] **Step 1: RED.** Write the test and add `RenseiTests.Test_FoundryRoster` (`Create: true`) to the manifest. Sync it to Foundry and run it in Play in Foundry (PlayLock `Foundry:task5`). Expected: it FAILs, with no roster.
-- [ ] **Step 2: Implement** the roster. Sync `Rensei.Townsfolk` and the test to both places.
+- [ ] **Step 1: RED.** Write the test and add `RenseiTests.Test_FoundryRoster` (`Create: true`, Places `["foundry"]`: it reads Foundry's posts) to the manifest. Sync it to Foundry and run it in Play in Foundry (PlayLock `Foundry:task5`). Expected: it FAILs, with no roster.
+- [ ] **Step 2: Implement** the roster. Sync `Rensei.Townsfolk` to both places and the test to Foundry.
 - [ ] **Step 3: GREEN in Play in Foundry:**
   - **Test_FoundryRoster:** 0 FAIL.
   - **The roster is live:** `TownsfolkService` has 26 townsfolk (`TownsfolkService.Get` for each Id), with no "refused" warning in the server output (`get_console_output`).
-  - **At their posts:** with `WorldClock.Hold(10)`, 1.5 s later every rig's post is its 10:00 post and it stands within 1.5 studs of the post's stand point. Do this as Play_LindenmoorData's TownsfolkRoster test does: use the same calls, run inline from the session script. Put the clock back.
+  - **At their posts:** `WorldClock.Hold(10)`, then `TownsfolkService.LoadRegion("Foundry", Townsfolk.Regions.Foundry)` (as Play_LindenmoorData does at :272–274), then 1.5 s later every rig's post is its 10:00 post and it stands within 1.5 studs of the post's stand point. Do this as Play_LindenmoorData's TownsfolkRoster test does: use the same calls, run inline from the session script. Put the clock back.
   - **Regressions:** Play_Townsfolk, Play_TownsfolkCrowd and Play_TownsfolkHurt, 0 FAIL, now with Foundry's roster live.
 - [ ] **Step 4: Play in Ye:** Play_LindenmoorData and Play_Townsfolk, 0 FAIL. Ye's roster is unaffected.
 - [ ] **Step 5:** `sync.py --check` in both places.
@@ -818,7 +855,11 @@ foundry_ledger = {
 - **`fy_clerk`:** `Clue = {Quest = "foundry_ledger", Stage = 1, Signal = "foundry_ledger_clerk", Evidence = "foundry_docket_round", Text = "I copy the ledger every morning from the charge hands' dockets, exactly as written. Once they're copied they go down to the store in the underworks. If the ledger's wrong, the docket was wrong. Go and look, if you can stomach the company down there."}`
 
 **`Play_FoundryLedger`** (Play, in Foundry, inside the hook):
-- **Setup:** take deep copies of `Data.Quests`, `Data.Story` and `Data.Morality`, and of `QuestService.Definitions.foundry_ledger.Rewards`. Set `Definitions.foundry_ledger.Rewards = {}` for the end-to-end run, and put everything back in a `finally` block.
+- **Setup:**
+  - Take deep copies of `Data.Quests`, `Data.Story` and `Data.Morality`, and of `QuestService.Definitions.foundry_ledger.Rewards`. Set `Definitions.foundry_ledger.Rewards = {}` for the end-to-end run.
+  - Save `TownsfolkService.TalkCooldown` and set it to 0, as Play_LindenmoorData does at :151.
+  - Save the clock (`WorldClock.IsHeld()` and `WorldClock.Now()`). Then `WorldClock.Hold(10)` and `TownsfolkService.LoadRegion("Foundry", Townsfolk.Regions.Foundry)`. At 10:00, Rusk is at `furnace_1`, Marsh at `workers_row_6` and the clerk at `shift_clerk`.
+  - Put everything back in a `finally` block: the save tables, the Rewards, the TalkCooldown, and the clock (Hold the old hour if it was held, else `Release()`).
 - **Tests:**
   - **`DocketIsLockedFirst`:** with no quest, inspecting `foundry_altered_docket` (player within 9 studs; `InvestigationService.Inspect(Player, Id, Part)`) gives no evidence and doesn't start a quest.
   - **`LedgerStartsTheQuest`:** inspecting `foundry_shift_ledger` gives `foundry_full_shift`, the quest is Active at stage 1, and `ledger` is done.
@@ -833,8 +874,8 @@ foundry_ledger = {
   - **`CompassFindsTheClues`:** `ReplicatedStorage.CompassPoints` has an Inspect point for both clues, within 0.5 of the parts.
 
 **Steps:**
-- [ ] **Step 1: RED.** Write the suite and add `RenseiTests.Play_FoundryLedger` and `Rensei.Deeds` to the manifest. Sync the suite to Foundry and run it in Play (PlayLock `Foundry:task6`). Expected: every test FAILs (no defs).
-- [ ] **Step 2: Implement.** Sync the five data pairs and the suite to **both** places.
+- [ ] **Step 1: RED.** Write the suite and add `RenseiTests.Play_FoundryLedger` (Places `["foundry"]`: it needs Foundry's clues and tellers) and `Rensei.Deeds` (Places both) to the manifest. Sync the suite to Foundry and run it in Play (PlayLock `Foundry:task6`). Expected: every test FAILs (no defs).
+- [ ] **Step 2: Implement.** Sync the five data pairs to **both** places, and the suite to Foundry.
 - [ ] **Step 3: GREEN in Play in Foundry:**
   - Play_FoundryLedger 0 FAIL;
   - regressions: Play_Clue, Test_FoundryRoster and Play_Townsfolk;
@@ -867,7 +908,8 @@ foundry_ledger = {
    "Size": [x, y, z], "Color": [r, g, b], "Material": "Metal", "MaterialVariant": "", "Transparency": 0, "Reflectance": 0,
    "CanCollide": true, "CanQuery": true, "CanTouch": true, "CastShadow": true, "Anchored": true, "Shape": "Block",
    "MeshId": null, "TextureID": null, "Attributes": {"MechanismId": "metal_bench"}, "Tags": ["RenseiMechanism"]}, ...],
- "Models": [{"Group": "SilentForge", "Path": "Interactables/WorkshopRecord/Model", "Attributes": {}}, ...],
+ "Models": [{"Group": "SilentForge", "Path": "Interactables", "Class": "Folder", "Attributes": {}},
+            {"Group": "SilentForge", "Path": "Interactables/WorkshopRecord/Model", "Class": "Model", "Attributes": {}}, ...],
  "Brannoc": {"Attributes": {...the 9 listed, without LindenmoorPrepFrom}, "Root": [12 numbers],
    "Humanoid": {"DisplayName": "...", "DisplayDistanceType": "...", "NameDisplayDistance": n, "HealthDisplayDistance": n}},
  "Ward": {...one piece, as above}}
@@ -880,6 +922,7 @@ foundry_ledger = {
   - `ForgeFloor.TrialMarker` only;
   - Brannoc's attributes, Humanoid display fields and props (`ScrollStand`, and the `Metal Alchemy` Model's Paper);
   - the Ward spawn.
+- **Containers:** every non-part container on a piece's path is a `Models` entry with its `Class`, `Folder` or `Model`. Measured in Ye: `Interactables` is a Folder; `WorkshopRecord`'s child `Model`, `Iron Alchemy` and `Metal Alchemy` are Models. Any other container class makes the export refuse and name it.
 - **Attributes:** only string, number and boolean are exported. Any other type makes the export refuse and name it. `LindenmoorPrepFrom` is dropped.
 
 **`bundle_forge.py`** (`python -I .../bundle_forge.py <out.lua> [plan|apply|undo|check|test]`):
@@ -895,13 +938,13 @@ foundry_ledger = {
   local T_SF = CFrame.new(373, 4.7, -368) * CFrame.Angles(0, math.pi, 0) * CFrame.new(-521.5, -24.4, -900)
   ```
   - This maps Ye's floor centre (521.5, 24.4, 900) to (373, 4.7, −368) and turns the room 180° about Y, so Ye's back wall (+Z, where its machine and furnace were) faces Foundry's back wall (−Z, the hearth).
-  - **Checked on paper:** the pieces span x 354.8..389.4 and z −382..−355.8. That is inside the interior (x 353.6..392.4, z −389.4..−339.6), clear of the hearth (x 368..378, z −388.9..−383.9) and of the doorway (x 369..377 at z −338.8). The Desk lands at x 359..363, the MaterialBench at x 381..387, and the SampleRack against the west wall at x 355.4.
+  - **Checked on paper:** the colliding pieces span x 354.8..389.4 and z −381..−355.5: the Machine's back at z −381, the MaterialBench's front edge at z −355.5, and the Desk's at −355.8. That is inside the interior (x 353.6..392.4, z −389.4..−339.6), clear of the hearth (x 368..378, z −388.9..−383.9) and of the doorway (x 369..377 at z −338.8). The Desk lands at x 359..363, the MaterialBench at x 381..387, and the SampleRack against the west wall at x 355.4.
   - **Parts** are created with `Instance.new(Class)` and the exported properties.
   - **MeshParts:**
     - Clone a MeshPart with the same `MeshId` found under `ReplicatedStorage.Assets` (search its descendants), then set the exported properties.
     - Otherwise use `AssetService:CreateMeshPartAsync(MeshId)`.
     - If both fail, refuse, changing nothing.
-  - **Models** are recreated by Path.
+  - **Containers** are recreated by Path, with their exported `Class`.
   - **Tags and attributes** are set as exported.
 - **The area box:** `Silent ForgeArea` with the same AreaName and Description, but `CFrame = CFrame.new(373, 13.7, -364.5)` and `Size = (38.8, 20, 49.8)`. That is the room's interior, from 1 below the floor to 19 above it, so it sits inside "The Foundry" and the smallest box wins.
 - **`TrialMarker`:** the exported properties, with `CFrame = CFrame.lookAt(Vector3.new(325, 5.2, -364.5), Vector3.new(325, 5.2, -365.5))`. That is the Forge Floor's centre, with its bottom on the floor at 4.7, facing −Z. The foe then spawns at z −378.5 (FoeDistance 14, Task 3).
@@ -920,7 +963,8 @@ foundry_ledger = {
   - Anchor the root and pivot so the root is at `CFrame.lookAt(Vector3.new(-200, 7.4, 490), Vector3.new(-200, 7.4, 489))`: the floor at 4.4 + 3, facing −Z (the TrainerSpot's Yaw 0).
   - **Props:** `ScrollStand` and `Metal Alchemy` (a Model with its MeshPart), at their Ye CFrames translated by (−70, +0.4, +625), as children of the rig, as in Ye.
 - **`check`** (read-only) fails on any of:
-  - a Silent Forge piece whose bounding box isn't inside the interior (inset 0.1), or that touches the hearth or a shell wall (`GetPartsInPart` against the shell parts named `SilentForge*` / `ForgeFloor*`, excluding the floor);
+  - a colliding Silent Forge piece whose bounding box isn't inside the interior (inset 0.1), or that touches the hearth or a shell wall (`GetPartsInPart` against the shell parts named `SilentForge*` / `ForgeFloor*`, excluding the floor). **The fit and touch checks skip** the `RenseiArea` box and every part with `CanCollide = false` (the samples, the props and the Ward spawn), which are not furniture;
+  - in a separate check, the `Silent ForgeArea` box not equal to the interior: its position more than 0.05 from (373, 13.7, −364.5), or its Size more than 0.05 from (38.8, 20, 49.8);
   - the counts in `Map.Foundry.ForgeRooms` not being RenseiInspect 4 (`metal_note`, `metal_gear`, `metal_samples`, `metal_shaft`), RenseiMechanism 1 (`metal_bench`), RenseiTrial 1 (`metal_experiment`), RenseiArea 1 ("Silent Forge") and RenseiEnemySpawn 1 (WardAlchemist);
   - workspace's RenseiArea count not being 13;
   - Brannoc's root not within 0.5 of (−200, 7.4, 490), not facing −Z (look vector Z < −0.99), or out of 6 studs of the TrainerSpot marker;
@@ -936,9 +980,10 @@ foundry_ledger = {
 **`Play_FoundryForge`** (Play, in Foundry):
 - **`InspectPointsAttach`:** each of the 4 `metal_*` parts has its `InspectPrompt`, and `metal_bench` has its mechanism prompt (`PuzzleService`).
 - **`TheForgeIsAnArea`:** `WorldService.AreaAt` returns a part whose `AreaName` is:
-  - "Silent Forge" at (373, 8, −364.5);
-  - "The Foundry" at (400, 8, −300);
-  - "Practice Court" at (−200, 8, 490).
+  - "Silent Forge" at the `SilentForgeFloor` part's position + (0, 3, 0);
+  - "The Foundry" at the `GreatHall_great_hall` model's pivot position with y = 8, moved 40 studs toward +Z (the hall's front, outside the forge rooms);
+  - "Practice Court" at the TrainerSpot marker's position + (0, 3, 0).
+- **`TheForgeIsNorthEast`:** with live positions only (the TrainerSpot marker, the `GreatHall_great_hall` pivot and the Ward spawn part), `Regions.Bearing(dx, dz, Regions.NorthOf())` from the TrainerSpot to the hall and to the Ward lies in (0, 90). That is what Brannoc's lines and the invite text say. **Control:** the same with `"+Z"` must not lie in (0, 90).
 - **`BrannocTalks`:**
   - the model has DialogueId `trainer_metal` and a `TalkPrompt` on its root;
   - it is within 6 studs of the TrainerSpot;
@@ -956,7 +1001,7 @@ foundry_ledger = {
 - **`TrialIsLockedOtherwise`:** with no `acq_metal`, `TrialService.CanStart(Player, "metal_experiment")` is false.
 
 **Steps:**
-- [ ] **Step 1: RED.** Write `Play_FoundryForge` and add `RenseiTests.Play_FoundryForge` (`Create: true`) to the manifest. Sync it to Foundry and run it in Play (PlayLock `Foundry:task7`). Expected: every test FAILs (nothing built).
+- [ ] **Step 1: RED.** Write `Play_FoundryForge` and add `RenseiTests.Play_FoundryForge` (`Create: true`, Places `["foundry"]`) to the manifest. Sync it to Foundry and run it in Play (PlayLock `Foundry:task7`). Expected: every test FAILs (nothing built).
 - [ ] **Step 2: Export.** Write `export_forge.lua`, run it in **Ye** (Edit), read the JSON back in chunks, save `forge_kit.json`, and remove `ServerStorage.FoundryForgeExport`. Check that the kit has 20 SilentForge pieces, 3 Models, the TrialMarker, Brannoc and the Ward.
 - [ ] **Step 3: Bundle.** Write the bundler, the template and `test_bundle_forge.py`; run the tests (pass). Run `build_forge.lua` with `MODE = "check"` before apply: it must FAIL (nothing built), which shows check can fail.
 - [ ] **Step 4: Test.** In Foundry (Edit), `MODE = "test"`. Expected: 0 FAIL, round trip exact.
@@ -968,7 +1013,8 @@ foundry_ledger = {
   - Play_FoundryForge 0 FAIL;
   - Play_Exams: MetalExamOpens now passes in Foundry, and the four others pass as "moved away" here;
   - Play_FoundryLedger and Test_FoundryRoster (regressions).
-- [ ] **Step 7: Commit** the six `forge/` files, the suite and the manifest: `"Foundry data Task 7: the Silent Forge, the Forge Floor and Brannoc in Foundry (reversible)"`.
+- [ ] **Step 7:** `sync.py --check` in both places: `DIFFER 0 / MISSING 0`.
+- [ ] **Step 8: Commit** the six `forge/` files, the suite and the manifest: `"Foundry data Task 7: the Silent Forge, the Forge Floor and Brannoc in Foundry (reversible)"`.
 
 ---
 
@@ -976,10 +1022,11 @@ foundry_ledger = {
 
 **Files:**
 - Create: `Art/Studio/Regions/Foundry/forge/retire_ye.lua` (hand-written; Ye only).
+- Create: `Scripts/ServerStorage/RenseiTests/SmokeKit.lua` (ModuleScript; Places both).
 - Modify:
   - `Art/Studio/Regions/Lindenmoor/prep_ye.lua`: an undo guard;
   - `Art/Studio/Regions/Lindenmoor/test_ye_fixes.py`: a check that the guard is in place;
-  - `Scripts/ServerStorage/RenseiTests/Play_LindenmoorSmoke.lua`;
+  - `Scripts/ServerStorage/RenseiTests/Play_LindenmoorSmoke.lua` (Places `["ye"]`);
   - `sync_manifest.json`.
 
 **Interfaces** (Ye, Edit; flag `World.Map` `FoundryMove = "applied"`; marks `FoundryMoveAdd` and `FoundryMoveFrom`):
@@ -988,7 +1035,12 @@ foundry_ledger = {
 - **Refuses when:**
   - `World.Map` has `FoundryMove`;
   - any of the four pieces below is missing;
-  - Play is running.
+  - Play is running, or Ye's `ServerStorage` attribute `PlayLock` is set (as `prep_ye.lua` does).
+- **Records the baseline** as attributes on the backup folder before it moves anything:
+  - `BaselineInspect`: workspace's RenseiInspect count;
+  - `BaselineTrainers`: the number of children of `Alchemy Trainers` (5);
+  - `BaselineYardParts`: `World.Map.FoundryYard`'s BasePart count (measured 60);
+  - `BaselineYardPivot`: its pivot, as 12 numbers.
 - **Moves (not clones), so undo returns the same instances,** into `ServerStorage.RenseiBackups["Pre-FoundryMove_2026-10-24"]` (created if missing, and marked `FoundryMoveAdd` if this script created it):
   - `World.Map.SilentForge`;
   - `World.Map.ForgeFloor`;
@@ -999,8 +1051,8 @@ foundry_ledger = {
   - every tag on it and its descendants is removed and written into `RegionKitTags` (JSON).
 - **`World.Map.FoundryYard` stays** (owner decision A).
 - **Builds the notice** `World.Map.BrannocNotice` (Model, `FoundryMoveAdd`), PROPOSAL dressing:
-  - **`NoticePost`:** Wood, 0.6 × 5 × 0.6, its centre at (−130, 6.5, −137.5), so it stands on Ye's ground at 4. It is 2.5 studs south of the Metal TrainerSpot, which faces −Z.
-  - **`NoticeBoard`:** WoodPlanks, 2.4 × 1.6 × 0.2, centre (−130, 8.2, −137.6), facing +Z toward the training field. It is tagged RenseiInspect with `InspectId = "brannoc_moved"`.
+  - **`NoticePost`:** Wood, 0.6 × 5 × 0.6, its centre at (−130, 6.5, −137.5), so it stands on Ye's ground at 4 (z −137.8..−137.2). It is 2.5 studs south of the Metal TrainerSpot on Ye's +Z-north compass.
+  - **`NoticeBoard`:** WoodPlanks, 2.4 × 1.6 × 0.2, at `CFrame.lookAt(Vector3.new(-130, 8.2, -137.9), Vector3.new(-130, 8.2, -138.9))`. It sits on the post's −Z face (z −138.0..−137.8), clear of the post, facing −Z toward the training field: the trainers face −Z, and the field lies to their south. It is tagged RenseiInspect with `InspectId = "brannoc_moved"`.
   - Both are Anchored and CanCollide.
 
 **`undo`:**
@@ -1009,18 +1061,28 @@ foundry_ledger = {
 - deletes the backup folder if this script made it;
 - clears the flag.
 
-**`check`** fails on any of:
-- the four pieces not in the backup, or any tag left on them or their descendants;
-- no `trainer_metal` model and no RenseiTrial `metal_experiment` in Ye's workspace;
-- the notice not tagged, or not within 6 studs of the Metal TrainerSpot;
-- 4 trainers in `Alchemy Trainers`;
-- workspace's RenseiInspect count = before + 1 − 4.
+**`check`** reports each failure condition that holds, and passes only when none does:
+- the backup folder, or any of its `Baseline*` attributes, is missing;
+- any of the four pieces is not in the backup;
+- any tag is left on a piece or its descendants;
+- a model with DialogueId `trainer_metal` is in Ye's workspace;
+- a RenseiTrial with TrialId `metal_experiment` is anywhere in the DataModel;
+- `BrannocNotice.NoticeBoard` is missing, isn't tagged RenseiInspect, has an `InspectId` other than `brannoc_moved`, or is more than 6 studs from the Metal TrainerSpot;
+- `Alchemy Trainers` doesn't hold exactly `BaselineTrainers − 1` children;
+- workspace's RenseiInspect count isn't `BaselineInspect − 4 + 1` (the four `metal_*` inspects leave; the notice comes);
+- `World.Map.FoundryYard` is missing, its BasePart count isn't `BaselineYardParts`, or its pivot differs from `BaselineYardPivot` by more than 0.01 (owner decision A).
 
 **`test`:** snapshot (all of `World` and the backup folder: rows with sorted attributes and tags; tag counts; BasePart count) → apply → check → undo → snapshot equal.
 
 **The `prep_ye.lua` guard:** its `undo` refuses, changing nothing, while `World.Map:GetAttribute("FoundryMove")` is set: "undo the Foundry move first (`Art/Studio/Regions/Foundry/forge/retire_ye.lua` undo)". If `bundle_prep.py` builds `prep_ye.lua` from a template, put the guard in the template.
 
-**`test_ye_fixes.py`:** a check that `prep_ye.lua` (and its template, if any) contains the `FoundryMove` guard in its undo path.
+**`test_ye_fixes.py`:** a static check that `prep_ye.lua` (and its template, if any) holds the `FoundryMove` guard inside `planUndo()`, **before the first journal step** of that function. Find the function's body; the guard's line must come before the first line that writes the journal or moves an instance.
+
+**`SmokeKit`** (`RenseiTests.SmokeKit`, new, in both places) holds the helpers both smoke suites use, moved out of `Play_LindenmoorSmoke` with the same behaviour:
+- `SmokeKit.Ask(Player, Character, Kind)` and `SmokeKit.WithRoot(Player, Fn)`: today's `Ask` and `WithRoot`, with the player passed in;
+- `SmokeKit.EnemiesStandInTheWorld(T, Opts)`: today's check body. `Opts` may carry `ExpectSpawns = {[EnemyType] = count}` and `AreaOf = function(Part) -> expected AreaName`. The Foundry suite uses them (Task 9); Ye's doesn't.
+
+`Play_LindenmoorSmoke` requires SmokeKit and keeps no copies.
 
 **`Play_LindenmoorSmoke` changes:**
 - `TRIALS` = `{"flame_apprentice", "ice_guardian", "earth_quarry", "wind_dancer"}`.
@@ -1034,23 +1096,34 @@ foundry_ledger = {
   - Stand within 9 studs of the board. `InvestigationService.Inspect(Player, "brannoc_moved", Board)` starts `acq_metal` at Stage 1, with `Progress.foundry == 0`: Here() is Lindenmoor, so the travel stage stays open.
   - Put everything back.
 - Update the header comment to match.
+- **The refactor keeps its RED/GREEN proof.** After moving the helpers into SmokeKit, re-run both controls:
+  - **the crag:** with the tags off around one crag spot, `CragCantBeGrabbed` must fail, then pass with the tags back;
+  - **the enemies:** with a tagged `RenseiEnemySpawn` clone parented to `ServerStorage` in Play, `EnemiesStandInTheWorld` must fail, then pass with it removed.
 
 **Steps:**
-- [ ] **Step 1: Owner decision A is answered: keep `FoundryYard` in Ye.** `retire_ye.lua` must not touch it, and its `check` fails if `World.Map.FoundryYard` is missing or changed: compare its BasePart count, 60, and its pivot before and after.
+- [ ] **Step 1: Owner decision A is answered: keep `FoundryYard` in Ye.** `retire_ye.lua` must not touch it. Its `check` compares it with the baseline `apply` recorded (above).
 - [ ] **Step 2: RED.**
-  - Write the smoke changes, sync `RenseiTests.Play_LindenmoorSmoke` to Ye, and run it in Play in Ye (PlayLock `Ye:task8`). Expected: TrainersCanBeTalkedTo, EveryTrialStarts and BrannocNoticeStartsTheQuest FAIL, because Brannoc and the forge are still in Ye.
+  - Write SmokeKit and the smoke changes. Add `RenseiTests.SmokeKit` (`Create: true`, Places both) and `RenseiTests.Play_LindenmoorSmoke` (Places `["ye"]`) to the manifest, sync both to Ye, and run it in Play in Ye (PlayLock `Ye:task8`). Expected: TrainersCanBeTalkedTo, EveryTrialStarts and BrannocNoticeStartsTheQuest FAIL, because Brannoc and the forge are still in Ye.
   - Run `retire_ye.lua` with `MODE = "check"` before apply: FAIL.
   - Run `test_ye_fixes.py`: the new guard check FAILs.
 - [ ] **Step 3: Implement** `retire_ye.lua` and the `prep_ye.lua` guard.
   - `test_ye_fixes.py` passes (27 checks).
   - Run `retire_ye.lua` with `MODE = "test"` in Ye (Edit): 0 FAIL, round trip exact.
 - [ ] **Step 4: Apply, then check.** Record Ye's BasePart count after (expected about 76,373 − 29 − 10 − 10 − 1 + 2 ≈ 76,325).
-- [ ] **Step 5: Prove the guard.** In Ye (Edit), run a fresh `prep_ye` bundle with MODE undo (`python -I Art/Studio/Regions/Lindenmoor/bundle_prep.py prep <scratch>/prep_undo.lua undo`). Expected: it refuses, naming FoundryMove, and Ye is unchanged (compare the BasePart count and `World.Map` attributes).
+- [ ] **Step 5: Prove the guard, never with a live undo.**
+  - The static check in `test_ye_fixes.py` passes (Step 3).
+  - Build a fresh undo bundle in the scratch folder (`python -I Art/Studio/Regions/Lindenmoor/bundle_prep.py prep <scratch>/prep_undo.lua undo`), and make two **copies** of it there:
+    - **the guard copy:** insert `return "GUARD PASSED"` on the line right after the `FoundryMove` guard;
+    - **the control copy:** the same, with the guard's attribute name changed to one that isn't set (`FoundryMove_unset`).
+  - Take a fingerprint of Ye (Edit): the workspace BasePart count, `World.Map`'s attributes, every `RenseiBackups` child's name and descendant count, and the tag counts.
+  - Run the guard copy: it must return the refusal naming FoundryMove, never "GUARD PASSED". Run the control copy: it must return "GUARD PASSED". Take the fingerprint again: it must equal the first.
+  - Never run the uncut undo bundle: if the guard were broken, it would undo the Lindenmoor prep.
 - [ ] **Step 6: GREEN in Play in Ye:**
-  - Play_LindenmoorSmoke 9/0;
+  - Play_LindenmoorSmoke 9/0, after the refactor's two controls (above);
   - Play_Exams 5/0: four exams open, and Metal is "moved away";
   - Play_LindenmoorData and Play_Clue.
-- [ ] **Step 7: Commit** `retire_ye.lua`, `prep_ye.lua` (and its template, if one was changed), `test_ye_fixes.py`, `Play_LindenmoorSmoke.lua` and the manifest: `"Foundry data Task 8: Brannoc and the forge rooms leave Ye (reversible); a notice points students to the Foundry"`.
+- [ ] **Step 7:** `sync.py --check` in both places: `DIFFER 0 / MISSING 0`.
+- [ ] **Step 8: Commit** `retire_ye.lua`, `prep_ye.lua` (and its template, if one was changed), `test_ye_fixes.py`, `SmokeKit.lua`, `Play_LindenmoorSmoke.lua` and the manifest: `"Foundry data Task 8: Brannoc and the forge rooms leave Ye (reversible); a notice points students to the Foundry"`.
 
 ---
 
@@ -1058,7 +1131,12 @@ foundry_ledger = {
 
 **Files:**
 - Create: `Scripts/ServerStorage/RenseiTests/Play_FoundrySmoke.lua` and `Play_FoundryData.lua`.
-- Modify: `sync_manifest.json` (both suites, `Create: true`, Places `["foundry"]`).
+- Modify:
+  - `Scripts/ServerScriptService/MinigameService.lua`: one line after the local `Submit` function, `MinigameService.Submit = Submit -- tests (Foundry Yard plan): the same path the remote takes`;
+  - `sync_manifest.json`: both suites (`Create: true`, Places `["foundry"]`), and `RenseiServer.MinigameService` (Places both).
+- Create only if check 4 finds misfaced ledges: `Art/Studio/Regions/Foundry/fix_ledges.lua` (below).
+
+**Walkability (spec §9)** is covered by two checks together: the reach test from the hub to every one of the 88 posts (check 1, at the Mover's own radii), and a real commute walked by a townsperson under the Mover (check 13). There is no separate route walk.
 
 **Interfaces.** Each check below names its RED control. Run every control once, in Play, where world changes vanish at Stop.
 
@@ -1072,11 +1150,15 @@ foundry_ledger = {
    - **Control:** the same function given a synthetic post at (0, 5, 760) reports it.
 3. **`EdgesCantBeGrabbed`:**
    - **The spots:** one per edge, chosen without reading the tag. From (0, ground + 3, −400) toward −X and +X, and from (−400, ground + 3, 0) toward −Z, and from (300, ground + 3, 0) toward +Z (clear of the portals), find the first part under `Map.Foundry.Edges.Edge_<W|E|N|S>`. Stand 2 studs short of it, facing it.
-   - **The check:** `MovementState.Grippable` is false for that part, and the server refuses a climb and a wall run (`Refused:NoWall`). Do this as `Play_LindenmoorSmoke.CragCantBeGrabbed` does: reuse its Ask and WithRoot helpers by copying them; they are this project's own code.
+   - **The check:** `MovementState.Grippable` is false for that part, and the server refuses a climb and a wall run (`Refused:NoWall`). Use `SmokeKit.Ask` and `SmokeKit.WithRoot` (Task 8), never copies of them.
    - **Control:** with the RenseiNoGrip tags removed within 12 studs of one spot, the climb is accepted. Put the tags back, and the tagged count equals the before count.
 4. **`LedgesFaceTheirWalls`:**
    - for every RenseiLedge in `Map.Foundry` (377), a ray from its centre along its LookVector meets a part within 1.5 studs, and that part's hit normal dotted with the LookVector is < −0.7.
    - **Control:** turn one ledge 180°; it must fail.
+   - **If the clean run finds misfaced ledges** (export ledges whose front faces away from their wall), this task owns the fix: `Art/Studio/Regions/Foundry/fix_ledges.lua`, a reversible script under the Global Constraints' contract.
+     - Its flag is `FoundryLedges` on `Map.Foundry`, already in `RestoreRefuseFlags` from Task 4. Each turned ledge gets `FoundryLedgeFrom`, its old CFrame.
+     - `apply` turns each listed ledge 180° about Y in place, and `test` round-trips exactly.
+     - Re-run check 4 after. Record the count fixed, and add the script to the Kit's "Foundry differs from the kit" (Task 10).
 5. **`LampsFollowTheClock`:**
    - the 154 `NightOnly` parts in `Map.Foundry` are all in `WorldClock.NightParts`;
    - with `WorldClock.Hold(23)`, each has an enabled Light and is not `WorldClock.DayMaterial`; with `Hold(12)`, each Light is disabled and the material is `DayMaterial`;
@@ -1095,14 +1177,17 @@ foundry_ledger = {
 8. **`TrialsAreInTheWorld`:**
    - workspace has exactly one RenseiTrial (`metal_experiment`), with its `TrialPrompt`;
    - no RenseiTrial outside workspace.
+   - **Control:** clone the trial marker, with its tag, into `ServerStorage`; the "none outside workspace" assertion must fail. Destroy the clone.
 9. **`BrannocCanBeTalkedTo`:** as Task 7's BrannocTalks.
+   - **Control:** pivot Brannoc 10 studs off his spot; the "within 6 studs" assertion must fail. Pivot him back.
 10. **`EnemiesStandInTheWorld`:**
-    - this is `Play_LindenmoorSmoke.EnemiesStandInTheWorld`, copied;
+    - this is `SmokeKit.EnemiesStandInTheWorld(T, Opts)` (Task 8), with `ExpectSpawns = {Grunt = 4, WardAlchemist = 1}`, and `AreaOf` giving "The Underworks" for a Grunt and "Silent Forge" for the Ward;
     - plus: the RenseiEnemySpawns in workspace are exactly the 4 Grunts and 1 WardAlchemist (decision B);
     - `WorldService.AreaAt` at each Grunt spawn is "The Underworks", and at the Ward spawn it is "Silent Forge";
     - the Ward spawn lies inside the Silent Forge interior (x 353.6..392.4, z −389.4..−339.6);
     - no RenseiEnemySpawn lies in any other area: none in the town above;
     - each has a live enemy within 30 s of Start: poll `EnemyService.Active`.
+    - **Control:** put a tagged clone of a Grunt spawn on the ground in Foundry Square, at the `square_shelter` post's position + (6, 0, 0). The "no spawn in any other area" assertion must fail. Destroy the clone and the enemy it spawned.
 11. **`CompassMarksPointTrue`:**
     - `Regions.NorthOf() == "-Z"`;
     - `ReplicatedStorage.CompassPoints` has:
@@ -1111,29 +1196,39 @@ foundry_ledger = {
       - a Trial point `metal_experiment`;
       - Inspect points for the two clues and the four `metal_*` parts;
       - an Area point for each of the 11 area names and "Silent Forge";
-    - from the court (−200, 490), `Regions.Bearing(dx, dz, "-Z")` to every Grunt spawn has |bearing| > 90 (south), and to the hall (400, −340) and to the Ward spawn (386, −348) it lies in (0, 90) (north-east).
+    - **Bearings from live positions only,** with no coordinate written into the check. From the TrainerSpot marker's position, `Regions.Bearing(dx, dz, Regions.NorthOf())` to each Grunt spawn part has |bearing| > 90 (south). To the `GreatHall_great_hall` pivot and to the Ward spawn part it lies in (0, 90) (north-east).
     - **Control:** the same bearing with "+Z" puts the hall in the south half; it must fail the north-east assertion.
 12. **`TownsfolkAtTheirPosts`:**
-    - with `WorldClock.Hold(10)`, all 26 are spawned, Validate passed, and each stands within 1.5 studs of its 10:00 post within 1.5 s;
-    - release the clock after.
+    - `WorldClock.Hold(10)`, then `TownsfolkService.LoadRegion("Foundry", Townsfolk.Regions.Foundry)`, which returns true (as Play_LindenmoorData does at :272–274);
+    - all 26 are spawned, and 1.5 s later each stands within 1.5 studs of its 10:00 post;
+    - put the clock back after.
+    - **Control:** the same comparison against each townsperson's 16:00 post must fail for at least 20 of the 26.
 13. **`CommuteWalks`:**
     - pivot the player to (−300, 7, −440). Hold 10, wait until `fy_runner_1` is AtPost at `errand_square`, then Hold 11.
     - Within 90 s (PROPOSAL; the 380-stud walk at WalkSpeed 8 takes about 48 s) its state passes Walking and ends AtPost at `errand_row`, within 1.5 studs of the post.
     - Release the clock and put the player back.
+    - **Control:** with the player pivoted 600 studs away, no player is within 300 studs of the runner, so it is placed rather than walked. The "passes through Walking" assertion must fail.
 14. **`TownsfolkLoopIsCheap`** (spec §9):
     - wrap `TownsfolkService.Step` with an `os.clock` timer for 60 s, with the player standing in Foundry Square (−90, 7, −509) and the clock running; put the wrapper back after.
     - The average Step is < 1 ms.
     - Report `TownsfolkService.Mover.Stats().StepMs`, `P99StepMs()` and the Walkers count. Get the Mover through `require(game.ServerScriptService.TownsfolkService.Mover)`.
+    - **Control:** with a 2 ms busy-wait added inside the wrapper, the average must read ≥ 1 ms and the check must fail.
+15. **`UnderworksIsShaded`** (stealth and shade, spec §9):
+    - hold the clock at 12:00;
+    - `LightService.ExposureAt` at the docket clue's position + (0, 2, 0), in the tunnel, is lower than at the `square_shelter` post's position + (0, 2, 0), on the open square;
+    - put the clock back.
+    - **Control:** the same tunnel point, with the tunnel's roof excluded (pass `Map.Foundry.Landmarks` and `Map.Foundry.Ground` in `ExposureAt`'s Ignore list), must not read lower than the square, so the assertion fails.
 
 **`Play_FoundryData.AcqMetalFromFoundry`** (Play, in Foundry):
 - **Setup:** save Quests, Story, Identity and Areas. Clear `acq_*` from Active and Completed. Set `Affinity = ""` and `Data.Areas["Silent Forge"] = nil`. Set `QuestService.Definitions.acq_metal.Rewards = {}` for the run, and put all of it back in a finally block.
-- **The run:**
+- **The run goes through the real services;** no objective is set by hand:
   1. Beside Brannoc, open the dialogue and take "Teach me." then "I'll go." (`DialogueService.Choose`). acq_metal is Active, and the travel stage is already done (Here() = Foundry): Stage 2.
-  2. Pivot the player into the Silent Forge at (373, 8, −360) and wait up to 6 s for WorldService's discovery. Stage 3.
+  2. Pivot the player into the Silent Forge, at the `SilentForgeFloor` part's position + (0, 3, 4), and wait up to 6 s for WorldService's discovery. Stage 3.
   3. Inspect the four `metal_*` points (within 9 studs each), then `InvestigationService.Deduce(Player, "forge_failure", {"sheared_shaft", "sample_rack", "bad_weld"})`. Stage 4.
-  4. Pivot to the material bench. `MinigameService.Open(Player, "metal_match", ...)`, through the bench's mechanism prompt as PuzzleService does, opens (the Requires are met). Cancel it, then `QuestService.Signal(Player, "Minigame", "metal_match")`. Stage 5.
-  5. `TrialService.Begin(Player, "metal_experiment")` from 3 studs off the marker returns true. End the run by leaving the arena (as Task 7). `StoryService.SetFlag(Player, "Trial_metal_experiment", os.time())`. Stage 6.
-  6. Beside Brannoc, the dialogue's exam choice opens `metal_exam` (as Play_Exams does). Cancel it, then `QuestService.Signal(Player, "Minigame", "metal_exam")`. Stage 7 ("recognition"): **the exam is passed**. Stop here; recognition isn't run.
+  4. **The experiment:** pivot beside the material bench and trigger its mechanism prompt's handler as PuzzleService does, so `metal_match` opens (`MinigameService.Current(Player) == "metal_match"`). Get the server's own answer with `MinigameService.Solve(Player)`, and submit it with `MinigameService.Submit(Player, Answer)`, the remote's own path (made public in this task). The pass signals the quest: Stage 5.
+  5. **The trial:** from 3 studs off the marker, `TrialService.Begin(Player, "metal_experiment")` returns true. Knock the foe through the game's damage path (`ReplicatedStorage.Modules.Managers.DownedManager`'s damage call, which TrialService's hazards use to hurt it) until it is knocked or dead. TrialService then sets `Trial_metal_experiment` itself: Stage 6.
+  6. **The exam:** beside Brannoc, the dialogue's exam choice opens `metal_exam` (as Play_Exams does). Solve and submit it the same way. Stage 7 ("recognition"): **the exam is passed**. Stop here; recognition isn't run.
+- **RED:** run this test once before the `MinigameService.Submit` line exists; it must fail at step 4.
 - **`AcqMetalFromYeSave`:** a save from Ye mid-way through the quest (`{Stage = 3, Progress = {}}`, with no Revision) goes to Stage 4 through `QuestService.UpgradeAll`. Brannoc's dialogue then opens his "experiment" node, the Starts entry for Stage 4.
 
 **Steps:**
@@ -1171,7 +1266,8 @@ foundry_ledger = {
 
 **`Foundry Yard Kit.md`, a new section "The game data (2026-10-24, Foundry Yard plan)":**
 - **What's live in Studio:** the areas, the 26 townsfolk and their day, the shift-ledger quest, the forge rooms and Brannoc, the Ward Alchemist spawn inside the Silent Forge room (owner decision B), and the four Grunts, the only enemies in the underworks.
-- **"Not done in this import":** tick each item.
+- **"Not done in this import":** tick each item this plan did (Brannoc's move, the game data). **Don't tick "The owner's save of the place"**: only the owner saves.
+- **Fix the import notes' "great hall's west gantry"** (item 11). `hall_gantry` is at x 495.5, east of the hall's centre (x 400), so on Foundry's compass it is the **east** gantry.
 - **A subsection "Foundry differs from the kit"**, as Lindenmoor Kit's. A re-import or Blender rebuild drops all of these, and the import's own checks don't warn:
   - the `Spawn` SpawnLocation at (−648, 6.9, 360): re-add it by hand;
   - `foundry_posts.lua`;
@@ -1181,8 +1277,12 @@ foundry_ledger = {
 - **The rollback order** (Edit, never Play):
   1. `build_forge.lua` undo;
   2. `foundry_posts.lua` undo;
-  3. revert the scripts from `RenseiBackups["Pre-FoundryData_2026-10-24"]`, in both places, for this plan's labels;
-  4. `import/restore.lua`, which refuses while `FoundryPosts` or `FoundryForge` is set.
+  3. `fix_ledges.lua` undo, if Task 9 made and applied it;
+  4. revert the scripts from `RenseiBackups["Pre-FoundryData_2026-10-24"]`, in both places, for this plan's labels;
+  5. **delete the scripts this plan created,** which have no backup:
+     - **in Foundry:** `StarterPlayerScripts.TownsfolkClient`, `StarterCharacterScripts.Health`, and the suites Test_TownsfolkLogic, Play_Townsfolk, Play_TownsfolkCrowd, Play_TownsfolkHurt, Play_Clue, Play_Clock, Play_Exams, Play_NoGrip, Test_QuestRevision, Play_QuestEngine, Test_AcqMetal, Test_FoundryRoster, Play_FoundryLedger, Play_FoundryForge, SmokeKit, Play_FoundrySmoke and Play_FoundryData;
+     - **in Ye:** Test_QuestRevision, Play_QuestEngine, Test_AcqMetal and SmokeKit. Ye's Play_LindenmoorSmoke goes back to its backup instead.
+  6. `import/restore.lua`, which refuses while `FoundryPosts`, `FoundryForge` or `FoundryLedges` is set.
 - **The smoke table:** each check and what it proves.
 - **Known issues:**
   - the errand runners are adult rigs;
@@ -1241,7 +1341,9 @@ Its `### Discord announcement` starts "Hold: not live yet. Post this when the ow
 - [ ] **Step 1:** Write the docs. Every number comes from a task report. Re-read every direction word against the place's compass.
 - [ ] **Step 2:** Check that the Discord block is under 2,000 characters (count it with `python -I -c`), and that it has no file names, numbers of tests, or PROPOSAL.
 - [ ] **Step 3: The controller names the joint checkpoint to the owner in chat,** with the hold, the order, and the two known ticket failures. This plan publishes nothing.
-- [ ] **Step 4: Commit** the five docs: `"Foundry data Task 10: docs, changelog (held Discord post) and the joint Ye + Foundry publish checkpoint"`.
+- [ ] **Step 4:** This is the plan's only Changelog entry. No other task wrote one.
+- [ ] **Step 5:** After the commit, **the controller pushes and updates the status page.** The implementer does neither.
+- [ ] **Step 6: Commit** the five docs: `"Foundry data Task 10: docs, changelog (held Discord post) and the joint Ye + Foundry publish checkpoint"`.
 
 ---
 
@@ -1266,20 +1368,32 @@ Its `### Discord announcement` starts "Hold: not live yet. Post this when the ow
    - original names, checked by the test.
 5. **The clues and the shift-ledger quest:** Task 6, with EXP, money and a Foundry standing deed (Task 2's `Rewards.Deeds`).
 6. **The enemies:** the 4 Grunts stay live; ground and compass are checked in Task 9; the Ward spawn sits inside the Silent Forge room (decision B), checked in Tasks 7 and 9.
-7. **The smoke and Play-testing:** Task 9 covers walkability, NoGrip, ledges, lamps, the pond, travel single, trials, Brannoc, enemies, the compass, the shift ledger end to end (Task 6's suite re-run), `acq_metal` through the exam, and performance. The travel suites run in both places.
+7. **The smoke and Play-testing:** Task 9 covers:
+   - walkability: the reach test to every post, plus the runner's commute;
+   - NoGrip, and ledges (with a reversible fix if any are misfaced);
+   - lamps, the pond, travel single, trials, Brannoc and enemies;
+   - the compass, with bearings from live positions;
+   - the underworks shade;
+   - the shift ledger end to end (Task 6's suite re-run);
+   - `acq_metal` through the exam, via the real MinigameService and TrialService;
+   - performance.
+
+   Every check names its RED control. The travel suites run in both places.
 8. **The docs and the joint checkpoint:** Task 10. The SpawnLocation note is in "Foundry differs from the kit".
 
 **The Lindenmoor lessons folded in:**
 
 | Lesson | Where |
 |---|---|
-| North per place | Global Constraints; Tasks 3 and 9 |
+| North per place | Global Constraints; Task 4 (shelter names); Tasks 7 and 9 (bearings from live positions) |
 | Workspace filter / tags set aside in backups (C1) | Global Constraints; Tasks 8 and 9 |
 | Shelters within the 150 cap (Ruling 37) | Task 4, with a 145 design margin |
 | Validate | Task 5 |
 | The time-to-meet Mover (Ruling 36) | Task 1's sync, the Crowd suite kept green |
 | RED then GREEN, no pass-by-construction (Ruling 41) | Every task, with controls in Task 9 |
-| Studio == repo by normalised hash | Task 1's tool, checked in every task |
+| Studio == repo by normalised hash | Task 1's tool (per-place pairs only), checked at the end of every task that touched a script, Tasks 7 and 8 included |
+| The real save is never changed by a test | Global Constraints (the `Data.Quests` dump before and after every restore); Task 2 (Boot waits for the hook's snapshot); Task 3 (the owner's acq_metal state recorded) |
+| No duplicated logic | `StoryLogic.StageIndex` (Task 3); `RenseiTests.SmokeKit` (Task 8) |
 | Reversible scripts with guards (I2) | Tasks 4, 7 and 8, the `restore.lua` flags, the `prep_ye.lua` guard |
 | Generated-file rules | Global Constraints; Task 7 |
 | The publish order (Ruling 42) | Task 10 |
@@ -1292,14 +1406,19 @@ Its `### Discord announcement` starts "Hold: not live yet. Post this when the ow
 - Ye's `FoundryYard` is a whole quest, not a graybox (decision A).
 - The 72-wide arena doesn't fit the shell (decision E).
 - Inserting a stage shifts saved stages (decision C).
+- The region builder's `schema.py` rejects unknown top-level keys, so `RestoreRefuseFlags` and `Notes` are added to it (Task 4).
+- Two first names in the draft roster were already the game's (Wren, Coach Harlan). The roster test now checks first names against every Dialogues speaker (Task 5).
 
 **Names used across tasks:**
 - the backups `Pre-FoundryData_2026-10-24` (scripts, both places) and `Pre-FoundryMove_2026-10-24` (Ye's pieces);
 - the flags `FoundryPosts` and `FoundryForge` (on `Map.Foundry`) and `FoundryMove` (on Ye's `World.Map`);
-- the marks `FoundryPostAdd`, `FoundryPostFrom`, `FoundryShelfFrom`, `FoundryForgeAdd`, `FoundryMoveAdd`, `FoundryMoveFrom` and `FoundryMoveFromPath`;
+- the marks `FoundryPostAdd`, `FoundryPostFrom`, `FoundryShelfFrom`, `FoundryForgeAdd`, `FoundryMoveAdd`, `FoundryMoveFrom`, `FoundryMoveFromPath`, and `FoundryLedgeFrom` (Task 9, if needed);
+- the reserved flag `FoundryLedges`;
+- Ye's backup baselines `BaselineInspect`, `BaselineTrainers`, `BaselineYardParts` and `BaselineYardPivot`;
+- the shelter ids, named by Foundry's compass: `row_south_shelter` (−560, −330), `row_north_shelter` (−480, −650) and `square_south_shelter` (−90, −340);
 - the quest `foundry_ledger`, the deduction `foundry_ledger_who`, the deed `foundry_ledger_cleared` and the signals `foundry_ledger_rusk`, `_marsh` and `_clerk`;
 - the roster ids `fy_*`;
-- `MetalStage(Id)`, `StoryLogic.UpgradeQuest`, `QuestService.UpgradeAll` and `QuestService.Boot`.
+- `StoryLogic.StageIndex`, `StoryLogic.UpgradeQuest`, `QuestService.UpgradeAll`, `QuestService.Boot`, `QuestService.WaitForSnapshot`, `MinigameService.Submit` (for tests) and `RenseiTests.SmokeKit`.
 
 **Order and dependencies:**
 - 1 comes before everything.
@@ -1308,5 +1427,6 @@ Its `### Discord announcement` starts "Hold: not live yet. Post this when the ow
 - 4 before 5 (posts).
 - 5 before 6 (tellers).
 - 7 before 8: Brannoc exists in Foundry before he leaves Ye, so the game always has a Metal trainer.
+- 8 before 9: SmokeKit is made in Task 8 and used by Task 9's Foundry smoke suite.
 - 9 after all; 10 last.
 - Play sessions are serial across the places. Tasks 4, 7 and 8's Studio scripts run in Edit and need no Play.
