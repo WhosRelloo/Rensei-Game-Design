@@ -1,5 +1,10 @@
 # Swimming Revamp Implementation Plan
 
+> **Owner update (2026-10-25), overrides the slot text below:**
+> - **Climbing out:** use the game's existing **ledge-climb** animation, the one played when you pull up onto a ledge. In the repo's JumpManager that pull-up plays `Vault1`/`Vault2`. Task 1's Studio survey confirms which `Assets.Animations` entry is the ledge climb (and whether a dedicated ledge-climb id exists) and uses that one.
+> - **Underwater idle:** use the surface idle, `Swim_Idle`.
+> - So **`Swim_ClimbOut` and `Swim_UnderIdle` are not new slots any more**. The owner only needs to upload **two** animations: `Swim_Dive` and `Swim_Surface`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Every implementer gets the **Global Constraints** and the **Studio facts** below together with its own task.
 
 **Goal:** the owner's Backlog item, "Completely audit and revamp the swimming system. (I want it to be directional, with a dive system)". When this plan is done:
