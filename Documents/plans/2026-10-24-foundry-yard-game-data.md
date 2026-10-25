@@ -7,7 +7,7 @@
 - 26 townsfolk on two shifts;
 - the shift-ledger clue quest;
 - the four underworks Grunts;
-- Brannoc with the Silent Forge and the Forge Floor, moved out of Ye (place 106992859583940) into the practice court and the great hall's forge-room shells.
+- Brannoc with the Silent Forge and the Forge Floor, moved out of Ye (place 106992859583940) into the practice court and the great hall's forge-room shells, with the forge's Ward Alchemist spawn inside the Silent Forge room.
 
 Then a Foundry smoke suite, and one joint publish checkpoint for Ye and Foundry.
 
@@ -32,6 +32,13 @@ Nothing here publishes. The owner publishes Ye and Foundry together at the end (
 - `Documents/Foundry Yard Kit.md`, "Foundry import notes" items 5 and 10–13, and "Not done in this import";
 - `Documents/Region Builder.md` §§6–8;
 - the Lindenmoor lessons: `.superpowers/sdd/2026-10-24-lindenmoor-import/progress.md`, Rulings 8, 22, 25 and 33–43. They are folded into the Global Constraints below.
+
+**Owner decisions (2026-10-24).** These are answered; the tasks build them.
+- **A. Ye's `FoundryYard` model:** keep it, and the `chalk_foundry` quest in it, in Ye, unchanged. Spec §7.2 listed it for backup, but it is a working quest, not a graybox. Moving `chalk_foundry` into the Foundry is a later plan (Backlog).
+- **B. The Ward Alchemist spawn (`WardAlchemist_SilentForge`):** it spawns **inside the Silent Forge room** in the great hall, as it belonged to the forge in Ye. Its spot is on the room's floor, clear of the hearth, the doorway and the room's pieces (Task 7). The four Grunts stay the only enemies in the underworks.
+- **C. Saves mid-way through `acq_metal`:** their saved stage moves forward on join (`Revision` / `Prepended` in the quest def, `QuestService.Boot`), so the player stays on the stage they were on (controller ruling).
+- **D. Ye's Metal trainer spot:** a notice, "Gone to the Foundry Yard", stands there and starts `acq_metal` at its travel stage (gated on having no path).
+- **E. The Forge Floor fight:** shrunk to fit the shell, with Radius 24 and FoeDistance 14 (both PROPOSAL; were 34 and 16).
 
 ---
 
@@ -132,7 +139,8 @@ The walls are 12 tall (y 4..16), and the rooms are open to the hall roof.
   - Its attributes: DialogueId `trainer_metal`, DisplayName "Brannoc", TrainerPath "Metal", LookNation "Xerxian", LookGender "Male", LookSeed 105, IdleAnim "NPC_Blacksmith", Posed "Standing" and Placeholder true.
   - Its props: `ScrollStand` (Part, 1.4 × 3 × 1.4 at (−127.4, 5.5, −137.2)) and the `Metal Alchemy` Model (MeshPart `Paper`, mesh 4669611074, at (−127.4, 7.2, −137.2)).
   - It has no scripts. DialogueService dresses it at run time from the Look attributes.
-- **The alchemist spawn:** `World.Map.AlchemistSpawns.WardAlchemist_SilentForge`, a Part tagged RenseiEnemySpawn, EnemyType WardAlchemist, at (591.9, 22.5, 960.8).
+- **The alchemist spawn:** `World.Map.AlchemistSpawns.WardAlchemist_SilentForge`, a Part tagged RenseiEnemySpawn, EnemyType WardAlchemist, at (591.9, 22.5, 960.8). It is 2 × 1 × 2, invisible and non-colliding, with its centre 0.5 above the ground (y 22).
+- **Its new spot in Foundry, measured:** (386, 5.2, −348), inside the Silent Forge shell. A ray down there meets `SilentForgeFloor` at y 4.7, and a 4 × 5 × 4 box over it holds nothing. That is 9 studs east of the doorway (x 369..377, z −338.8), 7.5 studs south of the moved MaterialBench (z −355.5) and 35 studs from the hearth.
 - **Ye's Metal TrainerSpot** (stays): `Map.LindenmoorExpansion.Markers.Markers_Expansion.RenseiMarker16` at (−130, 5, −135), Element "Metal", Trainer "Brannoc".
 - **Ye's `FoundryYard` model** (60 parts, box centred (300, 38, 880)) holds the whole of `chalk_foundry`: the furnace_store puzzle door, 5 chalk and store inspects, 9 mechanisms and its "Foundry Yard" area. It is not a graybox. See Owner decision A.
 - Ye has 76,373 BaseParts in workspace, against the place's 80,000 ceiling.
@@ -293,17 +301,17 @@ This plan never publishes.
 
 ---
 
-## Owner decisions this plan needs (the defaults are what the tasks build)
+## The owner's decisions, by task
 
-The controller asks the owner before the task named. If the owner says nothing, the default stands.
+All five are answered (see "Owner decisions (2026-10-24)" in the header). This table says where each one is built.
 
-| | Question | Default (recommendation) | Task |
+| | Decision | Why it came up | Task |
 |---|---|---|---|
-| A | Ye's `FoundryYard` model is the whole `chalk_foundry` quest (Brask, the chalk marks, the furnace-store puzzle) and the bandit bounty's yard. It isn't a graybox, though spec §7.2 lists it to be backed up. | **Keep it in Ye, unchanged.** Moving `chalk_foundry` into the Foundry is a later plan (Backlog). Backing it up would delete a working quest from the game. | 8 |
-| B | `WardAlchemist_SilentForge` (the forge's alchemist spawn) has to land somewhere in Foundry, but the owner said there would be "a few [Grunts] in the underworks", none in the town above. | **Put it in the underworks tunnel at (−460, _, 676)** (PROPOSAL), between the first two Grunts. | 7 |
-| C | Inserting the "Travel to the Foundry Yard" stage moves every later `acq_metal` stage up by one. A save that is mid-way through `acq_metal` would land one stage back. | **Shift saved stages forward on join** (`Revision` / `Prepended` in the quest def, `QuestService.Boot`). The player stays on the stage they were on. | 2, 3 |
-| D | A Ye player has no one to start `acq_metal` from once Brannoc leaves. | **A notice at Ye's Metal TrainerSpot**, "Gone to the Foundry Yard", which starts `acq_metal` at its travel stage (gated on having no path). | 3, 8 |
-| E | The Forge Floor arena is 72 across in Ye, with trial Radius 34. The owner-chosen shell is 38.8 × 49.8. | **Radius 24 and FoeDistance 14** (PROPOSAL; were 34 and 16). The "left the arena" ring (Radius × 1.35 = 32.4) then clears the room's corners (31.6), and the foe spawns 14 studs back inside the room. | 3 |
+| A | Keep Ye's `FoundryYard` model and `chalk_foundry` in Ye, unchanged. | The model is the whole `chalk_foundry` quest (Brask, the chalk marks, the furnace-store puzzle) and the bandit bounty's yard, not a graybox, though spec §7.2 lists it for backup. | 8 |
+| B | The Ward Alchemist spawns inside the Silent Forge room, at (386, 5.2, −348). | It is the forge's alchemist spawn in Ye. The four Grunts stay the only enemies in the underworks. | 7, 9 |
+| C | Saved `acq_metal` stages move forward on join (`Revision` / `Prepended`, `QuestService.Boot`). | The new first stage moves every later stage up by one, so a save mid-way through would otherwise land one stage back. | 2, 3 |
+| D | A notice at Ye's Metal TrainerSpot starts `acq_metal` at its travel stage (gated on having no path). | A Ye player has no one to start `acq_metal` from once Brannoc leaves. | 3, 8 |
+| E | Radius 24 and FoeDistance 14 (PROPOSAL; were 34 and 16). | The Forge Floor arena is 72 across in Ye, and the owner-chosen shell is 38.8 × 49.8. The "left the arena" ring (Radius × 1.35 = 32.4) then clears the room's corners (31.6), and the foe spawns 14 studs back inside the room. | 3 |
 
 ---
 
@@ -897,9 +905,15 @@ foundry_ledger = {
   - **Tags and attributes** are set as exported.
 - **The area box:** `Silent ForgeArea` with the same AreaName and Description, but `CFrame = CFrame.new(373, 13.7, -364.5)` and `Size = (38.8, 20, 49.8)`. That is the room's interior, from 1 below the floor to 19 above it, so it sits inside "The Foundry" and the smallest box wins.
 - **`TrialMarker`:** the exported properties, with `CFrame = CFrame.lookAt(Vector3.new(325, 5.2, -364.5), Vector3.new(325, 5.2, -365.5))`. That is the Forge Floor's centre, with its bottom on the floor at 4.7, facing −Z. The foe then spawns at z −378.5 (FoeDistance 14, Task 3).
-- **The Ward spawn** (owner decision B):
-  - At (−460, _, 676): a ray down from y 15 there must meet the tunnel `Floor`. The part's bottom sits 0.05 above the hit, with the exported size and properties, `EnemyType` WardAlchemist and `Weapon` "".
-  - With decision B answered "retire", build no Ward spawn, and say so in the report.
+- **The Ward spawn** (owner decision B: inside the Silent Forge room, as it was the forge's spawn in Ye). It goes in `ForgeRooms.SilentForge`, with the exported size (2 × 1 × 2), properties, `EnemyType` WardAlchemist and `Weapon` "".
+  - **The spot:** `CFrame.new(386, 5.2, -348)`, measured 2026-10-24.
+    - A ray down from y 15 meets `SilentForgeFloor` at y 4.7, so the centre sits 0.5 above the floor, as it did in Ye.
+    - A 4 × 5 × 4 box over it held nothing.
+    - It is 9 studs east of the doorway (x 369..377 at z −338.8), 7.5 studs south of the moved MaterialBench, and 35 studs from the hearth.
+  - **Re-measure at apply:**
+    - the ray must meet `SilentForgeFloor` with a top between 4.6 and 4.8;
+    - after the other pieces are placed, a 4 × 5 × 4 box over the spot must hold no CanCollide part.
+  - **If either fails,** try (360, 5.2, −346), the west front corner, then (386, 5.2, −372), the east side beside the Anvil's row. Both read clear on 2026-10-24. If all three fail, refuse and report.
 - **Brannoc:** `workspace.World.NPCs["Alchemy Trainers"]["Metal Alchemist"]`. Create the folder if missing, marked `FoundryForgeAdd`.
   - Clone `game.StarterPlayer.StarterCharacter`. Remove every LuaSourceContainer and PackageLink from the clone, and name it "Metal Alchemist".
   - Set the exported attributes and Humanoid fields.
@@ -911,7 +925,7 @@ foundry_ledger = {
   - workspace's RenseiArea count not being 13;
   - Brannoc's root not within 0.5 of (−200, 7.4, 490), not facing −Z (look vector Z < −0.99), or out of 6 studs of the TrainerSpot marker;
   - the trial marker not at the Forge Floor's centre;
-  - the Ward spawn's ground ray not hitting within 0.6.
+  - the Ward spawn not inside the Silent Forge interior (x 353.6..392.4, z −389.4..−339.6), its ground ray not meeting `SilentForgeFloor` within 0.6, or it lying within 6 studs of the doorway's centre (373, −338.8) or within 4 studs of the hearth's box.
 - **`undo`:** destroys every top-level `FoundryForgeAdd` instance (ForgeRooms, the Alchemy Trainers folder if this script made it, otherwise Brannoc alone) and clears the flag. No guard: nothing later builds on it. (Task 8's Ye retire is in another place.)
 - **`test`:** snapshot → apply → check → undo → snapshot equal. The snapshot covers:
   - `Map.Foundry.Landmarks.GreatHall_great_hall` and `Map.Foundry.Markers` rows (path, CFrame to 0.01, sorted attributes, tags);
@@ -929,6 +943,10 @@ foundry_ledger = {
   - the model has DialogueId `trainer_metal` and a `TalkPrompt` on its root;
   - it is within 6 studs of the TrainerSpot;
   - `DialogueService.Open(Player, Model)` opens with the player beside him; `DialogueService.Close`.
+- **`WardSpawnsInTheForge`:**
+  - the WardAlchemist RenseiEnemySpawn is in `ForgeRooms.SilentForge` and inside the room's interior;
+  - within 30 s of Start, `EnemyService.Active` has a live WardAlchemist whose Home is that spawn;
+  - its root stands inside the Silent Forge interior.
 - **`TrialFitsTheRoom`:**
   - Save Quests and Identity. Set `Identity.Affinity = ""` and `Data.Quests.Active.acq_metal = {Stage = 5, Progress = {}, Started = os.time(), Revision = 2}`.
   - Stand the player 3 studs from the marker. `TrialService.Begin(Player, "metal_experiment")` returns true.
@@ -944,7 +962,7 @@ foundry_ledger = {
 - [ ] **Step 4: Test.** In Foundry (Edit), `MODE = "test"`. Expected: 0 FAIL, round trip exact.
 - [ ] **Step 5: Apply, then check.** Expected: 0 FAIL. Record:
   - the MeshPart source used for each mesh (an Assets clone or CreateMeshPartAsync);
-  - the Ward's final y;
+  - the Ward's final spot, and which of the three it is;
   - Foundry's BasePart count after (expected about 46,941 + 12 (Task 4) + about 33).
 - [ ] **Step 6: GREEN.** In Play in Foundry:
   - Play_FoundryForge 0 FAIL;
@@ -1018,7 +1036,7 @@ foundry_ledger = {
 - Update the header comment to match.
 
 **Steps:**
-- [ ] **Step 1: Ask the controller for owner decision A.** Default: keep FoundryYard.
+- [ ] **Step 1: Owner decision A is answered: keep `FoundryYard` in Ye.** `retire_ye.lua` must not touch it, and its `check` fails if `World.Map.FoundryYard` is missing or changed: compare its BasePart count, 60, and its pivot before and after.
 - [ ] **Step 2: RED.**
   - Write the smoke changes, sync `RenseiTests.Play_LindenmoorSmoke` to Ye, and run it in Play in Ye (PlayLock `Ye:task8`). Expected: TrainersCanBeTalkedTo, EveryTrialStarts and BrannocNoticeStartsTheQuest FAIL, because Brannoc and the forge are still in Ye.
   - Run `retire_ye.lua` with `MODE = "check"` before apply: FAIL.
@@ -1080,7 +1098,10 @@ foundry_ledger = {
 9. **`BrannocCanBeTalkedTo`:** as Task 7's BrannocTalks.
 10. **`EnemiesStandInTheWorld`:**
     - this is `Play_LindenmoorSmoke.EnemiesStandInTheWorld`, copied;
-    - plus: the RenseiEnemySpawns in workspace are exactly the 4 Grunts and 1 WardAlchemist (decision B), and `WorldService.AreaAt` at each is "The Underworks";
+    - plus: the RenseiEnemySpawns in workspace are exactly the 4 Grunts and 1 WardAlchemist (decision B);
+    - `WorldService.AreaAt` at each Grunt spawn is "The Underworks", and at the Ward spawn it is "Silent Forge";
+    - the Ward spawn lies inside the Silent Forge interior (x 353.6..392.4, z −389.4..−339.6);
+    - no RenseiEnemySpawn lies in any other area: none in the town above;
     - each has a live enemy within 30 s of Start: poll `EnemyService.Active`.
 11. **`CompassMarksPointTrue`:**
     - `Regions.NorthOf() == "-Z"`;
@@ -1090,7 +1111,7 @@ foundry_ledger = {
       - a Trial point `metal_experiment`;
       - Inspect points for the two clues and the four `metal_*` parts;
       - an Area point for each of the 11 area names and "Silent Forge";
-    - from the court (−200, 490), `Regions.Bearing(dx, dz, "-Z")` to every spawn has |bearing| > 90 (south), and to the hall (400, −340) it lies in (0, 90) (north-east).
+    - from the court (−200, 490), `Regions.Bearing(dx, dz, "-Z")` to every Grunt spawn has |bearing| > 90 (south), and to the hall (400, −340) and to the Ward spawn (386, −348) it lies in (0, 90) (north-east).
     - **Control:** the same bearing with "+Z" puts the hall in the south half; it must fail the north-east assertion.
 12. **`TownsfolkAtTheirPosts`:**
     - with `WorldClock.Hold(10)`, all 26 are spawned, Validate passed, and each stands within 1.5 studs of its 10:00 post within 1.5 s;
@@ -1149,7 +1170,7 @@ foundry_ledger = {
 **Interfaces:** the content each document must hold. Facts and counts come from Tasks 1–9's reports.
 
 **`Foundry Yard Kit.md`, a new section "The game data (2026-10-24, Foundry Yard plan)":**
-- **What's live in Studio:** the areas, the 26 townsfolk and their day, the shift-ledger quest, the forge rooms and Brannoc, the Ward spawn, and the four Grunts.
+- **What's live in Studio:** the areas, the 26 townsfolk and their day, the shift-ledger quest, the forge rooms and Brannoc, the Ward Alchemist spawn inside the Silent Forge room (owner decision B), and the four Grunts, the only enemies in the underworks.
 - **"Not done in this import":** tick each item.
 - **A subsection "Foundry differs from the kit"**, as Lindenmoor Kit's. A re-import or Blender rebuild drops all of these, and the import's own checks don't warn:
   - the `Spawn` SpawnLocation at (−648, 6.9, 360): re-add it by hand;
@@ -1204,7 +1225,7 @@ Its `### Discord announcement` starts "Hold: not live yet. Post this when the ow
 - about two dozen people working two shifts, who eat at the canteen when shifts change, trade in the market from morning till evening, and hide when trouble starts;
 - a mystery in the shift ledger;
 - Brannoc and his forge have moved from Lindenmoor to the Foundry's practice court and great hall, and a notice in Lindenmoor points the way;
-- bandits in the tunnels under the town;
+- bandits in the tunnels under the town, and an alchemist guarding the silent forge in the great hall;
 - a cooling pond deep enough to swim and dive in;
 - health only comes back out of combat in the Foundry too.
 
@@ -1212,7 +1233,7 @@ Its `### Discord announcement` starts "Hold: not live yet. Post this when the ow
 
 **`Backlog.md`:**
 - item 2 (the Foundry Yard plan) is ticked, with a pointer to the joint checkpoint;
-- add these follow-ups: move `chalk_foundry` (Brask's yard) into the Foundry if decision A was "keep"; compass marks for `Arrive` objectives; child rigs for the errand runners.
+- add these follow-ups: move `chalk_foundry` (Brask's yard) into the Foundry (owner decision A kept it in Ye for now); compass marks for `Arrive` objectives; child rigs for the errand runners.
 
 **`World Travel.md` §9:** the "Foundry Yard is a placeholder" bullet now says Foundry Yard is a full town on its region map (Foundry Yard Kit.md).
 
@@ -1244,7 +1265,7 @@ Its `### Discord announcement` starts "Hold: not live yet. Post this when the ow
    - the shelters, the platform and gantry posts, and the goods-platform and trader reach fixes: Task 4;
    - original names, checked by the test.
 5. **The clues and the shift-ledger quest:** Task 6, with EXP, money and a Foundry standing deed (Task 2's `Rewards.Deeds`).
-6. **The enemies:** the 4 Grunts stay live; ground and compass are checked in Task 9; the Ward spawn is decision B.
+6. **The enemies:** the 4 Grunts stay live; ground and compass are checked in Task 9; the Ward spawn sits inside the Silent Forge room (decision B), checked in Tasks 7 and 9.
 7. **The smoke and Play-testing:** Task 9 covers walkability, NoGrip, ledges, lamps, the pond, travel single, trials, Brannoc, enemies, the compass, the shift ledger end to end (Task 6's suite re-run), `acq_metal` through the exam, and performance. The travel suites run in both places.
 8. **The docs and the joint checkpoint:** Task 10. The SpawnLocation note is in "Foundry differs from the kit".
 
