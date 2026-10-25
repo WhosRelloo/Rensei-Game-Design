@@ -409,6 +409,7 @@ The Lindenmoor expansion is in Ye's Studio Edit session, tested, and **not live*
 
 ### Final part count
 - **Workspace:** 76,373 BaseParts, against the place's 80,000 ceiling (76,372 at the final fix pass). It read 76,369 an hour earlier the same day; the 4 extra parts are inside the expansion (see "The unexplained parts" below).
+- **After the Foundry Yard plan's Task 8** (measured in its Task 9, 2026-10-25): Ye's workspace is **76,326**. Brannoc, the Silent Forge, the Forge Floor and the Ward spawn left for Foundry (49 parts into `Pre-FoundryMove_2026-10-24`), and his notice came (2 parts). The expansion is unchanged.
 - **`World.Map.LindenmoorExpansion`:** 45,425, including the north-west road's `Travel` (1,592).
   - The import itself brought 40,645.
   - The seam regrade, the seam pits, the gorge fix, the road cut and the shelter posts added the rest.
@@ -445,7 +446,7 @@ The Lindenmoor expansion is in Ye's Studio Edit session, tested, and **not live*
 - [x] Play tests (Tasks 7–9).
 
 ### Smoke test (`ServerStorage.RenseiTests.Play_LindenmoorSmoke`)
-The repo copy is `Scripts/ServerStorage/RenseiTests/Play_LindenmoorSmoke.lua`. Run it in hooked Play through `LMRunSuite`. Before review it passed 7/0 in two of three sessions (the first was 6/1 on a test spot), under an older crag check that could not fail. After review fix round 1, with the stricter check, it passed 7/0 (with Play_NoGrip 6/0). With the crag tags taken off around one spot, it **failed**, as it must. At the final fix pass, with EnemiesStandInTheWorld added, it was 7/1 before the EnemyService fix and **8/0** after.
+The repo copy is `Scripts/ServerStorage/RenseiTests/Play_LindenmoorSmoke.lua`. Run it in hooked Play through `LMRunSuite`. Before review it passed 7/0 in two of three sessions (the first was 6/1 on a test spot), under an older crag check that could not fail. After review fix round 1, with the stricter check, it passed 7/0 (with Play_NoGrip 6/0). With the crag tags taken off around one spot, it **failed**, as it must. At the final fix pass, with EnemiesStandInTheWorld added, it was 7/1 before the EnemyService fix and **8/0** after. After the Foundry Yard plan (Tasks 8 and 9: Brannoc's notice, and the shared helpers moved into `RenseiTests.SmokeKit`) it has 10 checks and passes **10/0**.
 
 | Check | What it proves |
 |---|---|
@@ -454,8 +455,10 @@ The repo copy is `Scripts/ServerStorage/RenseiTests/Play_LindenmoorSmoke.lua`. R
 | LampsFollowTheClock | The expansion's 10 `NightOnly` lamps are all in WorldClock's set. Held at 23:00 they are lit, with their own material; held at 12:00 they are dark, with `DayMaterial`. The clock is held through `WorldClock.Hold` and put back afterwards. |
 | TravelIsSingle | There is exactly one RoadStart arrival (on RoadLindenmoorFoundry, in the expansion's `Travel`), one Platform arrival, and one platform train for LindenmoorFoundry. `TravelService.ArrivalPoint` finds them. |
 | LedgeWorks | The gorge's one `RenseiLedge` strip faces its wall: there is a wall 0.7 studs in front at both ends and in the middle, and nothing behind. |
-| EveryTrialStarts | All five `RenseiTrial` markers are in workspace, one per trial, each with a known `TrialId` and its Begin Trial prompt. |
-| TrainersCanBeTalkedTo | The five trainers (Calda, Veyra, Holt, Ansel and Brannoc) each have their `trainer_<element>` dialogue and a talk prompt, and stand within 6 studs of their TrainerSpot. |
+| EveryTrialStarts | The **four** `RenseiTrial` markers Ye keeps are in workspace, one per trial, each with a known `TrialId` and its Begin Trial prompt. Since the Foundry Yard plan's Task 8, no instance anywhere in Ye carries the tag with `metal_experiment`: the Forge Floor moved to Foundry, and Ye's copy waits in a backup with its tags set aside. |
+| TrainersCanBeTalkedTo | Five TrainerSpot markers, each with its own Element. The **four trainers in Ye** (Calda, Veyra, Holt and Ansel) each have their `trainer_<element>` dialogue and a talk prompt, and stand within 6 studs of their TrainerSpot. **At the Metal spot**, no Metal trainer stands in workspace; **Brannoc's notice** (`InspectId` `brannoc_moved`) stands within 6 studs of it, with its prompt. Brannoc teaches in Foundry Yard now (owner decision D). |
+| BrannocNoticeStartsTheQuest | (Foundry Yard plan Task 8.) A student with no path who inspects the notice starts `acq_metal` at its travel stage. The notice's direction word is the one Ye's compass gives from the board to the road's RoadStart: north-west. |
+| BrannocNoticeLeavesAPathAlone | (Task 9, Ruling 38.) A Flame student who inspects the notice gets no `acq_metal`. The direction word is matched as a whole word, with controls. |
 | EnemiesStandInTheWorld | (Final fix pass.) Every enemy EnemyService has live has its Home spawn in `workspace`; no tagged spawn outside `workspace` has an enemy; every live enemy model is one of EnemyService's; a ray down from each spawn in use meets ground within 6 studs (PROPOSAL). Before the fix it **failed**: the two retired old-hub GruntSpawns in `Pre-LindenmoorExpansion_2026-10-24` kept their tag and spawned two Grunts at (−17, _, −70) and (26.5, _, −70). |
 
 **Where the crag check stands.** Choosing the spot never reads the `RenseiNoGrip` tag:
@@ -483,6 +486,11 @@ Do this in Edit, never in Play, in this order. Each Studio-fix script takes its 
 - **`post_fixes.lua`, `east_west_names.lua`, `shelters.lua` and `bed_fix.lua`:** copy the file to a scratch folder and edit its MODE line there.
 - **The generated scripts (`road_cut.lua`, `seam_pits.lua` and `regrade_seam.lua`):** do the same. Copy the committed file to a scratch folder and edit only its `local MODE = "apply"` line. **Never regenerate them with their `.py`**: the generator recomputes from the current survey and the current ground, so the new file would no longer match what was applied.
 - **`gorge_fix.lua`:** use its bundler (step 7).
+0. **`Art/Studio/Regions/Foundry/forge/retire_ye.lua`**, `MODE = "undo"` (Foundry Yard plan Task 8), from a scratch copy.
+   - It brings Brannoc, the Silent Forge, the Forge Floor and the Ward spawn back from `Pre-FoundryMove_2026-10-24`, with their tags.
+   - It removes his notice and clears `FoundryMove` on `World.Map`.
+   - `prep_ye.lua`'s undo (step 10) refuses until this has run.
+   - If the Foundry Yard plan's scripts are to go too, follow `Documents/Foundry Yard Kit.md`, "Rolling back the game data", for both places. Its Ye steps are this step, step 1 below and its script steps 7–8. Its Foundry steps keep Foundry consistent: Brannoc would otherwise stand in both places.
 1. **`Art/Studio/Regions/Lindenmoor/post_fixes.lua`**, `MODE = "undo"` (Foundry Yard plan Task 4b; `lm_signal_box` added in Task 8). It puts `lm_lookout_seat`, `lm_haybarn_shelter`, `lm_farm4_field`, `lm_farm1_home` and `lm_signal_box` back where they were (inside the lookout's base, the hay barn, the farmhouse's stone floor, on the well's rim and inside the signal box) and clears `LindenmoorPostFixes`. Nothing else depends on it.
    - After this step, Test_YePaths fails again (the four posts can't be stood at; farm4's walks fail). That is expected.
 2. **`Art/Studio/Regions/Lindenmoor/east_west_names.lua`**, `MODE = "undo"`.
@@ -500,7 +508,7 @@ Do this in Edit, never in Play, in this order. Each Studio-fix script takes its 
 9. **`import/restore.lua`.** It refuses, changing nothing, while the expansion still carries any of the seven fix flags (`LindenmoorSeamRegrade`, `LindenmoorSeamPits`, `LindenmoorGorgeFix`, `LindenmoorGorgeBed`, `LindenmoorRoadCut`, `LindenmoorShelters`, `LindenmoorEastWest`; the region file's `RestoreRefuseFlags`), so steps 2–8 come first. It does not check `LindenmoorPostFixes` (step 1 has no restore guard), so step 1 must already be done.
    - It moves `LindenmoorExpansion` into `Post-Region_Lindenmoor_<date>`, together with its `Travel`, its `SeamFillers` and the shelter posts.
    - It pastes the terrain back under the water boxes.
-10. **`prep_ye.lua` undo, from a fresh bundle:** `python -I Art/Studio/Regions/Lindenmoor/bundle_prep.py prep <out.lua> undo`. The undo bundle doesn't need fresh pads: `bundle_prep.py` skips the `pads.json` freshness check for `undo`, because prep_ye.lua's undo reads no pad data (Foundry Yard plan Task 9, Ruling 38; an `apply` bundle still refuses a stale `pads.json`). It refuses while `World.Map` has `FoundryMove` (Foundry Yard plan Task 8): first run `Art/Studio/Regions/Foundry/forge/retire_ye.lua` with `MODE = "undo"` (a scratch copy), which brings Brannoc, the Silent Forge, the Forge Floor and the Ward spawn back from `Pre-FoundryMove_2026-10-24` and removes his notice. Then check there is exactly one `RenseiArrival` with `Point = "RoadStart"`: the old North Road's.
+10. **`prep_ye.lua` undo, from a fresh bundle:** `python -I Art/Studio/Regions/Lindenmoor/bundle_prep.py prep <out.lua> undo`. The undo bundle doesn't need fresh pads: `bundle_prep.py` skips the `pads.json` freshness check for `undo`, because prep_ye.lua's undo reads no pad data (Foundry Yard plan Task 9, Ruling 38; an `apply` bundle still refuses a stale `pads.json`). It refuses while `World.Map` has `FoundryMove` (Foundry Yard plan Task 8), so step 0 (`retire_ye.lua` undo) comes first. Then check there is exactly one `RenseiArrival` with `Point = "RoadStart"`: the old North Road's.
 11. **Revert the data and script files.** Take every Studio copy from `ServerStorage.RenseiBackups["Pre-LindenmoorImport_2026-10-24"]`. Backups are named `Rensei.<Module>`, `RenseiServer.<Service>`, `TownsfolkService.Mover`, `UI.<Module>` and `RenseiTests.<Suite>`. Back up each current copy, then set its Source from the backup.
     - **Never take `Rensei.Puzzles` or `UI.CompassUI` from git.** The repo copies at the plan's base, `2378b54`, were behind Studio:
       - Puzzles lacks `adit_boards` and the Breakable kind;
@@ -553,46 +561,69 @@ Each is recorded in the import plan's ledger. None blocks the publish.
   Each passes on a fresh session.
 - **The miller and the groundskeeper sleep curled up in the open.** Their night posts are Shelter posts, whose idle is `NPC_CurledUp`, so they spend every night curled up at the mill's and the training field's shelters.
 - **Trains reach Foundry Yard from its east, and the road from its south.** The lines can curve in between, so it isn't a contradiction, but a player may notice.
+- **`pads.json` is stale** (Foundry Yard plan Tasks 4b and 8, Rulings 37 and 38). `post_fixes.lua`'s five post moves changed `Art/Regions/Lindenmoor/layout.json` after `make_pads.py` ran.
+  - `bundle_prep.py prep <out> apply` refuses until `make_pads.py` is re-run and its pads diff reviewed.
+  - An **undo** bundle doesn't need fresh pads (rollback step 10).
+  - Re-checked 2026-10-25: the undo bundle builds, and the apply bundle refuses with "pads.json is stale".
 - **The expansion is over its own 42,000 ceiling.** It is at 45,425 (Ruling 25 accepts it; the binding limit is the place's 80,000). Ye has **about 3.6k parts of headroom** left (76,372 of 80,000), and the next region work must fit in it.
 
-### Publish checkpoint (for the owner)
-**On hold (owner, 2026-10-24: "Hold both").** Ye (the Lindenmoor expansion) and Foundry Yard stay unpublished until the Foundry Yard plan has finished Foundry's game data. Then both are published together, in the order below. **Publishing Foundry Yard ships its new map**, the one the Foundry Yard plan imported, so it must be ready too. The steps stay as written, for when that happens.
+### Joint publish checkpoint (Ye and Foundry Yard)
+**On hold (owner, 2026-10-24: "Hold both").** Ye (the Lindenmoor expansion) and Foundry Yard go live **together**, now that the Foundry Yard game-data plan has finished (2026-10-25; `Documents/Foundry Yard Kit.md`, "The game data"). **Publishing Foundry Yard ships its new map** and its game data. Nothing has been published; the owner does every step below. The order is the package routine in `Documents/World Travel.md` §10.
 
-**First:** Ye's Edit session holds every change below, unsaved.
-1. **Save the place in Studio. Don't publish anything yet.**
-2. Walk the new land in Play once: the farms, the gorge and its ledge, the mine, the woods, the meadows, the training field, and the north-west road to the gap.
+**First, in Studio:** both Edit sessions hold every change below, unsaved.
+1. **Save Ye and Foundry Yard in Studio. Don't publish anything yet.**
+2. **Walk each place once in Play.**
+   - **Ye:** the farms, the gorge and its ledge, the mine, the woods, the meadows, the training field (four trainers, and Brannoc's notice at the Metal spot), and the north-west road to the gap.
+   - **Foundry Yard:**
+     - the station;
+     - Cinder Lane;
+     - the practice court and Brannoc;
+     - the great hall's forge wing (the Silent Forge and the Forge Floor);
+     - the underworks (four Grunts);
+     - the square at a shift change (14:00: the crews at the canteen);
+     - the cooling pond (swim and dive).
+   - While there, look at the owner items in the Foundry Yard Kit ("For the owner to look at"): the Silent Forge's second anvil and `RepairedGear`.
 
-**Then publish in this order.** It is the package routine in `Documents/World Travel.md` §10.
+**Then publish, in this order:**
 1. **Publish the packages from Ye:**
    - Modules;
    - RenseiServer;
    - ClientHandler (it holds `ClientHandler.Run`).
 
-   Their contents are listed below.
+   Their contents are listed below. The Assets package goes too only if it has unpublished changes. Neither plan changed it: Brannoc's meshes in Foundry are copies placed in the map.
 2. **Update the packages in Foundry Yard by hand.** Foundry never updates a package on its own.
-   - Update Modules, RenseiServer and ClientHandler there.
-   - Check that they match Ye.
+   - Update Modules, RenseiServer and ClientHandler there (and Assets, if step 1 published it).
+   - **Check them equal** with `python -I Art/Studio/Regions/Foundry/data/sync.py --place foundry --check` and `--place ye --check`. Both must print `DIFFER 0 / MISSING 0`. At the plan's end they read Ye 50 / 0 / 0 and Foundry 54 / 0 / 0.
 3. **Publish the places:**
    - Ye;
-   - Foundry Yard, so it carries the updated packages;
-   - the Main Menu and the Tutorial, only if they changed (nothing in this plan touched them).
-4. **Migrate to Latest Update** (or shut down all servers) for Ye and Foundry Yard, so that no old server runs the old code against the new saves.
+   - then Foundry Yard, so it carries the updated packages;
+   - the Main Menu and the Tutorial are unchanged by both plans, so they aren't published.
+4. **Migrate to Latest Update** (or shut down all servers) for Ye and Foundry Yard, **last**. Then no old server runs the old code against the new saves.
 
-Migrate comes after the place publishes, because it moves running servers onto the latest *published* version. Run before Ye is published, it would restart them on the old place.
+Migrate comes after the place publishes, because it moves running servers onto the latest *published* version. Run before a place is published, it would restart that place's servers on the old version.
 
-**1. The Modules package** (`ReplicatedStorage.Modules`):
-- `Data.Rensei`: Regions, Townsfolk, TownsfolkLogic, Quests, Dialogues, Investigation, Evidence and Puzzles;
-- `UI`: CompassUI and MasteryUI.
+**1. The Modules package** (`ReplicatedStorage.Modules`). Changed scripts:
+- **The Lindenmoor import:**
+  - `Data.Rensei`: Regions, Townsfolk, TownsfolkLogic, Quests, Dialogues, Investigation, Evidence and Puzzles;
+  - `UI`: CompassUI and MasteryUI.
+- **The Foundry Yard plan** (`Data.Rensei`): StoryLogic, Regions, Quests, Dialogues, Investigation, Evidence, Deeds, Trials, Minigames and Townsfolk.
 
-Foundry Yard gets these through step 2 of the order. Its compass stays −Z north.
+Foundry Yard gets these through step 2. Its compass stays −Z north.
 
-**2. The RenseiServer package** (`ServerStorage.RenseiServer`):
-- WorldService;
-- TownsfolkService (since the final fix pass its posts count only in `workspace`) and TownsfolkService.Mover;
-- MoralityService (a comment change only);
-- **EnemyService and CompassService** (final fix pass): only spawns and compass points in `workspace` count, so the retired GruntSpawns in the backups no longer spawn Grunts by the old hub.
+**2. The RenseiServer package** (`ServerStorage.RenseiServer`). Changed scripts:
+- **The Lindenmoor import:**
+  - WorldService;
+  - TownsfolkService (since the final fix pass its posts count only in `workspace`) and TownsfolkService.Mover;
+  - MoralityService (a comment change only);
+  - **EnemyService and CompassService** (final fix pass): only spawns and compass points in `workspace` count, so the retired GruntSpawns in the backups no longer spawn Grunts by the old hub.
+- **The Foundry Yard plan:**
+  - QuestService: quest revisions, the save upgrade on join, deeds as rewards;
+  - TownsfolkService: walk failures hold and retry; placed only out of sight; the server-side Talk range;
+  - TownsfolkService.Mover: corner repair, the body rule, the 3D sight ray and stuck counting;
+  - MinigameService: the `Submit` export the tests use;
+  - ServerHandler: it calls `QuestService.Boot`.
 
-**3. The ClientHandler package** (`StarterPlayer.StarterPlayerScripts.ClientHandler`): `ClientHandler.Run` (slide into sprint). The sweep found the repo behind Studio here. It predates this plan, and may already be live.
+**3. The ClientHandler package** (`StarterPlayer.StarterPlayerScripts.ClientHandler`): `ClientHandler.Run` (slide into sprint). The sweep found the repo behind Studio here. It predates both plans, and may already be live. The Foundry Yard plan changed nothing in it.
 
 **4. The Ye place itself:**
 - **The map:**
@@ -603,15 +634,37 @@ Foundry Yard gets these through step 2 of the order. Its compass stays −Z nort
   - the seam regrade and the seam pits;
   - the gorge (bridge and water) and its bed;
   - the road cut and its mouth ramp.
-- **The 7 Shelter posts.**
+- **The 7 Shelter posts**, and the five posts `post_fixes.lua` moved out of solid parts (Foundry Yard plan).
 - **The names:** the West Lookout and Northwest Gap AreaNames, and the Bramble Hollow and Halvard's Adit descriptions.
+- **The Foundry Yard plan's retire** (`retire_ye.lua`):
+  - Brannoc, the Silent Forge, the Forge Floor and the Ward spawn are retired into `Pre-FoundryMove_2026-10-24`, with their tags set aside;
+  - `World.Map.BrannocNotice` stands at the Metal TrainerSpot;
+  - `FoundryYard` (Brask's yard) stays (owner decision A).
 - **Place-owned scripts** in `ServerStorage.RenseiTests` (not a package):
-  - new: Play_LindenmoorData and Play_LindenmoorSmoke (with EnemiesStandInTheWorld since the final fix pass);
-  - changed: Test_Regions, Test_TownsfolkLogic, Play_TownsfolkCrowd and Play_TownsfolkHurt;
-  - Play_Road and Play_Station, the d3606a5 versions.
-- **`ServerStorage.RenseiBackups`.**
+  - **from the Lindenmoor import:**
+    - new: Play_LindenmoorData and Play_LindenmoorSmoke (with EnemiesStandInTheWorld since the final fix pass);
+    - changed: Test_Regions, Test_TownsfolkLogic, Play_TownsfolkCrowd and Play_TownsfolkHurt;
+    - Play_Road and Play_Station, the d3606a5 versions;
+  - **from the Foundry Yard plan:**
+    - changed: TestKit, Test_Regions, Play_Exams, Play_Townsfolk, Play_TownsfolkHurt, Play_LindenmoorData and Play_LindenmoorSmoke;
+    - new (each marked `FoundryDataAdd`): Test_QuestRevision, Play_QuestEngine, Test_AcqMetal, SmokeKit, PathKit, Test_MoverRepair and Test_YePaths.
+- **`ServerStorage.RenseiBackups`**, including `Pre-FoundryData_2026-10-24` and `Pre-FoundryMove_2026-10-24`.
 
-**Older Studio changes that go out in the same package publishes, if they aren't live already.** The Studio == repo sweep found these Studio copies ahead of the repo, from before this plan, and brought the repo up to date:
+**5. The Foundry Yard place itself:**
+- **The map:** the new map, as imported (`World.Map.Foundry` and its `Travel`), plus:
+  - the `Spawn` on the platform;
+  - Task 4's posts (`foundry_posts.lua`: 12 shelters, the canopy modifiers, the yard posts, the walk-through shelves) and Task 4b's walk fixes (`walk_fixes.lua`);
+  - Task 7's forge rooms, the Ward spawn and **Brannoc** (`build_forge.lua`);
+  - Task 9's hidden Forge Floor anvil (`hide_anvil.lua`).
+- **Place scripts:**
+  - `StarterPlayerScripts.TownsfolkClient` (speech bubbles; Foundry lacked it);
+  - `StarterCharacterScripts.Health`. This is the owner's rule that health comes back only out of combat, which Foundry lacked until now.
+- **Place-owned scripts** in `ServerStorage.RenseiTests`:
+  - **changed:** TestKit and Test_Regions;
+  - **new** (each marked `FoundryDataAdd`): Test_TownsfolkLogic, Play_TownsfolkCrowd, Play_Clue, Play_Clock, Play_Exams, Play_NoGrip, Test_QuestRevision, Play_QuestEngine, Test_AcqMetal, Test_FoundryRoster, Play_FoundryLedger, PathKit, Test_MoverRepair, Test_FoundryPaths, Play_FoundryWalks, RiskyWalks, Play_FoundryForge, SmokeKit, Play_FoundrySmoke and Play_FoundryData.
+- **`ServerStorage.RenseiBackups`:** `Pre-Region_Foundry_2026-10-24` (the old map) and `Pre-FoundryData_2026-10-24`.
+
+**Older Studio changes that go out in the same package publishes, if they aren't live already.** The Studio == repo sweep found these Studio copies ahead of the repo, from before the Lindenmoor plan, and brought the repo up to date:
 - **Modules:**
   - StealthUI (the restyle);
   - PuzzleClient (Breakable boards);
@@ -624,4 +677,6 @@ Foundry Yard gets these through step 2 of the order. Its compass stays −Z nort
 - **ClientHandler:** `Run` (above).
 - **RenseiTests (the place):** Test_Schema5 and Test_Witness.
 
-**Two travel tests fail in your save.** Play_Travel and Play_RideEvents fail because your real save holds a Cabin / Second ticket. That isn't a regression.
+**Two travel tests fail in your save, in both places.** Play_Travel (5/2) and Play_RideEvents (8/1) fail because your real save holds a Cabin / Second ticket. That isn't a regression.
+
+**The test hook's `diff` quirk.** After a restore, `LMTestHook:Invoke("diff")` still lists Settings, Story, Morality and other keys. That is an encode quirk, not a real change. The `Data.Quests` dump before and after was identical in every session.

@@ -8,7 +8,7 @@ Rensei is now several Roblox places that share one save: one place per region. Y
 - **the train**, which is the fast way;
 - **the road**, which you walk, and which has no papers check.
 
-Two regions are connected so far: **Lindenmoor** (the place Ye) and **Foundry Yard** (a placeholder place with just a station and a road). The other regions have place ids and travel data but no stations or roads yet.
+Two regions are connected so far: **Lindenmoor** (the place Ye) and **Foundry Yard** (a full town on its region map since 2026-10-24; not live yet, see §9). The other regions have place ids and travel data but no stations or roads yet.
 
 **Every number in this guide is a PROPOSAL** unless it says otherwise. They all live in one data module (`Rensei.Travel`) or at the top of a service, so each is a one-line change.
 
@@ -259,7 +259,7 @@ The same suite files are copied into **both** places. All of them passed in both
 - **Seasons:** the stations and roads always think it's summer. The seasons plan replaces two one-line stand-ins (`StationService.Season`, `RoadService.Season`).
 - **The pickpocket chase:** not built (the money is just taken).
 - **The search at the gate:** it clears you but takes nothing, because no item is marked illegal yet.
-- **Foundry Yard is a placeholder:** just a station, a freight yard and the South Road on flat ground. Its spawn point is on the platform, past the gate. The boarding check still stops a Wanted player from riding, but it isn't a real town entrance yet.
+- **Foundry Yard is a full town now** (not live yet). Its region map is in: the station, Cinder Lane, the rail yards, Workers' Row, the square, the great hall and the underworks. Its game data is in too: areas, 26 townsfolk, the shift-ledger quest, and Brannoc and the forge rooms. See `Documents/Foundry Yard Kit.md`. The station, freight yard and South Road were rebuilt from the map's markers. The spawn point is still on the platform, past the gate. Ye and Foundry Yard go live together (the joint publish checkpoint in `Documents/Lindenmoor Kit.md`).
 - **Only one line is built:** Lindenmoor ↔ Foundry. The Foundry ↔ City line and the other roads are in the travel data, but their stations and roads come with those regions.
 
 ---

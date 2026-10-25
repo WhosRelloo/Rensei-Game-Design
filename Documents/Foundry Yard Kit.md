@@ -142,9 +142,9 @@ Done in Studio, in the Foundry Yard place (109591196441030), Edit mode, with the
    - Station once failed 4/20 when it ran first in a fresh session; with Boot first, it passed 20/20.
 
 **Not done in this import (next):**
-- **Brannoc's move out of Ye.** This touches Ye, where the other session is working. See note 10 below.
-- **The game data:** areas, roster, clues and the shift-ledger quest.
-- **The owner's save of the place.**
+- [x] **Brannoc's move out of Ye.** Done by the Foundry Yard game-data plan (Tasks 7 and 8): see "The game data" below.
+- [x] **The game data:** areas, roster, clues and the shift-ledger quest. Done by the same plan (Tasks 1–9).
+- [ ] **The owner's save of the place.** Only the owner saves. It is the first step of the joint publish checkpoint (`Documents/Lindenmoor Kit.md`).
 
 ## Foundry import notes (for the Studio import, a later session)
 
@@ -175,7 +175,7 @@ Follow `Documents/Region Builder.md` §§3–9. What is particular to Foundry:
    It skips Brannoc's `TrainerSpot`. Then run the contract test and the travel suites (Boot, Travel, Station, Road, Gate, RideEvents, Arrive). **Check by eye** that the threshold box covers the south portal's mouth and that the road's RoadPoints sit on the paving.
 8. **Ride train clearance:** the ride train sits at +(0, 400, −1600) from the platform train, so at about (−660, 405, −980). That is outside the footprint and high above everything (the stacks top out near y 120). The contract test checks it.
 9. **Materials:** `materials.json` has the texture-pack roles. The ground is `Terrain K` (dark cinder), the paving `Floor H` (grey slabs) and the quiet lanes `Terrain D`. They were picked by eye from the pack's thumbnails and are PROPOSALs: check them in Studio after the import. The Blender renders show flat palette colours.
-10. **Brannoc's move (spec §7.2), in Ye then Foundry:**
+10. **Brannoc's move (spec §7.2), in Ye then Foundry.** *(Done by the game-data plan, Tasks 7 and 8; Ye's `FoundryYard` model stayed in Ye, owner decision A. See "The game data" below.)*
     - Back up Brannoc, the `SilentForge` and `ForgeFloor` models with their trial markers, their alchemist spawn and Ye's small `FoundryYard` model in `RenseiBackups["Pre-FoundryMove_<date>"]` in Ye.
     - In Foundry, Brannoc stands at the `TrainerSpot` (−200, 490), inside the practice court, facing its gate (Yaw 0, toward −Z).
     - The two forge rooms are shells inside the great hall. Each room's floor part carries `Room = "SilentForge"` / `"ForgeFloor"` and a Note.
@@ -183,15 +183,206 @@ Follow `Documents/Region Builder.md` §§3–9. What is particular to Foundry:
       - Measure each Ye room's gameplay pieces first and check they fit.
       - Move in the trial markers (`RenseiTrial`), minigame targets and alchemist spawn with the same ids.
     - Quest change: `acq_metal` gets a first stage, "Travel to the Foundry Yard" (an `Arrive` objective), with its location text. `Regions` maps `Silent Forge` to Foundry.
-11. **Game data:**
+11. **Game data.** *(Done by the game-data plan, Tasks 3–6: 88 posts with 19 shelters, 26 townsfolk, the shift-ledger quest. See "The game data" below.)*
     - **Areas:** add the 11 Foundry `AreaName`s to `Rensei.Regions` (Foundry Station, The Underworks, Practice Court, Cinder Lane, Lower Town, Freight Yard, South Road, Rail Yards, Workers' Row, Foundry Square, The Foundry).
     - **Roster:** write the Foundry roster in `Rensei.Townsfolk.Regions.Foundry` against the 76 posts. Each post's `PostId` is in `layout.json`. Every hour must be covered, with no two people at one post.
       - There are 7 shelters: station, yard, hall, foundry, square, workers, lower.
-      - Two posts aren't on the ground: `station_porter_platform` is on the platform top (y 6.4), and `hall_gantry` is on the great hall's west gantry (y 20).
+      - Two posts aren't on the ground: `station_porter_platform` is on the platform top (y 6.4), and `hall_gantry` is on the great hall's east gantry (y 20). It stands at x 495.5, east of the hall's centre (x 400), and Foundry's east is +X. (Corrected by the game-data plan, Task 10: this note first said "west".)
     - **Clues:** `foundry_shift_ledger` and `foundry_altered_docket` in `Rensei.Investigation`, plus the shift-ledger quest (spec §7.3).
     - **Enemies:** confirm the 4 Grunt spawns in the underworks are wanted live.
 12. **Terrain water:** the import fills the pond from `water.json` (Task 11). Check in Play that SwimService swims you in it.
 13. **Tags that need the export's row field 16:** `RenseiNoGrip` on every edge wall and portal part, `RenseiLedge` on the rail walks and the houses' ledges, the markers, and `NightOnly` lamps (an attribute). The Task 9 export already writes them.
 
-## Test notes (Foundry Yard game-data plan, Task 9; Task 10 owns the Kit)
-- **`Play_FoundryWalks` quick mode** (owner, 2026-10-25: "one full walk of every route, then repeats only for routes that needed repairs or failed before", made stricter: "only recheck routes that failed or needed a replan, not routine corner repairs"). Set `game.ServerStorage:SetAttribute("WalksQuick", true)` before running the suite (clear it after); without it the suite walks the whole day. Quick mode walks only the hours of the routes in `Scripts/ServerStorage/RenseiTests/RiskyWalks.lua` (`{Id, From, To}`), checks every listed route was walked and fails with "no risky list" on an empty list. Each run prints the routes that failed or needed a replan (a corner repair alone doesn't count) (`[FoundryWalks] risky: ...`, also ServerStorage's `FoundryWalksRisky`): after a full run, copy those lines into `RiskyWalks.lua` (keep the seeds) and sync it.
+## The game data (2026-10-24, Foundry Yard plan)
+
+The Foundry Yard game-data plan (`Documents/plans/2026-10-24-foundry-yard-game-data.md`, Tasks 1–10, 2026-10-24 to 2026-10-25) gave the new map its game: areas, townsfolk, the shift-ledger quest, the forge rooms and Brannoc. All of it is in the Edit sessions of **Foundry Yard** (109591196441030) and **Ye** (106992859583940). **Neither place is saved or published.** The owner's "Hold both" stands: Ye and Foundry Yard go live together, through the joint publish checkpoint in `Documents/Lindenmoor Kit.md`.
+
+Every number below is a **PROPOSAL** unless it is measured or the owner chose it. Directions use **Foundry's compass**: north is −Z, east is +X (`Regions.NorthOf` gives "-Z").
+
+### What's live in Studio
+- **The areas.** The 11 area names (Foundry Station, The Underworks, Practice Court, Cinder Lane, Lower Town, Freight Yard, South Road, Rail Yards, Workers' Row, Foundry Square, The Foundry) and `Silent Forge` all map to region Foundry in `Rensei.Regions`. Foundry has State law, and the Foundry and Townsfolk factions.
+- **The posts.** 88 `RenseiPost`s: the kit's 76 plus 12 new Shelter posts (`foundry_posts.lua`). Every post has a Shelter within 145 studs (the worst is `yard_hand_4` at 140.0), under `TownsfolkService.ShelterRadius` 150.
+- **26 townsfolk and their day** (`Rensei.Townsfolk.Regions.Foundry`, ids `fy_*`; all names original, checked by `Test_FoundryRoster`):
+  - **Day crew** (crane, furnace and gantry hands) works 06–14 and eats at 14. **Late crew** eats at 13, works 14–22 and has supper at 22. The **furnace keeper** holds the banked fires 22–06.
+  - At each shift change the crews eat at the canteen on the square's north side (4 people at 13:00, 14:00 and 22:00). The canteen is served 05–23 by two cooks.
+  - The four **traders** keep their market stalls 08–20. The **errand runners** run between the square, Workers' Row and the court 08–19. Two **off-duty guards** sit on the square and at the station.
+  - The **station porter**, the **shift clerk** (shift office 06–18), the **yard hands** and the **boarding-house keeper** fill out the day. All 24 Home posts are used.
+  - **They walk every schedule change** through the real Mover (Task 4b's corner repair, body rule and 3D sight ray). A failed walk holds and retries (5, 10, 20, 40, 40 s). A townsperson is placed at a post only when no player is within 300 studs of both the rig and the post, so **nobody teleports in sight**.
+  - In trouble they run to a Shelter within 150 studs.
+  - The server refuses a Talk from beyond `TalkRange` + 4.
+- **The shift-ledger quest** (`foundry_ledger`). It starts by inspecting the ledger at the shift office's lectern (−145, 465), just east of the practice court.
+  - Stage 1: ask Edmund Rusk, Sella Marsh and Aldous Merriweather (each clue line gives its evidence).
+  - Stage 2: the altered docket in the underworks (−330, 676), locked until then.
+  - Stage 3: the deduction `foundry_ledger_who`.
+  - Rewards: 300 EXP, 100 money and the deed `foundry_ledger_cleared` (Candor 5, Order 5, Foundry standing 10).
+- **The forge rooms and Brannoc** (`build_forge.lua`, Task 7). They are built from the pieces Ye had, with the same ids.
+  - `Map.Foundry.ForgeRooms`: the Silent Forge (20 pieces, the `Silent Forge` area box at (373, 13.7, −364.5)) and the Forge Floor, whose trial marker stands at (325, 5.2, −364.5) facing −Z. Both are inside the great hall's forge wing.
+  - **Brannoc** (the Metal Alchemist) stands in the practice court at (−200, 7.4, 490), facing north (−Z) toward its gate.
+  - The trial fits its shell with Radius 24 and FoeDistance 14 (owner decision E).
+  - The Forge Floor's shell anvil (`ForgeFloorAnvil`) sat inside the arena. `hide_anvil.lua` hides it (Task 9, reversible).
+- **The Ward Alchemist spawn** stands inside the Silent Forge room at (386, 5.2, −348) (owner decision B).
+- **The four Grunts in the underworks** are the only enemies in Foundry (owner: they stay live). None spawns in the town above.
+- **`acq_metal`** (the Metal path) now opens with a travel stage, "Travel to the Foundry Yard" (an `Arrive` objective). Then come the invite, fieldwork, the experiment, the trial, the exam and recognition.
+  - A save from before the change moves forward one stage on join (decision C). In Studio, that upgrade waits for the test hook's snapshot.
+  - In Ye, a notice at the Metal TrainerSpot starts the quest for a student with no path (decision D). It says "...OR WALK THE NORTH ROAD OUT NORTH-WEST" (Ye's compass).
+- **Two place scripts Foundry lacked** (Task 1): `StarterPlayerScripts.TownsfolkClient` (without it no speech bubbles show) and `StarterCharacterScripts.Health`. Health is the owner's rule that health comes back only out of combat.
+- **Ye keeps `FoundryYard`.** Brask's yard and `chalk_foundry` stay in Ye (owner decision A).
+- **Part counts** (Task 9, measured):
+  - Foundry's workspace: 46,984. `Map.Foundry` by the plan's definition: 43,719 of the 45,000 ceiling.
+  - Ye's workspace: 76,326 of 80,000. That is 47 fewer than the Lindenmoor Kit's 76,373, since Brannoc and the forge left (and the notice came).
+
+### Foundry differs from the kit
+Foundry's map is **not** what the kit files build (`Art/Regions/Foundry/layout.json`, `Art/Studio/Regions/Foundry/import/chunk_*.lua` and `Foundry.blend`). These were made in Studio after the import, and none is in the kit:
+- the **`Spawn` SpawnLocation** at (−648, 6.9, 360), a child of `Map.Foundry` (the import's step 8): re-add it by hand;
+- **`foundry_posts.lua`** (flag `FoundryPosts`): the 12 Shelter posts, the 4 canopy PathfindingModifiers, `yard_hand_2` and `yard_hand_3` moved off the goods platform, and the 4 walk-through stall shelves;
+- **`walk_fixes.lua`** (`FoundryWalks`): the crates 2 studs south of House 11, and the 4 stall counters 0.6 forward;
+- **`build_forge.lua`** (`FoundryForge`): the forge rooms, the Ward spawn and Brannoc;
+- **`hide_anvil.lua`** (`FoundryAnvil`): the Forge Floor's shell anvil hidden.
+
+**A re-import from the kit, or a Blender rebuild and fresh export, silently drops all of these.** Nothing warns you: the import's own checks pass, because they compare against the kit. (`restore.lua` does refuse while any of their flags is set, so the import can't be swapped out from under them.)
+
+After any re-import, re-apply them in the order they first ran: the Spawn (by hand), `foundry_posts.lua`, `walk_fixes.lua`, `build_forge.lua`, then `hide_anvil.lua`. Each script runs in Edit from a scratch copy with only its `MODE` line edited, and its check must pass.
+- `build_forge.lua` is generated from `forge/forge_kit.json`, which was exported from Ye before Task 8 retired Ye's forge. **Never regenerate it**: the export it needs is gone from Ye's workspace. Run the committed file.
+- Then run `Play_FoundrySmoke`, `Play_FoundryForge` and `Play_FoundryWalks`.
+
+### Rolling back the game data (both places)
+Do this in Edit, never in Play. Before each step, check that `ServerStorage`'s `PlayLock` is nil **in both places**. Each reversible script: copy the committed file to the scratch folder and edit only its `local MODE = ...` line there. **Undo** is the mode for every map step below.
+
+**Foundry** (109591196441030):
+1. **`Art/Studio/Regions/Foundry/forge/hide_anvil.lua` undo.** It puts `ForgeFloorAnvil`'s five values back and clears `FoundryAnvil`.
+2. **`Art/Studio/Regions/Foundry/walk_fixes.lua` undo.** It puts the crates and the stall counters back and clears `FoundryWalks`. After this, `Play_FoundryWalks` and `Test_FoundryPaths` fail. That is expected.
+3. **`Art/Studio/Regions/Foundry/forge/build_forge.lua` undo.** It destroys every **top-level** `FoundryForgeAdd` instance and clears `FoundryForge`: ForgeRooms with both rooms, the area box, the trial marker, the Ward spawn and Brannoc.
+   - **Brannoc's rig descendants aren't marked one by one** (Ruling 35 (1)). Only his model and props carry `FoundryForgeAdd`, and undo removes the rig's own parts with the model. An unmarked part under Brannoc is expected, not a leftover.
+4. **`Art/Studio/Regions/Foundry/foundry_posts.lua` undo.** It destroys the 12 shelters and 4 canopy modifiers, puts the two yard posts back and makes the 4 shelves solid again, then clears `FoundryPosts`.
+   - No `fix_ledges.lua` exists: Task 9 found all 377 ledges facing their walls. `FoundryLedges` is reserved and was never set.
+
+**Ye** (106992859583940):
+
+5. **`Art/Studio/Regions/Foundry/forge/retire_ye.lua` undo.** It brings Brannoc, the Silent Forge, the Forge Floor and the Ward spawn back from `Pre-FoundryMove_2026-10-24`, with their tags. It also removes `BrannocNotice` and clears `FoundryMove` on `World.Map`.
+6. **`Art/Studio/Regions/Lindenmoor/post_fixes.lua` undo.** It puts the five posts back (`lm_lookout_seat`, `lm_haybarn_shelter`, `lm_farm4_field`, `lm_farm1_home`, `lm_signal_box`) and clears `LindenmoorPostFixes`. After this, `Test_YePaths` fails. That is expected.
+
+**Both places:**
+
+7. **Revert the scripts this plan changed** from `ServerStorage.RenseiBackups["Pre-FoundryData_2026-10-24"]` **in that place**. Back up each current copy, then set its Source from the backup.
+   - Revert **only labels whose live script has no `FoundryDataAdd` attribute**. The backups of created scripts (14 in Foundry, 6 in Ye) are mid-plan copies; those scripts are deleted in step 8 instead.
+   - **Foundry (17):**
+     - `Rensei.` Deeds, Dialogues, Evidence, Investigation, Minigames, Quests, Regions, StoryLogic, Townsfolk and Trials;
+     - `RenseiServer.` MinigameService, QuestService, ServerHandler and TownsfolkService;
+     - `TownsfolkService.Mover`;
+     - `RenseiTests.` TestKit and Test_Regions.
+   - **Ye (22):** the same 15 package scripts, plus `RenseiTests.` TestKit, Test_Regions, Play_Exams, Play_Townsfolk, Play_TownsfolkHurt, Play_LindenmoorData and Play_LindenmoorSmoke.
+   - **Never take `Rensei.Puzzles` or `UI.CompassUI` from git.** This plan changed neither, so it has no backup of them. Their Studio text is ahead of git at the Lindenmoor plan's base (see `Documents/Lindenmoor Kit.md`, "Rolling everything back", step 11).
+   - **If the packages were already published,** revert the package scripts in Ye, publish Modules and RenseiServer again, and update Foundry's packages by hand (World Travel.md §10). Revert the place scripts (`RenseiTests`) in each place.
+8. **Delete the scripts this plan created.** They have no pre-plan backup. Each carries `FoundryDataAdd = true`: delete every script outside `RenseiBackups` with that attribute, after checking the count.
+   - **Foundry (22):**
+     - `StarterPlayerScripts.TownsfolkClient` and `StarterCharacterScripts.Health`;
+     - `RenseiTests.` Test_TownsfolkLogic, Play_TownsfolkCrowd, Play_Clue, Play_Clock, Play_Exams, Play_NoGrip, Test_QuestRevision, Play_QuestEngine, Test_AcqMetal, Test_FoundryRoster, Play_FoundryLedger, PathKit, Test_MoverRepair, Test_FoundryPaths, Play_FoundryWalks, RiskyWalks, Play_FoundryForge, SmokeKit, Play_FoundrySmoke and Play_FoundryData.
+   - **Ye (7):** `RenseiTests.` Test_QuestRevision, Play_QuestEngine, Test_AcqMetal, SmokeKit, PathKit, Test_MoverRepair and Test_YePaths. Ye's Play_LindenmoorSmoke goes back to its backup in step 7 instead.
+   - Read live in Edit (2026-10-25): Foundry has 22 marked scripts outside the backups and Ye has 7.
+9. **Foundry's `Art/Studio/Regions/Foundry/import/restore.lua`,** only to undo the region import itself as well (back to the hand-built World Plan 1 map). It refuses, changing nothing, while `Map.Foundry` carries `FoundryPosts`, `FoundryForge`, `FoundryLedges`, `FoundryWalks` or `FoundryAnvil` (the region file's `RestoreRefuseFlags`), so steps 1–4 come first. The new `Spawn` leaves with the new map, and the old one comes back with the old map.
+
+**Then:**
+- Run the travel suites in both places: Play_Boot first, then Station, Road, Gate, Arrive, Travel and RideEvents.
+- `sync.py --check` then reports differences. That is expected: the repo still holds the plan's text. To roll the repo back too, revert the plan's commits.
+- To roll back further, into the Lindenmoor import, continue with `Documents/Lindenmoor Kit.md`, "Rolling everything back". Its step 0 is step 5 here.
+
+### The smoke test (`ServerStorage.RenseiTests.Play_FoundrySmoke`)
+The repo copy is `Scripts/ServerStorage/RenseiTests/Play_FoundrySmoke.lua`. Run it in hooked Play through `LMRunSuite`. It passed **15/0** after Task 9's fix round. Every check has a RED control: some run inside the check every time, and the others were run once (Task 9's report).
+
+| Check | What it proves |
+|---|---|
+| EveryPostIsReachable | Each of the 88 posts has a path from the square at the Mover's own radii, ending within 2.5 of the post's foot. A rig-sized box at the post overlaps no colliding part. Controls: a post at floor level inside the great hall's back wall fails the box; one at the wall's centre fails the reach. |
+| EveryPostHasAShelter | Each post's nearest Shelter is at most 145 studs off. Control: a synthetic far post is reported. |
+| EdgesCantBeGrabbed | On each map edge, at a spot chosen without reading the tag, the edge wall isn't grippable and the server refuses a climb and a wall run. Control: with the `RenseiNoGrip` tags near the west spot taken off, the climb is accepted (the tags go back). |
+| LedgesFaceTheirWalls | All 377 `RenseiLedge`s face a wall within 1.5 studs. Control: a ledge turned 180° fails. |
+| LampsFollowTheClock | The 154 `NightOnly` lamps are in WorldClock's set: lit at 23:00, dark with the day material at 12:00. Control: a lamp without `NightOnly` fails the count. |
+| PondSwims | The cooling pond is terrain water. A player placed in it is in deep water and in the server's swim state within 3 s, and out of it on the platform. Control: dry ground isn't deep water. |
+| TravelIsSingle | Exactly one RoadStart, one Platform and one LindenmoorFoundry platform train, and TravelService finds them. Control: a duplicated Platform arrival fails. |
+| TrialsAreInTheWorld | One `RenseiTrial` (metal_experiment) in workspace with its prompt, and none outside. Control: a tagged clone in ServerStorage fails. |
+| BrannocCanBeTalkedTo | Play_FoundryForge's BrannocTalks: his dialogue, prompt and spot. Control: Brannoc 10 studs off his spot fails. |
+| EnemiesStandInTheWorld | The spawns in workspace are 4 Grunts in The Underworks and 1 Ward Alchemist in the Silent Forge room, with none in the town above. Each has a live enemy within 30 s, and ground under it. Control: a Grunt spawn cloned onto Foundry Square fails. |
+| CompassMarksPointTrue | North is −Z. The compass has the spawn, Brannoc, trial, clue and area points. Bearings from live positions: the Grunts lie south of Brannoc's spot, and the hall and the Ward spawn north-east. Control: on a +Z compass the hall isn't north-east. |
+| TownsfolkAtTheirPosts | Held at 10:00, all 26 are spawned, each within 1.5 studs of its post. Control: the 17 whose 16:00 post differs are away from it. |
+| CommuteWalks | Near a player, `fy_runner_1` walks from `errand_square` to `errand_row` (passing through Walking) within 90 s. Control: with no player within 300, it is placed instead, and "passes through Walking" fails. |
+| TownsfolkLoopIsCheap | `TownsfolkService.Step` averages under 1 ms over 60 s on the square. Control: a 2 ms busy-wait fails. |
+| UnderworksIsShaded | At noon the underworks tunnel reads darker than the open square (0.350 against 1.000). Control: with the tunnel's roof left out of the rays, it doesn't. |
+
+**Also Foundry's own suites:**
+- **Play_FoundryData 2/0:** `acq_metal` end to end through the real services, from Brannoc to recognition, and a Ye save moving forward a stage.
+- **Play_FoundryForge 8/0.**
+- **Play_FoundryLedger 8/0.**
+- **Test_FoundryRoster 7/0.**
+- **Test_FoundryPaths 7/0.**
+- **Play_FoundryWalks 6/0** in three separate sessions, each with 73 of 73 walks arrived and no failures. StepMs was about 0.25 ms.
+
+The travel suites pass in both places, except the two known ticket failures (Play_Travel 5/2 and Play_RideEvents 8/1, the Cabin / Second ticket in the owner's real save).
+
+### Test notes
+- **Run Play_Boot first** in every travel run: Play_Station fails 4/20 when it is the first suite of a fresh session.
+- **In Ye, run Play_Exams before Play_TownsfolkHurt:** right after it, InCombat lingers and Exams fails 0/5.
+- **Edit's require cache.** An Edit run sees a module as it was before a script edit. Run suites that need a changed module in the Play VM (`LMRunSuite`).
+- **`Play_FoundryWalks` quick mode** (owner, 2026-10-25).
+  - **The rule:** "one full walk of every route, then repeats only for routes that needed repairs or failed before", made stricter: "only recheck routes that failed or needed a replan, not routine corner repairs".
+  - **The list:** `Scripts/ServerStorage/RenseiTests/RiskyWalks.lua` (`{Id, From, To}`) holds **14 routes**. 5 are seeds from Task 4b's failures; the other 9 re-planned in at least one of Task 9's three full runs.
+  - **Timing:** a quick run takes about 909 s, against about 1,485 s for the full day.
+  - **Turning it on:** `game.ServerStorage:SetAttribute("WalksQuick", true)` before running the suite. The suite clears the attribute as soon as it reads it, so it is good for one run, and the header prints `QUICK` or `FULL`. Without it the suite walks the whole day.
+  - **What it checks:** quick mode walks only the hours of the listed routes, and checks that every listed route was walked. It fails with "no risky list" on an empty list.
+  - **Refreshing the list:** every run, full or quick, prints the routes that failed or needed a replan (`[FoundryWalks] risky: ...`, also ServerStorage's `FoundryWalksRisky`). A corner repair alone doesn't count. After a **full** run, copy those lines into `RiskyWalks.lua` (keep the seeds), then sync it with `sync.py --place foundry --only RenseiTests.RiskyWalks --run`.
+  - **Acceptance runs stay full.** Quick mode is for re-checks only.
+- **`Test_FoundryPaths` flake.** It failed 1/6 in three sessions on navmesh variation (Task 4b), then passed 7/0 in every later session. If it fails once, re-run it in a fresh session before suspecting the Mover. `Play_FoundryWalks` is the acceptance.
+- **Smoke check 1's tolerance:** a post 1 stud inside a 2-stud wall still passes the reach part. The standing box (Ruling 39) catches a post inside a wall at floor level.
+- **Save safety:** every Play session in this plan ran the hook protocol. The `Data.Quests` dump was identical before and after the restore in every session. **Studio Play outside that protocol writes the owner's real save, as it always has.**
+
+### Known issues (accepted or parked, 2026-10-25)
+None blocks the publish.
+- **The errand runners are adult rigs.** There is no child rig, so the two runners are grown-up errand runners.
+- **The traders' shelves are walk-through.** The four stalls' Shelf parts have CanCollide off, so the traders can reach their counters. The canopies stay solid (their PathfindingModifiers are PassThrough).
+- **An `Arrive` objective has no compass mark.** `acq_metal`'s travel stage ("Travel to the Foundry Yard") shows no point on the compass; its text gives the way.
+- **Ye's "Foundry Yard" area** (Brask's yard, owner decision A) shares the town's name.
+- **`pads.json` is stale.** Task 4b's and Task 8's post moves changed `Art/Regions/Lindenmoor/layout.json` after `make_pads.py` ran.
+  - So `bundle_prep.py prep <out> apply` refuses until `make_pads.py` is re-run and its pads diff reviewed. Re-checked 2026-10-25.
+  - An **undo** bundle doesn't need fresh pads, because prep_ye's undo reads no pad data (Ruling 38; the Lindenmoor Kit's rollback step 10). Re-checked 2026-10-25: the undo bundle builds, and the apply bundle refuses with "pads.json is stale".
+- **Planning cost.** The worst single planning frame measured was 2.3–3.5 ms against the Mover's 2 ms budget: one chunk over, not a stall.
+- **Brannoc is the StarterCharacter R6 rig.** DialogueService gives him his look at runtime, as it does Ye's trainers.
+
+### For the owner to look at
+- **`SilentForgeAnvil`** duplicates the kit's Silent Forge anvil. The great hall's shell has its own anvil at (373, 6, −360.5), in the Silent Forge room beside the Anvil brought from Ye. It was left as it is for your eye. Hide it the way `hide_anvil.lua` hid the Forge Floor's if you want.
+- **`RepairedGear` may float** in the Silent Forge, as it did in Ye. Look at it on your walk.
+- **Brask's `chalk_foundry` stays in Ye** (decision A). Moving it into the Foundry is a Backlog follow-up.
+- **Your save.** One Task 4b test session (G12) stopped by itself during Play, apparently another tool in that Studio. The `Data.Quests` check afterwards was identical, but its travel and area writes may remain in your save. Check `Travel` and `Region` before you test live (World Travel.md §10 step 2).
+- **PROPOSAL numbers to review** (every one can be changed):
+  - **The day:**
+    - shifts 06–14, 14–22 and the keeper's 22–06;
+    - the canteen served 05–23;
+    - the market 08–20;
+    - the runners 08–19;
+    - the guards 08–20;
+    - the clerk 06–18.
+  - **Shelters:** the 145-stud design margin under ShelterRadius 150, the 12 Shelter spots, and `cinder_east_shelter` moved to (−90, 268) out of a house.
+  - **Map nudges:**
+    - `yard_hand_2` and `yard_hand_3` at z 164;
+    - the crates 2 studs south;
+    - the stall counters 0.6 forward;
+    - the canopy PassThrough modifiers;
+    - the Ward spawn at (386, 5.2, −348).
+  - **Ye's post moves:**
+    - `lm_lookout_seat` (715, 33, −447.7);
+    - `lm_haybarn_shelter` (641.2, 5, 110.5);
+    - `lm_farm4_field` (−631.2, 23, −468);
+    - `lm_farm1_home` (−880, 23, −875.5);
+    - `lm_signal_box` (660, 5, 822.5);
+    - Brannoc's notice at (−130, 6.5, −137.5).
+  - **The shift ledger:** 300 EXP and 100 money. The deed gives Candor 5, Order 5 and Foundry standing 10 (Local). All the clue-line and notice wording.
+  - **The trial:** Radius 24 and FoeDistance 14 (decision E).
+  - **The walking (Mover and TownsfolkService):**
+    - repair clearances 2, 1.5 and then 1.25 (the floor), at most 12 new vertices, ground within 1.5;
+    - the repair's ground cost floor 1.5 and the varied re-ask spacings;
+    - the 3D sight ray of 12 studs;
+    - a re-plan with under 10 studs of progress counts as stuck;
+    - the failed-walk backoff 5/10/20/40/40 s;
+    - placing only with no player within 300;
+    - the Talk margin of 4.
+  - **Quest saves:** Boot's snapshot wait (0.25 s polls; it gives up with a warning after 120 s) and its data poll (every 0.5 s, a one-time notice after 240 tries).
+
+### Status page
+After the final review, the controller pushes the plan's commits and updates the status page artifact. The implementer does neither.

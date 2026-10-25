@@ -4,6 +4,112 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-24 — Foundry Yard comes alive: game data, Brannoc's move, the shift ledger (not live)
+
+The Foundry Yard game-data plan (`Documents/plans/2026-10-24-foundry-yard-game-data.md`, Tasks 1–10, run 2026-10-24 to 2026-10-25) gave the new Foundry map its game. All of it is in the Studio Edit sessions of **Foundry Yard** (109591196441030) and **Ye** (106992859583940). **Nothing is saved or published.** The owner's "Hold both" stands: Ye and Foundry Yard go out together, through the joint publish checkpoint in `Documents/Lindenmoor Kit.md`. This is the plan's only Changelog entry.
+
+Every number is a **PROPOSAL** unless it is measured or the owner chose it. The full list for review, the rollback and the smoke table are in `Documents/Foundry Yard Kit.md`, "The game data".
+
+**The decisions:**
+- **Grunts in the underworks** stay live (owner).
+- **A:** Ye's `FoundryYard` model (Brask's yard and `chalk_foundry`) stays in Ye for now (owner).
+- **B:** the Ward Alchemist spawns inside the Silent Forge room (owner).
+- **C:** saved `acq_metal` stages move forward one on join, because the quest gained a first stage (controller).
+- **D:** a notice at Ye's Metal TrainerSpot starts `acq_metal` (owner).
+- **E:** the forge trial uses Radius 24 and FoeDistance 14, so it fits the Forge Floor's shell (owner; PROPOSAL numbers).
+- **Quick mode:** `Play_FoundryWalks` can re-walk only the routes that failed or needed a replan (owner, 2026-10-25).
+
+**What changed in Foundry Yard:**
+- **Areas:** the 11 area names and `Silent Forge` map to region Foundry.
+- **Posts:** 12 new Shelter posts, so every one of the 88 posts has a shelter within 145 studs. The two yard posts came off the goods platform. The four market stalls are reachable (walk-through shelves, PassThrough canopy modifiers). Applied by `foundry_posts.lua`.
+- **Townsfolk:** 26 townsfolk on two shifts (06–14 and 14–22, with a furnace keeper 22–06). The crews eat at the canteen at shift change, and the market runs 08–20. All names are original.
+- **The shift-ledger quest** (`foundry_ledger`): the ledger at the shift office, three townsfolk with clue lines, the altered docket in the underworks, and a deduction. It gives 300 EXP, 100 money and the deed `foundry_ledger_cleared`.
+- **Forge rooms:** the Silent Forge and the Forge Floor are inside the great hall's forge wing, and Brannoc is in the practice court (`build_forge.lua`). The Ward spawn is inside the Silent Forge. The Forge Floor's shell anvil, which stood in the arena, is hidden (`hide_anvil.lua`).
+- **Walking:** the crates by House 11 and the stall counters moved a little, so every walk fits (`walk_fixes.lua`).
+- **Place scripts:** `TownsfolkClient` (speech bubbles) and the owner's `Health` script (no health back in combat), which Foundry lacked.
+- **Sync:** Foundry's package copies were already level with Ye's when the plan began. Its test suites were caught up (`sync.py`, Task 1), and every later script change went into both places.
+
+**What changed in Ye:**
+- **Brannoc moved out:** Brannoc, the Silent Forge, the Forge Floor and the Ward spawn are retired into `Pre-FoundryMove_2026-10-24` (`retire_ye.lua`, reversible). Their tags are set aside, so nothing in the backup spawns or prompts.
+- **The notice:** a notice at the Metal TrainerSpot points students to the Foundry ("...OR WALK THE NORTH ROAD OUT NORTH-WEST", Ye's compass).
+- **Posts:** five Lindenmoor posts moved out of the solid parts they stood in (`post_fixes.lua`).
+- **Part count:** Ye's workspace is 76,326 parts.
+
+**The game scripts** (both places, through `sync.py`; a backup of each first in `Pre-FoundryData_2026-10-24`):
+- **Quest revisions:** `StoryLogic.UpgradeQuest` and `StageIndex`; `QuestService` with revisions, `Boot` (the save upgrade on join, which in Studio waits for the test hook's snapshot) and deeds as rewards. A stale save takes no signal until upgraded.
+- **`acq_metal`:** a travel stage first ("Travel to the Foundry Yard"). Brannoc's new lines, the notice, the trial numbers, and the Foundry areas.
+- **The Mover:** corner repair, a body rule, a 3D sight ray and honest stuck counting.
+- **TownsfolkService:** a failed walk holds and retries; a townsperson is placed only when no player is within 300 studs; the server checks the Talk range.
+- **Smaller changes:** `MinigameService.Submit` (for tests) and `ServerHandler` (calls `Boot`).
+- **The region schema** now type-checks `RestoreRefuseFlags` and `Notes`. Foundry's `restore.lua` refuses while `FoundryPosts`, `FoundryForge`, `FoundryLedges`, `FoundryWalks` or `FoundryAnvil` is set.
+
+**Tests** (every Play session ran the hook protocol; the owner's `Data.Quests` dump was identical before and after in every session):
+- **Pure checks:**
+  - test_sync 654/0;
+  - test_kit 75/0;
+  - foundry_check 37/0;
+  - run.py 230/0 (218 plus Task 10's 12 schema cases; RED 220/10 before the schema change);
+  - test_bundle_forge 41/0, test_ye_fixes PASS and test_bundle_prep 6/0.
+- **Foundry (final sweep, Task 9 and its fix round):**
+  - Play_FoundrySmoke 15/0 and Play_FoundryData 2/0 (`acq_metal` end to end through the real services);
+  - Ledger 8/0, Forge 8/0, Roster 7/0, AcqMetal 13/0, Regions 9/0, QuestRevision 14/0, QuestEngine 8/0;
+  - Exams 5/0, Clue 1/0, Clock 5/0, NoGrip 6/0;
+  - Crowd 14/0 (1.016 ms), MoverRepair 12/0 and FoundryPaths 7/0;
+  - **Play_FoundryWalks 6/0 in three separate sessions,** each with 73 of 73 walks arrived and none failed.
+- **Ye:**
+  - LindenmoorSmoke 10/0, LindenmoorData 3/0;
+  - Exams 5/0, Clue 1/0, Regions 9/0, AcqMetal 13/0, QuestEngine 8/0, QuestRevision 14/0;
+  - Townsfolk 18/0, Crowd 14/0 (1.058 ms), Hurt 11/0, YePaths 7/0 and MoverRepair 12/0.
+- **Travel suites, both places:**
+  - Boot 2/0, Station 20/0, Road 11/0, Gate 13/0 and Arrive 5/0;
+  - Travel 5/2 and RideEvents 8/1 fail only on the Cabin / Second ticket in the owner's real save.
+- **Studio == repo** (`sync.py --check`): Ye 50 / 0 / 0, Foundry 54 / 0 / 0.
+- **RED first:** every new check was first seen to fail, before its change or against a deliberate break (each task's report).
+
+**For the owner:**
+- **The joint publish checkpoint** is in `Documents/Lindenmoor Kit.md`:
+  1. save both places;
+  2. walk each once in Play;
+  3. publish the packages from Ye;
+  4. update Foundry's packages by hand and check them equal;
+  5. publish Ye, then Foundry Yard;
+  6. Migrate to Latest Update, last.
+- **Look at:** the Silent Forge's second anvil, `RepairedGear` (it may float), and the PROPOSAL numbers. All are listed in the Foundry Yard Kit's "For the owner to look at".
+
+### Discord announcement
+
+Hold: not live yet; goes out together with the Lindenmoor expansion. Post this when the owner publishes Ye, Foundry Yard and the packages together.
+
+```md
+**Update: Foundry Yard Comes Alive**
+
+**A real town at the end of the line**
+- Foundry Yard is a whole town now: the station, Cinder Lane's terraces, the rail yards, Workers' Row, the square with its market and canteen, and the great hall where the furnaces never go cold.
+- Take the train from Lindenmoor, or walk the South Road in.
+
+**A town at work**
+- 26 townsfolk live and work here on two shifts: crane and furnace hands, yard hands, a porter, cooks, traders, errand runners and more.
+- When the shift changes, the crews head to the canteen to eat. The market is open from morning till evening, and at night a keeper watches the banked fires.
+- They walk the town properly now, around corners and between the stalls, and nobody pops from place to place while you're watching.
+- When trouble starts, they run for shelter.
+
+**A mystery in the shift ledger**
+- Someone has been faking hours in the Foundry's shift ledger. Start at the shift office by the practice court, ask the right people at the right time of day, and work out who did it.
+
+**Brannoc has moved**
+- Brannoc and his forge have left Lindenmoor for the Foundry: he teaches in the practice court, and the forge rooms are in the great hall. A notice where he used to stand points the way.
+- The Metal path now starts with a trip to Foundry Yard: take the train, or walk the road. Already partway through? Your progress carries over.
+
+**Danger below, water above**
+- Bandits lurk in the tunnels under the town, the only enemies in Foundry Yard.
+- An alchemist guards the Silent Forge in the great hall.
+- The cooling pond in the crane yard is deep enough to swim and dive in.
+
+**Also**
+- Your compass matches each place: north points the right way in Lindenmoor and in Foundry Yard.
+- In Foundry Yard too, health only comes back once you're out of combat.
+```
+
 ## 2026-10-24 — Lindenmoor import: final fix pass (retired spawns, rollback guards, docs; not live)
 
 The final review of the Lindenmoor import asked for these fixes (Ruling 43). All of it is in Ye's Studio Edit session (106992859583940). **Nothing is published.** The publish is on hold until the Foundry Yard plan finishes Foundry's game data. Then Ye and Foundry Yard go out together (the owner's "Hold both", 2026-10-24).
@@ -136,7 +242,7 @@ Hold: not live yet. The owner chose "Hold both" (2026-10-24): Ye and Foundry Yar
 
 **Training and trials**
 - The alchemy trainers have a new training field just north of the village.
-- The five alchemy trial sites have new homes out in the valley. Ask your trainer where to go.
+- Four of the alchemy trial sites have new homes out in the valley. Brannoc and the forge have moved to Foundry Yard. Ask your trainer where to go.
 
 **Getting around**
 - Your compass now matches the land: north, south, east and west point where you'd expect.
