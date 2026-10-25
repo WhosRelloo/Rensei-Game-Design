@@ -15,9 +15,14 @@ Task 2 (Ruling 20) adds the sync.py hardening checks:
 - (d) --check echoes the raw rbxc output when no line parses;
 - (e) an empty --only refuses;
 - (f) dumphelper.lua has MODE = "install" | "remove", and both refuse while Play runs.
+Gun rework Task 1 adds:
+- --backup NAME reaches a generated bundle's BACKUP line (keyword backup= on bundle_text / write_bundle); without it
+  the line keeps BACKUP; a name that isn't Pre-<letters/digits>_YYYY-MM-DD is refused ("bad --backup name", exit 2);
+- --check with a pair whose Repo file is absent prints "<Label> MISSING (no repo file)", counts it MISSING and exits 1
+  without raising; Studio is still asked about it.
 """
 import io, json, os, re, sys, tempfile
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.normpath(os.path.join(HERE, "..", "..", "..", "..", ".."))
@@ -95,8 +100,8 @@ def main():
         check(f"{p['Label']} places", p["Places"] and set(p["Places"]) <= {"ye", "foundry"}, p["Places"])
         check(f"{p['Label']} class", p["Class"] in ("ModuleScript", "Script", "LocalScript"), p["Class"])
         check(f"{p['Label']} path", len(p["Studio"].split("/")) >= 2 and p["Studio"].split("/")[-1], p["Studio"])
-    check("pair count foundry", len(sync.pairs_for(manifest, "foundry")) == 54, len(sync.pairs_for(manifest, "foundry")))
-    check("pair count ye", len(sync.pairs_for(manifest, "ye")) == 50, len(sync.pairs_for(manifest, "ye")))
+    check("pair count foundry", len(sync.pairs_for(manifest, "foundry")) == 69, len(sync.pairs_for(manifest, "foundry")))
+    check("pair count ye", len(sync.pairs_for(manifest, "ye")) == 66, len(sync.pairs_for(manifest, "ye")))
 
     # 3. norm_hash against Studio's value
     with open(os.path.join(REPO, "Art/Studio/Regions/TownsfolkClient.lua"), "rb") as f:
@@ -307,6 +312,86 @@ def main():
     everypoll = qs.replace(body, body.replace("== DATA_NOTICE then", "> 0 then")) if body else qs
     check("boot: a warn on every poll is caught", everypoll != qs and not boot_order(everypoll)[0],
           "the check passed a Boot that warns on every poll")
+
+    # ===== Gun rework Task 1: --backup NAME, and --check with a missing Repo file =====
+    def gen_backup_line(extra):
+        """Generates Only.Ye's bundle with --out (no Studio) and returns (exit code, output, the bundle's BACKUP value)."""
+        gdir = tempfile.mkdtemp(prefix="test_sync_backup_")
+        buf = io.StringIO()
+        try:
+            with redirect_stdout(buf), redirect_stderr(buf):
+                code = sync.main(["--place", "ye", "--only", "Only.Ye", "--manifest", fxpath, "--out", gdir] + extra,
+                                 runner=fake)
+        except SystemExit as e:  # argparse's own refusal: an unknown option
+            code = f"SystemExit {e.code}"
+        path = os.path.join(gdir, "sync_Only_Ye.lua")
+        if not os.path.isfile(path):
+            return code, buf.getvalue(), None
+        with open(path, encoding="utf-8") as f:
+            m = re.search(r'^local PATH, CLASS, LABEL, CREATE, BACKUP, WANT = "[^"]*", "[^"]*", "[^"]*", '
+                          r'(?:true|false), "([^"]*)"', f.read(), re.M)
+        return code, buf.getvalue(), m and m.group(1)
+
+    code, said, got = gen_backup_line(["--backup", "Pre-GunRework_2026-10-25"])
+    check("backup: --backup Pre-GunRework_2026-10-25 on the BACKUP line", code == 0 and got == "Pre-GunRework_2026-10-25",
+          (code, got, said))
+    code, said, got = gen_backup_line([])
+    check("backup: default stays Pre-FoundryData_2026-10-24", code == 0 and got == "Pre-FoundryData_2026-10-24",
+          (code, got, said))
+    for bad_name in ("Gun", "Pre-Gun_Rework_2026-10-25", "Pre-GunRework_2026-10-5", "Pre-_2026-10-25"):
+        code, said, got = gen_backup_line(["--backup", bad_name])
+        check(f"backup: --backup {bad_name!r} rejected", code == 2 and "bad --backup name" in said and got is None,
+              (code, got, said))
+    # the keyword reaches both entry points; an existing call (no keyword) produces the same bytes as before
+    fxpair = {"Label": "Only.Ye", "Studio": "ServerStorage/OnlyYe", "Class": "ModuleScript",
+              "Repo": "Art/Studio/Regions/TownsfolkClient.lua", "Places": ["ye"], "Create": False}
+    try:
+        kw = sync.bundle_text(fxpair, date="2026-10-25", backup="Pre-GunRework_2026-10-25")
+        plain = sync.bundle_text(fxpair, date="2026-10-25")
+        explicit = sync.bundle_text(fxpair, date="2026-10-25", backup=sync.BACKUP)
+        kdir = tempfile.mkdtemp(prefix="test_sync_kw_")
+        with open(sync.write_bundle(fxpair, kdir, date="2026-10-25", backup="Pre-GunRework_2026-10-25"),
+                  encoding="utf-8", newline="") as f:
+            kwfile = f.read()
+        err = None
+    except TypeError as e:
+        kw = plain = explicit = kwfile = ""
+        err = str(e)
+    check("backup: bundle_text takes backup=", err is None and ', "Pre-GunRework_2026-10-25", ' in kw, err or kw[:400])
+    check("backup: write_bundle takes backup=", err is None and kwfile == kw, err)
+    check("backup: the default is BACKUP, byte for byte", err is None and plain == explicit
+          and ', "Pre-FoundryData_2026-10-24", ' in plain, err)
+    check("backup: BACKUP unchanged", sync.BACKUP == "Pre-FoundryData_2026-10-24", sync.BACKUP)
+
+    # --check with a pair whose Repo file is absent: reported, counted MISSING, no crash; Studio is still asked
+    gone = {"Pairs": [
+        {"Label": "Gone.Repo", "Studio": "ServerStorage/GoneRepo", "Class": "ModuleScript",
+         "Repo": "Art/Studio/Regions/Foundry/data/__no_such_file__.lua", "Places": ["ye"], "Create": False},
+        {"Label": "Only.Ye", "Studio": "ServerStorage/OnlyYe", "Class": "ModuleScript",
+         "Repo": "Art/Studio/Regions/TownsfolkClient.lua", "Places": ["ye"], "Create": False},
+    ]}
+    asked = []
+
+    def fake_gone(place_id, bundle_path):
+        with open(bundle_path, encoding="utf-8") as f:
+            got = re.findall(r'\{"([^"]+)", "[^"]*", "[^"]*"\}', f.read())
+        asked.extend(got)
+        return "\n".join(f"{l}\t6809:893158121:758120550" for l in got)
+
+    gdir = tempfile.mkdtemp(prefix="test_sync_gone_")
+    buf = io.StringIO()
+    try:
+        with redirect_stdout(buf):
+            code = sync.do_check(gone["Pairs"], "ye", gdir, fake_gone)
+        raised = None
+    except Exception as e:  # noqa: BLE001 - the case is that nothing raises
+        code, raised = None, f"{type(e).__name__}: {e}"
+    said = buf.getvalue()
+    check("missing repo: no raise", raised is None, raised)
+    check("missing repo: reported", "Gone.Repo MISSING (no repo file)" in said, said)
+    check("missing repo: counted MISSING, the other pair SAME", "SAME 1 / DIFFER 0 / MISSING 1" in said, said)
+    check("missing repo: exit 1", code == 1, code)
+    check("missing repo: Studio still asked about it", "Gone.Repo" in asked, asked)
 
     print(f"PASS {PASSES[0]} / FAIL {len(FAILS)}")
     for f in FAILS:

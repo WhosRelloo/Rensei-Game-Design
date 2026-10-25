@@ -1,0 +1,524 @@
+{
+  "Animations": {
+    "AssetsPackage": {
+      "PackageId": "rbxassetid://91921092226558",
+      "VersionNumber": 3
+    },
+    "Guns": [
+      "Guns_Heavy [Animation] rbxassetid://122030215230958",
+      "Guns_Idle [Animation] ",
+      "Guns_Light1 [Animation] rbxassetid://83301995703711",
+      "Guns_Light2 [Animation] rbxassetid://128056167943340",
+      "Guns_Light3 [Animation] rbxassetid://137344007869654",
+      "Guns_Light4 [Animation] rbxassetid://80420520318606",
+      "Guns_Run [Animation] rbxassetid://111471294826230",
+      "Guns_Walk [Animation] rbxassetid://104809142670248",
+      "Guns_Whip1 [Animation] rbxassetid://104678448678860",
+      "Guns_Whip2 [Animation] rbxassetid://111673179001500",
+      "Guns_Whip3 [Animation] rbxassetid://132014168951584",
+      "Guns_Whip4 [Animation] rbxassetid://84893375216590"
+    ],
+    "GunsReloadAnywhere": [],
+    "HasGunsFolder": true,
+    "WeaponsChildren": [
+      "Daggers [Folder]",
+      "Gauntlets [Folder]",
+      "Greatsword [Folder]",
+      "Grips [Folder]",
+      "Guns [Folder]",
+      "Rapier [Folder]",
+      "Sword [Folder]"
+    ]
+  },
+  "CameraShake": [
+    "ReplicatedStorage.Modules.Managers.BasicVFX:111: if game:GetService(\"Players\").LocalPlayer and game:GetService(\"Players\").LocalPlayer:GetAttribute(\"CameraShake\") == false then return end"
+  ],
+  "Found": {
+    "AimRequestHandler": [
+      "ServerStorage.RenseiServer.ServerHandler.Requests.Aim"
+    ],
+    "CooldownUI": [
+      "ReplicatedStorage.Modules.UI.CooldownUI"
+    ],
+    "WeaponSkill": [
+      "ServerStorage.RenseiServer.ServerHandler.Requests.WeaponSkill"
+    ]
+  },
+  "LockOn": {
+    "BindToRenderStep": "RenseiLockOn",
+    "CameraType": "Scriptable while locked (Custom on release)",
+    "CreateTouchButton": "true",
+    "Exposes": {
+      "Release": true,
+      "Target": true
+    },
+    "MobileControlsMentionsLock": false,
+    "OwnInput": false,
+    "Path": "ReplicatedStorage.Modules.UI.LockOn",
+    "Rig": {
+      "Distance": 10,
+      "Height": 4.6,
+      "LookHeight": 1.2,
+      "Shoulder": 3.2,
+      "Smoothing": 14
+    },
+    "SetsAttribute": false,
+    "SetsAutoRotateFalse": true,
+    "ToggledBy": "SettingsUI ContextActionService RenseiLockTarget",
+    "TouchTitle": "Lock",
+    "TurnsRootToTarget": true,
+    "WorksOnTouch": true
+  },
+  "Mode": "survey",
+  "Packages": {
+    "Assets": {
+      "PackageId": "rbxassetid://91921092226558",
+      "VersionNumber": 3
+    },
+    "ClientHandler": {
+      "PackageId": "rbxassetid://86399163331249",
+      "VersionNumber": 3
+    },
+    "Modules": {
+      "PackageId": "rbxassetid://93881868321364",
+      "VersionNumber": 16
+    },
+    "RenseiServer": {
+      "PackageId": "rbxassetid://136952592909125",
+      "VersionNumber": 16
+    }
+  },
+  "Places": {
+    "CreatorId": 206818864,
+    "CreatorType": "Enum.CreatorType.Group",
+    "PlaceId": 106992859583940,
+    "PlayLock": "nil"
+  },
+  "Play": {
+    "DiffAfterRestore": "Flow,SkillTree,SkillLoadout,Settings,Story,Morality,Gate,Areas,Stats,Inventory,Licence,Mastery,Identities,Quests,Identity",
+    "DiffNote": "LMTestHook diff compares HttpService:JSONEncode texts; it lists Quests although the canonical Quests dumps are equal character for character. A sandbox probe on synthetic tables: JSONEncode(copy(t)) ~= JSONEncode(copy(copy(t))) in 163 of 200 cases (hash order). Per the protocol, any key beyond Settings/Story/Morality stops the session: Play was kept running and the controller rules.",
+    "Dumps": {
+      "Equal": true,
+      "Length": 350
+    },
+    "ReloadIdOnRig": {
+      "IsPlaying": true,
+      "Length": 4.07,
+      "LoadOk": true,
+      "Looped": false,
+      "Priority": "Enum.AnimationPriority.Action2",
+      "RigGone": true,
+      "WaitedS": 0.2
+    },
+    "RmbInShootingMode": "not checked; owner checks by hand (the character held a Tool at step 4, so no Revolver could be given)",
+    "Session": "Ye:gun1 (2026-10-25), the full protocol: lock, hook.lua, dumphelper, LMSnapTaken, dump, checks, restore, dump",
+    "ToolHeldAtStep4": "Daggers (the owner's equipped weapon): the protocol's step 4 stop. WeaponManager.Give was not called and no character state was touched.",
+    "WorldLive": {
+      "Children": [
+        "Folder Townsfolk x1",
+        "Model <player> x1",
+        "Model Adit Scavenger x2",
+        "Model Bandit Duelist x1",
+        "Model Bandit x8",
+        "Model Blocking x1",
+        "Model Dummy x1",
+        "Model Field Alchemist x1",
+        "Model Frost Alchemist x1",
+        "Model Gale Alchemist x1",
+        "Model Parry x1",
+        "Model Perfect Parry x1",
+        "Model Stone Alchemist x1"
+      ],
+      "Humanoids": [
+        "depth 1 under Live (enemy?) x15",
+        "depth 1 under Live (other) x4",
+        "depth 1 under Live (player) x1",
+        "depth 2 under Workspace.World.Live.Townsfolk (townsfolk?) x8"
+      ],
+      "LivePath": "Workspace.World.Live",
+      "ModelAttributes": {
+        "<player>": "AlchemyMultiplier,CharacterName,Exposure,MaxMeter,MaxPosture,MaxStamina,MeterAt,MeterBase,Mod_ClapSpeed,Mod_FinisherDamage,Mod_HeavyCooldown,Mod_HeldClapDamage,Mod_LightDamage,Mod_MaxHealth,Mod_MaxStamina,Mod_UnlockC,Mod_UnlockV,Mod_UnlockX,PhysicalMultiplier,PostureAt,PostureBase,RenseiLookToken,SpeedMultiplier,StaminaAt,StaminaBase,StatSpeedMultiplier,Style,TruthClap,TruthTouched,Weapon,WeaponDrawn,WeaponItem",
+        "Adit Scavenger": "Awareness,CombatMode,DisplayName,EnemyType,Gender,Knockable,Level,MaxMeter,MaxPosture,MaxStamina,MeterAt,MeterBase,Nation,PhysicalMultiplier,PostureAt,PostureBase,RenseiLookToken,SquadPersonality,StaminaAt,StaminaBase,Weapon,WeaponDrawn,WeaponItem",
+        "Bandit": "Awareness,CombatMode,DisplayName,EnemyType,Gender,Knockable,Level,MaxMeter,MaxPosture,MaxStamina,MeterAt,MeterBase,Nation,PhysicalMultiplier,PostureAt,PostureBase,RenseiLookToken,SpeedMultiplier,SquadPersonality,StaminaAt,StaminaBase,Weapon,WeaponDrawn,WeaponItem,WeaponSpeedMultiplier",
+        "Bandit Duelist": "Awareness,CombatMode,DisplayName,EnemyType,Gender,Knockable,Level,MaxMeter,MaxPosture,MaxStamina,MeterAt,MeterBase,Nation,PhysicalMultiplier,PostureAt,PostureBase,RenseiLookToken,SpeedMultiplier,SquadPersonality,StaminaAt,StaminaBase,Weapon,WeaponDrawn,WeaponItem,WeaponSpeedMultiplier",
+        "Blocking": "LindenmoorPrepFrom,MaxMeter,MaxPosture,MaxStamina,MeterAt,MeterBase,PostureAt,PostureBase,StaminaAt,StaminaBase",
+        "Dummy": "LindenmoorPrepFrom,MaxMeter,MaxPosture,MaxStamina,MeterAt,MeterBase,PostureAt,PostureBase,StaminaAt,StaminaBase",
+        "Field Alchemist": "Awareness,CombatMode,DisplayName,EnemyType,Gender,Knockable,Level,MaxMeter,MaxPosture,MaxStamina,MeterAt,MeterBase,Nation,PhysicalMultiplier,PostureAt,PostureBase,RenseiLookToken,SquadPersonality,StaminaAt,StaminaBase",
+        "Frost Alchemist": "Awareness,CombatMode,DisplayName,EnemyType,Gender,Knockable,Level,MaxMeter,MaxPosture,MaxStamina,MeterAt,MeterBase,Nation,PhysicalMultiplier,PostureAt,PostureBase,RenseiLookToken,SquadPersonality,StaminaAt,StaminaBase",
+        "Gale Alchemist": "Awareness,CombatMode,DisplayName,EnemyType,Gender,Knockable,Level,MaxMeter,MaxPosture,MaxStamina,MeterAt,MeterBase,Nation,PhysicalMultiplier,PostureAt,PostureBase,RenseiLookToken,SquadPersonality,StaminaAt,StaminaBase",
+        "Parry": "LindenmoorPrepFrom,MaxMeter,MaxPosture,MaxStamina,MeterAt,MeterBase,PostureAt,PostureBase,StaminaAt,StaminaBase",
+        "Perfect Parry": "LindenmoorPrepFrom,MaxMeter,MaxPosture,MaxStamina,MeterAt,MeterBase,PostureAt,PostureBase,StaminaAt,StaminaBase",
+        "Stone Alchemist": "Awareness,CombatMode,DisplayName,EnemyType,Gender,Knockable,Level,MaxMeter,MaxPosture,MaxStamina,MeterAt,MeterBase,Nation,PhysicalMultiplier,PostureAt,PostureBase,RenseiLookToken,SquadPersonality,StaminaAt,StaminaBase"
+      },
+      "NoiseServiceInSSS": true,
+      "Players": [
+        "<player>: Workspace.World.Live"
+      ],
+      "RenseiServerInServerStorage": true,
+      "RenseiServerKids": 51,
+      "ServerScriptService": [
+        "AdminConfig [ModuleScript]",
+        "AdminService [ModuleScript]",
+        "AlchemyService [ModuleScript]",
+        "AppearanceService [ModuleScript]",
+        "AutomailService [ModuleScript]",
+        "CharacterHandler [Script]",
+        "CombatDirector [ModuleScript]",
+        "CompassService [ModuleScript]",
+        "DialogueService [ModuleScript]",
+        "EnemyService [ModuleScript]",
+        "FlowService [ModuleScript]",
+        "FlowTeleport [ModuleScript]",
+        "HeatService [ModuleScript]",
+        "IdentityService [ModuleScript]",
+        "InvestigationService [ModuleScript]",
+        "ItemService [ModuleScript]",
+        "LMQuestDump_TEMP [Script]",
+        "LMTestHook_TEMP [Script]",
+        "LightService [ModuleScript]",
+        "LoadoutService [ModuleScript]",
+        "MinigameService [ModuleScript]",
+        "MoralityService [ModuleScript]",
+        "NoiseService [ModuleScript]",
+        "NpcIdles [Script]",
+        "PartyService [ModuleScript]",
+        "PerceptionService [ModuleScript]",
+        "ProfileGuard [ModuleScript]",
+        "ProfileMigrations [ModuleScript]",
+        "ProgressionService [ModuleScript]",
+        "PuzzleService [ModuleScript]",
+        "QuestService [ModuleScript]",
+        "RankService [ModuleScript]",
+        "RenseiBoot [Script]",
+        "RideEvents [ModuleScript]",
+        "RitualService [ModuleScript]",
+        "RoadService [ModuleScript]",
+        "RumourService [ModuleScript]",
+        "ServerHandler [Script]",
+        "SkillTreeService [ModuleScript]",
+        "SlotAccount [ModuleScript]",
+        "StationService [ModuleScript]",
+        "StoryService [ModuleScript]",
+        "StyleService [ModuleScript]",
+        "SwimService [ModuleScript]",
+        "TownsfolkService [ModuleScript]",
+        "TrainingService [ModuleScript]",
+        "TravelService [ModuleScript]",
+        "TrialService [ModuleScript]",
+        "TruthService [ModuleScript]",
+        "UIService [ModuleScript]",
+        "WitnessService [ModuleScript]",
+        "WorldClock [ModuleScript]",
+        "WorldService [ModuleScript]"
+      ]
+    }
+  },
+  "R6": {
+    "HipHeight": 0,
+    "Max": [
+      2,
+      2,
+      0.5
+    ],
+    "Min": [
+      -2,
+      -3,
+      -0.5
+    ],
+    "Parts": [
+      "Head",
+      "HumanoidRootPart",
+      "Left Arm",
+      "Left Leg",
+      "Right Arm",
+      "Right Leg",
+      "Torso"
+    ],
+    "RigType": "Enum.HumanoidRigType.R6"
+  },
+  "ReloadId": {
+    "AssetTypeId": 24,
+    "CreatorTargetId": 206818864,
+    "CreatorType": "Group",
+    "Id": 97563934064498,
+    "Keyframes": 210,
+    "Length": 4.07,
+    "Loads": true,
+    "Loop": false,
+    "Name": "Reloaded",
+    "PlaysLive": "yes",
+    "Priority": "Enum.AnimationPriority.Action2"
+  },
+  "Scripts": {
+    "Managers.AnimationManager": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "12450:348947659:62630204",
+      "Path": "ReplicatedStorage/Modules/Managers/AnimationManager"
+    },
+    "Managers.AttackRunner": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "15673:917977390:358525574",
+      "Path": "ReplicatedStorage/Modules/Managers/AttackRunner"
+    },
+    "Managers.DamageManager": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "22761:505193176:346823094",
+      "Path": "ReplicatedStorage/Modules/Managers/DamageManager"
+    },
+    "Managers.SkillMods": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "642:401497814:969992325",
+      "Path": "ReplicatedStorage/Modules/Managers/SkillMods"
+    },
+    "Managers.WeaponManager": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "29239:663640077:591510605",
+      "Path": "ReplicatedStorage/Modules/Managers/WeaponManager"
+    },
+    "Rensei.TuningConfig": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "90728:677126149:591175592",
+      "Path": "ReplicatedStorage/Modules/Data/Rensei/TuningConfig"
+    },
+    "RenseiServer.EnemyService": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "26202:252621417:630961064",
+      "Path": "ServerStorage/RenseiServer/EnemyService"
+    },
+    "RenseiServer.ServerHandler": {
+      "Class": "Script",
+      "Found": true,
+      "NormHash": "6380:734583075:317706817",
+      "Path": "ServerStorage/RenseiServer/ServerHandler"
+    },
+    "RenseiTests.Play_Stealth": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "6815:5488112:970429301",
+      "Path": "ServerStorage/RenseiTests/Play_Stealth"
+    },
+    "Requests.Aim": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "575:381015888:90635218",
+      "Path": "ServerStorage/RenseiServer/ServerHandler/Requests/Aim"
+    },
+    "Requests.Shoot": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "4790:811341835:725278260",
+      "Path": "ServerStorage/RenseiServer/ServerHandler/Requests/Shoot"
+    },
+    "Requests.WeaponSkill": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "2382:788507623:108284790",
+      "Path": "ServerStorage/RenseiServer/ServerHandler/Requests/WeaponSkill"
+    },
+    "SPScripts.ClientHandler": {
+      "Class": "LocalScript",
+      "Found": true,
+      "NormHash": "18400:921493251:155481746",
+      "Path": "StarterPlayer/StarterPlayerScripts/ClientHandler"
+    },
+    "UI.CooldownUI": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "5920:428510589:501393869",
+      "Path": "ReplicatedStorage/Modules/UI/CooldownUI"
+    },
+    "UI.HUDUI": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "37359:300770563:643949594",
+      "Path": "ReplicatedStorage/Modules/UI/HUDUI"
+    },
+    "UI.LockOn": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "4207:645260613:316049645",
+      "Path": "ReplicatedStorage/Modules/UI/LockOn"
+    },
+    "UI.MobileControls": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "13571:89140788:261894728",
+      "Path": "ReplicatedStorage/Modules/UI/MobileControls"
+    },
+    "UI.SettingsUI": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "11617:281711592:836220500",
+      "Path": "ReplicatedStorage/Modules/UI/SettingsUI"
+    }
+  },
+  "TestSpot": {
+    "Areas": 24,
+    "Candidates": 3034,
+    "Found": "none",
+    "MapBox": {
+      "Centre": [
+        0,
+        197,
+        -832
+      ],
+      "Size": [
+        2048,
+        455,
+        3725
+      ]
+    },
+    "NearMisses": [
+      {
+        "Blocked": 0,
+        "Centre": [
+          -200,
+          6,
+          250
+        ],
+        "Ground": [
+          "Workspace.World.Map.LindenmoorExpansion.Fields.Field_fields_west_26.Row10",
+          "Workspace.World.Map.LindenmoorExpansion.Fields.Field_fields_west_26.Row12",
+          "Workspace.World.Map.LindenmoorExpansion.Fields.Field_fields_west_26.Row4",
+          "Workspace.World.Map.LindenmoorExpansion.Fields.Field_fields_west_26.Row6"
+        ],
+        "Grounds": 100,
+        "MaxY": 15.1,
+        "MinY": 2,
+        "Step": 9.1
+      },
+      {
+        "Blocked": 0,
+        "Centre": [
+          -250,
+          6,
+          300
+        ],
+        "Ground": [
+          "Workspace.World.Map.LindenmoorExpansion.Forest.FruitTree_orchard_west_1002.Canopy0",
+          "Workspace.World.Map.LindenmoorExpansion.Forest.FruitTree_orchard_west_1008.Canopy1",
+          "Workspace.World.Map.LindenmoorExpansion.Forest.FruitTree_orchard_west_1009.Canopy1",
+          "Workspace.World.Map.LindenmoorExpansion.Forest.FruitTree_orchard_west_1010.Canopy0"
+        ],
+        "Grounds": 97,
+        "MaxY": 15.1,
+        "MinY": 1,
+        "Step": 9.1
+      },
+      {
+        "Blocked": 0,
+        "Centre": [
+          -250,
+          5,
+          250
+        ],
+        "Ground": [
+          "Workspace.World.Map.LindenmoorExpansion.Fields.Field_fields_west_26.Row10",
+          "Workspace.World.Map.LindenmoorExpansion.Fields.Field_fields_west_26.Row12",
+          "Workspace.World.Map.LindenmoorExpansion.Fields.Field_fields_west_26.Row4",
+          "Workspace.World.Map.LindenmoorExpansion.Fields.Field_fields_west_26.Row6"
+        ],
+        "Grounds": 93,
+        "MaxY": 15.1,
+        "MinY": 2,
+        "Step": 10.1
+      },
+      {
+        "Blocked": 0,
+        "Centre": [
+          -150,
+          5,
+          300
+        ],
+        "Ground": [
+          "Workspace.World.Map.LindenmoorExpansion.Forest.FruitTree_orchard_west_1002.Canopy0",
+          "Workspace.World.Map.LindenmoorExpansion.Forest.FruitTree_orchard_west_1012.Canopy1",
+          "Workspace.World.Map.LindenmoorExpansion.Forest.FruitTree_orchard_west_1014.Canopy1",
+          "Workspace.World.Map.LindenmoorExpansion.Forest.FruitTree_orchard_west_1015.Canopy1"
+        ],
+        "Grounds": 105,
+        "MaxY": 15.1,
+        "MinY": 1,
+        "Step": 10.1
+      },
+      {
+        "Blocked": 0,
+        "Centre": [
+          -200,
+          5,
+          300
+        ],
+        "Ground": [
+          "Workspace.World.Map.LindenmoorExpansion.Forest.FruitTree_orchard_west_1002.Canopy0",
+          "Workspace.World.Map.LindenmoorExpansion.Forest.FruitTree_orchard_west_1010.Canopy0",
+          "Workspace.World.Map.LindenmoorExpansion.Forest.FruitTree_orchard_west_1011.Canopy1",
+          "Workspace.World.Map.LindenmoorExpansion.Forest.FruitTree_orchard_west_1012.Canopy1"
+        ],
+        "Grounds": 91,
+        "MaxY": 15.1,
+        "MinY": 1,
+        "Step": 10.1
+      }
+    ],
+    "PostsAndSpawns": 40,
+    "Rejected": {
+      "Area": 1570,
+      "Blocked": 0,
+      "NoGround": 1341,
+      "NotFlat": 94,
+      "Post": 27,
+      "Water": 2
+    },
+    "Rules": "side 200, grid 10, centres every 50, flat 0.5, clear 12 up, 120 from posts/spawns, outside RenseiArea",
+    "Tried": 3034
+  },
+  "UI": {
+    "Crosshair": {
+      "AnchorPoint": [
+        0.5,
+        0.5
+      ],
+      "BackgroundColor3": [
+        163,
+        162,
+        165
+      ],
+      "BackgroundTransparency": 1,
+      "Class": "ImageLabel",
+      "IgnoreGuiInset": false,
+      "Image": "rbxassetid://128415338450308",
+      "ImageColor3": [
+        230,
+        205,
+        190
+      ],
+      "ImageTransparency": 0.35,
+      "Path": "StarterGui.Uis.Crosshair",
+      "Position": "{0.5, 0}, {0.5, 0}",
+      "ScreenGui": "StarterGui.Uis",
+      "ScreenInsets": "Enum.ScreenInsets.CoreUISafeInsets",
+      "Size": "{0.0083114, 0}, {0.022, 0}",
+      "Visible": false
+    },
+    "CrosshairCount": 1,
+    "HUD": {
+      "IgnoreGuiInset": false,
+      "Path": "StarterGui.Uis.HUD",
+      "ScreenGui": "StarterGui.Uis"
+    }
+  },
+  "WeaponSkill": {
+    "CallsResolve": true,
+    "FanNeedsShootingMode": false,
+    "RangedNeedsCanFire": true,
+    "ReadsCombatMode": true,
+    "ReadsShootingMode": false
+  }
+}

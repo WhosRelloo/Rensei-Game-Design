@@ -1,0 +1,313 @@
+{
+  "Animations": {
+    "AssetsPackage": {
+      "PackageId": "rbxassetid://91921092226558",
+      "VersionNumber": 3
+    },
+    "Guns": [
+      "Guns_Heavy [Animation] rbxassetid://122030215230958",
+      "Guns_Idle [Animation] ",
+      "Guns_Light1 [Animation] rbxassetid://83301995703711",
+      "Guns_Light2 [Animation] rbxassetid://128056167943340",
+      "Guns_Light3 [Animation] rbxassetid://137344007869654",
+      "Guns_Light4 [Animation] rbxassetid://80420520318606",
+      "Guns_Run [Animation] rbxassetid://111471294826230",
+      "Guns_Walk [Animation] rbxassetid://104809142670248",
+      "Guns_Whip1 [Animation] rbxassetid://104678448678860",
+      "Guns_Whip2 [Animation] rbxassetid://111673179001500",
+      "Guns_Whip3 [Animation] rbxassetid://132014168951584",
+      "Guns_Whip4 [Animation] rbxassetid://84893375216590"
+    ],
+    "GunsReloadAnywhere": [],
+    "HasGunsFolder": true,
+    "WeaponsChildren": [
+      "Daggers [Folder]",
+      "Gauntlets [Folder]",
+      "Greatsword [Folder]",
+      "Grips [Folder]",
+      "Guns [Folder]",
+      "Rapier [Folder]",
+      "Sword [Folder]"
+    ]
+  },
+  "CameraShake": [
+    "ReplicatedStorage.Modules.Managers.BasicVFX:111: if game:GetService(\"Players\").LocalPlayer and game:GetService(\"Players\").LocalPlayer:GetAttribute(\"CameraShake\") == false then return end"
+  ],
+  "Found": {
+    "AimRequestHandler": [
+      "ServerStorage.RenseiServer.ServerHandler.Requests.Aim"
+    ],
+    "CooldownUI": [
+      "ReplicatedStorage.Modules.UI.CooldownUI"
+    ],
+    "WeaponSkill": [
+      "ServerStorage.RenseiServer.ServerHandler.Requests.WeaponSkill"
+    ]
+  },
+  "LockOn": {
+    "BindToRenderStep": "RenseiLockOn",
+    "CameraType": "Scriptable while locked (Custom on release)",
+    "CreateTouchButton": "true",
+    "Exposes": {
+      "Release": true,
+      "Target": true
+    },
+    "MobileControlsMentionsLock": false,
+    "OwnInput": false,
+    "Path": "ReplicatedStorage.Modules.UI.LockOn",
+    "Rig": {
+      "Distance": 10,
+      "Height": 4.6,
+      "LookHeight": 1.2,
+      "Shoulder": 3.2,
+      "Smoothing": 14
+    },
+    "SetsAttribute": false,
+    "SetsAutoRotateFalse": true,
+    "ToggledBy": "SettingsUI ContextActionService RenseiLockTarget",
+    "TouchTitle": "Lock",
+    "TurnsRootToTarget": true,
+    "WorksOnTouch": true
+  },
+  "Mode": "survey",
+  "Packages": {
+    "Assets": {
+      "PackageId": "rbxassetid://91921092226558",
+      "VersionNumber": 3
+    },
+    "ClientHandler": {
+      "PackageId": "rbxassetid://86399163331249",
+      "VersionNumber": 3
+    },
+    "Modules": {
+      "PackageId": "rbxassetid://93881868321364",
+      "VersionNumber": 16
+    },
+    "RenseiServer": {
+      "PackageId": "rbxassetid://136952592909125",
+      "VersionNumber": 16
+    }
+  },
+  "Places": {
+    "CreatorId": 206818864,
+    "CreatorType": "Enum.CreatorType.Group",
+    "PlaceId": 109591196441030,
+    "PlayLock": "nil"
+  },
+  "R6": {
+    "HipHeight": 0,
+    "Max": [
+      2,
+      2,
+      0.5
+    ],
+    "Min": [
+      -2,
+      -3,
+      -0.5
+    ],
+    "Parts": [
+      "Head",
+      "HumanoidRootPart",
+      "Left Arm",
+      "Left Leg",
+      "Right Arm",
+      "Right Leg",
+      "Torso"
+    ],
+    "RigType": "Enum.HumanoidRigType.R6"
+  },
+  "ReloadId": {
+    "AssetTypeId": 24,
+    "CreatorTargetId": 206818864,
+    "CreatorType": "Group",
+    "Id": 97563934064498,
+    "Keyframes": 210,
+    "Length": 4.07,
+    "Loads": true,
+    "Loop": false,
+    "Name": "Reloaded",
+    "PlaysLive": "yes",
+    "Priority": "Enum.AnimationPriority.Action2"
+  },
+  "Scripts": {
+    "Managers.AnimationManager": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "12450:348947659:62630204",
+      "Path": "ReplicatedStorage/Modules/Managers/AnimationManager"
+    },
+    "Managers.AttackRunner": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "15673:917977390:358525574",
+      "Path": "ReplicatedStorage/Modules/Managers/AttackRunner"
+    },
+    "Managers.DamageManager": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "22761:505193176:346823094",
+      "Path": "ReplicatedStorage/Modules/Managers/DamageManager"
+    },
+    "Managers.SkillMods": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "642:401497814:969992325",
+      "Path": "ReplicatedStorage/Modules/Managers/SkillMods"
+    },
+    "Managers.WeaponManager": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "29239:663640077:591510605",
+      "Path": "ReplicatedStorage/Modules/Managers/WeaponManager"
+    },
+    "Rensei.TuningConfig": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "90728:677126149:591175592",
+      "Path": "ReplicatedStorage/Modules/Data/Rensei/TuningConfig"
+    },
+    "RenseiServer.EnemyService": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "26202:252621417:630961064",
+      "Path": "ServerStorage/RenseiServer/EnemyService"
+    },
+    "RenseiServer.ServerHandler": {
+      "Class": "Script",
+      "Found": true,
+      "NormHash": "6380:734583075:317706817",
+      "Path": "ServerStorage/RenseiServer/ServerHandler"
+    },
+    "RenseiTests.Play_Stealth": {
+      "Found": false,
+      "Path": "ServerStorage/RenseiTests/Play_Stealth",
+      "Why": "0 named Play_Stealth under ServerStorage.RenseiTests"
+    },
+    "Requests.Aim": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "575:381015888:90635218",
+      "Path": "ServerStorage/RenseiServer/ServerHandler/Requests/Aim"
+    },
+    "Requests.Shoot": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "4790:811341835:725278260",
+      "Path": "ServerStorage/RenseiServer/ServerHandler/Requests/Shoot"
+    },
+    "Requests.WeaponSkill": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "2382:788507623:108284790",
+      "Path": "ServerStorage/RenseiServer/ServerHandler/Requests/WeaponSkill"
+    },
+    "SPScripts.ClientHandler": {
+      "Class": "LocalScript",
+      "Found": true,
+      "NormHash": "18400:921493251:155481746",
+      "Path": "StarterPlayer/StarterPlayerScripts/ClientHandler"
+    },
+    "UI.CooldownUI": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "5920:428510589:501393869",
+      "Path": "ReplicatedStorage/Modules/UI/CooldownUI"
+    },
+    "UI.HUDUI": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "37359:300770563:643949594",
+      "Path": "ReplicatedStorage/Modules/UI/HUDUI"
+    },
+    "UI.LockOn": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "4207:645260613:316049645",
+      "Path": "ReplicatedStorage/Modules/UI/LockOn"
+    },
+    "UI.MobileControls": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "13571:89140788:261894728",
+      "Path": "ReplicatedStorage/Modules/UI/MobileControls"
+    },
+    "UI.SettingsUI": {
+      "Class": "ModuleScript",
+      "Found": true,
+      "NormHash": "11617:281711592:836220500",
+      "Path": "ReplicatedStorage/Modules/UI/SettingsUI"
+    }
+  },
+  "TestSpot": {
+    "Areas": 13,
+    "Candidates": 1364,
+    "Found": "none",
+    "MapBox": {
+      "Centre": [
+        1,
+        203,
+        -316
+      ],
+      "Size": [
+        1538,
+        445,
+        2217
+      ]
+    },
+    "NearMisses": [],
+    "PostsAndSpawns": 93,
+    "Rejected": {
+      "Area": 1023,
+      "Blocked": 0,
+      "NoGround": 331,
+      "NotFlat": 0,
+      "Post": 10,
+      "Water": 0
+    },
+    "Rules": "side 200, grid 10, centres every 50, flat 0.5, clear 12 up, 120 from posts/spawns, outside RenseiArea",
+    "Tried": 1364
+  },
+  "UI": {
+    "Crosshair": {
+      "AnchorPoint": [
+        0.5,
+        0.5
+      ],
+      "BackgroundColor3": [
+        163,
+        162,
+        165
+      ],
+      "BackgroundTransparency": 1,
+      "Class": "ImageLabel",
+      "IgnoreGuiInset": false,
+      "Image": "rbxassetid://128415338450308",
+      "ImageColor3": [
+        230,
+        205,
+        190
+      ],
+      "ImageTransparency": 0.35,
+      "Path": "StarterGui.Uis.Crosshair",
+      "Position": "{0.5, 0}, {0.5, 0}",
+      "ScreenGui": "StarterGui.Uis",
+      "ScreenInsets": "Enum.ScreenInsets.CoreUISafeInsets",
+      "Size": "{0.0083114, 0}, {0.022, 0}",
+      "Visible": false
+    },
+    "CrosshairCount": 1,
+    "HUD": {
+      "IgnoreGuiInset": false,
+      "Path": "StarterGui.Uis.HUD",
+      "ScreenGui": "StarterGui.Uis"
+    }
+  },
+  "WeaponSkill": {
+    "CallsResolve": true,
+    "FanNeedsShootingMode": false,
+    "RangedNeedsCanFire": true,
+    "ReadsCombatMode": true,
+    "ReadsShootingMode": false
+  }
+}

@@ -104,6 +104,11 @@ Paths mirror the Studio tree (`Scripts/ServerScriptService/MinigameService.lua` 
 | `ServerScriptService/CombatDirector.lua` | `ServerScriptService.CombatDirector` | 2026-10-18 |
 | `ServerScriptService/CompassService.lua` | `ServerScriptService.CompassService` | 2026-10-18 |
 | `StarterPlayer/StarterPlayerScripts/UIHandler.client.lua` | `StarterPlayer.StarterPlayerScripts.UIHandler` | 2026-10-18 |
+| `ReplicatedStorage/Modules/UI/LockOn.lua` | `ReplicatedStorage.Modules.UI.LockOn` | 2026-10-25 |
+| `ReplicatedStorage/Modules/UI/CooldownUI.lua` | `ReplicatedStorage.Modules.UI.CooldownUI` | 2026-10-25 |
+| `ReplicatedStorage/Modules/Managers/SkillMods.lua` | `ReplicatedStorage.Modules.Managers.SkillMods` | 2026-10-25 |
+| `ServerScriptService/ServerHandler/Requests/WeaponSkill.lua` | `ServerStorage.RenseiServer.ServerHandler.Requests.WeaponSkill` (in `ServerScriptService` at run time) | 2026-10-25 |
+| `ServerScriptService/ServerHandler/Requests/Aim.lua` | `ServerStorage.RenseiServer.ServerHandler.Requests.Aim` (in `ServerScriptService` at run time) | 2026-10-25 |
 
 Exports so far (all 2026-10-16): the scripts touched by the Assay Bench / Ledger Cipher work, the stuck-dialogue fix (DialogueService, DialogueUI) the morality slice with every engine script it changed, and the emote wheel (see `Documents/Changelog.md`). Each file is byte-identical to the Studio source at the time of export, except `DataManager.lua`: one line names a specific player for a test reset, and that name is replaced with `<redacted>` because this repository is public.
 
@@ -121,3 +126,5 @@ Level column removed (2026-10-17): HUDUI re-exported.
 Export 2026-10-18: every script the 2026-10-17 / 18 work added or changed (movement state, ledge walk, guns, class skills, weapon styles, the UI pass, the character creator and Creator Plus, swimming, the Iron Rush / Phoenix Drive fixes; see `Documents/Changelog.md`), plus every file above that changed in Studio since its last export. Not exported: `AdminConfig` and the Main Menu's `ClanCodes` (secrets).
 
 Export 2026-10-18 (later): coordinated enemy squads (CombatDirector), the compass (CompassService, CompassUI), the Journal Evidence / Case Board and Class Skill UI revamp, and the speed fixes; see `Documents/Changelog.md`. DamageManager, CombatLogUI, SettingsUI and UIHandler are exported for the first time.
+
+Gun rework export (2026-10-25, plan Task 1): LockOn, CooldownUI, SkillMods and the WeaponSkill / Aim request handlers, read-only from Ye, byte for byte (CRLF normalised to LF). Every gun script is now a sync pair (`Art/Studio/Regions/Foundry/data/sync_manifest.json`), so `sync.py --check` keeps these copies equal to Ye and Foundry.
