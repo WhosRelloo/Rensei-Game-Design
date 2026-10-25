@@ -70,6 +70,9 @@ local Lindenmoor = {
 -- look seed is a PROPOSAL.
 --   * Names (Ruling 3): all original; no first name is already the game's (Dialogues speakers, enemy and NPC display
 --     names, Lindenmoor's roster, TownsfolkLogic.NewcomerNames). Test_FoundryRoster checks it.
+--     (Task 5 fix round 1, Ruling 27a: renamed so no name echoes an existing one or the source series: the cook,
+--     the casting hand's first name (no "Bra-" beside Brask and Brannoc), the late yard hand's and fourth trader's
+--     surnames, the keeper's first name.)
 --   * The rigs are adult R6s (there is no child rig), so the two runners are errand runners.
 --   * The two off-duty guards are Townsfolk, not Authority (PROPOSAL): an Authority agent counts as law and adds Heat on
 --     sight, and these two are off duty.
@@ -125,7 +128,7 @@ local Foundry = {
 		JobLine = "Afternoons on Two. I'll eat when the pour's done.",
 		Look = {Nation = "Amestrian", Gender = "Female", Seed = 3108},
 		Schedule = {{13, 14, "canteen_seat_3"}, {14, 22, "furnace_2"}, {22, 23, "canteen_seat_3"}, {23, 13, "workers_row_8"}}},
-	{Id = "fy_keeper", Name = "Oswin Tarr", Job = "Furnace keeper", Faction = "Foundry", Idle = "NPC_CrossArms",
+	{Id = "fy_keeper", Name = "Cuthbert Tarr", Job = "Furnace keeper", Faction = "Foundry", Idle = "NPC_CrossArms",
 		JobLine = "Somebody keeps the fires in overnight. Banked, not out. Out is a week's work to light again.",
 		Look = {Nation = "Amestrian", Gender = "Male", Seed = 3109},
 		Schedule = {{22, 6, "furnace_3"}, {6, 7, "canteen_seat_4"}, {7, 21, "boarding_home_1"}, {21, 22, "canteen_seat_4"}}},
@@ -133,7 +136,7 @@ local Foundry = {
 		JobLine = "Up on the gantry you see everything. Mostly you see people standing where they shouldn't.",
 		Look = {Nation = "Amestrian", Gender = "Female", Seed = 3110},
 		Schedule = {{6, 14, "hall_gantry"}, {14, 15, "canteen_seat_4"}, {15, 6, "workers_row_9"}}},
-	{Id = "fy_casting_l", Name = "Bram Okonek", Job = "Casting hand", Faction = "Foundry", Idle = "NPC_Blacksmith",
+	{Id = "fy_casting_l", Name = "Lennart Okonek", Job = "Casting hand", Faction = "Foundry", Idle = "NPC_Blacksmith",
 		JobLine = "Pour's at four. If you're on the floor when the ladle tips, you'd best be quick.",
 		Look = {Nation = "Amestrian", Gender = "Male", Seed = 3111},
 		Schedule = {{13, 14, "canteen_seat_4"}, {14, 22, "casting_floor"}, {22, 23, "canteen_seat_4"}, {23, 13, "workers_row_10"}}},
@@ -141,7 +144,7 @@ local Foundry = {
 		JobLine = "Wagons in, wagons out. Count them twice. The Authority counts them three times.",
 		Look = {Nation = "Amestrian", Gender = "Female", Seed = 3112},
 		Schedule = {{6, 14, "yard_hand_1"}, {14, 6, "cinder_home_1"}}},
-	{Id = "fy_yard_l", Name = "Ivo Kettle", Job = "Yard hand", Faction = "Foundry", Idle = "NPC_HandInPocket",
+	{Id = "fy_yard_l", Name = "Ivo Marchbank", Job = "Yard hand", Faction = "Foundry", Idle = "NPC_HandInPocket",
 		JobLine = "Evening freight's the worst. Nobody signs for anything after dark.",
 		Look = {Nation = "Amestrian", Gender = "Male", Seed = 3113},
 		Schedule = {{14, 22, "yard_hand_4"}, {22, 14, "cinder_home_2"}}},
@@ -153,7 +156,7 @@ local Foundry = {
 		JobLine = "Every hour worked in this yard goes through my pen. Every hour.",
 		Look = {Nation = "Amestrian", Gender = "Male", Seed = 3115},
 		Schedule = {{6, 18, "shift_clerk"}, {18, 6, "lower_home_3"}}},
-	{Id = "fy_cook_1", Name = "Su Ling Pao", Job = "Canteen cook", Faction = "Townsfolk", Idle = "NPC_CrossArms",
+	{Id = "fy_cook_1", Name = "Peiyu Qiao", Job = "Canteen cook", Faction = "Townsfolk", Idle = "NPC_CrossArms",
 		JobLine = "Breakfast at five, and the day crew eats it whether they're awake or not.",
 		Look = {Nation = "Xingnese", Gender = "Female", Seed = 3116},
 		Schedule = {{5, 14, "canteen_cook"}, {14, 5, "boarding_home_2"}}},
@@ -173,7 +176,7 @@ local Foundry = {
 		JobLine = "Bread from the bakehouse on Mill Street. Still warm if you're early.",
 		Look = {Nation = "Amestrian", Gender = "Female", Seed = 3120},
 		Schedule = {{8, 20, "market_trader_3"}, {20, 8, "cinder_home_5"}}},
-	{Id = "fy_trader_4", Name = "Jonas Abernathy", Job = "Market trader", Faction = "Townsfolk", Idle = "NPC_CrossArms",
+	{Id = "fy_trader_4", Name = "Jonas Fairley", Job = "Market trader", Faction = "Townsfolk", Idle = "NPC_CrossArms",
 		JobLine = "Pots, pans, kettles, all cast in the hall. Seconds, mind. That's why they're cheap.",
 		Look = {Nation = "Amestrian", Gender = "Male", Seed = 3121},
 		Schedule = {{8, 20, "market_trader_4"}, {20, 8, "cinder_home_6"}}},
