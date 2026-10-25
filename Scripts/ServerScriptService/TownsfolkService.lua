@@ -281,7 +281,7 @@ local function Settle(F, PostId, State)
 		At = CFrame.lookAt(F.Root.Position, F.Root.Position + (Flat.Magnitude > 1e-3 and Flat or Vector3.new(0, 0, -1)))
 	end
 	Mover.Place(F.Rig, At) -- (cancels a walk in progress)
-	F.Post, F.Target, F.Walk, F.RetryAt = PostId, PostId, nil, nil
+	F.Post, F.Target, F.Walk, F.RetryAt, F.RetryDelay = PostId, PostId, nil, nil, nil -- (Task 9: the backoff's delay too)
 	F.Rig:SetAttribute("PostId", PostId)
 	F.Rig:SetAttribute("IdleAnim", Post and IdleFor(F.Def, Post) or F.Def.Idle or TownsfolkLogic.KindIdles.Home)
 	SetState(F, State)

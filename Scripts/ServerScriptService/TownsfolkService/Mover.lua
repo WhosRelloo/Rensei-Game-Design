@@ -30,9 +30,10 @@
 --       CFrame or root position (as WalkTo's TargetCFrame); Agent defaults to Mover.Agent; Opts.Attempts (default 8,
 --       as a walk) caps the re-asks of 1b. Returns {Status = "ok" | "failed", Why, Waypoints (smoothed), Raw (the
 --       planned points before smoothing, repaired), RawCount, Radius, Inserted (the repair's new vertices), Ms}.
---   * Mover.RepairPath(Pts) (Task 4b, tests): the corner repair (1b) of a polyline of ground points, exactly as a plan
---       runs it: a path that passes Valid comes back as it is; else the repaired points and the new vertices, or nil
---       and "stale".
+--   * Mover.RepairPath(Pts, Labels) (Task 4b, tests): the corner repair (1b) of a polyline of ground points, exactly as
+--       a plan runs it: a path that passes Valid comes back as it is; else the repaired points and the new vertices, or
+--       nil and "stale". Labels (optional, Foundry Yard plan Task 9) are the points' waypoint labels (material names),
+--       as a planned path carries them; without them every point counts as ordinary ground.
 --
 -- How a walk works (Task 5b; every number below is a PROPOSAL):
 --   1. Path planning: PathfindingService with Mover.Agent (radius 2.5, height 5.5, no jumping or climbing, a
@@ -54,7 +55,8 @@
 --      (not water) and clearance to the geometry around it of at least (that clearance - RepairTolerance), never under
 --      the last of them (1.25: Ruling 30's minimum, so no vertex sits in a gap under 2.5 studs), and both new legs
 --      need walkable ground all along (smoothing's ground rays: a trench or a drop beside a corner refuses the vertex),
---      no dearer (Costs) than the dearest ground the planned path already walks, or ordinary ground (RepairGroundCost).
+--      no dearer (Costs) than the ground at that leg's own ends (their labels; Task 9: no longer the dearest ground
+--      anywhere on the path), or ordinary ground (RepairGroundCost).
 --      When no spot along the gradient will do (or there is no gradient: a post dead on the line), the vertex is pushed
 --      out square to the leg, either side (the street side of a stall post whose gradient side is the stall); a side
 --      landing inside a solid part is given up (a wall, not a post). The legs are re-checked
@@ -552,7 +554,8 @@ local function ShapesNear(A, B)
 end
 
 -- a new vertex for the leg A-B (ground points) whose waist ray hit Hit, or nil: see the header (1b)
--- Costs, MaxCost: the new legs A-V and V-B need walkable ground no dearer than the leg's own labels (GroundAlong)
+-- Costs, MaxCost: the new legs A-V and V-B need walkable ground no dearer than MaxCost (GroundAlong): Repair passes
+-- the dearer of the leg's two end labels, never under RepairGroundCost (LegCost)
 local function RepairVertex(A, B, Hit, Budget, Costs, MaxCost)
 	if Hit.Instance:IsA("Terrain") then return nil end -- (a terrain bump: no shapes to push off; the leg stays stale)
 	local Waist = Vector3.new(0, Mover.WaistHeight, 0)
@@ -675,7 +678,8 @@ end
 -- (body) an existing waypoint closer than the repair's floor (1.25) to something at waist height (PathfindingService
 -- leaves corner waypoints 0.04-1.8 studs from walls): moved off it along the distance gradient to RepairClearances,
 -- where there is ground, as a new vertex would be; nil when it is clear enough already or can't be moved
--- Prev, Next, Costs, MaxCost: the legs Prev-P and P-Next need walkable ground (GroundAlong) after the move
+-- Prev, Next, Costs, MaxCost: the legs Prev-P and P-Next need walkable ground (GroundAlong) after the move, no dearer
+-- than MaxCost (Repair passes the dearest of the three points' labels, never under RepairGroundCost)
 local function Ease(P, Budget, Prev, Next, Costs, MaxCost)
 	local Waist = Vector3.new(0, Mover.WaistHeight, 0)
 	local Q = P + Waist
@@ -720,11 +724,17 @@ local function Repair(Pts, Labels, RawIdx, Budget, Costs)
 	local Added = {}
 	local Waist = Vector3.new(0, Mover.WaistHeight, 0)
 	local From, To = Pts[1], Pts[#Pts]
-	-- (fix round 1) the new legs' ground may be no dearer than the dearest ground this path already walks (its labels),
-	-- and never less than RepairGroundCost: a corner pushed off a cobbled street onto plain Ground is fine, one into
-	-- grass, mud or water off a street is not
-	local MaxCost = Mover.RepairGroundCost
-	for K = 1, #Pts do MaxCost = math.max(MaxCost, Cost(Costs, OL[K])) end
+	-- (fix round 1; Task 9: per leg) the new legs' ground may be no dearer than the ground the planned path walks at
+	-- that leg's own ends (their labels), and never less than RepairGroundCost: a corner pushed off a cobbled street
+	-- onto plain Ground is fine, one into grass, mud or water off a street is not, even when the path crosses a lawn
+	-- somewhere else
+	local function LegCost(...)
+		local M = Mover.RepairGroundCost
+		for _, K in ipairs({...}) do
+			if OL[K] ~= nil then M = math.max(M, Cost(Costs, OL[K])) end
+		end
+		return M
+	end
 	local I = 1
 	while I < #Out do
 		if Budget then Budget() end
@@ -739,7 +749,7 @@ local function Repair(Pts, Labels, RawIdx, Budget, Costs)
 				for _, K in ipairs({I + 1, I}) do
 					if K > 1 and K < #Out and not Tried[K] then
 						Tried[K] = true
-						local NP = Ease(Out[K], Budget, Out[K - 1], Out[K + 1], Costs, MaxCost)
+						local NP = Ease(Out[K], Budget, Out[K - 1], Out[K + 1], Costs, LegCost(K - 1, K, K + 1))
 						if NP then Out[K], Eased = NP, true break end
 					end
 				end
@@ -748,7 +758,7 @@ local function Repair(Pts, Labels, RawIdx, Budget, Costs)
 				I = math.max(1, I - 1)
 			else
 				if #Added >= Mover.RepairMax then return nil end
-				local V = RepairVertex(A, B, Hit or Body, Budget, Costs, MaxCost)
+				local V = RepairVertex(A, B, Hit or Body, Budget, Costs, LegCost(I, I + 1))
 				if not V then return nil end
 				table.insert(Out, I + 1, V)
 				table.insert(OL, I + 1, OL[I])
@@ -2051,11 +2061,11 @@ function Mover.PlanPath(From, Goal, Agent, Opts)
 end
 
 -- (Task 4b, tests) the corner repair of a polyline of ground points, as a plan runs it (Valid first)
-function Mover.RepairPath(Pts)
+function Mover.RepairPath(Pts, Labels)
 	if not Refreshed then RefreshBodies() end
 	local Raw = {}
 	for K = 1, #Pts do Raw[K] = K end
-	local Out, _, _, Added = Mend(Pts, {}, Raw, nil, Mover.Costs)
+	local Out, _, _, Added = Mend(Pts, Labels or {}, Raw, nil, Mover.Costs)
 	if not Out then return nil, "stale" end
 	return Out, Added
 end

@@ -19,6 +19,14 @@
 --                            repair pushes to: refused, or routed round with floor under every leg (rays every 0.5).
 --   * CentredPostIsRoutedRound (fix round 1) a line dead through the middle of a 0.6-stud post (no gradient there):
 --                            repaired round it, as PostIsRoutedRound.
+--   * DearGroundIsRefused    (Task 9, the 4b re-review) a line through a post on a 2-stud Concrete strip with Grass
+--                            either side; the points' labels are Concrete except the first, far leg's ("Grass": the
+--                            path crosses a lawn somewhere else). A new vertex clear of the post lands on Grass, dearer
+--                            than the leg's own ground: refused (stale), or routed round with Concrete under every leg.
+--                            (The repair's cost cap is the leg's neighbouring labels, not the dearest on the path.)
+--   * EaseKeepsItsGround     (Task 9) a waypoint hugging a wall on a Concrete strip with Grass beyond 1.6 studs from
+--                            the wall, all labels Concrete: the eased point (1.25+ off the wall) would stand on Grass, so
+--                            the ease is refused; the path stays stale or keeps Concrete under every leg.
 local SSS = game:GetService("ServerScriptService")
 local Mover = require(SSS.TownsfolkService.Mover)
 
@@ -55,7 +63,16 @@ local function Fixture(T, Body, Opts)
 		return P
 	end
 	local Tr = Opts and Opts.Trench -- {Z0, Z1}: no floor between them, across the whole floor
-	if Tr then
+	local St = Opts and Opts.Strip -- {Z0, Z1}: Concrete between them, Grass on either side (across the whole floor)
+	if St then
+		local Lo, Hi = -FLOOR / 2, FLOOR / 2
+		local G1 = Part(CFrame.new(O + Vector3.new(0, 0, (Lo + St[1]) / 2)), Vector3.new(FLOOR, 2, St[1] - Lo))
+		local G2 = Part(CFrame.new(O + Vector3.new(0, 0, (St[2] + Hi) / 2)), Vector3.new(FLOOR, 2, Hi - St[2]))
+		G1.Material, G2.Material = Enum.Material.Grass, Enum.Material.Grass
+		table.insert(Ctx.Floors, G1)
+		table.insert(Ctx.Floors, Part(CFrame.new(O + Vector3.new(0, 0, (St[1] + St[2]) / 2)), Vector3.new(FLOOR, 2, St[2] - St[1])))
+		table.insert(Ctx.Floors, G2)
+	elseif Tr then
 		local Lo, Hi = -FLOOR / 2, FLOOR / 2
 		table.insert(Ctx.Floors, Part(CFrame.new(O + Vector3.new(0, 0, (Lo + Tr[1]) / 2)), Vector3.new(FLOOR, 2, Tr[1] - Lo)))
 		table.insert(Ctx.Floors, Part(CFrame.new(O + Vector3.new(0, 0, (Tr[2] + Hi) / 2)), Vector3.new(FLOOR, 2, Hi - Tr[2])))
@@ -117,6 +134,24 @@ local function GroundLegs(Ctx, Pts)
 	return Out
 end
 local function Flat(V) return Vector3.new(V.X, 0, V.Z) end
+-- {"leg k: Grass at (x, z)"}: a ray down every 0.5 studs of each leg must meet Concrete floor
+local function ConcreteLegs(Ctx, Pts)
+	Down.FilterDescendantsInstances = Ctx.Floors
+	local Out = {}
+	for I = 1, #Pts - 1 do
+		local A, B = Pts[I], Pts[I + 1]
+		local N = math.max(1, math.ceil((B - A).Magnitude / 0.5))
+		for K = 0, N do
+			local P = A:Lerp(B, K / N)
+			local H = workspace:Raycast(P + Vector3.new(0, 1.5, 0), Vector3.new(0, -4.5, 0), Down)
+			if not H or H.Material ~= Enum.Material.Concrete then
+				table.insert(Out, ("leg %d: %s at (%.1f, %.1f)"):format(I, H and H.Material.Name or "no floor", P.X, P.Z))
+				break
+			end
+		end
+	end
+	return Out
+end
 -- {"leg k body hits X"}: a BODY sphere swept at waist height down each leg, outside END of the path's two ends
 local function BodyLegs(Ctx, Pts)
 	Ray.FilterDescendantsInstances = Ctx.Boxes
@@ -255,6 +290,42 @@ return {
 			local B = BodyLegs(Ctx, Out)
 			T.Eq(#B, 0, "every leg clear for the body (" .. table.concat(B, ", ") .. ")")
 		end)
+	end,
+
+	DearGroundIsRefused = function(T)
+		Fixture(T, function(Ctx)
+			Ctx.Box(0, 4, 0.6, 0.6) -- a post: x -0.3..0.3, z 3.7..4.3, in the middle of the Concrete strip (z 3..5)
+			local Pts = {Ctx.At(-40, 4.1), Ctx.At(-12, 4.1), Ctx.At(12, 4.1), Ctx.At(30, 4.1)}
+			local Labels = {"Grass", "Concrete", "Concrete", "Concrete"} -- (the far first leg crosses a lawn elsewhere)
+			T.True(#ClearLegs(Ctx, Pts) > 0, "the line runs through the post")
+			T.Eq(#ConcreteLegs(Ctx, {Pts[2], Pts[3]}), 0, "the leg through the post runs on Concrete")
+			local Out, Why = Mover.RepairPath(Pts, Labels)
+			if Out then
+				local G = ConcreteLegs(Ctx, {table.unpack(Out, 2, #Out - 1)})
+				T.Eq(#G, 0, "a repair keeps Concrete under the legs round the post, as the leg's own labels (" .. table.concat(G, ", ") .. ")")
+				T.Eq(#ClearLegs(Ctx, Out), 0, "and clears the post")
+			else
+				T.Eq(Why, "stale", "or the repair is refused")
+			end
+		end, {Strip = {3, 5}})
+	end,
+
+	EaseKeepsItsGround = function(T)
+		Fixture(T, function(Ctx)
+			Ctx.Box(0, 0, 20, 1) -- x -10..10, its face at z 0.5
+			local Pts = {Ctx.At(-14, 1.0), Ctx.At(0, 0.8), Ctx.At(14, 1.0)} -- the middle point 0.3 off the wall
+			local Labels = {"Concrete", "Concrete", "Concrete"}
+			T.Eq(#ClearLegs(Ctx, Pts), 0, "the centre line is clear")
+			T.True(#BodyLegs(Ctx, Pts) > 0, "the body isn't")
+			T.Eq(#ConcreteLegs(Ctx, Pts), 0, "the path runs on Concrete")
+			local Out, Why = Mover.RepairPath(Pts, Labels)
+			if Out then
+				local G = ConcreteLegs(Ctx, Out)
+				T.Eq(#G, 0, "an eased or repaired path keeps Concrete under every leg (" .. table.concat(G, ", ") .. ")")
+			else
+				T.Eq(Why, "stale", "or the ease is refused and the path stays stale")
+			end
+		end, {Strip = {-30, 1.6}}) -- Concrete from z -30 to 1.6 (1.1 off the wall's face); Grass beyond
 	end,
 
 	ValidPathUnchanged = function(T)

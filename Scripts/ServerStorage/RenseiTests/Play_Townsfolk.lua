@@ -699,6 +699,7 @@ return {
 				T.True(os.clock() >= At2 - 0.05, "at the retry, not before")
 				T.Eq(Calls, 2, "placed, not walked")
 				T.Eq(select(2, TS.Retry(D.Id)), 0, "the backoff starts over once placed")
+				T.Eq(select(3, TS.Retry(D.Id)), nil, "and its retry delay is cleared (Settle, Foundry Yard plan Task 9)")
 			end)
 			Mover.WalkTo = RealWalk
 			if not Ok then error(Err, 0) end
