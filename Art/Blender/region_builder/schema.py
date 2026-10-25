@@ -334,6 +334,13 @@ def validate(data):
     for k in ("NoCollide", "NoCollideKinds"):
         if k in data and not (isinstance(data[k], list) and all(_str(v) for v in data[k])):
             c.err("region", f"{k} must be a list of non-empty names, got {data[k]!r}")
+    # Foundry Yard game-data plan, Ruling 26 (4): the two optional keys are type-checked, not just allowed
+    if "RestoreRefuseFlags" in data and not (isinstance(data["RestoreRefuseFlags"], list)
+                                             and all(_str(v) for v in data["RestoreRefuseFlags"])):
+        c.err("region", "RestoreRefuseFlags must be a list of non-empty flag names (attributes on World.Map.<MapChild>),"
+                        f" got {data['RestoreRefuseFlags']!r}")
+    if "Notes" in data and not (isinstance(data["Notes"], list) and all(_str(v) for v in data["Notes"])):
+        c.err("region", f"Notes must be a list of non-empty strings, got {data['Notes']!r}")
     if "Budget" in data and not (_int(data["Budget"]) and 0 < data["Budget"] <= MAX_BUDGET):
         c.err("region", f"Budget must be an integer in 1..{MAX_BUDGET}, got {data['Budget']!r}")
     pal = data.get("Palette")

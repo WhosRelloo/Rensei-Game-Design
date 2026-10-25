@@ -212,6 +212,23 @@ def test_schema():
     bad["Keep"] = ["Station"]
     r, m, msgs = raises_schema(schema, bad, "unknown key Keep")
     check("the old name Keep is not the import setting (unknown key)", r and m, msgs)
+    # RestoreRefuseFlags / Notes (Foundry Yard game-data plan Task 4, Ruling 1; type checks Ruling 26 (4), Task 10):
+    # the restore guard's flag names and free-text notes are lists of non-empty strings
+    with open(os.path.join(REPO, "Art", "Regions", "Foundry", "layout.json"), encoding="utf-8") as f:
+        foundry_raw = json.load(f)
+    for key in ("RestoreRefuseFlags", "Notes"):
+        good = copy.deepcopy(raw)
+        good[key] = copy.deepcopy(foundry_raw[key])
+        r, m, msgs = raises_schema(schema, good, key)
+        check(f"{key} as Foundry's region file has it ({len(good[key])} strings) loads", not r and len(good[key]) > 0,
+              msgs)
+        for val, why in (("FoundryPosts", "a string"), (["FoundryPosts", 3], "a number in it"),
+                         (["FoundryPosts", ""], "an empty string in it"), ({"FoundryPosts": True}, "an object"),
+                         ([["FoundryPosts"]], "a list in it")):
+            bad = copy.deepcopy(raw)
+            bad[key] = val
+            r, m, msgs = raises_schema(schema, bad, key)
+            check(f"a {key} with {why} raises", r and m, msgs)
     check("the Testbed has an EdgeGap at each end of the main road",
           sum(1 for mk in L["Markers"] if mk["Tag"] == "EdgeGap") == 2, [mk["Tag"] for mk in L["Markers"]])
     test_travel_markers(schema, raw)

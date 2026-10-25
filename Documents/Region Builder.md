@@ -54,8 +54,8 @@ The region file is `Art/Regions/<Region>/layout.json`. `region_builder/schema.py
 | `MapChild` | no | The `World.Map` child the import builds. Absent means the Region name. Letters, digits and `_`, starting with a letter. |
 | `NoCollide` | no | Part-name substrings that are walk-through in the import (see "Collision"). Absent means the region's default. |
 | `NoCollideKinds` | no | Prefab kinds that are walk-through in the import. Absent means the region's default. |
-| `RestoreRefuseFlags` | no | The Studio fix flags (attribute names on `World.Map.<MapChild>`) that make the import's `restore.lua` refuse while any is set. |
-| `Notes` | no | Free-text strings for later readers, e.g. a change made in Studio that the builder doesn't make. The builder never reads them. |
+| `RestoreRefuseFlags` | no | The Studio fix flags (attribute names on `World.Map.<MapChild>`) that make the import's `restore.lua` refuse while any is set. A list of non-empty strings (the schema checks it). |
+| `Notes` | no | Free-text strings for later readers, e.g. a change made in Studio that the builder doesn't make. The builder never reads them. A list of non-empty strings (the schema checks it). |
 
 `KeepMapChildren` may not name the `MapChild`. Lindenmoor's file has its own top-level `Keep` (a list of area objects). That is a different thing, and the import ignores it.
 
@@ -357,6 +357,7 @@ When it goes ahead, it:
 - it puts the old map back, with its tags, water and texture settings;
 - it never deletes the imported map: that moves to `RenseiBackups["Post-Region_<Region>_<date>"]`, tags stripped, so anything built in it after the import is kept;
 - it refuses if a backed-up child's name is already taken in `World.Map`;
+- it refuses, changing nothing, while `World.Map.<MapChild>` carries any flag named in the region file's `RestoreRefuseFlags` (a Studio fix made after the import that has its own undo). Undo those fixes first; the refusal names the flag. A region file without the key gets no such guard. Today Lindenmoor lists its seven fix flags and Foundry lists `FoundryPosts`, `FoundryForge`, `FoundryLedges`, `FoundryWalks` and `FoundryAnvil` (`Documents/Lindenmoor Kit.md` and `Documents/Foundry Yard Kit.md` have the undo orders);
 - set `DATE` at its top to restore an older backup than the newest.
 
 **Unstrip.** A piece dragged out of a backup has no tags. To get them back, either:
