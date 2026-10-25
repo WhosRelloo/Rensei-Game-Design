@@ -43,7 +43,7 @@ if not (Dest and Dest.Parent == Map) then
 end
 -- Later fixes made in place on World.Map.<MapChild> (the region file's RestoreRefuseFlags): each one marks it with
 -- an attribute and has its own undo. restore.lua would carry them off half-undone, so it refuses while any is set.
-local REFUSE_FLAGS = HS:JSONDecode([==[["LindenmoorSeamRegrade", "LindenmoorSeamPits", "LindenmoorGorgeFix", "LindenmoorGorgeBed", "LindenmoorRoadCut", "LindenmoorShelters", "LindenmoorEastWest"]]==])
+local REFUSE_FLAGS = HS:JSONDecode([==[["LindenmoorSeamRegrade", "LindenmoorSeamPits", "LindenmoorGorgeFix", "LindenmoorGorgeBed", "LindenmoorRoadCut", "LindenmoorShelters", "LindenmoorEastWest", "LindenmoorPostFixes"]]==])
 local StillSet = {}
 for _, F in ipairs(REFUSE_FLAGS) do
 	if Dest:GetAttribute(F) then table.insert(StillSet, F) end

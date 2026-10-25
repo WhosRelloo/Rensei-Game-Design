@@ -134,7 +134,8 @@ def test_generated():
 
 # ---------------------------------------------------------------- 3. the guards
 FLAGS = ["LindenmoorSeamRegrade", "LindenmoorSeamPits", "LindenmoorGorgeFix", "LindenmoorGorgeBed",
-         "LindenmoorRoadCut", "LindenmoorShelters", "LindenmoorEastWest"]
+         "LindenmoorRoadCut", "LindenmoorShelters", "LindenmoorEastWest",
+         "LindenmoorPostFixes"]  # post_fixes.lua (Foundry Yard plan final fix, 2026-10-25)
 
 
 def guard_list(src, start):
