@@ -131,7 +131,7 @@ return {
 		-- stand. PROPOSAL wording. No Evidence, so Requires gates only the quest: a player who already has a path reads it
 		-- and gets no toast.
 		brannoc_moved = {Title = "Brannoc's Notice", StartsQuest = "acq_metal", Requires = {NoAffinity = true},
-			Text = "A notice nailed to the post where the Metal Alchemist used to stand, in square, careful capitals: \"GONE TO THE FOUNDRY YARD. A FORGE THERE NEEDS LOOKING AT. STUDENTS: TRAIN FROM LINDENMOOR STATION, OR THE NORTH ROAD. - B.\""},
+			Text = "A notice nailed to the post where the Metal Alchemist used to stand, in square, careful capitals: \"GONE TO THE FOUNDRY YARD. A FORGE THERE NEEDS LOOKING AT. STUDENTS: TRAIN FROM LINDENMOOR STATION, OR WALK THE NORTH ROAD OUT NORTH-WEST. - B.\""},
 		metal_shaft = {
 			Title = "Drive Shaft", Evidence = "sheared_shaft", Requires = {Quest = {Id = "acq_metal", StageAtLeast = StoryLogic.StageIndex(Quests.acq_metal, "fieldwork")}},
 			Text = "The drive shaft sheared clean through. The break is bright and grainy: it was too hard and brittle for the load, not too weak.",

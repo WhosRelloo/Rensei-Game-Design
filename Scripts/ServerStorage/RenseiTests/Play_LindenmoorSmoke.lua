@@ -17,22 +17,36 @@
 --     its wall: rays from the foothold along the front meet a near wall face at both ends and the middle, and the
 --     back is open.
 --   * EveryTrialStarts: each RenseiTrial is in workspace with a known TrialId and got its "Begin Trial" prompt at
---     Start; each of the five trials has exactly one.
---   * TrainersCanBeTalkedTo: each of the five elemental trainers has its DialogueId (a dialogue that exists), got its
---     talk prompt at Start, and stands within 6 studs of its TrainerSpot.
---   * EnemiesStandInTheWorld (final review C1, 2026-10-24): every enemy EnemyService has live has its Home (the part
---     it spawned from) in workspace, or outside the DataModel altogether (a runtime mark: RoadService's ambushes,
---     RideEvents' holdups); never in the DataModel outside workspace (the retired old-hub GruntSpawns in RenseiBackups
---     keep their tag). No tagged spawn outside workspace has an enemy, and a downward ray from each RenseiEnemySpawn
---     in use meets ground within SPAWN_GROUND studs. Before the fix, the two retired GruntSpawns spawned Grunts from
---     ServerStorage.
--- Everything the tests change (the player's root, the clock hold, the crag tags) is put back.
+--     Start; each of the four trials Ye keeps has exactly one. (Foundry Yard plan Task 8, 2026-10-25: the Forge Floor and
+--     its metal_experiment trial moved to Foundry, so no instance anywhere in the DataModel carries the RenseiTrial tag
+--     with TrialId metal_experiment; Ye's copy waits in a backup with its tags set aside as RegionKitTags.)
+--   * TrainersCanBeTalkedTo: five TrainerSpot markers, each with its own Element. The Flame, Ice, Earth and Wind
+--     trainers each have their DialogueId (a dialogue that exists), got their talk prompt at Start, and stand within 6
+--     studs of their TrainerSpot. Metal (Task 8, owner decision D): Brannoc teaches in Foundry now, so no model with
+--     TrainerPath "Metal" is in workspace, and a part with InspectId "brannoc_moved" (his notice) stands within 6
+--     studs of the Metal spot with its InspectPrompt.
+--   * BrannocNoticeStartsTheQuest (Task 8): with acq_* cleared from the save and no path (Affinity ""), the player
+--     standing within 9 studs of the notice inspects it (InvestigationService.Inspect, as the prompt does): acq_metal
+--     starts at stage 1 (travel) with Progress.foundry 0, since TravelService.Here() is Lindenmoor. The notice's text
+--     names the way the road leaves on Ye's compass (north +Z): the 8-point word for Regions.Bearing(dx, dz, "+Z")
+--     from the board to the road's RoadStart arrival. The save's Quests and Identity are put back after.
+--   * EnemiesStandInTheWorld (final review C1, 2026-10-24): SmokeKit.EnemiesStandInTheWorld with no Opts. Every enemy
+--     EnemyService has live has its Home (the part it spawned from) in workspace, or outside the DataModel altogether
+--     (a runtime mark: RoadService's ambushes, RideEvents' holdups); never in the DataModel outside workspace (the
+--     retired old-hub GruntSpawns in RenseiBackups keep their tag). No tagged spawn outside workspace has an enemy,
+--     and a downward ray from each RenseiEnemySpawn in use meets ground within SmokeKit.SPAWN_GROUND studs. Before the
+--     fix, the two retired GruntSpawns spawned Grunts from ServerStorage.
+-- The traversal and enemy helpers (Ask, WithRoot, EnemiesStandInTheWorld) and Copy / Stand live in RenseiTests.SmokeKit
+-- (Task 8, Ruling 6), shared with Foundry's suites.
+-- Everything the tests change (the player's root, the clock hold, the crag tags, the save's Quests and Identity) is put
+-- back.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
 local SSS = game:GetService("ServerScriptService")
 local Rensei = ReplicatedStorage.Modules.Data.Rensei
 local Tuning = require(Rensei.TuningConfig)
 local MovementState = require(ReplicatedStorage.Modules.Managers.MovementState)
+local SmokeKit = require(script.Parent.SmokeKit)
 local Player = game.Players:GetPlayers()[1]
 
 local NOGRIP = "RenseiNoGrip"
@@ -116,38 +130,6 @@ local function CragSpot(E, Reach, MP)
 	return nil, nil, Skipped
 end
 
--- asks the server for a traversal (as JumpRemote "TraversalState" does) and waits for its answer for this session:
--- the published Kind ("Climb" / "WallRun" when accepted, "None" when refused) and the reason (as Play_NoGrip)
-local NextSeq = 900000
-local function Ask(Character, Kind)
-	NextSeq += 1
-	local Seq = NextSeq
-	MovementState.Request(Player, true, Kind, Seq)
-	local T0 = os.clock()
-	while os.clock() - T0 < 2 do
-		local S, K, Why = MovementState.ParseSession(Character:GetAttribute("TraversalSession"))
-		if S == Seq then
-			MovementState.Clear(Character, "Test")
-			return K, Why
-		end
-		task.wait(0.05)
-	end
-	return "Timeout", ""
-end
-
--- runs Fn(Character, Root) and always clears the traversal and puts the root back
-local function WithRoot(Fn)
-	local Character = Player and Player.Character
-	local Root = Character and Character:FindFirstChild("HumanoidRootPart")
-	assert(Root, "no test player character")
-	local Saved = {CFrame = Root.CFrame, Anchored = Root.Anchored}
-	local Ok, Err = pcall(Fn, Character, Root)
-	pcall(MovementState.Clear, Character, "Test")
-	Root.Anchored = Saved.Anchored
-	Root.CFrame = Saved.CFrame
-	if not Ok then error(Err, 0) end
-end
-
 -- ===== water =====
 -- (x, z) on the channel centrelines of Art/Regions/Lindenmoor/water_segments.json (Bed 1, Top 5.2)
 local WATER = {
@@ -156,7 +138,11 @@ local WATER = {
 }
 local WATER_TOP = 5.2
 
-local TRIALS = {"flame_apprentice", "ice_guardian", "earth_quarry", "wind_dancer", "metal_experiment"}
+-- the trials Ye keeps (Task 8: metal_experiment moved to Foundry with the Forge Floor)
+local TRIALS = {"flame_apprentice", "ice_guardian", "earth_quarry", "wind_dancer"}
+local MOVED_TRIAL = "metal_experiment"
+local NOTICE = "brannoc_moved" -- Brannoc's notice at the Metal TrainerSpot (owner decision D)
+local COMPASS8 = {"NORTH", "NORTH-EAST", "EAST", "SOUTH-EAST", "SOUTH", "SOUTH-WEST", "WEST", "NORTH-WEST"}
 
 local Suite = {}
 
@@ -170,7 +156,7 @@ function Suite.CragCantBeGrabbed(T)
 	for _, E in ipairs(EDGES) do
 		local Stand, S, Skipped = CragSpot(E, Reach, MP)
 		T.True(Stand ~= nil, E.Name .. ": a spot at the crag's foot without grippable clutter (" .. table.concat(Skipped, "; ") .. ")")
-		WithRoot(function(Character, Root)
+		SmokeKit.WithRoot(Player, function(Character, Root)
 			Root.Anchored = true
 			Root.CFrame = CFrame.lookAt(Stand, Stand + E.Out)
 			task.wait(0.1)
@@ -183,10 +169,10 @@ function Suite.CragCantBeGrabbed(T)
 				T.True(Hit.Normal:Dot(E.Out) < -0.7, Where .. ": it is a wall facing the player")
 				T.Eq(MovementState.Grippable(Hit.Instance), false, Where .. ": " .. Hit.Instance.Name .. " can't be gripped")
 			end
-			local Kind, Why = Ask(Character, "Climb")
+			local Kind, Why = SmokeKit.Ask(Player, Character, "Climb")
 			T.Eq(Kind, "None", E.Name .. ": a climb on the crag is refused")
 			T.Eq(Why, "Refused:NoWall", E.Name .. ": refused as if no wall were there")
-			Kind, Why = Ask(Character, "WallRun")
+			Kind, Why = SmokeKit.Ask(Player, Character, "WallRun")
 			T.Eq(Kind, "None", E.Name .. ": a wall run on the crag is refused")
 			T.Eq(Why, "Refused:NoWall", E.Name .. ": wall run refused as if no wall were there")
 			-- control: the same spot with the crag's tags off for a moment takes a climb
@@ -201,7 +187,7 @@ function Suite.CragCantBeGrabbed(T)
 				end
 				T.True(#Untagged > 0, E.Name .. ": crag parts near the spot")
 				T.True(MovementState.Grippable(Untagged[1]), E.Name .. ": untagged, the crag could be gripped")
-				local K2, W2 = Ask(Character, "Climb")
+				local K2, W2 = SmokeKit.Ask(Player, Character, "Climb")
 				T.Eq(K2, "Climb", E.Name .. ": control: untagged, the same climb is accepted (" .. tostring(W2) .. ")")
 			end)
 			for _, P in ipairs(Untagged) do CollectionService:AddTag(P, NOGRIP) end
@@ -332,6 +318,12 @@ end
 function Suite.EveryTrialStarts(T)
 	local Defs = require(Rensei.Trials)
 	local Count = {}
+	-- (Task 8) the moved trial is nowhere in the DataModel: its backup carries no live tag
+	local Moved = {}
+	for _, P in ipairs(CollectionService:GetTagged("RenseiTrial")) do
+		if P:GetAttribute("TrialId") == MOVED_TRIAL then table.insert(Moved, P:GetFullName()) end
+	end
+	T.Eq(#Moved, 0, "RenseiTrial instances with TrialId " .. MOVED_TRIAL .. " in the DataModel (it moved to Foundry): " .. table.concat(Moved, ", "))
 	for _, P in ipairs(CollectionService:GetTagged("RenseiTrial")) do
 		local Id = P:GetAttribute("TrialId")
 		T.True(P:IsDescendantOf(workspace), P:GetFullName() .. " is in workspace")
@@ -342,10 +334,20 @@ function Suite.EveryTrialStarts(T)
 	for _, Id in ipairs(TRIALS) do T.Eq(Count[Id], 1, Id .. " sites") end
 end
 
-function Suite.TrainersCanBeTalkedTo(T)
-	local Dialogues = require(Rensei.Dialogues)
-	local Folder = workspace.World.NPCs:FindFirstChild("Alchemy Trainers")
-	T.True(Folder ~= nil, "World.NPCs[\"Alchemy Trainers\"]")
+-- the inspect point with InspectId Id in workspace nearest Pos, and its distance
+local function NearestInspect(Id, Pos)
+	local Best, Dist = nil, math.huge
+	for _, P in ipairs(CollectionService:GetTagged("RenseiInspect")) do
+		if P:IsDescendantOf(workspace) and P:IsA("BasePart") and P:GetAttribute("InspectId") == Id then
+			local D = (P.Position - Pos).Magnitude
+			if D < Dist then Best, Dist = P, D end
+		end
+	end
+	return Best, Dist
+end
+
+-- the five TrainerSpot markers in workspace, each with its own Element: the list, and {[Element] = Spot}
+local function TrainerSpots(T)
 	local Spots = {}
 	for _, P in ipairs(CollectionService:GetTagged("RenseiMarker")) do
 		if P:IsDescendantOf(workspace) and P:GetAttribute("Piece") == "TrainerSpot" then table.insert(Spots, P) end
@@ -355,10 +357,31 @@ function Suite.TrainersCanBeTalkedTo(T)
 	for _, Spot in ipairs(Spots) do
 		local El = Spot:GetAttribute("Element")
 		T.True(El ~= nil and not Elements[El], "TrainerSpot " .. Spot.Name .. " has its own Element (" .. tostring(El) .. ")")
-		Elements[El] = true
+		Elements[El] = Spot
 	end
+	return Spots, Elements
+end
+
+function Suite.TrainersCanBeTalkedTo(T)
+	local Dialogues = require(Rensei.Dialogues)
+	local Folder = workspace.World.NPCs:FindFirstChild("Alchemy Trainers")
+	T.True(Folder ~= nil, "World.NPCs[\"Alchemy Trainers\"]")
+	local Spots = TrainerSpots(T)
 	for _, Spot in ipairs(Spots) do
 		local Element, Name = Spot:GetAttribute("Element"), Spot:GetAttribute("Trainer")
+		if Element == "Metal" then
+			-- (Task 8, owner decision D) Brannoc teaches in Foundry: no Metal trainer here, his notice instead
+			for _, M in ipairs(workspace:GetDescendants()) do
+				if M:IsA("Model") and M:GetAttribute("TrainerPath") == "Metal" then
+					T.True(false, "a Metal trainer is still in Ye's workspace: " .. M:GetFullName())
+				end
+			end
+			local Board, Off = NearestInspect(NOTICE, Spot.Position)
+			T.True(Board ~= nil, "a part with InspectId " .. NOTICE .. " in workspace")
+			T.True(Off <= 6, ("the %s notice stands %.1f studs from the Metal TrainerSpot (at most 6)"):format(NOTICE, Off))
+			T.True(Board:FindFirstChild("InspectPrompt") ~= nil, "the " .. NOTICE .. " notice got its InspectPrompt")
+			continue
+		end
 		local Trainer
 		for _, M in ipairs(Folder:GetChildren()) do
 			if M:GetAttribute("TrainerPath") == Element then
@@ -380,60 +403,89 @@ function Suite.TrainersCanBeTalkedTo(T)
 	end
 end
 
--- ===== enemies =====
-local SPAWN_GROUND = 6 -- PROPOSAL: studs from a spawn's centre down to the ground under it (Ye's spawns: 0.5..1.5)
+-- ===== Brannoc's notice =====
+-- the 8-point compass word for a bearing in degrees (0 north, 90 east)
+local function Compass8(Deg)
+	return COMPASS8[(math.floor((Deg % 360) / 45 + 0.5) % 8) + 1]
+end
 
-function Suite.EnemiesStandInTheWorld(T)
-	local ES = require(SSS.EnemyService)
-	local Live = workspace.World:FindFirstChild("Live")
-	-- the spawns in use: the Home of every live enemy
-	local Used, Homes, N, Marks = {}, {}, 0, 0
-	for Rig, E in pairs(ES.Active) do
-		N += 1
-		local Home = E.Home
-		T.True(Home ~= nil, Rig.Name .. " has a Home")
-		if Home:IsDescendantOf(game) then
-			T.True(Home:IsDescendantOf(workspace), ("%s's Home %s is in workspace"):format(Rig.Name, Home:GetFullName()))
-			if not Used[Home] then Used[Home] = true table.insert(Homes, Home) end
-		else
-			Marks += 1 -- (a runtime mark outside the DataModel: an ambush or holdup; it never respawns)
+function Suite.BrannocNoticeStartsTheQuest(T)
+	local PS = require(SSS.ProgressionService)
+	local Investigation = require(SSS.InvestigationService)
+	local TravelService = require(SSS.TravelService)
+	local Regions = require(Rensei.Regions)
+	local Def = require(Rensei.Investigation).Inspects[NOTICE]
+	T.True(Def ~= nil, NOTICE .. " has an inspect def")
+	local _, Elements = TrainerSpots(T)
+	local Spot = Elements.Metal
+	T.True(Spot ~= nil, "the Metal TrainerSpot")
+	local Board, Off = NearestInspect(NOTICE, Spot.Position)
+	T.True(Board ~= nil and Off <= 6, "the " .. NOTICE .. " notice at the Metal TrainerSpot")
+	-- the notice's direction word is Ye's (north +Z), toward where the road to Foundry leaves (read live, not written)
+	local RoadStart = TravelService.ArrivalPoint("RoadStart")
+	T.True(RoadStart ~= nil, "Ye's RoadStart arrival (the road to Foundry)")
+	local D = RoadStart.Position - Board.Position
+	local Deg = Regions.Bearing(D.X, D.Z, "+Z")
+	local Word = Compass8(Deg)
+	T.True(string.find(string.upper(Def.Text), Word, 1, true) ~= nil,
+		("the notice names the road's way out on Ye's compass, %s (bearing %.0f): %s"):format(Word, Deg, Def.Text))
+	T.Eq(TravelService.Here(), "Lindenmoor", "TravelService.Here()")
+
+	local Data = Player and PS.GetData(Player)
+	T.True(Data ~= nil and type(Data.Quests) == "table", "a player with a loaded save")
+	local Char = Player.Character
+	local Root = Char and Char:FindFirstChild("HumanoidRootPart")
+	T.True(Root ~= nil, "the player has a character")
+	local Home, WasAnchored = Char:GetPivot(), Root.Anchored
+	local Saved = {
+		Quests = {Was = Data.Quests, Copy = SmokeKit.Copy(Data.Quests)},
+		Identity = {Was = Data.Identity, Copy = SmokeKit.Copy(Data.Identity)},
+	}
+	local Ok, Err = pcall(function()
+		-- a player with no path and no acquisition quest
+		Data.Identity = Data.Identity or {}
+		Data.Identity.Affinity = ""
+		for _, Box in ipairs({Data.Quests.Active, Data.Quests.Completed}) do
+			for Id in pairs(Box) do if string.sub(Id, 1, 4) == "acq_" then Box[Id] = nil end end
 		end
+		local Me = SmokeKit.Stand(Player, Board.Position)
+		T.True((Me.Position - Board.Position).Magnitude <= 9, "the player stands within 9 studs of the notice")
+		T.True(Investigation.Inspect(Player, NOTICE, Board), "the notice was inspected")
+		local State = Data.Quests.Active.acq_metal
+		T.True(State ~= nil, "the notice started acq_metal")
+		T.Eq(State.Stage, 1, "acq_metal at stage 1 (travel)")
+		T.Eq(State.Progress and State.Progress.foundry, 0, "the travel objective is still open in Lindenmoor")
+	end)
+	-- everything back: the save tables (in place), the character, the dialogue box
+	local Back = {}
+	local function Try(What, Fn)
+		local K, E = pcall(Fn)
+		if not K then table.insert(Back, What .. ": " .. tostring(E)) end
 	end
-	T.True(N > 0, "EnemyService has live enemies")
-	-- a tagged spawn outside workspace (a backup) has no enemy
-	local Out = 0
-	for _, P in ipairs(CollectionService:GetTagged("RenseiEnemySpawn")) do
-		if not P:IsDescendantOf(workspace) then
-			Out += 1
-			T.True(not Used[P], P:GetFullName() .. " (not in workspace) has no enemy")
-		end
-	end
-	-- no live enemy model stands on a spawn EnemyService doesn't know (a Grunt from a backup, before its Home check)
-	if Live then
-		for _, M in ipairs(Live:GetDescendants()) do
-			if M:IsA("Model") and M:GetAttribute("EnemyType") and M:FindFirstChildOfClass("Humanoid")
-				and M:FindFirstChildOfClass("Humanoid").Health > 0 and not M:GetAttribute("TownsfolkId") then
-				T.True(ES.Active[M] ~= nil, M:GetFullName() .. " is one of EnemyService's live enemies")
+	Try("save", function()
+		for K, S in pairs(Saved) do
+			if type(S.Was) == "table" then
+				for Key in pairs(S.Was) do S.Was[Key] = nil end
+				for Key, V in pairs(S.Copy) do S.Was[Key] = SmokeKit.Copy(V) end
 			end
+			Data[K] = S.Was
 		end
-	end
-	-- each spawn in use stands on ground (not on a live rig or a player)
-	local Skip = {Live}
-	for _, Pl in ipairs(game.Players:GetPlayers()) do if Pl.Character then table.insert(Skip, Pl.Character) end end
-	local RP = RaycastParams.new()
-	RP.FilterType = Enum.RaycastFilterType.Exclude
-	for _, Home in ipairs(Homes) do
-		if not CollectionService:HasTag(Home, "RenseiEnemySpawn") then continue end -- (a trial / admin / test mark)
-		local Where = Home:IsA("BasePart") and Home.Position or Home:GetPivot().Position
-		local Ex = table.clone(Skip)
-		table.insert(Ex, Home)
-		RP.FilterDescendantsInstances = Ex
-		local Hit = workspace:Raycast(Where, Vector3.new(0, -SPAWN_GROUND, 0), RP)
-		T.True(Hit ~= nil, ("%s at (%.0f, %.1f, %.0f): ground within %d studs below"):format(Home:GetFullName(),
-			Where.X, Where.Y, Where.Z, SPAWN_GROUND))
-	end
-	print(("[Play_LindenmoorSmoke] EnemiesStandInTheWorld: %d live enemies on %d spawns (+%d runtime marks); %d tagged spawns outside workspace")
-		:format(N, #Homes, Marks, Out))
+	end)
+	Try("player", function()
+		Char:PivotTo(Home)
+		Root.AssemblyLinearVelocity = Vector3.zero
+		Root.Anchored = WasAnchored
+	end)
+	Try("dialogue", function() require(SSS.DialogueService).Close(Player) end)
+	Try("sync", function() PS.Sync(Player) end)
+	if not Ok then error(Err, 0) end
+	T.Eq(#Back, 0, "NOT PUT BACK: " .. table.concat(Back, " | "))
+end
+
+-- ===== enemies =====
+-- (Task 8: the check's body is SmokeKit's; Ye passes no Opts)
+function Suite.EnemiesStandInTheWorld(T)
+	SmokeKit.EnemiesStandInTheWorld(T)
 end
 
 return Suite

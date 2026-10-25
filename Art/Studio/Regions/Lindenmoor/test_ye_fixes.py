@@ -11,6 +11,8 @@ python -I Art/Studio/Regions/Lindenmoor/test_ye_fixes.py
    committed outputs can't be regenerated (the generators re-survey the current ground).
 3. The rollback guards are in place (review I2): restore.lua refuses on every fix flag, gorge_fix undo refuses on the
    seam pits, bed and road cut, regrade_seam undo refuses on the gorge fix, seam_pits undo on the road cut.
+4. prep_ye.lua's undo refuses while the Foundry move is applied (Foundry Yard plan Task 8, Ruling 12): the FoundryMove
+   guard is planUndo()'s first statement, before any journal step or change.
 """
 import glob, json, os, re, sys
 
@@ -168,9 +170,65 @@ def test_guards():
               and "seam_pits.lua, gorge_fix.lua and" in head)
 
 
+# ---------------------------------------------------------------- 4. prep_ye.lua's Foundry-move guard
+# (Foundry Yard plan Task 8, Ruling 12.) prep_ye.lua's undo puts Ye's trainers and spawns back by LindenmoorPrepFrom and
+# returns every backup child; with Brannoc, the forge rooms and the Ward spawn moved into the Foundry move's backup by
+# Art/Studio/Regions/Foundry/forge/retire_ye.lua, an undo then would act on a half-moved world. So planUndo() refuses
+# while World.Map has FoundryMove, before it plans anything, and so before doUndo's first journal step or move.
+# (bundle_prep.py builds the undo bundle from prep_ye.lua itself: there is no template.)
+GUARD = re.compile(r'^\s*if Map:GetAttribute\("FoundryMove"\) ~= nil then return nil, [^\n]*retire_ye\.lua[^\n]* end\s*$', re.M)
+# a line that writes the journal or changes the place: did(...), a Parent / attribute / pivot write, a Destroy
+CHANGE = re.compile(r'\bdid\(|table\.insert\(journal|\.Parent\s*=|:SetAttribute\(|setPivot\(|:PivotTo\(|\.CFrame\s*=|:Destroy\(')
+
+
+def function_body(src, header):
+    """The lines of the top-level Lua function opened by header, up to its closing top-level "end"."""
+    lines = src.split("\n")
+    start = next((i for i, l in enumerate(lines) if l.strip() == header), None)
+    if start is None:
+        return None, None
+    end = next((i for i in range(start + 1, len(lines)) if lines[i] == "end"), None)
+    return start, lines[start + 1:end] if end else None
+
+
+def guard_problems(src):
+    """Why src's planUndo() lacks a working FoundryMove guard (empty when it has one)."""
+    start, body = function_body(src, "local function planUndo()")
+    if body is None:
+        return ["no top-level local function planUndo()"]
+    g = next((i for i, l in enumerate(body) if GUARD.match(l)), None)
+    if g is None:
+        return ["no FoundryMove guard (if Map:GetAttribute(\"FoundryMove\") ~= nil then return nil, ... retire_ye.lua ... end) in planUndo()"]
+    out = []
+    first_change = next((i for i, l in enumerate(body) if CHANGE.search(l.split("--")[0])), None)
+    if first_change is not None and first_change < g:
+        out.append(f"planUndo() line {first_change + 1} ({body[first_change].strip()}) changes something before the guard")
+    first_stmt = next((i for i, l in enumerate(body) if l.strip() and not l.strip().startswith("--")), None)
+    if first_stmt != g:
+        out.append(f"the guard is not planUndo()'s first statement (line {g + 1}; first is {first_stmt + 1 if first_stmt is not None else '-'})")
+    run = src[src.index("-- ================================================================ run"):] if "-- ================================================================ run" in src else ""
+    if not re.search(r"W, why = planUndo\(\)", run) or run.index("planUndo()") > run.index("doUndo, W"):
+        out.append("the run section does not call planUndo() (and refuse on nil) before doUndo")
+    return out
+
+
+def test_prep_guard():
+    src = read("prep_ye.lua")
+    problems = guard_problems(src)
+    check("prep_ye.lua: planUndo() refuses while World.Map has FoundryMove, before any journal step", not problems, problems)
+    # self-tests: the check fails without the guard, and with a change put in front of it
+    start, body = function_body(src, "local function planUndo()")
+    if body and any(GUARD.match(l) for l in body):
+        no_guard = "\n".join(l for l in src.split("\n") if not GUARD.match(l))
+        check("self-test: prep_ye.lua without the guard is caught", bool(guard_problems(no_guard)))
+        moved = src.replace("local function planUndo()\n", "local function planUndo()\n\tdid(function() end)\n", 1)
+        check("self-test: a journal step before the guard is caught", bool(guard_problems(moved)))
+
+
 if __name__ == "__main__":
     test_names()
     test_generated()
     test_guards()
+    test_prep_guard()
     print(f"{'FAIL' if FAILS else 'PASS'}: {len(FAILS)} failed")
     sys.exit(1 if FAILS else 0)

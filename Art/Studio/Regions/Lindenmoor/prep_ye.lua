@@ -21,7 +21,7 @@
 --      goes to the highest planned top under its XZ box + 0.05, if it is below that. The summary lists each lift;
 --   7. sets World.Map's LindenmoorPrep = "applied".
 --   Every moved instance records its old CFrame (Parts) or pivot (Models) in LindenmoorPrepFrom, a 12-number CFrame string.
--- undo (refused unless applied): moves every workspace instance with LindenmoorPrepFrom back and clears it, returns every backup
+-- undo (refused while World.Map has FoundryMove: undo Art/Studio/Regions/Foundry/forge/retire_ye.lua first; refused unless applied): moves every workspace instance with LindenmoorPrepFrom back and clears it, returns every backup
 --   child to its LindenmoorPrepParent (else FromPath) parent and clears both, deletes the backup folder (and
 --   RenseiBackups, if apply created it and it is now empty), clears LindenmoorPrep. Apply's summary names the
 --   pads.json it ran (PADS_HASH: first 8 hex of its sha256; bundle_prep.py refuses a stale pads.json).
@@ -416,6 +416,9 @@ end
 
 -- ================================================================ undo
 local function planUndo()
+	-- (Foundry Yard plan Task 8, Ruling 12) Brannoc, the forge rooms and the Ward spawn sit in the Foundry move's backup:
+	-- undo that first, or this undo would act on a half-moved world. Refuses before anything is planned or changed.
+	if Map:GetAttribute("FoundryMove") ~= nil then return nil, "World.Map has FoundryMove (" .. tostring(Map:GetAttribute("FoundryMove")) .. "): undo the Foundry move first (Art/Studio/Regions/Foundry/forge/retire_ye.lua undo)" end
 	if Map:GetAttribute("LindenmoorPrep") ~= "applied" then return nil, "World.Map's LindenmoorPrep is not \"applied\"" end
 	local rb = backupsFolder()
 	local bk = rb and rb:FindFirstChild(BACKUP)
