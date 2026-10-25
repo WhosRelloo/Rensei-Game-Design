@@ -36,7 +36,8 @@ RBXC = os.path.join(REPO, "Art", "Tools", "rbxc.py")
 TOOL = "Art/Studio/Regions/Foundry/data/sync.py"
 PLACES = {"ye": 106992859583940, "foundry": 109591196441030}
 BACKUP = "Pre-FoundryData_2026-10-24"
-BACKUP_NAME = re.compile(r"^Pre-[A-Za-z0-9]+_\d{4}-\d{2}-\d{2}$")  # --backup NAME (the swim plan's check)
+BACKUP_NAME = re.compile(r"^Pre-[A-Za-z0-9]+_[0-9]{4}-[0-9]{2}-[0-9]{2}$")  # --backup NAME (the swim plan's check)
+# [0-9], not \d: in a str pattern \d also takes non-ASCII digits such as a fullwidth "２" (gun rework Task 3)
 CLASSES = ("ModuleScript", "Script", "LocalScript")
 RETRIES = 3
 

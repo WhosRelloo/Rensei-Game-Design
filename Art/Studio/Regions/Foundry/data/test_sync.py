@@ -100,8 +100,8 @@ def main():
         check(f"{p['Label']} places", p["Places"] and set(p["Places"]) <= {"ye", "foundry"}, p["Places"])
         check(f"{p['Label']} class", p["Class"] in ("ModuleScript", "Script", "LocalScript"), p["Class"])
         check(f"{p['Label']} path", len(p["Studio"].split("/")) >= 2 and p["Studio"].split("/")[-1], p["Studio"])
-    check("pair count foundry", len(sync.pairs_for(manifest, "foundry")) == 71, len(sync.pairs_for(manifest, "foundry")))
-    check("pair count ye", len(sync.pairs_for(manifest, "ye")) == 68, len(sync.pairs_for(manifest, "ye")))
+    check("pair count foundry", len(sync.pairs_for(manifest, "foundry")) == 72, len(sync.pairs_for(manifest, "foundry")))
+    check("pair count ye", len(sync.pairs_for(manifest, "ye")) == 69, len(sync.pairs_for(manifest, "ye")))
 
     # 3. norm_hash against Studio's value
     with open(os.path.join(REPO, "Art/Studio/Regions/TownsfolkClient.lua"), "rb") as f:
@@ -338,9 +338,11 @@ def main():
     code, said, got = gen_backup_line([])
     check("backup: default stays Pre-FoundryData_2026-10-24", code == 0 and got == "Pre-FoundryData_2026-10-24",
           (code, got, said))
-    for bad_name in ("Gun", "Pre-Gun_Rework_2026-10-25", "Pre-GunRework_2026-10-5", "Pre-_2026-10-25"):
+    # gun rework Task 3 (Task 1 review): a fullwidth digit (U+FF12) in the date is not an ASCII digit -> refused
+    for bad_name in ("Gun", "Pre-Gun_Rework_2026-10-25", "Pre-GunRework_2026-10-5", "Pre-_2026-10-25",
+                     "Pre-GunRework_\uff12026-10-25"):
         code, said, got = gen_backup_line(["--backup", bad_name])
-        check(f"backup: --backup {bad_name!r} rejected", code == 2 and "bad --backup name" in said and got is None,
+        check(f"backup: --backup {bad_name!a} rejected", code == 2 and "bad --backup name" in said and got is None,
               (code, got, said))
     # the keyword reaches both entry points; an existing call (no keyword) produces the same bytes as before
     fxpair = {"Label": "Only.Ye", "Studio": "ServerStorage/OnlyYe", "Class": "ModuleScript",

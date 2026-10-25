@@ -23,6 +23,7 @@ TuningConfig.Posture = {
 TuningConfig.Meter = {
 	Max = 100,
 	OnLightHit = 4,
+	OnShotHit = 2, -- PROPOSAL (gun rework): a gun shot that lands (melee hits stay OnLightHit 4)
 	OnHeavyHit = 8,
 	OnParry = 12,
 	OnBlockedHit = 1, -- attacker, when the hit was blocked
@@ -532,26 +533,46 @@ TuningConfig.Weapons = {
 		-- the sheet's four Pistol Aim animations take turns (2026-10-18; they were Studio-only "blatt" saves). Damage, magazine, reload and fire rate (Recovery) come
 		-- from Items below. Reload is automatic when the magazine runs dry (Decisions.md: no reload button).
 		Shots = {
-			Hit{Shot = true, Anim = "Guns_Light1", AnimPeak = 0.35, Startup = 0.12, Active = 0.02, Recovery = 0.2, Damage = 15, Posture = 3, Stun = 0.12, Hitbox = Vector3.new(2, 2, 2), Range = 90, Class = "BLOCKABLE"},
-			Hit{Shot = true, Anim = "Guns_Light2", AnimPeak = 0.35, Startup = 0.12, Active = 0.02, Recovery = 0.2, Damage = 15, Posture = 3, Stun = 0.12, Hitbox = Vector3.new(2, 2, 2), Range = 90, Class = "BLOCKABLE"},
-			Hit{Shot = true, Anim = "Guns_Light3", AnimPeak = 0.35, Startup = 0.12, Active = 0.02, Recovery = 0.2, Damage = 15, Posture = 3, Stun = 0.12, Hitbox = Vector3.new(2, 2, 2), Range = 90, Class = "BLOCKABLE"},
-			Hit{Shot = true, Anim = "Guns_Light4", AnimPeak = 0.35, Startup = 0.12, Active = 0.02, Recovery = 0.2, Damage = 15, Posture = 3, Stun = 0.12, Hitbox = Vector3.new(2, 2, 2), Range = 90, Class = "BLOCKABLE"},
+			Hit{Shot = true, Anim = "Guns_Light1", AnimPeak = 0.35, Startup = 0.12, Active = 0.02, Recovery = 0.2, Damage = 15, Posture = 3, Stun = 0.12, Hitbox = Vector3.new(2, 2, 2), Range = 90, Class = "BLOCKABLE", NoWhiffPenalty = true}, -- PROPOSAL (gun rework 2026-10-25)
+			Hit{Shot = true, Anim = "Guns_Light2", AnimPeak = 0.35, Startup = 0.12, Active = 0.02, Recovery = 0.2, Damage = 15, Posture = 3, Stun = 0.12, Hitbox = Vector3.new(2, 2, 2), Range = 90, Class = "BLOCKABLE", NoWhiffPenalty = true}, -- PROPOSAL (gun rework 2026-10-25)
+			Hit{Shot = true, Anim = "Guns_Light3", AnimPeak = 0.35, Startup = 0.12, Active = 0.02, Recovery = 0.2, Damage = 15, Posture = 3, Stun = 0.12, Hitbox = Vector3.new(2, 2, 2), Range = 90, Class = "BLOCKABLE", NoWhiffPenalty = true}, -- PROPOSAL (gun rework 2026-10-25)
+			Hit{Shot = true, Anim = "Guns_Light4", AnimPeak = 0.35, Startup = 0.12, Active = 0.02, Recovery = 0.2, Damage = 15, Posture = 3, Stun = 0.12, Hitbox = Vector3.new(2, 2, 2), Range = 90, Class = "BLOCKABLE", NoWhiffPenalty = true}, -- PROPOSAL (gun rework 2026-10-25)
 		},
 		-- Pistol Whip: a close-range melee answer.
 		Heavy = {Anim = "Guns_Heavy", AnimPeak = 0.70, Startup = 0.3, Active = 0.1, Recovery = 0.4, Damage = 22, Posture = 30, Stun = 0.8, Velocity = "Knockback", Hitbox = Vector3.new(6, 6, 7), Reach = 3.5, Step = 12, Cooldown = 1.2},
-		-- Fan the Hammer: three rapid shots (uses 3 rounds).
-		Skill = {Name = "Fan the Hammer", Anim = "Guns_Light2", AnimSpeed = 1.6, Startup = 0.12, Active = 0.36, Recovery = 0.3, HitTimes = {0.12, 0.27, 0.42}, Damage = 11, Posture = 5, Stun = 0.3, Hitbox = Vector3.new(2, 2, 2), Range = 70, Spread = 1.5, Class = "BLOCKABLE", Stamina = 15, Cooldown = 6},
+		-- Fan the Hammer: three rapid shots (uses 3 rounds). Its numbers are its own, the same for every gun (WeaponManager.Resolve).
+		Skill = {Name = "Fan the Hammer", Anim = "Guns_Light2", AnimSpeed = 1.6, Startup = 0.12, Active = 0.36, Recovery = 0.3, HitTimes = {0.12, 0.27, 0.42}, Damage = 12, Posture = 5, Stun = 0.3, Hitbox = Vector3.new(2, 2, 2), Range = 40, Spread = 3, Class = "BLOCKABLE", Stamina = 15, Cooldown = 6}, -- PROPOSAL (gun rework 2026-10-25)
 		-- Point Blank: +20% shot damage within 12 studs. Falloff (balance pass 2026-10-18): full damage to 25 studs,
 		-- then down to 50% at 90 -- range buys safety, not damage.
 		Passive = {Name = "Point Blank", Range = 12, Mult = 1.2, Falloff = {Start = 25, End = 90, Min = 0.5}},
 		Items = {
-			-- balance pass 2026-10-18 (PROPOSAL): sustained DPS (reloads included) 21-27 vs melee lights 30-37;
-			-- burst 29-41 before falloff. Was 30-37 sustained / 40-54 burst at 90 studs.
-			Revolver = {Damage = 20, Magazine = 6, Reload = 2.0, Recovery = 0.36},
-			Renetti = {Damage = 10, Magazine = 12, Reload = 1.6, Recovery = 0.2},
-			["Forge Tac"] = {Damage = 24, Magazine = 7, Reload = 2.0, Recovery = 0.45},
-			Sykov = {Damage = 13, Magazine = 10, Reload = 1.7, Recovery = 0.24},
+			-- gun rework 2026-10-25 (PROPOSAL; Test_GunBalance): burst <= 37 (Revolver highest, 35.7), sustained 21-24 (reloads
+			-- included) vs melee lights 30-37. Each gun has its own Range and Falloff (the shot's Range 90 / the passive's
+			-- Falloff when absent): Forge Tac reaches furthest, Renetti fires fastest. Was burst 29-41, sustained 21-27 (2026-10-18).
+			Revolver = {Damage = 20, Magazine = 6, Reload = 1.8, Recovery = 0.42, Range = 70, Falloff = {Start = 20, End = 70, Min = 0.5}, Kick = 1.5}, -- PROPOSAL (gun rework 2026-10-25)
+			Renetti = {Damage = 10, Magazine = 12, Reload = 1.6, Recovery = 0.2, Range = 60, Falloff = {Start = 15, End = 60, Min = 0.5}, Kick = 0.5}, -- PROPOSAL (gun rework 2026-10-25)
+			["Forge Tac"] = {Damage = 26, Magazine = 5, Reload = 1.8, Recovery = 0.62, Range = 110, Falloff = {Start = 40, End = 110, Min = 0.5}, Kick = 2.0}, -- PROPOSAL (gun rework 2026-10-25)
+			Sykov = {Damage = 13, Magazine = 10, Reload = 1.7, Recovery = 0.24, Range = 90, Falloff = {Start = 25, End = 90, Min = 0.5}, Kick = 0.8}, -- PROPOSAL (gun rework 2026-10-25)
 		},
+		-- Aiming and the server's shot checks (gun rework 2026-10-25; Rensei.GunAim reads these).
+		Aim = { -- PROPOSAL (gun rework 2026-10-25)
+			MaxYaw = 100, MaxPitch = 70, -- degrees a shot may leave your facing / the horizon -- PROPOSAL (gun rework 2026-10-25)
+			AimFresh = 0.75, -- seconds a stored aim stays good (was 2). Fan the Hammer's last shot is 0.42 s after its request: 0.33 s spare -- PROPOSAL (gun rework 2026-10-25)
+			Interp = 0.1, MaxRewind = 0.25, -- lag compensation: one-way ping + Interp, capped -- PROPOSAL (gun rework 2026-10-25)
+			-- a character's box around its root, from Task 1's measured R6 extents (StarterCharacter: min (-2, -3, -0.5),
+			-- max (2, 2, 0.5) -> size 4 x 5 x 1, centre 0.5 below the root; measured 2026-10-25)
+			HitBox = Vector3.new(4, 5, 1), HitBoxOffset = Vector3.new(0, -0.5, 0), -- PROPOSAL (gun rework 2026-10-25)
+			FlinchRange = 25, -- shots stun only this close -- PROPOSAL (gun rework 2026-10-25)
+			FireRate = 5, FireBurst = 5, -- the Fire request's own limiter (GunAim.Limiter), per player -- PROPOSAL (gun rework 2026-10-25)
+			HoldGap = 0.25, -- client hold-to-fire: at most one Fire request this often (4 a second, under ServerHandler's shared 8) -- PROPOSAL (gun rework 2026-10-25)
+			Buffer = 0.2, -- client: a press this long before the gun is ready still fires -- PROPOSAL (gun rework 2026-10-25)
+			ShoulderOffset = Vector3.new(1.75, 0.5, 0), -- the aim camera (Humanoid.CameraOffset) -- PROPOSAL (gun rework 2026-10-25)
+			TouchAssist = 2.5, -- degrees; 0 = off -- PROPOSAL (gun rework 2026-10-25)
+			SnapDeg = 120, SnapWindow = 0.1, -- the snap log -- PROPOSAL (gun rework 2026-10-25)
+		},
+		-- the owner's animation 97563934064498 (Task 7). AnimLength: its Track.Length, measured 2026-10-25 (Task 1 survey).
+		Reload = {Anim = "Guns_Reload", AnimLength = 4.07}, -- PROPOSAL (gun rework 2026-10-25): the slot name
+		NpcShot = {Startup = 0.35, Telegraph = true, Spread = 2.5}, -- enemy gunners (Task 11) -- PROPOSAL (gun rework 2026-10-25)
 	},
 }
 

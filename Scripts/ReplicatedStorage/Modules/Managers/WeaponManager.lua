@@ -34,6 +34,7 @@ local Tuning = require(ReplicatedStorage.Modules.Data.Rensei.TuningConfig)
 local Styles = require(ReplicatedStorage.Modules.Data.Rensei.Styles) -- bare-hand style stances (client)
 local ItemData = require(ReplicatedStorage.Modules.Data.ItemData)
 local SkillMods = require(ReplicatedStorage.Modules.Managers.SkillMods) -- the Mastery skill tree
+local GunAim = require(ReplicatedStorage.Modules.Data.Rensei.GunAim) -- a shot's range multiplier, the Mastery rule
 
 local IsServer = RunService:IsServer()
 
@@ -58,17 +59,17 @@ function WeaponManager.ItemStats(Character)
 	return W and W.Items and Item and W.Items[Item] or nil
 end
 
--- Copy of an attack def with the held gun's damage / fire rate applied.
+-- Copy of a gun SHOT's def with the held gun's damage, fire rate, range and falloff (gun rework 2026-10-25). Skills (Fan the
+-- Hammer) keep their own numbers: the same for every gun. (They were scaled by the gun against Light.Hits[1], which has been the
+-- pistol whip since 2026-10-17, so a Forge Tac's fan did 72.)
 function WeaponManager.Resolve(Character, Def)
 	local Stats = WeaponManager.ItemStats(Character)
-	if not Stats then return Def end
+	if not Stats or not Def.Shot then return Def end
 	local Out = table.clone(Def)
-	if Stats.Damage and Def.Range then
-		-- a plain shot uses the gun's damage; the skill's shots scale with it the same way
-		local Base = Tuning.Weapons.Guns.Light.Hits[1].Damage
-		Out.Damage = Def.Shot and Stats.Damage or math.floor(Def.Damage * Stats.Damage / Base + 0.5)
-	end
-	if Stats.Recovery and Def.Shot then Out.Recovery = Stats.Recovery end
+	Out.Damage = Stats.Damage or Def.Damage
+	Out.Recovery = Stats.Recovery or Def.Recovery
+	Out.Range = Stats.Range or Def.Range
+	Out.Falloff = Stats.Falloff
 	return Out
 end
 
@@ -415,11 +416,11 @@ if IsServer then
 		return W and W.Passive, W and W.Class
 	end
 
-	-- Damage multiplier for a clean hit. Weapon Mastery (skill tree) strengthens the passive's bonus.
+	-- Damage multiplier for a clean hit. Weapon Mastery (skill tree) strengthens the passive's bonus, never a penalty
+	-- (GunAim.Mastered; gun rework 2026-10-25: Mastery used to deepen a gun's falloff too).
 	local PassiveDamageMult
 	function WeaponManager.DamageMult(Attacker, Victim, SkillInfo)
-		local M = PassiveDamageMult(Attacker, Victim, SkillInfo)
-		return 1 + (M - 1) * SkillMods.Mult(Attacker, "WeaponPassive")
+		return GunAim.Mastered(PassiveDamageMult(Attacker, Victim, SkillInfo), SkillMods.Mult(Attacker, "WeaponPassive"))
 	end
 	function PassiveDamageMult(Attacker, Victim, SkillInfo)
 		local P, Class = PassiveOf(SkillInfo)
@@ -433,13 +434,8 @@ if IsServer then
 			local Stacks = math.min(Combo and Combo.Value or 0, P.MaxStacks)
 			return 1 + P.PerStack * Stacks
 		elseif Class == "Guns" then
-			if SkillInfo.Ranged then
-				local D = SkillInfo.ShotDistance or math.huge
-				if D <= P.Range then return P.Mult end
-				-- falloff (balance pass 2026-10-18): full damage to Start, down to Min at End
-				local F = P.Falloff
-				if F and D > F.Start then return 1 - (1 - F.Min) * math.clamp((D - F.Start) / (F.End - F.Start), 0, 1) end
-			end
+			-- Point Blank, else falloff: the gun's own (SkillInfo.Falloff) or the class one; full damage to Start, Min at End
+			if SkillInfo.Ranged then return GunAim.RangeMult(SkillInfo.ShotDistance or math.huge, P, SkillInfo.Falloff) end
 		end
 		return 1
 	end
