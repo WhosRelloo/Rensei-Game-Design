@@ -15,14 +15,16 @@
 --     99th percentile (Mover.P99StepMs) and the rest of Mover.Stats() are reported in ServerStorage's attribute
 --     FoundryWalksStats and printed as "[FoundryWalks] ..." lines.
 --   * Quick mode (owner request, Foundry Yard plan Task 9: "one full walk of every route, then repeats only for routes
---     that needed repairs or failed before"): opt-in only, with ServerStorage's attribute WalksQuick = true; without it
+--     that needed repairs or failed before"; made stricter: "only recheck routes that failed or needed a replan, not
+--     routine corner repairs"): opt-in only, with ServerStorage's attribute WalksQuick = true; without it
 --     the suite runs the whole day as above. Quick mode reads the risky list (RenseiTests.RiskyWalks: {Id, From, To}
 --     routes) and steps only the hours those routes change at: for each, the clock is held half an hour before
 --     (everyone placed by LoadRegion at the post that covers it: every listed route's From), then at the hour
 --     (TownsfolkService.Step sends everyone due walking, as in the full day). The same checks judge every walk made;
 --     Coverage checks every listed route was walked (and is a schedule change) and reports the list's coverage. An
 --     empty or missing list never passes: the run breaks with "no risky list".
---   * Every run (full or quick) writes the routes that needed a repair or failed, as RiskyWalks.lua lines, to
+--   * Every run (full or quick) writes the routes that failed or needed a replan (a corner repair alone doesn't count),
+--     as RiskyWalks.lua lines, to
 --     ServerStorage's attribute FoundryWalksRisky and prints them ("[FoundryWalks] risky: ..."): the list is updated by
 --     copying those into Scripts/ServerStorage/RenseiTests/RiskyWalks.lua after a full run.
 -- Everything is put back afterwards: the two radii, the clock, the player.
@@ -204,17 +206,18 @@ local function RunDay()
 	end
 	local Report = {Hours = R.Hours, Stats = R.Stats, Error = R.Error, Walks = Lines, Quick = R.Quick}
 	pcall(function() game.ServerStorage:SetAttribute("FoundryWalksStats", HttpService:JSONEncode(Report)) end)
-	-- the routes that needed a repair or failed, as RiskyWalks.lua lines (the list is updated from a full run)
+	-- the routes that failed or needed a replan, as RiskyWalks.lua lines (the list is updated from a full run); a
+	-- corner repair alone is routine and doesn't put a route on the list (owner, 2026-10-25)
 	local Risky = {}
 	for _, W in ipairs(R.Walks) do
 		local Failed = W.Result ~= "arrived" or W.Why ~= nil or W.Replans > MAX_REPLANS or W.MaxStep > MAX_STEP or W.Off > END_OFF
-		if Failed or W.Repaired > 0 then
+		if Failed or W.Replans > 0 then
 			table.insert(Risky, ('{"%s", "%s", "%s"}, -- %s'):format(W.Id, tostring(W.From), tostring(W.To),
-				Failed and ("failed: " .. W.Result .. " " .. tostring(W.Why)) or ("repaired " .. W.Repaired)))
+				Failed and ("failed: " .. W.Result .. " " .. tostring(W.Why)) or ("replans " .. W.Replans)))
 		end
 	end
 	pcall(function() game.ServerStorage:SetAttribute("FoundryWalksRisky", table.concat(Risky, "\n")) end)
-	print(("[FoundryWalks] risky: %d routes needed a repair or failed%s"):format(#Risky, R.Quick and " (quick run)" or ""))
+	print(("[FoundryWalks] risky: %d routes failed or needed a replan%s"):format(#Risky, R.Quick and " (quick run)" or ""))
 	for _, L in ipairs(Risky) do print("[FoundryWalks] risky: " .. L) end
 	if R.Stats then
 		local Keys = {}
