@@ -15,6 +15,10 @@
 --   Permanent = true: reaching this state is saved (flag Mech_<Id>) and restored on rejoin
 --   Blocks = true (vents): its Blocker child stops the player while the state is Default
 --   Hint = the line a curious look gives (the Inspect-style text when there's nothing to do)
+--   Kind = "Breakable" (2026-10-20): boards and the like. Default "Whole"; Hits = n melee strikes break it
+--       (PuzzleService.Strike: a heavy counts 2), to "Broken", saved; BreakText = the line the breaking strike
+--       shows. Its parts named *Plank are drawn by PuzzleClient (collide while Whole, smash when Broken).
+--   Party = true: a player's break (alchemy or melee) also breaks it for their party members in this server
 -- Puzzles[Id] -- {Title, Mechanisms = {ids}, Solved(States) -> bool, Door (a part tagged
 --   "RenseiPuzzleDoor" with PuzzleId opens for that player), OpenText}
 
@@ -110,12 +114,15 @@ return {
 			Prompt = {Action = "Take the Pry Bar", Gives = "CarryingPryBar", Text = "You take a rusted pry bar from the rack."},
 		},
 		-- the sump: three sluices (the shift chart says which way each goes), or freeze the water and cross
-		adit_sluice_n = {Kind = "Valve", Title = "North Sluice", Default = "Open",
-			Prompt = {Action = "Turn the Sluice", Toggle = {"Open", "Shut"}, Text = "The north sluice grinds %s."}},
+		-- (Lindenmoor import Task 8 fix round 4, Ruling 38b: Ye's north is +Z, so the _n sluice, at z -682, is the
+		-- SOUTH one and the _s sluice, at z -638, the NORTH one; the ids stay, the names players see swap. The chart's
+		-- answer, north and south both shut, is the same either way)
+		adit_sluice_n = {Kind = "Valve", Title = "South Sluice", Default = "Open",
+			Prompt = {Action = "Turn the Sluice", Toggle = {"Open", "Shut"}, Text = "The south sluice grinds %s."}},
 		adit_sluice_m = {Kind = "Valve", Title = "Middle Sluice", Default = "Shut",
 			Prompt = {Action = "Turn the Sluice", Toggle = {"Open", "Shut"}, Text = "The middle sluice grinds %s."}},
-		adit_sluice_s = {Kind = "Valve", Title = "South Sluice", Default = "Open",
-			Prompt = {Action = "Turn the Sluice", Toggle = {"Open", "Shut"}, Text = "The south sluice grinds %s."}},
+		adit_sluice_s = {Kind = "Valve", Title = "North Sluice", Default = "Open",
+			Prompt = {Action = "Turn the Sluice", Toggle = {"Open", "Shut"}, Text = "The north sluice grinds %s."}},
 		adit_sump = {
 			Kind = "Source", Title = "Flooded Sump", Default = "Flooded",
 			Reactions = {Ice = {State = "Frozen", For = 20, Text = "The sump water locks into ice thick enough to cross."}},
@@ -140,6 +147,20 @@ return {
 			Prompt = {Action = "Pry It Open", Need = "CarryingPryBar", State = "Broken",
 				Missing = "Air whistles through the cracks. You'd need something to lever it with."},
 			Hint = "Air moves through these cracks. There's space behind.",
+		},
+		-- the boarded mouth (owner request 2026-10-20): smash it with fists, any weapon, or any element. Per player,
+		-- shared with the party. Hits is a PROPOSAL; the lines are PROPOSALS.
+		adit_boards = {
+			Kind = "Breakable", Title = "Boarded Mouth", Default = "Whole", Hits = 3, Party = true,
+			Reactions = {
+				Flame = {State = "Broken", Permanent = true, Text = "The dry planks catch and burst apart."},
+				Earth = {State = "Broken", Permanent = true, Text = "A stone fist punches through the boards."},
+				Wind = {State = "Broken", Permanent = true, Text = "A blast tears the planks off the frame."},
+				Ice = {State = "Broken", Permanent = true, Text = "Ice splits the planks and they shatter."},
+				Metal = {State = "Broken", Permanent = true, Text = "Iron spikes rip the boards away."},
+			},
+			BreakText = "The last plank splinters and the boards cave in.",
+			Hint = "Old planks nailed across the mine mouth. They'd give to a few good hits.",
 		},
 		adit_cache = {
 			Kind = "Bench", Title = "Halvard's Strongbox",

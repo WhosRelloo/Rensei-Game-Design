@@ -190,11 +190,11 @@ Dialogues.foundry_brask = {
 			},
 		},
 		accepted = {
-			Text = "Start with the marks: one on the west wall, one behind the steam vent - that line's leaked for a week - and one by the south wall. Night shift is Mirra at the crucible and Tobin on the furnace. Ask them.",
+			Text = "Start with the marks: one on the east wall, one behind the steam vent - that line's leaked for a week - and one by the north wall. Night shift is Mirra at the crucible and Tobin on the furnace. Ask them.",
 			Choices = {{Text = "\"On it.\""}},
 		},
 		bounty = {
-			Text = "Bandits on the ore road, north of here. Put five of them down and I'll pay. Bring one here breathing and the Authority pays me for it too - you'll get your cut.",
+			Text = "Bandits on the ore road, down by the mine at the valley's south end. Put five of them down and I'll pay. Bring one here breathing and the Authority pays me for it too - you'll get your cut.",
 			Choices = {
 				{Text = "\"Count me in.\"", Action = {Kind = "StartQuest", Quest = "bandit_bounty"}},
 				Leave2,
@@ -480,14 +480,14 @@ do
 				Choices = {{Text = "\"Teach me, then.\"", Next = "demo"}, Leave},
 			},
 			demo = {
-				Text = "Then learn what happens without it. My last apprentice burned out the laboratory down in Bramble Woods, south-east of here. Go and tell me why it burned. And don't tell me 'too much fire'.",
+				Text = "Then learn what happens without it. My last apprentice burned out the laboratory down in Bramble Woods, south-west of here. Go and tell me why it burned. And don't tell me 'too much fire'.",
 				Choices = {
 					{Text = "\"I'll find out.\"", Action = {Kind = "StartQuest", Quest = "acq_flame"}, Requires = {NoAffinity = true}, Show = "Locked"},
 					{Text = "\"Not yet.\""},
 				},
 			},
 			sent = {
-				Text = "The laboratory is in Bramble Woods, in the far south-east corner past the mine. Look at it the way you'd look at evidence, not a ruin.",
+				Text = "The laboratory is in Bramble Woods, in the far south-west corner past the mine. Look at it the way you'd look at evidence, not a ruin.",
 				Choices = {Leave},
 			},
 			-- Act II: fieldwork
@@ -519,7 +519,7 @@ do
 			},
 			-- Act IV: the trial
 			trial = {
-				Text = "Corin came back. He's in the ash pit east of the lab, burning anything that moves. He's strong. He's also reckless.",
+				Text = "Corin came back. He's in the ash pit west of the lab, burning anything that moves. He's strong. He's also reckless.",
 				Choices = {{Text = "\"How do I beat him?\"", Next = "hint_trial"}, Leave},
 			},
 			hint_trial = {
@@ -638,8 +638,8 @@ do
 		Clues = {"uneven_ice", "frozen_channels", "frost_cycles"}, Note = "maren_notes", Lines = {
 		start = "[She doesn't look up from the frost she's tracing on the stone.] You came quietly. Good. Most people arrive talking.",
 		who = "Veyra. Ice. I study what holds still, and why. Things that look frozen rarely are.",
-		demo = "A colleague of mine, Maren, ran a research station up on the Cypress ridge, north-west of here. It froze, and she hasn't come back. Go and look. Don't touch anything until you understand it.",
-		sent = "The station is up on the ridge rim, at its far north-west end. Look before you act. Then look again.",
+		demo = "A colleague of mine, Maren, ran a research station out behind the Cypress ridge, north-east of here. It froze, and she hasn't come back. Go and look. Don't touch anything until you understand it.",
+		sent = "The station is behind the ridge, at the rim's far north end. Look before you act. Then look again.",
 		fieldwork = "What have you seen?",
 		fieldwork_all = "You've seen enough to answer. Put it together on your Case Board. Where did the cold come from, how did it move, and why didn't it stop?",
 		hint_field = "Ice remembers. Read where it's thick and where it's thin, which way the water froze, and how many times.",
@@ -647,7 +647,7 @@ do
 		note = "[A long silence.] Then she knew the guardian was there, and stayed anyway. That was Maren.",
 		experiment = "The station's pumps hold the cold in balance. Restore them. Ice spreads; meltwater runs back. Learn which way before you try.",
 		hint_experiment = "Freezing a pipe frosts the one after it. Thawing one melts the one before. Three frozen together will crack. Plan, then act.",
-		trial = "The guardian Maren wrote of is awake, in the frozen chamber east of the station. It isn't evil. It's doing its work too well.",
+		trial = "The guardian Maren wrote of is awake, in the frozen chamber west of the station. It isn't evil. It's doing its work too well.",
 		hint_trial = "Its shell turns your blows. Watch it: after it sheds frost, the shell cracks. That is when you strike. Not before.",
 		exam = "[She sets seven glass pipes on the stone.] The same principle, with no room for error. I'll be watching how long you wait before your first move.",
 		hint_exam = "Patience. Count the moves backwards from what you need, and the answer usually shows itself.",
@@ -664,8 +664,8 @@ do
 		Clues = {"stress_cracks", "hollow_pier", "washed_soil"}, Note = "survey_report", Lines = {
 		start = "[He's crouched, palm flat on the ground.] Feel that? No. Nobody does, first time. That's the problem with most Earth students: they want to move it before they've felt it.",
 		who = "Holt. Earth. I build things that stay up. That's less glamorous than it sounds and more important.",
-		demo = "There's a footbridge on the mine plateau, east of here across the gorge, and the village needs it. It's cracking. Go and find out why - and don't you dare try to fix it first.",
-		sent = "The footbridge is on the mine plateau, east across the gorge. Look at what's holding it up, not at what's falling.",
+		demo = "There's a footbridge on the mine plateau, south-west of here across the gorge, and the village needs it. It's cracking. Go and find out why - and don't you dare try to fix it first.",
+		sent = "The footbridge is on the mine plateau, south-west across the gorge. Look at what's holding it up, not at what's falling.",
 		fieldwork = "Well. Why's it failing?",
 		fieldwork_all = "You've got the pieces. Lay them out on your Case Board. Where did the weight go, what gave, and what made it worse?",
 		hint_field = "Cracks point at the cause. A pier that rings hollow is lying to you. And always look at what's under the footing.",
@@ -673,7 +673,7 @@ do
 		note = "\"Recommend inspection.\" [He laughs without humor.] Somebody wrote the right answer and nobody read it. That's how most bridges fall.",
 		experiment = "Now show me where the supports should go. Use the survey table. Read the loads. Read the ground. Then place.",
 		hint_experiment = "Every load goes to its nearest support. Soft ground takes nothing. Start with the heaviest loads and work out.",
-		trial = "Someone's tearing up the quarry east of the bridge. Dask. Used to work for me. He thinks strength is the same as understanding.",
+		trial = "Someone's tearing up the quarry west of the bridge. Dask. Used to work for me. He thinks strength is the same as understanding.",
 		hint_trial = "He'll break the ground under you. Watch for the ring. Stand close to him or well away - the band between is where it breaks. After every tremor he's rooted. That's your moment.",
 		exam = "[He sets out a heavier model.] Same idea. Less room. I want every support carrying exactly what it can and not an ounce more.",
 		hint_exam = "A tie splits a load. Sometimes the right place for a support is between two heavy loads, not under one.",
@@ -690,8 +690,8 @@ do
 		Clues = {"still_flags", "dust_lines", "closed_vents"}, Note = "pressure_log", Lines = {
 		start = "Can you see the wind? [He waits.] No? Then how do you know it's there? [He waits again.] That's the first lesson. You'll find the rest yourself.",
 		who = "Ansel. Wind. I teach people to see what can't be seen, by what it leaves behind.",
-		demo = "There's an observatory up on the Cypress ridge, north-west of here. Its machines stopped. I know why. Do you? Go and find out. I'm not going to tell you.",
-		sent = "The observatory's on the ridge crest, north-west. Don't look for the wind. Look for what it moved.",
+		demo = "There's an observatory up on the Cypress ridge, north-east of here. Its machines stopped. I know why. Do you? Go and find out. I'm not going to tell you.",
+		sent = "The observatory's up on the ridge, north-east. Don't look for the wind. Look for what it moved.",
 		fieldwork = "And? What did the air tell you?",
 		fieldwork_all = "You've read it. Now say it - on your Case Board. Where does the air come in, where did it leave, and why did it stop leaving?",
 		hint_field = "What still moves? What's lying in lines? What was closed that should be open? Those are three questions, not one.",
@@ -699,7 +699,7 @@ do
 		note = "\"Siv disagrees.\" [He smiles faintly.] She did. Loudly. She was right, and it didn't help her.",
 		experiment = "Now route it. The manifold still works. Every vent needs exactly the pressure it needs. What does a valve do to the vents below it?",
 		hint_experiment = "A valve sends everything left, everything right, or splits it. Start at the vents that need nothing. What does that tell you?",
-		trial = "Siv's on the gale floor east of the observatory. She thinks I'm wrong about everything. Go and prove her wrong about you.",
+		trial = "Siv's on the gale floor west of the observatory. She thinks I'm wrong about everything. Go and prove her wrong about you.",
 		hint_trial = "The lanes show where the gusts will run. Step across a lane, never along it. After every gust, she's catching her breath.",
 		exam = "[He hands you a wider schematic.] Seven valves. Eight vents. Every reading exact. Why exact? You tell me.",
 		hint_exam = "Split twice and a vent gets a quarter. Which vents need quarters? Start there.",
@@ -716,8 +716,8 @@ do
 		Clues = {"sheared_shaft", "sample_rack", "bad_weld"}, Note = "experiment_record", Lines = {
 		start = "[He doesn't stop filing.] Strength is cheap. Precision isn't. If you came for strength, the Foundry's hiring.",
 		who = "Brannoc. Metal. I shape what others break. I don't waste stock, and I don't waste words.",
-		demo = "There's a forge east of the Foundry Yard. Went cold mid-shift. Find out why. Touch nothing until you can tell me what failed and why.",
-		sent = "East of the Foundry Yard. Look at the break, the stock and the repair. In that order.",
+		demo = "There's a forge west of the Foundry Yard. Went cold mid-shift. Find out why. Touch nothing until you can tell me what failed and why.",
+		sent = "West of the Foundry Yard. Look at the break, the stock and the repair. In that order.",
 		fieldwork = "Report.",
 		fieldwork_all = "You've seen it all. Write it up on your Case Board. What broke, why, and why the repair failed.",
 		hint_field = "A break tells you how it failed. The stock tells you why. A bad repair tells you who was in a hurry.",
@@ -725,7 +725,7 @@ do
 		note = "\"It moves. It shouldn't.\" [He sets the file down for the first time.] No. It shouldn't.",
 		experiment = "New parts. The bench has stock. Choose right. One piece of each. No second tries on material.",
 		hint_experiment = "Find the part only one material can satisfy. Start there. The rest follows.",
-		trial = "The experiment from that record is on the forge floor east of the workshop. Armored. Don't hit the armor. Hit the joints.",
+		trial = "The experiment from that record is on the forge floor west of the workshop. Armored. Don't hit the armor. Hit the joints.",
 		hint_trial = "Its plating turns your blows. After every cleave it vents and the joints open - they glow. Strike then. Stand off the marked lines.",
 		exam = "[He sets out six bars of stock and four drawings.] Same principle. More parts. Same rule: no waste.",
 		hint_exam = "An 'at most' rules out more than an 'at least'. Use it.",

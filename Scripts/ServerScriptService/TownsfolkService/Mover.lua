@@ -1355,9 +1355,12 @@ local function StepOne(H, Dt, Now)
 		if not Done then
 			-- passed: the other's progress has taken it past the yielder, along the way the yielder wants to go
 			if Flat(OP - P):Dot(H.YieldDir) < -1 then Done = true end
-			-- or it went off another way: well clear and still getting further
+			-- or it went off another way: well clear and still getting further BY ITS OWN GOING (fix round 4, review
+			-- Minor 2: the gap also grows while the yielder backs off and the urgent one is stopped, side-stepping or
+			-- re-planning ahead; ending the yield then let the 3 s cooldown block the next give-way as it came on)
 			local D = FlatDist(P, OP)
-			if D > H.YieldLast + 0.02 then H.Grow += 1 else H.Grow = 0 end
+			local Away = D > 1e-3 and Flat(O.Root.AssemblyLinearVelocity):Dot(Flat(OP - P) / D) or 0
+			if D > H.YieldLast + 0.02 and Away > 1 then H.Grow += 1 else H.Grow = 0 end -- (PROPOSAL: 1 stud/s away)
 			H.YieldLast = D
 			if D > 8 and H.Grow >= 3 then Done = true end
 		end

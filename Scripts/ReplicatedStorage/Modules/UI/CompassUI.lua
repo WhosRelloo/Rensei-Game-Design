@@ -7,7 +7,8 @@
 -- A name and distance appear under the strip only for the mark nearest the centre of view.
 -- Where things are comes from ReplicatedStorage.CompassPoints (CompassService); what matters to you comes from
 -- your profile copy (UIState.Data). Hidden during menus, dialogue, cutscenes and death; Settings > Compass
--- turns it off. North is world -Z.
+-- turns it off. North is per place (Rensei.Regions.NorthAxis, Ruling 38b): +Z in Ye, -Z elsewhere; east is always north
+-- turned 90 degrees clockwise, so the strip reads W . N . E with every mark on the side of the screen it is on.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -18,6 +19,7 @@ local QuestDefs = require(ReplicatedStorage.Modules.Data.Rensei.Quests)
 local StoryLogic = require(ReplicatedStorage.Modules.Data.Rensei.StoryLogic)
 local PuzzleData = require(ReplicatedStorage.Modules.Data.Rensei.Puzzles)
 local PuzzleDefs = PuzzleData.Puzzles or PuzzleData
+local Regions = require(ReplicatedStorage.Modules.Data.Rensei.Regions)
 
 local Player = Players.LocalPlayer
 
@@ -208,7 +210,7 @@ local Shown = false
 local LabelText = ""
 
 local function Hidden()
-	if Player:GetAttribute("ShowCompass") == false then return true end
+	if Player:GetAttribute("ShowCompass") == false or Player:GetAttribute("InTruth") then return true end -- (no directions at the Gate)
 	local G = UIState.Gui
 	if (G:FindFirstChild("bg") and G.bg.Visible) or (G:FindFirstChild("Dialogue") and G.Dialogue.Visible) then return true end
 	if workspace.CurrentCamera.CameraType == Enum.CameraType.Scriptable then return true end -- cutscenes
@@ -233,7 +235,7 @@ local function Draw()
 	if Root.Size.X.Offset ~= W then Root.Size = UDim2.fromOffset(W, STRIP_H + LABEL_H) end
 	local Look = Cam.CFrame.LookVector
 	if Look.X * Look.X + Look.Z * Look.Z < 1e-4 then Look = Cam.CFrame.UpVector end -- looking straight down
-	local Heading = math.deg(math.atan2(Look.X, -Look.Z))
+	local Heading = Regions.Bearing(Look.X, Look.Z)
 	local PerDeg = W / SPAN
 	local Half = SPAN / 2
 
@@ -251,7 +253,7 @@ local function Draw()
 		local Off = P.Position - From
 		local Dist = Vector3.new(Off.X, 0, Off.Z).Magnitude
 		if Dist < ARRIVED then Mark.Visible = false return end
-		local D = Wrap(math.deg(math.atan2(Off.X, -Off.Z)) - Heading)
+		local D = Wrap(Regions.Bearing(Off.X, Off.Z) - Heading)
 		local Edge = math.abs(D) > Half - 4
 		if Edge and not Pin then Mark.Visible = false return end
 		Mark.Visible = true

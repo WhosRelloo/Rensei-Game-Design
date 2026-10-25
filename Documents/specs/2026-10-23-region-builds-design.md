@@ -55,6 +55,13 @@ There is one file per region, `Art/Regions/<Region>/layout.json`. It is written 
 
 **Orientation (ruling):** the brief's drawings put north at the bottom. Central City's South Gate is at the top and its North Gate at the bottom, while west stays on the left. So the drawing's right is east (+X) and the drawing's top is south (+Z). This matches today's Foundry place, whose road to Lindenmoor leaves south at +Z.
 
+**North per region (amendment, 2026-10-24, Lindenmoor import Ruling 38b):** each region declares its north axis, `+Z` or `-Z`, in `Rensei.Regions.NorthAxis` (by place id; a place not listed is `-Z`). The compass (CompassUI), the MasteryUI Guide's "N studs north-east" and any other direction UI read it through `Regions.Bearing`.
+- East is always north turned 90° clockwise, seen from above. Roblox is right-handed, so **+Z north means east is -X**, and **-Z north means east is +X**. The compass is then only ever a rotation: it reads W · N · E as usual, with every mark on the side of the screen it is really on. It is never mirrored.
+- Foundry Yard: `-Z` (east +X, as above). Lindenmoor (Ye): `+Z`, so east is -X there.
+- Lindenmoor's builder files (`Art/Regions/Lindenmoor/layout.json`, `Art/Blender/lindenmoor`) use "x = east" internally, which mirrors east and west against the compass. The region file keeps its coordinates. Only the player-facing names and text change: in Ye, things at +X are **west**, so the areas are West Lookout and Northwest Gap, and the acq quests' "east of the site" reads "west". North and south words are unaffected.
+- With these norths the two places agree: Lindenmoor's road leaves Ye at its (+X, +Z) corner, north-west on Ye's compass, and arrives in Foundry at its +Z edge, the south on Foundry's compass, by "The South Road". So Foundry lies north of Lindenmoor.
+- A new region's file says which north it uses, and its names and text follow that compass.
+
 The file holds:
 
 | Key | What it is |

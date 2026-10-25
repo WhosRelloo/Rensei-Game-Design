@@ -37,13 +37,38 @@ return {
 	end,
 	-- Lindenmoor import Task 8: the expansion's ten areas are Lindenmoor's
 	ExpansionAreasAreLindenmoor = function(T)
-		for _, Name in ipairs({"Outlying Farmsteads", "Mine Approach", "Mill Creek Gorge", "East Lookout", "Bramble Woods",
-			"Training Field", "Ridge Marker", "North Meadows", "Cypress Ridge Rim", "Northeast Gap"}) do
+		-- (fix round 4, Ruling 38b: West Lookout and Northwest Gap were East Lookout and Northeast Gap)
+		for _, Name in ipairs({"Outlying Farmsteads", "Mine Approach", "Mill Creek Gorge", "West Lookout", "Bramble Woods",
+			"Training Field", "Ridge Marker", "North Meadows", "Cypress Ridge Rim", "Northwest Gap"}) do
 			T.Eq(Regions.Areas[Name], "Lindenmoor", Name)
 			T.Eq(Regions.OfArea(Name), "Lindenmoor", Name)
 		end
 		-- the trial sites moved into those areas keep their own region (their smaller boxes win, WorldService.AreaAt)
 		T.Eq(Regions.OfArea("Burned Laboratory"), "Wilds")
+		T.Eq(Regions.Areas["East Lookout"], nil, "the old name is gone")
+		T.Eq(Regions.Areas["Northeast Gap"], nil, "the old name is gone")
+	end,
+	-- Lindenmoor import Task 8 fix round 4 (Ruling 38b): north per place, and the compass is never mirrored
+	NorthPerPlace = function(T)
+		local Places = require(Rensei.Places)
+		T.Eq(Regions.NorthOf(Places.Regions.Lindenmoor.PlaceId), "+Z", "Ye: north is +Z")
+		T.Eq(Regions.NorthOf(Places.Regions.Foundry.PlaceId), "-Z", "Foundry: north is -Z")
+		T.Eq(Regions.NorthOf(123), "-Z", "a place not listed keeps -Z")
+		if game.PlaceId == Places.Regions.Lindenmoor.PlaceId then T.Eq(Regions.NorthOf(), "+Z", "here (Ye)") end
+		for _, N in ipairs({"+Z", "-Z"}) do
+			local S = N == "+Z" and 1 or -1
+			local function B(X, Z) return Regions.Bearing(X, Z, N) end
+			T.Near(B(0, S), 0, 1e-6, N .. ": north")
+			T.Near(B(-S, 0), 90, 1e-6, N .. ": east is " .. (S == 1 and "-X" or "+X"))
+			T.Near(math.abs(B(0, -S)), 180, 1e-6, N .. ": south")
+			T.Near(B(S, 0), -90, 1e-6, N .. ": west")
+			-- facing north, east is on the right of the screen (a rotation, not a mirror)...
+			local Face = CFrame.lookAt(Vector3.zero, Vector3.new(0, 0, S))
+			T.Near(B(Face.RightVector.X, Face.RightVector.Z), 90, 1e-4, N .. ": facing north, the screen's right is east")
+			-- ...and turning right turns the heading clockwise
+			local Turned = (Face * CFrame.Angles(0, -math.rad(10), 0)).LookVector
+			T.Near(B(Turned.X, Turned.Z), 10, 1e-4, N .. ": a 10-degree right turn reads 10")
+		end
 	end,
 	PresenceAndCounts = function(T)
 		T.True(Regions.Present("City", "Authority"))

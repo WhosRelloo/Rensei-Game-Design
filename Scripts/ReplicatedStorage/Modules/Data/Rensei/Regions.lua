@@ -84,6 +84,22 @@ local Places = require(script.Parent.Places)
 Regions.HubLaw = {[Places.Regions.Lindenmoor.PlaceId] = "Lindenmoor"} -- [PlaceId] = the region its unnamed ground counts as
 Regions.Default = Regions.HubLaw[game.PlaceId] or Places.RegionOf(game.PlaceId) or "City"
 
+-- North per place (Lindenmoor import Task 8 fix round 4, Ruling 38b): each place declares which world axis is north;
+-- a place not listed keeps -Z (the compass of 2026-10-18). East is always north turned 90 degrees clockwise seen from
+-- above, and Roblox is right-handed: +Z north means east is -X, and -Z north means east is +X. So the compass is only
+-- ever a rotation (it reads W . N . E as usual, with marks on the side of the screen they are on). Ye (Lindenmoor's
+-- expansion) is laid out with +Z north; the Foundry place uses -Z. CompassUI and the MasteryUI Guide read this.
+Regions.NorthAxis = {[Places.Regions.Lindenmoor.PlaceId] = "+Z"} -- [PlaceId] = "+Z" or "-Z"
+function Regions.NorthOf(PlaceId)
+	return Regions.NorthAxis[PlaceId or game.PlaceId] or "-Z"
+end
+-- the compass bearing of a flat world offset (X, Z): degrees clockwise from north seen from above, in (-180, 180]
+-- (0 north, 90 east, 180 south, -90 west), for this place's north (or the given "+Z" / "-Z")
+function Regions.Bearing(X, Z, North)
+	local S = (North or Regions.NorthOf()) == "+Z" and 1 or -1 -- the sign of Z that points north
+	return math.deg(math.atan2(-S * X, S * Z))
+end
+
 -- WorldService area names (AreaName attribute) -> region
 Regions.Areas = {
 	["Foundry Yard"] = "Foundry",
@@ -92,9 +108,10 @@ Regions.Areas = {
 	["Gorge Lookout"] = "Lindenmoor",
 	-- the Lindenmoor expansion's areas (Lindenmoor import Task 8, 2026-10-24; Art/Regions/Lindenmoor/layout.json)
 	["Outlying Farmsteads"] = "Lindenmoor", ["Mine Approach"] = "Lindenmoor", ["Mill Creek Gorge"] = "Lindenmoor",
-	["East Lookout"] = "Lindenmoor", ["Bramble Woods"] = "Lindenmoor", ["Training Field"] = "Lindenmoor",
+	["West Lookout"] = "Lindenmoor", ["Bramble Woods"] = "Lindenmoor", ["Training Field"] = "Lindenmoor",
 	["Ridge Marker"] = "Lindenmoor", ["North Meadows"] = "Lindenmoor", ["Cypress Ridge Rim"] = "Lindenmoor",
-	["Northeast Gap"] = "Lindenmoor",
+	["Northwest Gap"] = "Lindenmoor", -- (fix round 4, Ruling 38b: +Z is north in Ye, so +X is west; were East Lookout
+	-- and Northeast Gap, named in the layout's x = east frame)
 	["Halvard's Adit"] = "Adit",
 	["Frozen Research Station"] = "Wilds", ["Cracked Footbridge"] = "Wilds", ["Burned Laboratory"] = "Wilds",
 	["Silent Forge"] = "Wilds", ["Silent Observatory"] = "Wilds",

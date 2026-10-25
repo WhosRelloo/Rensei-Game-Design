@@ -14,7 +14,8 @@
     "Hub pieces (owner, 2026-10-23: 'Move them into the new map'): the five alchemy trainers stand at the TrainerSpot markers in the training field, and each trial site with its arena moves to a lindenmoor.reserve landmark (a flat, clear pad of Radius studs; Holds says what goes there). They move on again when their regions are built. Each piece's footprint must be measured in Ye at import and checked against its pad. The hub's bandit spawns are replaced by the Grunt spawns below.",
     "Import timing (owner, 2026-10-23): start importing after the townsfolk tasks are done, with the region-foundation import tools (Tasks 9, 11, 12), not a one-off import.",
     "Exits (owner, 2026-10-23): the north road and the station line leave together through one gap in the north-east rim. The road passage moves there (RenseiMarker Piece RoadPassage below); today's NorthRoad passage at world (8..275, -293..-125) is retired at import. The rails continue from today's north buffer stop (world (-270, -369), removed at import).",
-    "Extensions to the Task 8 schema used here: top-level Materials, Keep and Infill; cut and water shapes may take Line + Width (a channel; cut also Bank, a sloped margin) instead of Rect, and channel water becomes terrain water: expansion.py writes one segment per channel leg to water_segments.json (world studs), and water_convert.py turns those into kit.py's axis-aligned, village-local boxes in water.json; box Crag (an uneven inner face and crest: Y range, extra Depth, Cell size); district Style lindenmoor.patchwork (hedged, walled and fenced crop fields); optional route field Bridges; landmark fields Variant, Face, Size, Span, Length, Y, Radius, Holds; Heights kinds are the Task 8 five only."
+    "Extensions to the Task 8 schema used here: top-level Materials, Keep and Infill; cut and water shapes may take Line + Width (a channel; cut also Bank, a sloped margin) instead of Rect, and channel water becomes terrain water: expansion.py writes one segment per channel leg to water_segments.json (world studs), and water_convert.py turns those into kit.py's axis-aligned, village-local boxes in water.json; box Crag (an uneven inner face and crest: Y range, extra Depth, Cell size); district Style lindenmoor.patchwork (hedged, walled and fenced crop fields); optional route field Bridges; landmark fields Variant, Face, Size, Span, Length, Y, Radius, Holds; Heights kinds are the Task 8 five only.",
+    "Compass (Lindenmoor import Task 8 fix round 4, Ruling 38b, 2026-10-24): Ye's compass has north at +Z, and since Roblox is right-handed its EAST is -X. This file keeps its own x = east frame for every coordinate, so its east and west are mirrored against what players see: player-facing names and text use the compass (the areas at x 600..1000 are West Lookout and Northwest Gap, were East Lookout and Northeast Gap; internal ids such as forest_east, orchard_east or hay_barn_east are unchanged). North and south words need no change. Ruling 39 added seven Shelter posts in Ye (Art/Studio/Regions/Lindenmoor/shelters.lua, measured spots by existing buildings) after the import; they are recorded in Markers so a rebuild keeps them."
   ],
   "Materials": {
     "lm_moss":       {"Material": "Grass",       "Color": "#4a6232", "Blender": "LM_GrassGround"},
@@ -162,13 +163,13 @@
     {"Tag": "RenseiArea", "Box": [[-1000, -10, -1000], [-420, 90, -400]], "Attr": {"AreaName": "Outlying Farmsteads"}},
     {"Tag": "RenseiArea", "Box": [[532, -10, -860], [900, 90, -610]], "Attr": {"AreaName": "Mine Approach"}},
     {"Tag": "RenseiArea", "Box": [[532, -20, -600], [1000, 90, -500]], "Attr": {"AreaName": "Mill Creek Gorge"}},
-    {"Tag": "RenseiArea", "Box": [[600, -10, -500], [860, 90, -380]], "Attr": {"AreaName": "East Lookout"}},
+    {"Tag": "RenseiArea", "Box": [[600, -10, -500], [860, 90, -380]], "Attr": {"AreaName": "West Lookout"}},
     {"Tag": "RenseiArea", "Box": [[532, -10, -1024], [1000, 90, -860]], "Attr": {"AreaName": "Bramble Woods"}},
     {"Tag": "RenseiArea", "Box": [[-260, -10, -270], [-40, 90, -100]], "Attr": {"AreaName": "Training Field"}},
     {"Tag": "RenseiArea", "Box": [[-240, -10, -70], [-160, 60, 10]], "Attr": {"AreaName": "Ridge Marker"}},
     {"Tag": "RenseiArea", "Box": [[-40, -10, -280], [700, 90, 800]], "Attr": {"AreaName": "North Meadows"}},
     {"Tag": "RenseiArea", "Box": [[-1000, -10, -200], [-420, 110, 1000]], "Attr": {"AreaName": "Cypress Ridge Rim"}},
-    {"Tag": "RenseiArea", "Box": [[640, -10, 800], [1000, 110, 1024]], "Attr": {"AreaName": "Northeast Gap"}},
+    {"Tag": "RenseiArea", "Box": [[640, -10, 800], [1000, 110, 1024]], "Attr": {"AreaName": "Northwest Gap"}},
 
     {"Tag": "RenseiMarker", "At": [-230, 0, -135], "Yaw": 0, "Attr": {"Piece": "TrainerSpot", "Trainer": "Calda", "Element": "Flame"}},
     {"Tag": "RenseiMarker", "At": [-205, 0, -135], "Yaw": 0, "Attr": {"Piece": "TrainerSpot", "Trainer": "Veyra", "Element": "Ice"}},
@@ -203,7 +204,14 @@
     {"Tag": "RenseiPost", "At": [-120, 0, -150], "Yaw": 270, "Attr": {"PostId": "lm_training_drill", "Kind": "Work"}},
     {"Tag": "RenseiPost", "At": [660, 0, 826], "Yaw": 45, "Attr": {"PostId": "lm_signal_box", "Kind": "Work"}},
     {"Tag": "RenseiPost", "At": [716, 0, -446], "Yaw": 80, "Attr": {"PostId": "lm_lookout_seat", "Kind": "Seat"}},
-    {"Tag": "RenseiPost", "At": [646, 0, 112], "Yaw": 60, "Attr": {"PostId": "lm_haybarn_shelter", "Kind": "Shelter"}}
+    {"Tag": "RenseiPost", "At": [646, 0, 112], "Yaw": 60, "Attr": {"PostId": "lm_haybarn_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiPost", "At": [-919.6, 0, -831.8], "Yaw": 135, "Attr": {"PostId": "lm_farm1_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiPost", "At": [-617.5, 0, -890.9], "Yaw": 60, "Attr": {"PostId": "lm_farm2_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiPost", "At": [-853.7, 0, -674.6], "Yaw": -158, "Attr": {"PostId": "lm_farm3_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiPost", "At": [692.0, 0, -748.0], "Yaw": -90, "Attr": {"PostId": "lm_mine_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiPost", "At": [732.5, 0, -441.7], "Yaw": -64, "Attr": {"PostId": "lm_lookout_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiPost", "At": [669.9, 0, 827.2], "Yaw": -45, "Attr": {"PostId": "lm_signal_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiPost", "At": [-90.0, 0, -232.0], "Yaw": 0, "Attr": {"PostId": "lm_field_shelter", "Kind": "Shelter"}}
   ],
   "Budget": 42000,
   "BudgetNotes": "PROPOSAL. Expansion ceiling 42,000 parts: ground 16k, forests and edges 12k, farmsteads and market 3.5k, gorge, lookout and creek 2.5k, rails, road and gap 2k, mine approach 1.8k, rim and marker 1.5k, trail dressing 2k, training field 0.6k. Ye keeps about 30.5k (village 8.3k, ground 16.3k, Adit dressing 1.5k, trains and station about 4.5k; needs a Studio count), so the place total is about 72.5k against a Lindenmoor ceiling of 80k (world spec 60-90k)."

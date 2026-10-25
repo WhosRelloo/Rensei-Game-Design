@@ -7,7 +7,7 @@
 --     evidence and starts its quest with the Evidence objective caught up; the townsperson named in the roster's Clue
 --     then says the clue line, which finishes the quest. Quest rewards are switched off while the test runs.
 --   * TownsfolkRoster: Lindenmoor's roster passes TownsfolkLogic.Validate against the posts in the place, uses every
---     post, dresses everyone as Amestrian, was spawned at Start (no refusal), and, with the clock held at 10:00,
+--     post but the shelters, has a shelter within ShelterRadius of each of its posts, dresses everyone as Amestrian, was spawned at Start (no refusal), and, with the clock held at 10:00,
 --     LoadRegion stands every townsperson at its 10:00 post.
 -- Everything the tests change (test parts, the clock hold, the player's position, quest / evidence state, patched
 -- rewards and the talk cooldown) is put back.
@@ -15,8 +15,9 @@ local SSS = game:GetService("ServerScriptService")
 local CollectionService = game:GetService("CollectionService")
 local Rensei = game.ReplicatedStorage.Modules.Data.Rensei
 
-local AREAS = {"Outlying Farmsteads", "Mine Approach", "Mill Creek Gorge", "East Lookout", "Bramble Woods",
-	"Training Field", "Ridge Marker", "North Meadows", "Cypress Ridge Rim", "Northeast Gap"}
+-- (fix round 4, Ruling 38b: +Z is north in Ye and +X west, so West Lookout and Northwest Gap, were East / Northeast)
+local AREAS = {"Outlying Farmsteads", "Mine Approach", "Mill Creek Gorge", "West Lookout", "Bramble Woods",
+	"Training Field", "Ridge Marker", "North Meadows", "Cypress Ridge Rim", "Northwest Gap"}
 local CLUES = {
 	{Clue = "lm_ridge_marker", Evidence = "lm_ridge_survey", Quest = "lm_ridge"},
 	{Clue = "lm_mine_shaft", Evidence = "lm_shaft_ore", Quest = "lm_mine"},
@@ -81,15 +82,24 @@ end
 return {
 	AreaLookup = function(T)
 		local Parts = AreaParts()
+		-- (fix round 4, review Minor 9) every area is checked before anything fails, so one report lists all the
+		-- missing or doubled ones; nothing indexes a box that isn't there
+		local Bad = {}
 		for _, Name in ipairs(AREAS) do
 			local List = Parts[Name]
-			T.True(List ~= nil and #List == 1, Name .. ": one box in the place (got " .. (List and #List or 0) .. ")")
-			T.True(List[1]:IsDescendantOf(workspace.World.Map.LindenmoorExpansion), Name .. " is the expansion's")
-			T.Eq(NameAt(List[1].Position), Name, Name .. " at its centre")
+			if not List or #List ~= 1 then
+				table.insert(Bad, Name .. " (" .. (List and #List or 0) .. " boxes)")
+			else
+				T.True(List[1]:IsDescendantOf(workspace.World.Map.LindenmoorExpansion), Name .. " is the expansion's")
+				T.Eq(NameAt(List[1].Position), Name, Name .. " at its centre")
+			end
 		end
+		T.Eq(#Bad, 0, "each area has one box in the place; not: " .. table.concat(Bad, ", "))
+		for _, Old in ipairs({"East Lookout", "Northeast Gap"}) do T.Eq(Parts[Old], nil, Old .. " (the old name) is gone") end
 		-- the relocated Burned Laboratory sits inside Bramble Woods: its own, smaller box wins
 		local Lab = Parts["Burned Laboratory"] and Parts["Burned Laboratory"][1]
 		T.True(Lab ~= nil, "the Burned Laboratory's box is in the place")
+		T.True(Parts["Bramble Woods"] ~= nil, "Bramble Woods' box is in the place")
 		T.True(Inside(Parts["Bramble Woods"][1], Lab.Position), "the lab's centre is inside Bramble Woods (the overlap)")
 		T.Eq(NameAt(Lab.Position), "Burned Laboratory", "at the relocated lab")
 		-- order doesn't matter: two nested pairs far above the map, the big box tagged first in one, last in the other
@@ -105,6 +115,16 @@ return {
 			T.Eq(NameAt(B.Position), "__TestSmallB", "the smaller box wins (big one tagged last)")
 			T.Eq(NameAt(A.Position + Vector3.new(50, 0, 0)), "__TestBigA", "outside the small box: the big one")
 			T.Eq(NameAt(Vector3.new(500, 5000, 0)), nil, "between them: no area")
+			-- (fix round 4, review Minor 4) two boxes of the same volume: the name first in order wins, whichever was
+			-- tagged first
+			local C = CFrame.new(2000, 5000, 0)
+			local D = CFrame.new(3000, 5000, 0)
+			table.insert(Made, Box("__TestTieB", C, Vector3.new(30, 30, 30)))
+			table.insert(Made, Box("__TestTieA", C, Vector3.new(30, 30, 30)))
+			table.insert(Made, Box("__TestTieA", D, Vector3.new(30, 30, 30)))
+			table.insert(Made, Box("__TestTieB", D, Vector3.new(30, 30, 30)))
+			T.Eq(NameAt(C.Position), "__TestTieA", "a tie goes to the first name (B tagged first)")
+			T.Eq(NameAt(D.Position), "__TestTieA", "a tie goes to the first name (A tagged first)")
 		end)
 		for _, P in ipairs(Made) do P:Destroy() end
 		if not Ok then error(Err, 0) end
@@ -223,10 +243,27 @@ return {
 			T.Eq(D.Look.Nation, "Amestrian", D.Id .. " wears Amestrian clothing")
 			for _, S in ipairs(D.Schedule) do Used[S[3]] = true end
 		end
+		-- (fix round 4, Ruling 39: a Shelter post is somewhere to run to, so it needn't be anyone's at any hour)
 		local Unused = {}
-		for Id in pairs(PostIds) do if not Used[Id] then table.insert(Unused, Id) end end
+		for Id in pairs(PostIds) do
+			if not Used[Id] and Posts[Id]:GetAttribute("Kind") ~= "Shelter" then table.insert(Unused, Id) end
+		end
 		table.sort(Unused)
 		T.Eq(#Unused, 0, "posts nobody uses: " .. table.concat(Unused, ", "))
+		-- (Ruling 39) every post of every townsperson has a Shelter post within TownsfolkService.ShelterRadius, so
+		-- nobody has only "curl up where you stand" to fall back on
+		local Far = {}
+		for _, D in ipairs(Roster) do
+			for _, S in ipairs(D.Schedule) do
+				local At = (Posts[S[3]].CFrame * CFrame.new(0, 3, 0)).Position -- (where the rig's root stands)
+				local Best = math.huge
+				for _, P in pairs(Posts) do
+					if P:GetAttribute("Kind") == "Shelter" then Best = math.min(Best, (P.Position - At).Magnitude) end
+				end
+				if Best > TS.ShelterRadius then table.insert(Far, ("%s at %s: %.0f"):format(D.Id, S[3], Best)) end
+			end
+		end
+		T.Eq(#Far, 0, "a shelter within " .. TS.ShelterRadius .. " of every post; not: " .. table.concat(Far, ", "))
 		-- spawned at Start: a refused roster spawns nobody
 		for _, D in ipairs(Roster) do T.True(TS.Get(D.Id) ~= nil, D.Id .. " was spawned at Start") end
 

@@ -318,6 +318,54 @@ return {
 		end)
 	end,
 
+	-- (Lindenmoor import Task 8 fix round 4, review Minor 2) the same door, but the urgent walker is held still for
+	-- 1.5 s (a hit's pin; a slow re-plan or a side-step stalls it the same way) just after the normal walker has begun
+	-- to give way: the yield must hold while it stands there, not end because the gap grew as the yielder backed off
+	-- (an early end would start the 3 s cooldown and block the give-way when it comes on again)
+	UrgentStoppedKeepsGiveWay = function(T)
+		Fixture(T, "UrgentStop", function(Ctx)
+			Ctx.Wall(0, -51.25, 2, 97.5)
+			Ctx.Wall(0, 51.25, 2, 97.5)
+			local W = Ctx.Walkers({{From = {-7, 0}, To = {16, 0}}, {From = {22, 0}, To = {-16, 0}}})
+			local Normal, Urgent = W[1], W[2]
+			Ctx.OnCleanup(function() Urgent.Rig:SetAttribute("Movement", nil) end)
+			local S0 = Mover.Stats()
+			local function Goal(X) local P = Ctx.At(X, 0) + Vector3.new(0, 3, 0) return CFrame.lookAt(P, P + Vector3.new(X > 0 and 1 or -1, 0, 0)) end
+			local Done, Cross = {}, {}
+			local T0 = os.clock()
+			local HN = Mover.WalkTo(Normal.Rig, Goal(16), {Speed = 8, OnDone = function(R) Done.N = R end})
+			local HU = Mover.WalkTo(Urgent.Rig, Goal(-16), {Urgent = true, OnDone = function(R) Done.U = R end})
+			while os.clock() - T0 < 5 and HN.Mode ~= "yield" do task.wait() end
+			T.Eq(HN.Mode, "yield", "the normal walker begins to give way")
+			local PauseAt = os.clock()
+			Urgent.Rig:SetAttribute("Movement", 1) -- (held, as MoverManager.Movement holds a hit one)
+			local Left -- seconds into the hold that the yield ended, if it did
+			local Min = math.huge
+			while os.clock() - PauseAt < 1.5 do
+				task.wait()
+				if not Left and HN.Mode ~= "yield" then Left = os.clock() - PauseAt end
+				Min = math.min(Min, (Normal.Rig.HumanoidRootPart.Position - Urgent.Rig.HumanoidRootPart.Position).Magnitude)
+			end
+			Urgent.Rig:SetAttribute("Movement", nil)
+			while os.clock() - T0 < 25 and not (Done.N and Done.U) do
+				task.wait(0.1)
+				local PN, PU = Normal.Rig.HumanoidRootPart.Position, Urgent.Rig.HumanoidRootPart.Position
+				Min = math.min(Min, (PN - PU).Magnitude)
+				if not Cross.N and PN.X - Ctx.O.X > 0 then Cross.N = os.clock() - T0 end
+				if not Cross.U and PU.X - Ctx.O.X < 0 then Cross.U = os.clock() - T0 end
+			end
+			local S1 = Mover.Stats()
+			print(("[Crowd] UrgentStoppedKeepsGiveWay: yield ended %s s into the 1.5 s hold; through the door: urgent %.2f s, normal %.2f s; urgent %s, normal %s; closest %.2f; give-ways %d"):format(
+				Left and ("%.2f"):format(Left) or "never", Cross.U or -1, Cross.N or -1, tostring(Done.U), tostring(Done.N), Min, S1.GiveWays - S0.GiveWays))
+			T.True(Left == nil, ("the normal walker keeps giving way while the urgent one stands in front of it (it stopped %s s into the hold)"):format(Left and ("%.2f"):format(Left) or "-"))
+			T.Eq(Done.U, "arrived", "the urgent walker arrives")
+			T.Eq(Done.N, "arrived", "the normal walker arrives too")
+			T.True(Cross.U ~= nil and Cross.N ~= nil and Cross.U < Cross.N, ("the urgent one goes through the door first (%.2f vs %.2f)"):format(Cross.U or -1, Cross.N or -1))
+			T.Eq(HU.Yields or 0, 0, "the urgent walker never gives way")
+			T.True(Min >= 2.0, ("they never overlap (closest %.2f)"):format(Min))
+		end)
+	end,
+
 	-- 8 walkers from a 30-stud ring to 8 posts 3 studs apart near the centre
 	Converging = function(T)
 		Fixture(T, "Converging", function(Ctx)

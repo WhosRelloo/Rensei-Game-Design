@@ -8,8 +8,11 @@
 --   * A post is one townsperson's at a time (TownsfolkLogic.Validate), and there are 4 Home and 2 Shelter posts for
 --     11 Work / Counter posts, so the day is shared out: two farmers keep the market stalls in the morning and work
 --     their fields after; the mine hand runs the winder, then the carts, and sits up at the lookout at night; the
---     Shelter posts go to the miller (beside the mill) and the groundskeeper (the hay barn); the signalman keeps his box
---     round the clock. All 18 posts are used.
+--     Shelter posts go to the miller (beside the mill) and the groundskeeper (the field's stand, fix round 4); the
+--     signalman keeps his box round the clock. Every post but the Shelter posts is used.
+--   * Shelters (fix round 4, Ruling 39): seven more Shelter posts (Art/Studio/Regions/Lindenmoor/shelters.lua) at the
+--     farmsteads, the mine head, the lookout, the signal box and the training field put a shelter within
+--     TownsfolkService.ShelterRadius (150) of every post here; the east hay barn's is now nobody's at night.
 --   * Clue (Rensei.Investigation's expansion clues): the groundskeeper answers lm_ridge, the mine hand lm_mine; the
 --     line signals the quest's Signal objective (Rensei.Quests).
 -- Hours (world clock):        0    6 7     12      18 19 20   24
@@ -19,7 +22,7 @@
 --   lm_farm4  field / home                home | field 6-18 | home
 --   lm_miller mill / mill shelter         shelter | mill 6-20 | shelter
 --   lm_minehand winder / carts / lookout  lookout | winder 6-12 | carts 12-18 | lookout
---   lm_groundskeeper drill / hay barn     hay barn | training field 6-19 | hay barn
+--   lm_groundskeeper drill / field shelter  shelter | training field 6-19 | shelter
 --   lm_signalman signal box               signal box all day
 local Lindenmoor = {
 	{Id = "lm_farm1", Name = "Garrick Ashby", Job = "Farmer", Faction = "Townsfolk", Idle = "NPC_HandInPocket",
@@ -46,16 +49,17 @@ local Lindenmoor = {
 		JobLine = "Winder in the morning, carts after. Come dark I sit up at the lookout and watch the gorge.",
 		Look = {Nation = "Amestrian", Gender = "Female", Seed = 2406},
 		Clue = {Quest = "lm_mine", Stage = 1, Signal = "lm_mine_told",
-			Text = "That shaft? It flooded the spring we sank it. The pumps couldn't keep up, so the company boarded it and set us to sorting spoil. There's good ore down there still, under forty feet of water."},
+			Text = "That shaft? The year we sank it, it flooded. The pumps couldn't keep up, so the company boarded it and set us to sorting spoil. There's good ore down there still, under forty feet of water."},
 		Schedule = {{6, 12, "lm_mine_winder"}, {12, 18, "lm_mine_carts"}, {18, 6, "lm_lookout_seat"}}},
 	{Id = "lm_groundskeeper", Name = "Ned Harrow", Job = "Groundskeeper", Faction = "Townsfolk", Idle = "NPC_HandInPocket",
 		JobLine = "Dummies don't stand themselves back up, you know.",
 		Look = {Nation = "Amestrian", Gender = "Male", Seed = 2407},
 		Clue = {Quest = "lm_ridge", Stage = 1, Signal = "lm_ridge_told",
 			Text = "The marker? I look after that. The surveyors cut the arrow when the rails came through, and every field boundary in the valley is measured off it. Let it weather and there'd be a quarrel over every hedge."},
-		Schedule = {{6, 19, "lm_training_drill"}, {19, 6, "lm_haybarn_shelter"}}},
+		Schedule = {{6, 19, "lm_training_drill"}, {19, 6, "lm_field_shelter"}}}, -- (fix round 4, Ruling 39: nights by the
+		-- field's stand, 87 studs from the drill; was the east hay barn, an 810-stud walk each way)
 	{Id = "lm_signalman", Name = "Abel Crane", Job = "Signalman", Faction = "Townsfolk", Idle = "NPC_CrossArms",
-		JobLine = "Every train through the gap goes past my levers first. I sleep in the box; it's warmer than home.",
+		JobLine = "Every train through the gap goes past my levers first, day or night. Somebody has to be at them.",
 		Look = {Nation = "Amestrian", Gender = "Male", Seed = 2408},
 		Schedule = {{0, 24, "lm_signal_box"}}},
 }

@@ -582,7 +582,7 @@ local function Direction(To)
 	local D = To - Root.Position
 	local Dist = Vector3.new(D.X, 0, D.Z).Magnitude
 	if Dist < 12 then return "right here" end
-	local Heading = math.deg(math.atan2(D.X, -D.Z)) % 360 -- -Z is north
+	local Heading = require(ReplicatedStorage.Modules.Data.Rensei.Regions).Bearing(D.X, D.Z) % 360 -- this place's north (Rensei.Regions.NorthAxis, Ruling 38b)
 	return ("%d studs %s"):format(math.floor(Dist / 5 + 0.5) * 5, COMPASS[math.floor((Heading + 22.5) / 45) % 8 + 1])
 end
 local function Trainers()

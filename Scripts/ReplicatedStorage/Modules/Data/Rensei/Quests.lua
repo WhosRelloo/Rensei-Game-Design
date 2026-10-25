@@ -30,9 +30,9 @@ return {
 	forgotten_halvard = {
 		Title = "Halvard's Adit", Category = "Exploration", Tier = 1,
 		StartOnVisit = "Halvard's Adit",
-		Description = "An old assay mine cut into Lindenmoor's eastern ridge, sealed by Authority order years ago. Someone has pried the boards loose.",
+		Description = "An old assay mine cut into Lindenmoor's western ridge, sealed by Authority order years ago. Someone has pried the boards loose.",
 		Stages = {
-			{Id = "s1", Text = "Find a way into the old adit on Lindenmoor's eastern ridge.", Objectives = {
+			{Id = "s1", Text = "Find a way into the old adit on Lindenmoor's western ridge.", Objectives = {
 				{Id = "visit", Text = "Enter Halvard's Adit", Kind = "Visit", Target = "Halvard's Adit"},
 			}},
 			{Id = "s2", Text = "The working is past a dead lift. Get the winch running.", Objectives = {
@@ -66,7 +66,7 @@ return {
 		Stages = {
 			{Id = "s1", Text = "Find out who looks after the ridge marker. Someone at the training field might know.", Objectives = {
 				{Id = "mark", Text = "Examine the ridge marker", Kind = "Evidence", Target = "lm_ridge_survey"},
-				{Id = "ask", Text = "Ask at the training field", Kind = "Signal", Target = "lm_ridge_told"},
+				{Id = "ask", Text = "Ask the groundskeeper at the training field", Kind = "Signal", Target = "lm_ridge_told"},
 			}},
 		},
 		Rewards = {Exp = 60},
@@ -76,9 +76,9 @@ return {
 		Category = "Investigation",
 		Description = "A shaft under the headframe on the mine approach has been boarded and chained, with ore still lying around it.",
 		Stages = {
-			{Id = "s1", Text = "Find out why the shaft was closed. The mine hand might tell you.", Objectives = {
+			{Id = "s1", Text = "Find out why the shaft was closed. The mine hand might tell you: she works at the mine head by day and sits up at the West Lookout after dark.", Objectives = {
 				{Id = "ore", Text = "Examine the boarded shaft", Kind = "Evidence", Target = "lm_shaft_ore"},
-				{Id = "ask", Text = "Ask the mine hand", Kind = "Signal", Target = "lm_mine_told"},
+				{Id = "ask", Text = "Ask the mine hand (the mine head by day, the West Lookout at night)", Kind = "Signal", Target = "lm_mine_told"},
 			}},
 		},
 		Rewards = {Exp = 60},
@@ -144,7 +144,7 @@ return {
 			{Id = "acq_ice", Is = "NotActive"}, {Id = "acq_earth", Is = "NotActive"},
 			{Id = "acq_wind", Is = "NotActive"}, {Id = "acq_metal", Is = "NotActive"}}},
 		Stages = {
-			{Id = "invite", Text = "Go to the burned laboratory in Bramble Woods, the valley's far south-east corner past the mine.", Objectives = {
+			{Id = "invite", Text = "Go to the burned laboratory in Bramble Woods, the valley's far south-west corner past the mine.", Objectives = {
 				{Id = "lab", Text = "Reach the burned laboratory", Kind = "Visit", Target = "Burned Laboratory"},
 			}},
 			{Id = "fieldwork", Text = "Work out how the laboratory fire happened.", Objectives = {
@@ -157,7 +157,7 @@ return {
 			{Id = "experiment", Text = "Bring the lab's reaction chamber to a clean ignition.", Objectives = {
 				{Id = "chamber", Text = "Run the reaction chamber", Kind = "Minigame", Target = "flame_reaction"},
 			}},
-			{Id = "trial", Text = "Corin Vale is still in the ash pit just east of the lab. Stop him.", Objectives = {
+			{Id = "trial", Text = "Corin Vale is still in the ash pit just west of the lab. Stop him.", Objectives = {
 				{Id = "corin", Text = "Face Corin in the ash pit", Kind = "Flag", Target = "Trial_flame_apprentice"},
 			}},
 			{Id = "exam", Text = "Return to Calda and take the examination.", Objectives = {
@@ -176,7 +176,7 @@ return {
 		Description = "Veyra's colleague vanished from a frozen research station. She won't say what she suspects until you've learned to look.",
 		Requires = {NoAffinity = true, Quests = {{Id = "acq_flame", Is = "NotActive"}, {Id = "acq_earth", Is = "NotActive"}, {Id = "acq_wind", Is = "NotActive"}, {Id = "acq_metal", Is = "NotActive"}}},
 		Stages = {
-			{Id = "invite", Text = "Go to the frozen research station up on the Cypress ridge rim, at the valley's north-west end.", Objectives = {
+			{Id = "invite", Text = "Go to the frozen research station behind the Cypress ridge, at the valley's north-east end.", Objectives = {
 				{Id = "site", Text = "Reach the frozen research station", Kind = "Visit", Target = "Frozen Research Station"},
 			}},
 			{Id = "fieldwork", Text = "Find out what froze the station.", Objectives = {
@@ -189,7 +189,7 @@ return {
 			{Id = "experiment", Text = "Restore the station's pumps without cracking the casings.", Objectives = {
 				{Id = "station", Text = "Work the pump housing", Kind = "Minigame", Target = "ice_phase"},
 			}},
-			{Id = "trial", Text = "Something wakes in the frozen chamber east of the station. Face it.", Objectives = {
+			{Id = "trial", Text = "Something wakes in the frozen chamber west of the station. Face it.", Objectives = {
 				{Id = "foe", Text = "Face the Crystallized Guardian", Kind = "Flag", Target = "Trial_ice_guardian"},
 			}},
 			{Id = "exam", Text = "Return to Veyra and take the examination.", Objectives = {
@@ -208,20 +208,20 @@ return {
 		Description = "A footbridge the village depends on is failing. Holt wants to know why before anyone touches it - including you.",
 		Requires = {NoAffinity = true, Quests = {{Id = "acq_flame", Is = "NotActive"}, {Id = "acq_ice", Is = "NotActive"}, {Id = "acq_wind", Is = "NotActive"}, {Id = "acq_metal", Is = "NotActive"}}},
 		Stages = {
-			{Id = "invite", Text = "Go to the cracked footbridge on the mine plateau, east of the training field across the gorge.", Objectives = {
+			{Id = "invite", Text = "Go to the cracked footbridge on the mine plateau, south-west of the training field across the gorge.", Objectives = {
 				{Id = "site", Text = "Reach the cracked footbridge", Kind = "Visit", Target = "Cracked Footbridge"},
 			}},
 			{Id = "fieldwork", Text = "Find out why the footing is failing.", Objectives = {
 				{Id = "cracks", Text = "Read the cracks in the footing", Kind = "Evidence", Target = "stress_cracks"},
 				{Id = "pier", Text = "Test the middle pier", Kind = "Evidence", Target = "hollow_pier"},
-				{Id = "soil", Text = "Check the east footing", Kind = "Evidence", Target = "washed_soil"},
+				{Id = "soil", Text = "Check the west footing", Kind = "Evidence", Target = "washed_soil"},
 				{Id = "report", Text = "Find the old survey report", Kind = "Evidence", Target = "survey_report", Optional = true},
 				{Id = "cause", Text = "Work out the cause on your Case Board (J)", Kind = "Deduce", Target = "bridge_failure"},
 			}},
 			{Id = "experiment", Text = "Work out where the bridge needs support.", Objectives = {
 				{Id = "station", Text = "Brace the footing at the survey table", Kind = "Minigame", Target = "earth_loads"},
 			}},
-			{Id = "trial", Text = "The quarry east of the bridge is coming apart, and someone is doing it on purpose. Stop him.", Objectives = {
+			{Id = "trial", Text = "The quarry west of the bridge is coming apart, and someone is doing it on purpose. Stop him.", Objectives = {
 				{Id = "foe", Text = "Face Dask in the unstable quarry", Kind = "Flag", Target = "Trial_earth_quarry"},
 			}},
 			{Id = "exam", Text = "Return to Holt and take the examination.", Objectives = {
@@ -240,7 +240,7 @@ return {
 		Description = "The observatory's machines stopped. Ansel knows why, and won't say. He wants to see if you can work it out from what the air left behind.",
 		Requires = {NoAffinity = true, Quests = {{Id = "acq_flame", Is = "NotActive"}, {Id = "acq_ice", Is = "NotActive"}, {Id = "acq_earth", Is = "NotActive"}, {Id = "acq_metal", Is = "NotActive"}}},
 		Stages = {
-			{Id = "invite", Text = "Go to the silent observatory on the crest of the Cypress ridge rim, north-west of the training field.", Objectives = {
+			{Id = "invite", Text = "Go to the silent observatory up on the Cypress ridge rim, north-east of the training field.", Objectives = {
 				{Id = "site", Text = "Reach the silent observatory", Kind = "Visit", Target = "Silent Observatory"},
 			}},
 			{Id = "fieldwork", Text = "Work out why the observatory stopped.", Objectives = {
@@ -253,7 +253,7 @@ return {
 			{Id = "experiment", Text = "Route the air through the observatory's ducts again.", Objectives = {
 				{Id = "station", Text = "Work the duct manifold", Kind = "Minigame", Target = "wind_routing"},
 			}},
-			{Id = "trial", Text = "Siv is still on the gale floor east of the observatory. Prove you can read what moves you.", Objectives = {
+			{Id = "trial", Text = "Siv is still on the gale floor west of the observatory. Prove you can read what moves you.", Objectives = {
 				{Id = "foe", Text = "Face Siv on the gale floor", Kind = "Flag", Target = "Trial_wind_dancer"},
 			}},
 			{Id = "exam", Text = "Return to Ansel and take the examination.", Objectives = {
@@ -269,10 +269,10 @@ return {
 		Title = "The Unyielding Principle",
 		Category = "Main",
 		Giver = "Brannoc, Metal Alchemist",
-		Description = "A forge east of the Foundry Yard went cold mid-shift. Brannoc wants the failure understood before a single bolt is turned.",
+		Description = "A forge west of the Foundry Yard went cold mid-shift. Brannoc wants the failure understood before a single bolt is turned.",
 		Requires = {NoAffinity = true, Quests = {{Id = "acq_flame", Is = "NotActive"}, {Id = "acq_ice", Is = "NotActive"}, {Id = "acq_earth", Is = "NotActive"}, {Id = "acq_wind", Is = "NotActive"}}},
 		Stages = {
-			{Id = "invite", Text = "Go to the silent forge in the north meadows by the gap, just east of the Foundry Yard.", Objectives = {
+			{Id = "invite", Text = "Go to the silent forge at the valley's north end, just west of the Foundry Yard.", Objectives = {
 				{Id = "site", Text = "Reach the silent forge", Kind = "Visit", Target = "Silent Forge"},
 			}},
 			{Id = "fieldwork", Text = "Find out why the forge's machine failed.", Objectives = {
@@ -285,7 +285,7 @@ return {
 			{Id = "experiment", Text = "Choose the right materials for the forge's new parts.", Objectives = {
 				{Id = "station", Text = "Work the material bench", Kind = "Minigame", Target = "metal_match"},
 			}},
-			{Id = "trial", Text = "Something armored is moving on the forge floor east of the workshop. Stop it.", Objectives = {
+			{Id = "trial", Text = "Something armored is moving on the forge floor west of the workshop. Stop it.", Objectives = {
 				{Id = "foe", Text = "Face the Armored Experiment", Kind = "Flag", Target = "Trial_metal_experiment"},
 			}},
 			{Id = "exam", Text = "Return to Brannoc and take the examination.", Objectives = {

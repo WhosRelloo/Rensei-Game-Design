@@ -114,12 +114,15 @@ return {
 			Prompt = {Action = "Take the Pry Bar", Gives = "CarryingPryBar", Text = "You take a rusted pry bar from the rack."},
 		},
 		-- the sump: three sluices (the shift chart says which way each goes), or freeze the water and cross
-		adit_sluice_n = {Kind = "Valve", Title = "North Sluice", Default = "Open",
-			Prompt = {Action = "Turn the Sluice", Toggle = {"Open", "Shut"}, Text = "The north sluice grinds %s."}},
+		-- (Lindenmoor import Task 8 fix round 4, Ruling 38b: Ye's north is +Z, so the _n sluice, at z -682, is the
+		-- SOUTH one and the _s sluice, at z -638, the NORTH one; the ids stay, the names players see swap. The chart's
+		-- answer, north and south both shut, is the same either way)
+		adit_sluice_n = {Kind = "Valve", Title = "South Sluice", Default = "Open",
+			Prompt = {Action = "Turn the Sluice", Toggle = {"Open", "Shut"}, Text = "The south sluice grinds %s."}},
 		adit_sluice_m = {Kind = "Valve", Title = "Middle Sluice", Default = "Shut",
 			Prompt = {Action = "Turn the Sluice", Toggle = {"Open", "Shut"}, Text = "The middle sluice grinds %s."}},
-		adit_sluice_s = {Kind = "Valve", Title = "South Sluice", Default = "Open",
-			Prompt = {Action = "Turn the Sluice", Toggle = {"Open", "Shut"}, Text = "The south sluice grinds %s."}},
+		adit_sluice_s = {Kind = "Valve", Title = "North Sluice", Default = "Open",
+			Prompt = {Action = "Turn the Sluice", Toggle = {"Open", "Shut"}, Text = "The north sluice grinds %s."}},
 		adit_sump = {
 			Kind = "Source", Title = "Flooded Sump", Default = "Flooded",
 			Reactions = {Ice = {State = "Frozen", For = 20, Text = "The sump water locks into ice thick enough to cross."}},

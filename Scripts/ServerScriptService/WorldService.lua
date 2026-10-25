@@ -37,14 +37,22 @@ end
 -- the area box Position is in. Boxes can nest (Lindenmoor import Task 8: the relocated trial sites keep their own boxes
 -- inside the expansion's big areas, e.g. the Burned Laboratory inside Bramble Woods), so of the boxes that contain it
 -- the smallest volume wins, whatever order they're found in. Only boxes in workspace count (a backup in ServerStorage
--- keeps its tag).
+-- keeps its tag). Two boxes of the same volume (fix round 4, review Minor 4): the area name first in order wins, then
+-- the box's path, so a tie never depends on GetTagged's order.
+local function FirstOf(A, B)
+	local NA, NB = A:GetAttribute("AreaName") or A.Name, B:GetAttribute("AreaName") or B.Name
+	if NA ~= NB then return NA < NB end
+	return A:GetFullName() < B:GetFullName()
+end
 function WorldService.AreaAt(Position)
 	local Best, BestVolume
 	for _, Part in ipairs(CollectionService:GetTagged(AREA_TAG)) do
 		if Part:IsA("BasePart") and Part:IsDescendantOf(workspace) and Inside(Part, Position) then
 			local Size = Part.Size
 			local Volume = Size.X * Size.Y * Size.Z
-			if not Best or Volume < BestVolume then Best, BestVolume = Part, Volume end
+			if not Best or Volume < BestVolume or (Volume == BestVolume and FirstOf(Part, Best)) then
+				Best, BestVolume = Part, Volume
+			end
 		end
 	end
 	return Best

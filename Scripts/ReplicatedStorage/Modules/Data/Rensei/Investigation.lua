@@ -78,10 +78,10 @@ return {
 			Locked = "A stone pier.",
 		},
 		earth_soil = {
-			Title = "East Footing", Evidence = "washed_soil", Requires = {Quest = {Id = "acq_earth", StageAtLeast = 2}},
-			Text = "The soil under the east footing is gone - washed into a gully. Water has been running under it for months.",
-			AfterText = "The washed-out ground under the east footing.",
-			Locked = "The east footing of the bridge.",
+			Title = "West Footing", Evidence = "washed_soil", Requires = {Quest = {Id = "acq_earth", StageAtLeast = 2}},
+			Text = "The soil under the west footing is gone - washed into a gully. Water has been running under it for months.",
+			AfterText = "The washed-out ground under the west footing.",
+			Locked = "The west footing of the bridge.",
 		},
 		earth_note = {
 			Title = "Survey Case", Evidence = "survey_report", Requires = {Quest = {Id = "acq_earth", StageAtLeast = 2}},
@@ -91,14 +91,14 @@ return {
 		},
 		wind_flags = {
 			Title = "Pennants", Evidence = "still_flags", Requires = {Quest = {Id = "acq_wind", StageAtLeast = 2}},
-			Text = "Every pennant hangs dead - except the one by the west vent, which stirs. Air still comes in there, and nowhere else.",
-			AfterText = "Only the west pennant moves.",
+			Text = "Every pennant hangs dead - except the one by the east vent, which stirs. Air still comes in there, and nowhere else.",
+			AfterText = "Only the east pennant moves.",
 			Locked = "Pennants hanging from the beams.",
 		},
 		wind_dust = {
 			Title = "Dust on the Floor", Evidence = "dust_lines", Requires = {Quest = {Id = "acq_wind", StageAtLeast = 2}},
-			Text = "Dust lies in long streaks, all pointing at the north duct. The air used to leave that way - it carried the dust with it.",
-			AfterText = "Dust streaks pointing at the north duct.",
+			Text = "Dust lies in long streaks, all pointing at the south duct. The air used to leave that way - it carried the dust with it.",
+			AfterText = "Dust streaks pointing at the south duct.",
 			Locked = "A dusty floor.",
 		},
 		wind_vents = {
@@ -140,7 +140,7 @@ return {
 		-- ===== alchemy acquisition: Flame (the burned laboratory) =====
 		flame_scorch = {
 			Title = "Scorch Marks", Evidence = "burn_pattern", Requires = {Quest = {Id = "acq_flame", StageAtLeast = 2}},
-			Text = "Black scorch fans out from the bench in a circle - then one straight line of it climbs the north wall to the vent, as if the fire ran up a rope.",
+			Text = "Black scorch fans out from the bench in a circle - then one straight line of it climbs the south wall to the vent, as if the fire ran up a rope.",
 			AfterText = "The scorch line, bench to vent.",
 			Locked = "Old scorch marks. Somebody's experiment ended badly.",
 		},
