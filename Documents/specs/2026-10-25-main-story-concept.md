@@ -1,12 +1,12 @@
 # Main story: concept (DRAFT for the owner)
 
-**Status:** **DRAFT**, 2026-10-25, revised the same day to the owner's answers. Written for the owner to read, change and approve. Nothing here is built, and nothing here is canon until the owner says so.
+**Status:** **DRAFT**, 2026-10-25, revised twice that day to the owner's answers and review. Written for the owner to read, change and approve. Nothing here is built, and nothing here is canon until the owner says so. The lore lives in `Documents/Lore Bible.md` (DRAFT).
 
 **Owner's request (their exact words):** "I want the game to Go like this: Character Creation > Tutorial > Main Game Cutscene of the character waking up in 1st person seeing a bird fly across the sky above him/her, then they get up and look left and right > Lore + Main Quest. I want the first main quests to introduce all the in-depth features in the game 1 by 1 and in a simple way for players to understand."
 
 ## Owner's answers (2026-10-25)
 
-Recorded verbatim:
+**First round, recorded verbatim:**
 
 > "For the short quests make sure they explain the features well but don't overload with information."
 >
@@ -22,20 +22,36 @@ Recorded verbatim:
 >
 > "6. Yes. (the identity quests should be able to do solo if you want)."
 
+**Second round (the owner's review of the lore and their answers to the new questions):**
+
+> "change the word 'working' for the alchemy to something more FMA related. Make the ancient kingdom name something cooler. And I want the lore to be a little more understandable. You can use FMA words too I don't mind."
+>
+> 1. "Use the proposed ones." (Truth's finale lines)
+> 2. "Keep the FMA terms." (the shipped creator text, the nation names and "Xerxian" stay)
+> 3. "Brannoc's notice is pretty good."
+> 4. "Give them a better term than strays." On whether they can go home, the owner chose **option C: it stays a mystery**.
+> 5. "Keep the FMA terms like I said."
+>
+> "The tutorial should have a cool cutscene when you join it as well."
+>
+> "There should be a good amount (BUT NOT TOO MUCH) cutscenes throughout the story in REALLY IMPORTANT parts"
+>
+> "after the player's camera goes to the center, the camera should smoothly transition from first person to 3rd person."
+
 **What they change in this draft:**
-- **Answer 1:** the player is a **stray**, someone who fell through the Gate from another world (`Documents/Lore Bible.md` §6). The waking cutscene is now an arrival.
-- **Answer 2:** every trainer's questline starts in Lindenmoor. Metal is the one exception the map forces today (§2.4).
-- **Answer 3:** beat 7 completes when the player **starts** a trainer's questline. Finishing it is optional.
-- **Answer 4:** the placeholder "dross" spine is gone. The new lore is in `Documents/Lore Bible.md` (DRAFT), and §§1.4, 2 and 3 below use its spine: the **Tally**, **debtwork**, **sinks** and **strays**.
-- **Answer 5** (wrong-guess consequences): **off in Chapter 1, on from Act II**, always told up front, never a dead end.
-- **Answer 6:** the Identities beat (12) and the parties beat (13) are optional, and **beat 12 can be done solo**: the player meets an NPC stranger and fills in their first Identity record (§2.5).
-- **The start flow stays:** Character Creation > Tutorial > the first-person waking cutscene > Lore + Main Quest.
+- **The player is Farborn:** someone who fell through the Gate from another world (Lore Bible §6). "Stray" is retired.
+- **The lore uses series words, in plain language:** transmutation, Equivalent Exchange (the law's name here), Philosopher's Stone (in this world, a stone that holds an unpaid debt and is never made of people), State Alchemist. The story, characters and events stay original.
+- **The ancient empire is Mezarath.**
+- **The start flow gains a Tutorial opening cutscene** (§1.2). The waking cutscene now ends with a smooth move from first person to third person (§1.4).
+- **A small set of story cutscenes,** only at really important moments (§4).
+- **Going home stays a mystery.** There are hints only, and no ending promises it or rules it out.
+- **Every trainer starts in Lindenmoor.** For Metal, that start is Brannoc's notice (owner: "pretty good").
+- **Beat 7** completes when a path is **started**. **Wrong-guess consequences** are off in Chapter 1. **Beats 12–13** are optional, and beat 12 can be done solo.
 
 **Rules this draft follows:**
-- **Every new name, line, number and plot point is a PROPOSAL.** The lore's own rules (names, tone, words to avoid) are in the Lore Bible. The owner's story notes (the conversation linked in `README.md`, a web link I couldn't read) win wherever they disagree.
-- **Original story.** The theme is Fullmetal Alchemist; the content is our own (Lore Bible §9.2).
-- **Explain each feature well, briefly.** Every beat says **what the player is told**: at most two short sentences or one Field Note, shown at the moment of use.
-- **What exists is named as existing; what's new is marked new.** Section 5 lists both.
+- **Every new name, line, number and plot point is a PROPOSAL.** The owner's story notes (the web link in `README.md`, which I couldn't read) win wherever they disagree.
+- **Explain each feature well, briefly.** Every beat says **what the player is told**: at most two short sentences or one Field Note, at the moment of use.
+- **What exists is named as existing; what's new is marked new** (§6).
 
 ---
 
@@ -45,174 +61,208 @@ Recorded verbatim:
 
 | Step | Place | Status | What happens |
 |---|---|---|---|
-| 1. **Character creation** | Character Customization (the menu place) | **Exists** | Main menu, save slots, nation, name, look, clan roll, starting weapon. Saved once. In the lore, the nation and clan are the people and family line the Gate weighs the stray against (Lore Bible §6.3). |
-| 2. **Tutorial** | Tutorial place | **Exists** | Drillmaster Vask's beats: Footwork, Report In, The Wall (climbing), Strikes, Break a Guard, Defend (block and parry), Alchemy, The Bout (knock and grip), then **the Gate** (Truth's lines). It ends with `FinishTutorial`, which saves `TutorialDone` and sends the player to Ye. In the lore, this is **the Weighing**: Truth testing a stray before letting them in (Lore Bible §6.2). |
-| 3. **The waking cutscene** | Ye (Lindenmoor) | **New** (replaces the placeholder) | The stray's first breath in this world. It plays once, on the first arrival (`FlowService` already plays the intro once and saves `Flow.IntroSeen`). §1.3. |
-| 4. **Lore** | Ye | **New** | Short and in-world. §1.4. |
-| 5. **Main quest** | Ye, then the regions | **New** | Chapter 1, "The Arrow and the Seal" (PROPOSAL). §2. |
+| 1. **Character creation** | Character Customization (the menu place) | **Exists** | Main menu, save slots, nation, name, look, clan roll, starting weapon. In the lore, the nation and clan are the people and family the Gate gives the Farborn (Lore Bible §6.3). |
+| 2. **Tutorial opening cutscene** | Tutorial place | **New** | The pull through the Gate (§1.2). It plays once, before Vask's first beat. |
+| 3. **Tutorial** | Tutorial place | **Exists** | Drillmaster Vask's beats: Footwork, Report In, The Wall (climbing), Strikes, Break a Guard, Defend (block and parry), Alchemy, The Bout (knock and grip), then **the Gate** and Truth's lines. It ends with `FinishTutorial`, which saves `TutorialDone` and sends the player to Ye. In the lore, this is Truth testing the newcomer. |
+| 4. **The waking cutscene** | Ye (Lindenmoor) | **New** (replaces the placeholder) | The first breath in this world. It plays once, on the first arrival (`FlowService` already plays the intro once and saves `Flow.IntroSeen`) (§1.4). |
+| 5. **Lore** | Ye | **New** | Short and in-world (§1.5). |
+| 6. **Main quest** | Ye, then the regions | **New** | Chapter 1, "The Arrow and the Seal" (PROPOSAL) (§2). |
 
-**The hand-off:** nothing in steps 1–2 changes. The menu routes a new player to the Tutorial, and the Tutorial routes them to Ye (`Start Flow and Character Creation.md`). In Ye, `FlowService` already calls `IntroCutscene.Play` once for a profile that hasn't seen it. The waking cutscene **takes that slot**. A returning player (`IntroSeen` already true) never sees it again.
+**The hand-off:** nothing else in steps 1 and 3 changes. The menu routes a new player to the Tutorial, and the Tutorial routes them to Ye (`Start Flow and Character Creation.md`). In Ye, `FlowService` already calls `IntroCutscene.Play` once for a profile that hasn't seen it, and the waking cutscene **takes that slot**.
 
-**Why it reads well:** the Tutorial ends with the player walking into the Gate. In the lore, that *is* the crossing. The next thing they see is open sky in another world. It feels like waking from a dream, and it isn't one: the grey patch they're lying in proves it (§1.3, shot 4).
+**Why it reads well:** the Tutorial opens with the fall and ends with the player walking through the Gate. The next thing they see is open sky in another world. It feels like waking from a dream, and it isn't one: the grey patch they're lying in proves it.
 
-**Truth's finale lines:** they live in the Tutorial place in Studio, which isn't mirrored in this repo, so this draft couldn't read them. The Lore Bible (§6.2) proposes three lines that set up the outsider story ("You were not sent. You fell."...). If the owner's lines already say something else, the lore bends to fit (open question 1).
+**Truth's finale lines** (owner: "Use the proposed ones"): *"You were not sent. You fell." / "The ground here is paying, and every door swings both ways." / "You owe this world nothing. Keep it that way, if you can."* They go into the Tutorial's existing finale, which lasts about 9 seconds (`FINALE_TIME`). The finale's text lives in Studio (`TutorialSteps` and the Tutorial client, not mirrored in this repo).
 
-### 1.2 Where they wake
+### 1.2 The Tutorial opening cutscene (new)
 
-**On the slope of the Ridge Marker's knoll** (PROPOSAL), in Lindenmoor's North Meadows, just above the training field.
-
-- **Why there:** it's real ground in Ye today. The Ridge Marker (a standing stone and cairn on a knoll, with a surveyor's arrow someone keeps scrubbed clean) is already a clue point with its own quest, `lm_ridge`. In the lore it marks the Bureau's buried debt under the ridge (sink **LM-7**), which began to be paid the night the player fell through (Lore Bible §4.1). The first mystery is literally next to the player's head.
-- **What can be seen from there** (the Lindenmoor expansion layout): the village's red tile roofs and Mill Creek one way; the training field, its trainers and the north road running up to the gap the other way; the Cypress Ridge rim behind.
-- **New:** a one-time **wake point** marker on the knoll. The first arrival spawns there; every later spawn uses the village square as today (`LindenmoorSpawn`).
-- **New:** a permanent **grey patch** on the knoll: a ring of dead grey grass a few studs across, the "fall of grey" every stray lands in. Everyone sees it; every new player wakes in it. Townsfolk say it's been spreading since spring.
-- **Time of day:** the clock is the same in every server (`WorldClock`), so the scene can't choose its hour. PROPOSAL: the cutscene sets its own sky light for its 15 seconds, then hands back to the real clock.
-
-### 1.3 The waking cutscene, shot by shot
-
-About 15 seconds (PROPOSAL). First person all the way; no HUD; the player can't move until the last shot.
+**Story:** the player being pulled out of their own world and through the Gate. It ends as Truth's test begins. About 25 seconds (PROPOSAL). It is first person throughout, with no HUD, and letterbox bars from shot 3 to shot 6.
 
 | # | Shot | What we see and hear |
 |---|---|---|
-| 1 | **Black, then eyes open** | A ringing in the ears fades out: the Gate closing (the Tutorial's last sound, carried over). A slow fade in, with a blink or two (the screen dips dark at the top and bottom). Wind in grass; a far-off train whistle. |
-| 2 | **Lying on their back: sky** | The camera looks straight up from the ground. Tall grass frames the edges. A few flakes of grey ash drift up and away on the wind. Clouds drift. The light is soft. |
-| 3 | **A bird crosses overhead** | One dark bird, a swift, crosses the sky from one side of the frame to the other, and the camera's eyes follow it slightly. Its call fades as it goes. In the lore it came through with the player; nobody here has a name for it (Lore Bible §6.4). |
-| 4 | **Sitting up** | The view rises and tips forward as the character sits up. The sky drops away. The grass in a ring around them is dead and grey, and the green meadow begins just past it. The standing stone comes into view. Their own hands (their chosen look) are in shot, brushing off grey dust. A breath, a rustle of clothes. |
-| 5 | **Look left** | The head turns left and holds: Lindenmoor below, chimney smoke, the creek bridge, a train standing at the station. |
-| 6 | **Look right** | The head turns right and holds: the training field, small figures at practice, the north road climbing to the gap. The title card shows here (§1.4). |
-| 7 | **Back to centre, control returns** | The head comes back to centre on the standing stone and its arrow. The HUD fades in. A groundskeeper is already walking up the slope (§2, beat 1). |
+| 1 | **Home, just a glimpse** (0–4 s) | Looking out of a rain-streaked window at dusk. Everything beyond the glass is soft and out of focus; home stays the player's own. A small dark bird, a **swift**, sits on a wire outside. Rain on glass, far-off everyday noise. |
+| 2 | **The colour drains** (4–8 s) | The sound drops away to nothing. The colour runs out of the picture from the edges in, until it's grey. The swift takes off. |
+| 3 | **The pull** (8–13 s) | The view tips forward and falls. The window is gone and there's only white rushing past. The player's own hands come up into frame. A low sound grows: beads clicking on wood, like someone counting. |
+| 4 | **The Gate** (13–18 s) | The fall slows and stops. Standing on white ground: a plain iron-banded **door**, alone, slightly open, with a long **counting table** in front of it. The counting stops. |
+| 5 | **Truth** (18–23 s) | Someone is sitting at the table: a stern drillmaster, **Vask's face** (in the lore, a face Truth has borrowed). He doesn't blink. He looks up and says one line: *"Another one. Let's see what you're worth."* |
+| 6 | **The yard appears** (23–27 s) | He stands. The white fills in around the player, posts, walls and ground, until it's the Tutorial's training yard, with Vask standing in it. The letterbox lifts, the HUD fades in, and Vask's first beat (Footwork) starts. |
 
-- **Built with:** the existing intro slot (`Modules.UI.IntroCutscene`), a scripted camera, and the player's own character as the first-person body.
-- **New assets:** the bird (a small animated model), the grey patch, a few ash particles, the shots' camera path, and a few sounds (the ringing, wind, whistle, the swift's call). The blink uses plain screen fades, no new UI art.
+- **The one link to the waking cutscene:** the **swift**. Here it flies off as the colour drains (shot 2); in Lindenmoor it crosses the sky above the player (waking shot 3). It's the same bird, and it came through with them.
+- **Where it hooks in** (checked in `Scripts/Tutorial/`):
+  - `TutorialController.Begin` waits for the profile, then `OnCharacter` waits about a second and calls `StartStep(Player, S.Step)`.
+  - The new cutscene plays just before that first `StartStep`, only when the player is starting from the first beat (no saved `Flow.TutorialStep`) and a new flag, `Flow.TutorialIntroSeen`, isn't set.
+  - The server sends the client an "Intro" message (the controller already talks to the client this way: "Step", "Finale"), waits for the client's "done" or a timeout (PROPOSAL 35 s), saves the flag, then starts the beat.
+  - The Tutorial's UIHandler already loads an `IntroCutscene` module, which is a natural home for the client side.
+  - The Tutorial's step data (`TutorialSteps`) and its client script live in Studio and aren't mirrored here, so the build must check them there.
+  - The Tutorial runs one player per server, so no other player is affected.
+- **Once per profile; skippable after the first view** (PROPOSAL). A save slot sees it once. If the same account has already seen it on another slot, a "Hold to skip" prompt appears, using the existing prompt style (no new UI art).
+- **Uses only existing UI:** plain screen fades and letterbox bars.
+- **New assets:**
+  - **Models:** the swift (shared with the waking cutscene), a small window-and-rain set, the white ground, the iron-banded door and the counting table, and a Vask double for the table. They're built off the playable map in the Tutorial place. The Tutorial already has a Gate set (exists); its look may differ from the plain door, which is open question 1.
+  - **Animations (slots the owner would upload):** `Intro_SwiftPerch` and `Intro_SwiftTakeoff` (the swift), `Intro_FallHands` (first-person hands rising), `Intro_TruthSeatedLookUp` and `Intro_TruthStand` (Vask's double).
+  - **Sounds:** rain on glass, far-off everyday noise, the silence drop, the counting beads, a low door creak, and Truth-Vask's one line (voice or a text line in the letterbox).
 
-### 1.4 The lore, short and in-world
+### 1.3 Where they wake
 
-No lore dump and no long scroll. Three small touches, all in the world:
+**On the slope of the Ridge Marker's knoll** (PROPOSAL), in Lindenmoor's North Meadows, just above the training field.
 
-1. **A title card over shot 6** (PROPOSAL lines: three short lines, white text on the image, then gone):
-   > *Nothing is made. Everything is moved.*
-   > *What a working takes, the Tally remembers.*
-   > *And what is owed, the ground pays.*
-2. **Ned Harrow's first lines** (beat 1, PROPOSAL): "Easy. Don't stand up too fast. You came down with the grey, didn't you? Folk call you strays. You're the third this month." Then who he is, where you are, and that he keeps the stone's arrow clean "for the Survey".
+- **Why there:** it's real ground in Ye today, and the Ridge Marker is already a clue with its own quest, `lm_ridge`. In the lore, its figures mark the Bureau's buried debt under the ridge, which started being collected the night the player fell through.
+- **What can be seen:** the village's red roofs and Mill Creek one way; the training field, its trainers and the north road the other way; the Cypress Ridge rim behind.
+- **New:** a one-time **wake point** on the knoll. The first arrival spawns there; later spawns use the village square as today (`LindenmoorSpawn`).
+- **New:** a permanent **grey patch** on the knoll: a ring of dead, colourless grass where every Farborn lands. Everyone sees it, and townsfolk say it's been spreading since spring.
+- **Time of day:** the clock is shared by every server (`WorldClock`). PROPOSAL: the cutscene sets its own light for its length, then hands back to the real clock.
+
+### 1.4 The waking cutscene, shot by shot
+
+About 17 seconds (PROPOSAL). First person until the last shot; no HUD; the player can't move until the camera reaches its play position.
+
+| # | Shot | What we see and hear |
+|---|---|---|
+| 1 | **Black, then eyes open** | A faint ringing fades: the Gate closing. A slow fade in with a blink or two (the screen dips dark at the top and bottom). Wind in grass; a far-off train whistle. |
+| 2 | **Lying on their back: sky** | Looking straight up. Tall grass at the edges, a few flakes of grey drifting up and away, clouds moving. |
+| 3 | **The swift crosses overhead** | The same small dark bird from the Tutorial's opening crosses from one side of the frame to the other, and the eyes follow it. Its call fades. |
+| 4 | **Sitting up** | The view rises and tips forward. In a ring around the player the grass is dead and grey, and the green begins just past it. The standing stone comes into view. Their own hands (their chosen look) brush off grey dust. |
+| 5 | **Look left** | The head turns and holds: Lindenmoor below, chimney smoke, the creek bridge, a train at the station. |
+| 6 | **Look right** | The head turns and holds: the training field, figures at practice, the north road to the gap. The title card shows here (§1.5). |
+| 7 | **Back to centre, then out to third person** | The head comes back to centre on the standing stone and its arrow. Then the camera pulls smoothly out of the player's eyes, back and up, into the normal third-person play camera behind the character. The move takes about 1.5–2 s (PROPOSAL), eased in and out, with no cut. The HUD fades in as the camera settles, control returns when it reaches its play position, and a groundskeeper is already walking up the slope (beat 1). |
+
+- **Built with:** the existing intro slot (`Modules.UI.IntroCutscene`), a scripted camera, and the player's own character as the body.
+- **The camera hand-off:** shot 7 ends by handing control to the game's own camera, so the end position must match the player's current camera settings: distance, field of view (a Settings row, exists), and **shift lock** if it's on. The cutscene should read those settings when it starts the pull-out, aim for exactly where the game camera will be, and only then give the camera back.
+- **New assets:** the swift (shared), the grey patch, a few grey flakes, the camera path, and sounds (ringing, wind, whistle, the swift's call). The blink is plain screen fades.
+
+### 1.5 The lore, short and in-world
+
+There's no lore dump. Three small touches:
+
+1. **A title card over shot 6** (PROPOSAL; three short lines, white text, then gone):
+   > *Every transmutation has a price.*
+   > *Some prices are paid at once.*
+   > *Some are buried, and the ground pays them later.*
+2. **Ned Harrow's first lines** (beat 1, PROPOSAL): "Easy. Don't get up too fast. You came down with the grey, didn't you? Folk call you Farborn. You're the third this month." Then who he is, and that he keeps the stone's arrow clean "for the Survey".
 3. **A notice on the village notice board** (an inspect point, beat 6). Two sheets:
-   - *"BY ORDER OF THE BUREAU OF SURVEY AND ASSAY: the workings marked LM-7 on the ridge are sealed."*
-   - *"Persons arriving without papers are requested to present themselves to the Bureau's registrar at Lindenmoor Station."*
+   - *"BY ORDER OF THE BUREAU OF SURVEY AND ASSAY: the old workings marked LM-7 on the ridge are sealed."*
+   - *"Persons arriving without papers are asked to report to the Bureau's registrar at Lindenmoor Station."*
 
-   One names the State and its Bureau; the other admits strays exist.
-
-Everything else is learned by playing. The Codex fills as areas are found (this exists), and townsfolk mention the world in their job lines and rumours. The four ideas Chapter 1 needs are **the Tally** (everything has a price), **strays** (you), **sinks** (debts buried in the ground) and **the Bureau** (who buries them). Nothing else is explained in Chapter 1 (Lore Bible §9.3).
+Chapter 1 needs only four ideas: **Equivalent Exchange** (everything has a price), **Farborn** (you), **buried debt** (stones in the ground) and **the Bureau** (who buries them). Everything else comes later or sits in the Codex (exists).
 
 ---
 
 ## 2. The opening chapter: one feature at a time
 
-**Chapter 1, "The Arrow and the Seal"** (PROPOSAL), Lindenmoor, levels 1–6 (the world spec's band).
+**Chapter 1, "The Arrow and the Seal"** (PROPOSAL). Lindenmoor, levels 1–6.
 
-**The story in one paragraph (PROPOSAL):** you wake in a ring of dead grey grass beside a standing stone, under a bird nobody in the valley can name. Ned Harrow calls you a stray: someone who comes down with the grey. The stone's figures turn out to be a Bureau sink number and a due date, and the date is this year. Thirty years ago the Bureau of Survey and Assay buried a State debt under Lindenmoor's ridge. Now the ground has started to pay it, and that's the door you fell through. Halvard's sealed adit holds the sink's heart. When you open it, a Bureau inspector arrives to push the debt deeper, out of sight and onto the future. You decide with Bess Kettering whether to let him, lock it again yourselves, or tell the whole village. Then you take the night train to the Foundry Yard, where the debt-stones are cast.
+**The story in one paragraph (PROPOSAL):**
+- You wake in a ring of dead grey grass beside a standing stone, under a bird nobody in the valley can name. Ned Harrow calls you Farborn: someone who came down with the grey.
+- The figures on the stone turn out to be a Bureau number and a year: this year. Thirty years ago the Bureau buried a State debt under the ridge, locked in Philosopher's Stones. Now the ground has started to pay it, and that's the door you fell through.
+- Halvard's sealed mine holds the heart of an old circle under the ridge. When you open his vault, a Bureau inspector arrives to bury the debt deeper, out of sight, for someone else to pay later.
+- You decide with Bess Kettering whether to let him, seal it again yourselves, or tell the whole village.
+- Then you take the night train to the Foundry Yard, where the stones are made.
 
 ### 2.1 The beats
 
-Each beat is one short main quest and teaches **one** feature. "What the player is told" is the only explanation the beat gives: at most two short sentences or one Field Note, shown at the moment of use.
+Each beat is one short main quest and teaches **one** feature. "What the player is told" is the only explanation the beat gives.
 
 | # | Quest beat (PROPOSAL names and story) | The one feature | What the player is told (PROPOSAL wording) | Reuses |
 |---|---|---|---|---|
-| 0 | **Waking.** The cutscene. | (the arrival) | The title card's three lines (§1.4). | The intro slot in `FlowService` |
-| 1 | **Someone Keeps It Clean.** Ned Harrow finds you in the grey patch, tells you you're a stray, and shows you the stone. Examine the arrow; he tells you he keeps it clean for the Survey. | **Looking and talking:** the Inspect prompt, talking to people with jobs | Field Note **"A Closer Look"** (exists), at the marker. | `lm_ridge` (examine the marker, ask the groundskeeper); Ned Harrow (Lindenmoor roster); `TownsfolkService` bubbles |
-| 2 | **The Quick Way Down.** Ned sends you to the village by the children's shortcut: over the practice yard's walls, along the gorge ledge, across the pool. | **Movement:** climb, ledges, wall-run, slide, swim | Ned: "The children's way down goes over the yard walls, along the gorge ledge and across the pool. Mind your breath in deep water." | The LedgeCourse and its world challenge; the `RenseiLedge` gorge walks; `SwimService` pools; the Lindenmoor Run challenge (optional repeat) |
-| 3 | **Mine Hours.** Ned says Bess Kettering, the mine hand, knows the ridge better than he does. Examine the boarded shaft at the mine approach and ask her. She gives you the old story: the shaft flooded the year they sank it (her existing line). | **The day/night clock:** people keep hours; lamps light at dusk; night is darker | The quest line (exists in `lm_mine`): "She works at the mine head by day and sits up at the West Lookout after dark." | `lm_mine` (its text already teaches Bess's hours); `WorldClock` |
-| 4 | **Cart Trouble.** Bess won't say more while bandits rob her ore carts. Clear their camp in the woods. | **Basic combat** in the open world (the Tutorial taught the moves; this is the first real fight) | New Field Note **"Open Ground"**: "Out here they come in twos and threes and don't take turns. Keep them in front of you and break one guard at a time." | The Grunt spawns there; `CombatDirector`; a `Defeat` objective |
-| 5 | **Word Gets Around.** Back in the square, people are already telling your fight. One mentions lights in the old adit at night. | **Rumours:** what you do travels, and people pass on what they hear | New Field Note **"Word Travels"**: "What people see you do becomes a rumour, and rumours travel, even by train. Some of them come back to you." | `RumourService` (the townsfolk's rumour line); `WitnessService` |
-| 6 | **What the Arrows Mark.** Read the Bureau's notice on the board, then put the stone, the shaft and the notice together. | **Investigation:** clues, evidence and the **Case Board** | Field Note **"Your Journal"** (exists; held back from beat 1 so it lands here, §2.3). | `InvestigationService`; the evidence from beats 1 and 3 (`lm_ridge_survey`, `lm_shaft_ore`); a new notice inspect and a new first deduction (§5.2) |
-| 7 | **Five Teachers.** Bess says the adit is no place for someone with only their fists. Meet the teachers at the training field and say yes to one. | **Alchemy and choosing a medium** | New Field Note **"A Medium"**: "Your hands will only ever take to one medium. Saying yes to a teacher starts their teaching; finish it whenever you like." | Calda, Veyra, Holt and Ansel's dialogues; Brannoc's notice (`brannoc_moved`); `acq_flame`, `acq_ice`, `acq_earth`, `acq_wind`, `acq_metal` (§2.4) |
-| 8 | **Number Four.** Go into Halvard's Adit and open his vault. | **Puzzles and minigames:** mechanisms, the winch board, the sluices, the assay ring | Field Note **"A Forgotten Site"** (exists), on entering. | `forgotten_halvard` (whole quest, unchanged); its Pressure Board and Array Restoration; the `adit_truth` deduction ("No. 4 is not ore") |
-| 9 | **The Inspector.** By morning a Bureau inspector and State guards have a survey camp at the mine approach. Get close enough to read their work order without being seen. | **Stealth and detection:** crouch, shadow, quiet floors, the stealth sigil, guards who notice | New Field Note **"Unseen"**: "Crouch, keep to shadow and mind loud floors. The sigil shows how close a guard is to noticing you." | `PerceptionService`, `LightService`, `NoiseService`, `StealthUI`; night from the clock |
-| 10 | **The Law in Lindenmoor.** The village constable wants a word with anyone seen near the camp. If you weren't seen, he only warns you. | **Heat, Wanted and the law:** crimes, the Wanted badge, decay, fines, the station's papers check | Constable Selden: "Break the law where someone sees it and you'll owe Heat to whoever's law it was. Too much and you're Wanted; until then, a fine clears it." | `HeatService`, `Rensei.Heat` (decay, fines), the station gate's Wanted rules |
-| 11 | **Whose Debt.** Bess tells you what her father carted up the ridge in C.R. 184. Decide with her: let the inspector push the debt deeper, lock the vault again yourselves, or tell the square (§2.6). | **Morality, reputation and factions:** deeds, standing, conduct words | Bess: "There's no clean answer here, only who pays. Each side will remember what you chose." Then the existing confirmation: "[This can't be undone.]" | Quest `Outcomes` (like Lise's choice); `MoralityService`, `Rensei.Deeds`, `Rensei.Factions` |
-| 12 | **Subject Unknown.** *(Optional; solo-able.)* At the station the Bureau's registrar is noting strays. Note what you can about him, then get his name. Any player you meet there counts too. | **Player Identities** | Field Note **"An Unknown Subject"** (exists), at the first record. | `IdentityService`; the "Introduce yourself" prompt; the Journal's Identities tab; **new: NPC records** (§2.5) |
-| 13 | **Company for the Road.** *(Optional.)* Find someone to travel with, or choose to travel alone. | **Parties** | "A party boards together and lands together. Invite someone from the Party menu, or travel alone." | `PartyService` and the Party menu; a new "travel alone" choice |
-| 14 | **The Night Train.** The work order says the debt-stones come from the Foundry Yard. Buy a ticket, pass the gate, ride there (or walk the North Road). | **Travel:** trains and roads | "Buy a ticket from the clerk, clear the gate guard, and board before the doors close. The North Road is free, but it's a long walk, and bandits use it too." | `StationService`, `RoadService`, `TravelService`; the `Arrive` objective |
+| 0 | **Waking.** The cutscene. | (the arrival) | The title card (§1.5). | The intro slot in `FlowService` |
+| 1 | **Someone Keeps It Clean.** Ned Harrow finds you in the grey patch, tells you you're Farborn, and shows you the stone. Examine the arrow; he says he keeps it clean for the Survey. | **Looking and talking:** the Inspect prompt; people with jobs | Field Note **"A Closer Look"** (exists), at the stone. | `lm_ridge`; Ned Harrow (Lindenmoor roster); `TownsfolkService` |
+| 2 | **The Quick Way Down.** Ned sends you to the village by the children's shortcut. | **Movement:** climb, ledges, wall-run, slide, swim | Ned: "The children go over the yard walls, along the gorge ledge and across the pool. Watch your breath in deep water." | The LedgeCourse; the `RenseiLedge` gorge walks; `SwimService` pools; the Lindenmoor Run challenge |
+| 3 | **Mine Hours.** Ned says Bess Kettering knows the ridge. Look at the boarded shaft and ask her. She tells the old story: the shaft flooded (her existing line). | **The day/night clock:** people keep hours | The quest text (exists): "She works at the mine head by day and sits up at the West Lookout after dark." | `lm_mine`; `WorldClock` |
+| 4 | **Cart Trouble.** Bess won't say more while bandits rob her ore carts. Clear their camp in the woods. | **Combat** in the open world | New Field Note **"Open Ground"**: "Out here enemies come in twos and threes. Keep them in front of you and break one guard at a time." | The Grunt spawns; `CombatDirector`; a `Defeat` objective |
+| 5 | **Word Gets Around.** In the square, people are already telling your fight. One mentions lights in the old mine at night. | **Rumours** | New Field Note **"Word Travels"**: "What people see you do becomes a rumour. Rumours spread, even by train." | `RumourService`; `WitnessService` |
+| 6 | **What the Arrows Mark.** Read the Bureau's notice, then put the stone, the shaft and the notice together. | **Investigation:** evidence and the **Case Board** | Field Note **"Your Journal"** (exists; held back from beat 1 so it lands here). | `InvestigationService`; `lm_ridge_survey`, `lm_shaft_ore`; a new notice and a new first deduction (§6.2) |
+| 7 | **Five Teachers.** Bess says the mine is no place for someone with only their fists. Meet the teachers at the training field and say yes to one. | **Alchemy: choosing a path** | New Field Note **"Choosing a Path"**: "You can only ever learn one path of alchemy. Saying yes starts the lessons; finish them whenever you like." | Calda, Veyra, Holt and Ansel's dialogues; Brannoc's notice (`brannoc_moved`); `acq_flame` … `acq_metal` (§2.4) |
+| 8 | **Number Four.** Go into Halvard's Adit and open his vault. | **Puzzles and minigames** | Field Note **"A Forgotten Site"** (exists), on entering. | `forgotten_halvard` (unchanged); Pressure Board and Array Restoration; the `adit_truth` deduction ("No. 4 is not ore") |
+| 9 | **The Inspector.** By morning a Bureau inspector and State guards have a camp at the mine. Read their work order without being seen. | **Stealth** | New Field Note **"Unseen"**: "Crouch, stay in shadow and avoid loud floors. The sigil shows how close a guard is to spotting you." | `PerceptionService`, `LightService`, `NoiseService`, `StealthUI` |
+| 10 | **The Law in Lindenmoor.** The constable wants a word with anyone seen near the camp. If you weren't seen, he only warns you. | **Heat, Wanted and the law** | Constable Selden: "Break the law in front of witnesses and you'll get Heat. Too much makes you Wanted; until then, a fine clears it." | `HeatService`, `Rensei.Heat`, the station gate's Wanted rules |
+| 11 | **Whose Debt.** Bess tells you what her father carted up the ridge thirty years ago. Decide together (§2.6). | **Morality and reputation** | Bess: "There's no clean answer. Just who pays. Each side will remember what you chose." Then the existing "[This can't be undone.]". | Quest `Outcomes`; `MoralityService`, `Rensei.Deeds`, `Rensei.Factions` |
+| 12 | **Subject Unknown.** *(Optional; solo-able.)* At the station, the Bureau's registrar is recording Farborn. Note what you can about him, then learn his name. Any player you meet there counts too. | **Player Identities** | Field Note **"An Unknown Subject"** (exists), at the first record. | `IdentityService`; the Journal's Identities tab; **new: NPC records** (§2.5) |
+| 13 | **Company for the Road.** *(Optional.)* Find someone to travel with, or choose to travel alone. | **Parties** | "A party boards together and arrives together. Invite someone from the Party menu, or travel alone." | `PartyService` and the Party menu; a new "travel alone" choice |
+| 14 | **The Night Train.** The work order says the stones come from the Foundry Yard. Buy a ticket and ride there, or walk the North Road. | **Travel** | "Buy a ticket from the clerk, pass the gate guard, and board before the doors close. The road is free, but it's long, and bandits use it too." | `StationService`, `RoadService`, `TravelService`; the `Arrive` objective |
 
-**Chapter reward (PROPOSAL):** Codex entries "Strays" (beat 1), "The Tally" (beat 7) and "Sinks" (chapter end); a Renown bump; and a contact in the Foundry Yard that depends on the beat 11 choice (§2.6).
+**Chapter reward (PROPOSAL):** Codex entries "Farborn" (beat 1), "Equivalent Exchange" (beat 7) and "Buried Debts" (chapter end); a Renown bump; and a Foundry Yard contact that depends on the beat 11 choice.
 
 ### 2.2 Why this order
 
-- **Look and talk first (1).** It's the safest thing in the game. It gives the player a person and a question (what is a stray, and what is this stone?) before a single system is explained.
-- **Movement next (2).** The Tutorial taught the basics. The world's advanced moves are best learned on a route with no enemies.
-- **The clock before people get hard to find (3).** From here on, quest givers keep hours. Bess is the first person who isn't always where you left her.
-- **Combat once the player can move and find people (4).** It's a short, real fight, not a lesson, and the player's first deed worth talking about.
-- **Rumours right after that deed (5).** The player hears their own fight retold. Nothing explains the rumour system better.
-- **Investigation once the player holds clues (6).** Beats 1 and 3 already gave two pieces of evidence, so the first deduction is easy.
-- **Alchemy before the Adit (7).** Its mechanisms react to alchemy, so the player should have a teacher first. Every step still has a route without alchemy, so an unstarted or unfinished path never blocks it.
-- **Puzzles and minigames in the chapter's set piece (8).** The Adit uses everything learned so far and adds mechanisms and minigames. Opening Halvard's vault is also what lets the Bureau in, which gives beat 9 its reason.
-- **Stealth once there's something to hide (9).** The player has opened a State-sealed vault, and the State arrives. Being seen now matters.
-- **Heat right after stealth (10).** If the player was seen, Heat is the consequence; if not, the constable explains what would have happened. The lesson lands either way.
-- **Morality as the chapter's choice (11).** By now the player knows the sides (the Bureau, the village, Bess), so the choice has weight.
-- **Identities, then parties, then travel (12–14).** Meet a stranger, team up, leave together. Parties buy each other tickets and land on the same server, so they come just before the train.
+- **Look and talk first (1):** it's safe, and it gives the player a person and a question before any system is explained.
+- **Movement (2):** advanced moves are best learned on a route with no enemies.
+- **The clock (3):** from here on, people keep hours, and Bess is the first who isn't always in the same place.
+- **Combat (4):** a short, real fight once the player can move and find people. It's also their first deed worth talking about.
+- **Rumours (5):** the player hears their own fight retold.
+- **Investigation (6):** the player already holds two clues, so the first deduction is easy.
+- **Alchemy before the mine (7):** its mechanisms react to alchemy. Every step still works without alchemy.
+- **Puzzles (8):** the chapter's set piece. Opening the vault is also what lets the Bureau in.
+- **Stealth (9), then the law (10):** being seen now matters, and Heat is the consequence. If the player wasn't seen, the constable explains what would have happened.
+- **The choice (11):** by now the player knows the sides.
+- **Identities, parties, travel (12–14):** meet a stranger, team up, leave together.
 
 ### 2.3 Rules for the opening chapter
 
-- **One new thing per beat.** Each beat explains its feature with **one** Field Note or at most two short sentences, at the moment of use (owner: "explain the features well but don't overload with information").
-- **One Field Note per beat (new rule).** If another existing note would fire during a beat (for example the Journal note on the first evidence in beat 1, or the Mechanism note at the Adit's winch in beat 8), it waits until a later beat or the end of this one. A player who already saw a note (in a side quest, say) doesn't see it twice (exists: `Flow.Hints`).
-- **Done early counts.** If a player already finished `lm_ridge`, `lm_mine`, `forgotten_halvard` or an acquisition, the beat that reuses it ticks at once (exists: the quest engine's catch-up).
-- **Choosing a path, not finishing it** (owner answer 3). Beat 7 completes when the player **starts** a trainer's questline. Finishing it is up to the player; the trainers encourage it but never require it.
-- **Every trainer starts in Lindenmoor** (owner answer 2). Metal is the one case the map forces (§2.4).
-- **Wrong-guess consequences are off in Chapter 1** (owner answer 5). Chapter 1 is Stakes 0 in the wrong-guess spec (`specs/2026-10-25-wrong-guess-consequences-design.md`): a wrong deduction or minigame answer only shows its line and lets the player try again. Consequences arm from Act II.
-- **Solo players are never stuck** (owner answer 6). Beat 12 works with an NPC (§2.5). Beat 13 is optional, with a "travel alone" choice. Neither blocks beat 14.
-- **Short.** PROPOSAL target: the whole chapter in 60–90 minutes, each beat 3–8 minutes, except the Adit.
+- **One new thing per beat,** explained with one Field Note or at most two short sentences, at the moment of use.
+- **One Field Note per beat (new rule).** If another existing note would fire during a beat (for example the Journal note in beat 1, or the Mechanism note at the mine's winch in beat 8), it waits for a later beat. A note already seen is never shown twice (exists: `Flow.Hints`).
+- **Done early counts:** a beat that reuses a side quest the player already finished ticks at once (exists: catch-up).
+- **Starting a path is enough:** beat 7 completes when a trainer's questline starts. Finishing it is up to the player.
+- **Every trainer starts in Lindenmoor:** for Metal, that start is Brannoc's notice (§2.4).
+- **Wrong-guess consequences are off in Chapter 1** (Stakes 0 in `specs/2026-10-25-wrong-guess-consequences-design.md`). A wrong answer just shows its line and lets the player try again.
+- **Solo players are never stuck:** beat 12 works with an NPC, and beat 13 has a "travel alone" choice. Neither blocks beat 14.
+- **Short:** PROPOSAL 60–90 minutes for the chapter, 3–8 minutes per beat, except the mine.
 
 ### 2.4 Beat 7 and the Metal path
 
-- **What's in Lindenmoor today:** Calda (Flame), Veyra (Ice), Holt (Earth) and Ansel (Wind) stand at the training field. Their questlines start there and their sites are in Lindenmoor too (the burned laboratory, the frozen research station, the cracked footbridge and the silent observatory).
-- **Metal is in the Foundry Yard, as built today.** Brannoc and the forge rooms moved to the Foundry place on 2026-10-24 (region-builds spec §7.2). In Lindenmoor, only **his notice** remains at his old post (exists: the `brannoc_moved` inspect, "GONE TO THE FOUNDRY YARD...").
-- **How beat 7 handles Metal:** reading Brannoc's notice **starts `acq_metal`** in Lindenmoor (it already does: `StartsQuest = "acq_metal"`). That counts as choosing a teacher, so beat 7 completes. The questline's first stage is "Travel to the Foundry Yard" (an `Arrive` objective, exists). For a Metal student, beat 14's train ride also completes it, so the two meet naturally. A player who wants Brannoc sooner can ride early, since travel is never locked.
-- **So the owner's rule holds:** every questline *starts* in Lindenmoor. Only Metal's continues elsewhere, because that's where it's built. Open question 3 asks whether that's enough.
+- **In Lindenmoor today:** Calda, Veyra, Holt and Ansel stand at the training field, and their questlines and sites are all in Lindenmoor.
+- **Metal is in the Foundry Yard, as built:** Brannoc and the forge rooms moved there on 2026-10-24. In Lindenmoor only **his notice** remains at his old post (exists: `brannoc_moved`).
+- **How beat 7 handles Metal:** reading the notice starts `acq_metal` in Lindenmoor (`StartsQuest`, exists), which completes beat 7. The questline's first stage is "Travel to the Foundry Yard" (`Arrive`, exists), and beat 14's train ride completes it. The owner approved this: "Brannoc's notice is pretty good."
 
 ### 2.5 Beat 12 solo: an NPC in the Identities system
 
-**The beat (PROPOSAL):** **Registrar Lucan Prewitt** sits at a small Bureau desk in Lindenmoor Station's ticket hall, noting strays in the Grey Book. He won't give his name at first. The player:
-1. **sees** him (talking to him once makes the record: *Subject 01*, Unknown);
-2. **observes** his dress (Amestrian) and, when he clears the steam off the platform with a small Wind cast, his technique (the record becomes Observed, then Suspected once there are two kinds of observation and two meetings);
-3. **names** him: they get his introduction on a second talk, or name him from the Journal once Suspected.
+**The beat (PROPOSAL):** **Registrar Lucan Prewitt** sits at a small Bureau desk in Lindenmoor Station's ticket hall, recording Farborn. He won't give his name at first.
+1. Talking to him once creates the record: *Subject 01*, Unknown.
+2. Noticing his clothes, then the small Wind cast he uses to clear steam off the platform, moves the record to Observed, then to Suspected after a second meeting.
+3. On a third talk he introduces himself, or the player can name him from the Journal once he's Suspected.
 
-He has a page on you too: "You introduced yourself. So did I. Now we each have a record of the other." Any **player** the stray meets at the station fills a record the normal way and also completes the beat.
+His line: "You introduced yourself. So did I. Now we each have a record of the other." Any **player** met at the station also completes the beat.
 
 **Can the Identities system hold an NPC record today? No.** What I checked (`IdentityService`, `Rensei.Identities`, `JournalUI`):
-- Records are keyed by the subject's `Identity.CharacterId`, which `IdentityService.CharacterIdOf` reads from a **player's profile**. `Record()` returns nothing for anything that isn't a loaded player.
-- Records are only written by player-to-player events: a hit (`OnHit`), a cast seen in range (`Witness`), and `Introduce` (which needs two players within 8 studs, each with a character).
-- `Identify` looks for the subject among `Players:GetPlayers()`, and `Confirm` takes the name from the subject's profile.
-- `LabelFor` and `KnownNameFor` take a player.
-- **What does work as is:** the Journal's Identities tab lists whatever is in `Profile.Identities.Records`, keyed by any string, with the same fields (`N`, `Obs`, `Seen`, `Name`, `Log`, `Links`). The stage rules (`Identities.Stage`) don't care who the subject is. So an NPC record would *display* without a new UI, as long as it's written in the same shape.
+- Records are keyed by the subject's `Identity.CharacterId`, which is read from a **player's profile**. `Record()` returns nothing for anyone else.
+- Only player-to-player events write records: hits, casts seen in range, and `Introduce` (two players within 8 studs).
+- `Identify` searches only `Players:GetPlayers()`, and the confirmed name comes from the subject's profile.
+- **What already works:** the Journal tab lists whatever is in `Profile.Identities.Records`, under any key, as long as the record has the same fields, and the stage rules don't care who the subject is. So an NPC record would display without new UI.
 
 **What's new (to build):**
-1. **NPC subjects in data:** a small table, for example `Rensei.Identities.Npcs[NpcId] = {Name, Dress, Technique, Weapon}`, and a reserved key prefix (`npc:<NpcId>`) so NPC records can never collide with a `CharacterId`.
-2. **Server writers for NPCs:** `IdentityService.MeetNpc / ObserveNpc / IntroduceNpc(Player, NpcId)`, called by the server when the player talks to the NPC, stands in range of its scripted cast, or reaches the introduction line. The rule stays the same: the server is the only witness.
-3. **Naming an NPC:** `Identify` checks an `npc:` key against the data table instead of a live player. The Journal's name cycler needs the NPC's name among its choices (today it offers players' names). The 10-minute lock after a wrong name stays (it's not a wrong-guess consequence; it's the existing Identities rule).
-4. **Eviction:** story NPC records shouldn't be dropped by the 40-record cap. Mark them `Keep = true`, or let the cap skip `npc:` keys.
-5. **To verify while building:** that nothing in `JournalUI` or `WorldService` assumes a record's key is a live player's (the combat log only labels players, so it shouldn't).
+1. **NPC subjects in data:** for example `Rensei.Identities.Npcs[NpcId] = {Name, Dress, Technique, Weapon}`, with an `npc:` key prefix so NPC records never collide with players'.
+2. **Server-side writers** to meet, observe and introduce an NPC. The server stays the only witness.
+3. **Naming an NPC:** `Identify` checks an `npc:` key against the data. The Journal's name list must include the NPC's name. The existing 10-minute lock after a wrong name stays.
+4. **The 40-record cap** must never drop a story NPC's record.
+5. **To verify while building:** that nothing in `JournalUI` or `WorldService` assumes a record belongs to a live player.
 
 ### 2.6 Beat 11: the chapter's choice (PROPOSAL)
 
-Bess tells the truth at last: her father, Tom Kettering, carted Bureau crates up the ridge in C.R. 184, and the "flooded" shaft was filled with them. The figures on the stone are the sink's number and the year it falls due. The inspector's work order (beat 9) says he'll **roll** the debt into the heart of Halvard's array, now that someone (you) has opened the vault: due again in C.R. 251, with replacement stones from the Foundry Yard.
+Bess finally tells the truth. Thirty years ago her father, Tom Kettering, carted Bureau crates up the ridge, and the "flooded" shaft was filled with Philosopher's Stones. The figures on the marker are the Bureau's number and the year the debt comes due. The inspector's work order (beat 9) says he'll move the debt into the heart of Halvard's circle, now that someone (you) has opened the vault. It will then be due again in forty years, with new stones from the Foundry Yard.
 
-| Outcome (flag `Outcome_<quest>`) | What happens | Deed (new) | Foundry contact |
+| Choice (flag value) | What happens | Deed (new) | Foundry contact |
 |---|---|---|---|
-| **Roll:** let the inspector do it | The valley is safe for now. The debt grows in the dark, and somebody's grandchildren pay. Bess won't look at you. | Order up, Authority up, Bess's trust down (Local: the Bureau knows) | Inspector Denby's letter to the Bureau's man at the Foundry |
-| **Seal:** lock the vault again with Bess and tell no one | The Bureau can't roll it. The ridge keeps paying slowly, and the grey patch keeps spreading. Only you and Bess know. | Candor down, Bess's trust up (Private) | Bess's cousin on the Foundry crews (Foundry Hands) |
-| **Tell:** raise the square | Constable Selden and half the village turn the inspector away. The truth is out locally, and the Bureau now knows your face. | Townsfolk up, Authority down, Renown up (Local, then Public by rumour) | Wenna Fane of the Circle finds you (she heard) |
+| **Deeper:** let the inspector do it | The valley is safe for now. The debt grows in the dark, and somebody's grandchildren pay. Bess won't look at you. | Order and Authority up, Bess's trust down (Local) | Inspector Denby's letter to the Bureau's man at the Foundry |
+| **Seal:** lock the vault again with Bess and tell no one | The Bureau can't move it. The ridge keeps paying slowly, and the grey patch keeps spreading. Only you and Bess know. | Candor down, Bess's trust up (Private) | Bess's cousin on the Foundry crews |
+| **Tell:** raise the village | The constable and half the village turn the inspector away. The truth is out locally, and the Bureau knows your face. | Townsfolk and Renown up, Authority down (Local, then Public) | Wenna Fane of the Circle finds you |
 
-Each is told before it's chosen ("[This can't be undone.]") and recorded once, as Lise's choice is today.
+Each choice is confirmed before it's taken and recorded once, as Lise's choice is today.
 
 ---
 
-## 3. The main story arc across the seven regions (PROPOSAL)
+## 3. The main story across the seven regions (PROPOSAL)
 
 ### 3.1 The premise
 
-The full version is in `Documents/Lore Bible.md`. In short:
-- **The Tally:** every working is paid now, weight for weight. **Debtwork**, working now and paying later, is forbidden. A debt is anchored in a **tallystone** and collected from wherever that stone lies.
-- **The State's secret:** in the Bright Years the **Bureau of Survey and Assay** revived debtwork using the sinks of the old kingdom of **Sarn** (deep arrays in bedrock). The biggest debt was called in C.R. 183. The sky stayed bright, but the colour went out of a province and the ground went quiet; the papers named it **the Eclipse** when the Sunworks' "second sun" furnace went out. The province that has been paying ever since is the **Corrupted Lands**. Since then the Bureau has kept the country running by moving debts around: into old mines (Lindenmoor), onto night freight (the Foundry), into frozen vaults (the Northern Wall), and over the border (Aerugo).
-- **Strays:** when a debt is called, the Gate opens over the owed ground and things fall through from elsewhere. This year the post-Eclipse sinks are falling due, and strays come down by the dozen. **The player is one.** A stray owes this world nothing, so the Gate doesn't collect from them, which makes them the one courier who can walk into called ground.
-- **The question the story asks:** "What does the State owe, who is it owed to, and who is paying?" Stopping the debt hurts ordinary people now; hiding it poisons their grandchildren's ground. There's no clean answer.
-- **The antagonists:** **Assayer-General Odette Sallow** (the Bureau) wants to split the Vell's debt into hundreds of small sinks across the provinces, each due in a century: the Even Measure. **Sorrel Kade**, the first stray the Bureau ever used, leads the Circle's **Reckoners**, who want the Cold Store woken and every stone carried back to the people who borrowed: the foundries and the Bureau's own halls. Both need a clean stray.
+The full version is in the Lore Bible; it opens with "The story in 60 seconds". In short:
+- **Equivalent Exchange:** every transmutation is paid for at once. Transmuting now and paying later, by leaving the price in a **Philosopher's Stone**, is forbidden. The debt is collected later from the ground around the stone.
+- **The State's secret:** in its boom years the **Bureau of Survey and Assay** started borrowing again, using the buried circles of the ancient empire of **Mezarath**. Thirty-one years ago the biggest debt came due. The sky stayed bright, but the colour drained from a whole province and the ground went silent; the papers called it **the Eclipse** when the province's "second sun" furnace went out. That province is the **Corrupted Lands**, and it's still paying. Since then the Bureau has hidden its debts in old mines, on night trains, in frozen vaults and over the border.
+- **Farborn:** when a debt is collected, the Gate opens over that ground, and sometimes people fall through from other worlds. This year it happens every week. **The player is one of them.** A Farborn owes this world nothing, so the Gate doesn't collect from them, which makes them the only courier who can walk into paying ground.
+- **The question:** "What does the State owe, and who is paying for it?" Stopping the borrowing hurts people now; hiding it poisons their grandchildren's land.
+- **The antagonists:**
+  - **Assayer-General Odette Sallow** of the Bureau wants to break the Corrupted Lands' debt into hundreds of small ones, buried across the country and due in a hundred years.
+  - **Sorrel Kade,** the first Farborn the Bureau ever used, leads the Circle's **Reckoners**, who want every debt sent back to the foundries and the Bureau's halls.
+  - Both need a Farborn.
+- **Going home stays a mystery** (owner). The story hints and never confirms.
 
 ### 3.2 The acts
 
@@ -220,133 +270,156 @@ Level bands are from the world spec. Act IV's three regions can be played in any
 
 | Act | Region | Levels | Its role in the story | Systems it puts in front |
 |---|---|---|---|---|
-| **Prologue: the Weighing** | Tutorial | — | Truth weighs the stray, wearing Vask's face, then the Gate opens. | Combat basics |
-| **I. The Arrow and the Seal** | **Lindenmoor** | 1–6 | You fell through a debt being called. The Bureau would roll it deeper; you make the first choice. | Every feature, one at a time (§2). Wrong guesses off (Stakes 0). |
-| **II. Night Freight** | **Foundry Yard** | 5–12 | The stones are cast on Furnace One on nights the ledger calls "banked" (the 14th, C. Ashe). You meet the real Vask, and Wenna Fane. The first big infiltration (the rail depot). The licence choice opens: the State's exam or the Circle's initiation. | Stealth missions; the licence path; Foundry standing; wrong guesses on (Stakes 1) |
-| **III. The Deep Ledger** | **Central City** | hub | The Bureau's records: every sink, and the Grey Book, where your own entry was written the morning you arrived. Licence hearings; Peleas Amund; Sallow in person. The act ends with a big choice: make the Ledger public, or trade it. | Renown, Identities, Heat under State law |
-| **IV-a. The Border Trade** | **Aerugo Borderlands** | 12–22 | Smugglers sink State stones on the Aerugonian side; the "grey rot" in the vineyards is collection. Shows **where it goes**. | Contracts, the road route, rumours across borders |
-| **IV-b. The Old Ground** | **Ishval** | 18–30 | The oldest Paid Land and the Covenant of Ground. Elder Saffa Orun teaches **settling**, which mends called ground without alchemy. Shows **how to stop it**, slowly. | Investigation, Ishvalan standing, sandstorm stealth |
-| **IV-c. The Cold Store** | **Northern Wall** | 25–35 | The State's worst stones are kept asleep in the cold, and the cooling is failing. Halvard's name in the records. The Drachman lie. Shows **how much there is**. | Survival in the cold, the hardest compounds |
-| **V. What the Ground Keeps** | **Corrupted Lands** | 30–45 | The Eclipse Citadel in the crimson phase. Sallow's Even Measure against Kade's Reckoning. The endings. | Everything; Taboo choices |
+| **Prologue** | Tutorial | — | The pull through the Gate, Truth's test, and the Gate opening. | Combat basics |
+| **I. The Arrow and the Seal** | **Lindenmoor** | 1–6 | You fell through a debt being collected. The Bureau would bury it deeper, and you make the first choice. | Every feature, one at a time (§2). Wrong guesses off. |
+| **II. Night Freight** | **Foundry Yard** | 5–12 | The stones are made on Furnace One on nights the ledger calls "banked" (the 14th, C. Ashe). You meet the real Vask, and Wenna Fane. The first big infiltration (the rail depot). The licence choice opens: the State Alchemist exam or the Circle. | Stealth missions; the licence path; Foundry standing; wrong guesses on (Stakes 1) |
+| **III. The Ledger** | **Central City** | hub | The Bureau's secret ledger of every buried stone and every Farborn, including your own entry. Licence hearings, Peleas Amund, Sallow in person. It ends with a choice: make the ledger public, or trade it. | Renown, Identities, Heat under State law |
+| **IV-a. The Border Trade** | **Aerugo Borderlands** | 12–22 | Smugglers bury State stones on the Aerugonian side, and the grey rot in the vines is collection. You meet Kade. Shows **where the debt goes**. | Contracts, the road route, rumours across borders |
+| **IV-b. The Old Ground** | **Ishval** | 18–30 | The oldest paid land. Elder Saffa Orun shows how to heal it by hand. Shows **how to undo it**, slowly. | Investigation, Ishvalan standing, sandstorm stealth |
+| **IV-c. The Cold Store** | **Northern Wall** | 25–35 | The State's worst stones are kept asleep in the cold, and the cooling is failing. Halvard's name turns up. Shows **how much there is**. | Cold survival, the hardest compounds |
+| **V. What the Ground Keeps** | **Corrupted Lands** | 30–45 | The Eclipse Citadel in the crimson phase: Sallow against Kade, and the endings. | Everything; Taboo choices |
 
 ### 3.3 Endings (a direction only)
 
-The master plan's Phase 10 (endings) isn't designed yet. These PROPOSAL directions are shaped by the player's deeds, standing, licence path and Taboo marks, never by one last dialogue choice (Lore Bible §7.4):
-- **Expose:** the Deep Ledger goes public. The Bureau falls, the foundries slow, and hard but honest years follow. What's owed is still owed, so settling becomes everyone's work.
-- **Even Measure:** help Sallow. No more Paid Lands, and a hundred valleys a little poorer for a hundred years. The secret is kept.
-- **Settle:** a stray who is still clean (no Taboo marks) carries the Citadel's stone into the Gate and asks Truth the price.
-- **Harness:** take the stone's power for yourself (the Taboo path). Strong, feared, and the debt is yours.
-- **(Failure) the Reckoning:** if Kade isn't stopped, the Foundry Yard and the Bureau's halls in Central pay, along with everyone working in them.
+Phase 10 (endings) isn't designed yet. These PROPOSAL directions are shaped by deeds, standing, licence path and Taboo marks, never by one last dialogue choice. **No ending promises or rules out going home.**
+- **Expose:** the ledger goes public. The Bureau falls and the borrowing stops. Hard but honest years follow.
+- **Sallow's way:** the debt is spread over a hundred valleys for a hundred years. The secret is kept.
+- **Pay it yourself:** a Farborn with no Taboo marks carries the Citadel's oldest stone into the Gate and asks Truth the price, so no one else's land pays it. What Truth asks for, and what it gives back, is left open.
+- **Take the power:** the Taboo route. Strong, feared, and the debt is yours.
+- **(Failure) Kade wins:** the Foundry Yard and the Bureau's halls pay, along with everyone in them.
 
-The **Legendary Alchemist** title stays earned, as already proposed: top Renown plus the main story's capstone.
+The **Legendary Alchemist** title stays earned: top Renown plus the main story's capstone.
 
 ---
 
-## 4. Side-quest integration
+## 4. Story cutscenes
 
-### 4.1 The rule: side content feeds the story, never blocks it
+**Owner:** "There should be a good amount (BUT NOT TOO MUCH) cutscenes throughout the story in REALLY IMPORTANT parts".
+
+**The rule: if a moment could be played instead of watched, it gets no cutscene.** Conversations, choices, fights, stealth and travel are all played. Cutscenes are for the few moments the player should simply see. That's about 1–3 per act, each under 45 seconds except the endings. Every length is a PROPOSAL. A full shot list is written only when that act is built; the two in §1 are written already.
+
+| Act | The moment | Why it earns a cutscene | Length (s) | View | Skippable after the first view | One-line shot summary |
+|---|---|---|---|---|---|---|
+| Prologue | **Pulled through** (joining the Tutorial) | The player's arrival in this world, and the first sight of the Gate | 25 | First person | Yes | A rainy window, the colour drains, the fall, the iron door and counting table, Truth with Vask's face (§1.2). |
+| Prologue | **The Gate opens** (the Tutorial's finale, exists) | Truth's three lines set up the whole story | 9 | First person | Yes | The door swings open on light while Truth speaks (exists; new lines only). |
+| I | **Waking** | The first breath in a new world | 17 | First, then third person | Yes | Sky, the swift, the grey ring, look left, look right, out to the play camera (§1.4). |
+| I | **The circle wakes** (beat 8, Halvard's vault opens) | The key reveal of Act I: a buried debt is real | 15 | Third person | Yes | As the vault opens, a vast old circle glows faintly through the rock floor and away under the ridge; grass on the slope outside goes grey. |
+| II | **The night pour** (Furnace One, Act II midpoint) | The State makes Philosopher's Stones: the act's key reveal | 25 | Third person, from hiding | Yes | On a "banked" night, a crew in Bureau grey pours a dull red stone into a circle mould while C. Ashe ticks a ledger. |
+| III | **Sallow at the hearing** (her first appearance) | The main antagonist arrives | 30 | Third person | Yes | The Licensing Office goes quiet as Sallow takes the stand, calm and exact, and looks straight at the player. |
+| III | **The ledger's fate** (the act-ending choice) | Shows the consequence of a choice the player just made | 20 | Third person | Yes | Either the presses roll and newsboys shout the story through Central, or the ledger changes hands in a closed office. |
+| IV-a | **Kade on the ash wastes** (his first appearance) | The second antagonist arrives | 25 | Third person | Yes | Out of the grey haze a lone figure walks unharmed through paying ground: another Farborn, older, who knows the player's name. |
+| IV-b | **The healed field** | The story's one clear sign of hope | 20 | Third person | Yes | Elder Orun lifts a cloth from a patch of desert where green shoots grow, six hundred years after it paid. |
+| IV-c | **The Cold Store fails** | The act's turn: the danger is real and close | 25 | Third person | Yes | Frost slides off a vault door, the stones inside warm to red, and grey spreads across the courtyard snow. |
+| V | **The Citadel at crimson** (first arrival) | The last place, and the bird's last appearance | 30 | First, then third person | Yes | The Citadel under a red sky, the Gate's light over it, and the swift flying into the light without coming back. |
+| Endings | **One per ending** (four, plus the failure) | The story's conclusion | 60–90 each | Third person | Yes | A short epilogue for each ending; none promises or rules out going home. |
+
+**Shared rules (PROPOSAL):**
+- **Once per profile.** Each cutscene plays once per save slot. If the same account has seen it on another slot, a "Hold to skip" prompt appears.
+- **No new UI art:** plain screen fades and letterbox bars only.
+- **Never mid-fight:** a cutscene waits until the player is out of combat.
+- **Parties:** party members who are at the same point in the story and nearby watch it at the same time, each on their own screen. Members who aren't see the watcher's character stand still. The watcher can't be hurt or targeted while it plays, and the others get an existing toast: "*Name* is watching a scene." When it ends, everyone carries on together.
+- **The play camera after:** any cutscene that ends in play hands back to the game's camera at the player's own settings, as the waking cutscene does (§1.4).
+
+---
+
+## 5. Side-quest integration
+
+### 5.1 The rule: side content feeds the story, never blocks it
 
 - **The main path only ever requires main quests.** A main beat's `Requires` names only the previous main beat.
-- **Side content gives four things, never a key:** a **shortcut** (a dialogue line or route that skips a step), an **ally** (someone who helps later), an **alternate route** (another way through), and **rewards**.
-- **Done early counts:** when a main beat reuses a side quest the player already finished, it ticks at once.
-- **Level bands are soft.** A region's band is a warning, not a wall. Travel itself is the only hard gate (you have to get there).
+- **Side content gives a shortcut, an ally, another route, or rewards, never a key.**
+- **Done early counts.**
+- **Level bands are soft.** Travel itself is the only hard gate.
 
-### 4.2 How each kind connects
+### 5.2 How each kind connects
 
 | Kind | Feeds the main story | Fed by the main story |
 |---|---|---|
-| **Regional side quests** (e.g. `foundry_ledger`, `chalk_foundry`) | Their evidence opens extra main-quest lines (`Show = "Locked"` choices that become available). Finishing `foundry_ledger` before Act II's depot mission is a shortcut: you already know the 14th's "banked" furnace was poured by C. Ashe. Lise's chalk and the Voided Ledger Line point at the stones' arrays. | Main acts send players into a region, where its side quests are found by clue markers and townsfolk. |
-| **Trainer quests** (`acq_*`) | Choosing a teacher is a main beat (beat 7). Later acts give each trainer a role and a view of the debt (Lore Bible §8.1). Path-specific lines use the existing `SavedAffinity` condition. | The main story points the player at the trainers; mastery lessons and exercises keep paying training. |
-| **Clue quests** (`lm_ridge`, `lm_mine`, and each region's) | They **are** Chapter 1's beats 1 and 3. Every region keeps the pattern: inspect a clue, ask a townsperson. The townsperson's first answer is the cover story (Ned's hedges, Bess's flood), and the main story reveals the rest. | Main-quest evidence can make a clue quest's answer quicker. |
-| **Minigames and puzzles** | Story set pieces (the Adit, the depot's locks, the Ledger's ciphers). | **Consequences for wrong guesses** (owner answer 5): **off in Chapter 1, on from Act II**, told to the player up front and never a dead end. The detail is in `specs/2026-10-25-wrong-guess-consequences-design.md`: Stakes 0 in Act I, 1 in Act II, 2 in Acts III–IV, 3 in Act V. |
-| **Stealth contracts** (the stealth missions spec) | Some contracts turn up evidence or contacts the main story can use (a stolen freight waybill shortens Act III). | Main acts unlock each region's job board and fixer, and the story missions run inside the same compounds (the survey camp, the rail depot, the records hall, the cold store, the containment camp). |
-| **Nemesis rivals** (`specs/2026-10-25-nemesis-design.md`, concept approved) | A rival's grudge can follow the player into main-story places as an interruption, never as a required fight. | Rivals are born in contracts. The owner's rule stands: first a **rumour warning**, then an **ambush** if the player ignores it. |
-| **Reputation in investigations** (`specs/2026-10-25-reputation-investigations-design.md`) | Witnesses answer by your standing, their trust in you and your conduct. Some **lie** (caught out by presenting evidence, which already works), some **refuse**, and some ruthless people **spill secrets more easily** to a ruthless player. Persuade, bribe and intimidate use the dialogue box on a second talk (owner decision, `Decisions.md`). **Every main-quest witness has at least two ways to the truth**, so reputation changes the route, never whether you can finish. | Main-quest choices move the standing that later witnesses react to. |
-| **Forgotten Sites** | Each region's site holds a piece of the history: a sink from Sarn, a Bright Years record, a frozen stone. | Main acts point at them through rumours. |
+| **Regional side quests** (`foundry_ledger`, `chalk_foundry`) | Their evidence unlocks extra main-quest choices. Finishing `foundry_ledger` before Act II's depot mission is a shortcut: you already know the 14th's "banked" furnace was C. Ashe's. Lise's chalk and the Voided Ledger Line point at the stones' circles. | Main acts send players into a region, where its side quests are found by clue markers and townsfolk. |
+| **Trainer quests** (`acq_*`) | Choosing a teacher is beat 7. Later acts give each trainer a role and a view of the debt (Lore Bible §8.1). | The trainers keep paying training. |
+| **Clue quests** (`lm_ridge`, `lm_mine`, and each region's) | They **are** Chapter 1's beats 1 and 3. The townsperson's first answer is the cover story (Ned's field boundaries, Bess's flood), and the main story reveals the rest. | Main-quest evidence can speed up a clue quest. |
+| **Minigames and puzzles** | Story set pieces (the mine, the depot's locks, the ledger's ciphers). | **Wrong-guess consequences: off in Chapter 1, on from Act II,** always told up front and never a dead end (Stakes 0 / 1 / 2 / 3 by act, wrong-guess spec). |
+| **Stealth contracts** (stealth missions spec) | Some turn up evidence or contacts (a stolen freight waybill shortens Act III). | Main acts unlock each region's job board, and story missions use the same compounds (the mine camp, the rail depot, the records hall, the cold store, the containment camp). |
+| **Nemesis rivals** (`specs/2026-10-25-nemesis-design.md`) | A rival can interrupt in main-story places, never as a required fight. | Rivals are born in contracts: first a rumour warning, then an ambush. |
+| **Reputation in investigations** (`specs/2026-10-25-reputation-investigations-design.md`) | Witnesses answer by your standing and conduct; some lie, some refuse, and some ruthless people tell a ruthless player more. Every main-quest witness has at least two ways to the truth. | Main-quest choices move the standing later witnesses react to. |
+| **Forgotten Sites** | Each holds a piece of history: one of Mezarath's circles, a boom-years record, a frozen stone. | Main acts point at them through rumours. |
 
-### 4.3 Rewards (PROPOSAL)
+### 5.3 Rewards (PROPOSAL)
 
 | Content | Reward kind |
 |---|---|
-| Main beats | EXP and money, Renown at chapter ends, codex entries, story contacts |
-| Regional side quests | EXP, money, standing with that region's people, sometimes a story shortcut |
+| Main beats | EXP and money, Renown at chapter ends, Codex entries, story contacts |
+| Regional side quests | EXP, money, standing, sometimes a story shortcut |
 | Trainer quests | The alchemy path, training, Mastery (as built) |
 | Clue quests | Small EXP, evidence the story can use |
-| Stealth contracts | Money by rating (Ghost / Quiet / Loud), faction standing, sometimes evidence |
-| Forgotten Sites | Caches, EXP, codex lore about the sinks and the kingdom of Sarn |
+| Stealth contracts | Money by rating (Ghost / Quiet / Loud), standing, sometimes evidence |
+| Forgotten Sites | Caches, EXP, Codex lore about Mezarath and the buried debts |
 
-All payouts stay once only, as the quest engine already guarantees (a quest leaves Active before anything is paid).
+All payouts stay once only (exists: a quest leaves Active before anything is paid).
 
 ---
 
-## 5. How it uses what exists
+## 6. How it uses what exists
 
-### 5.1 Reused as it is
+### 6.1 Reused as it is
 
 | System | How the main story uses it |
 |---|---|
-| **Quest engine** (`QuestService`, `Rensei.Quests`) | Each beat is an ordinary quest with **stages** and **objectives** (Talk, Visit, Defeat, Inspect, Evidence, Deduce, Puzzle, Minigame, Mechanism, Flag, Signal, Arrive). **`Requires`** chains the beats. **`Outcomes`** carry the chapter's choices (as Lise's choice does). **`Rewards.Deeds`** record what the player did. Category is already `"Main"` for the acquisition quests. |
-| **Quest revisions** (`Revision` / `Prepended`) | When a beat changes later (for example, beat 9 becomes a full stealth mission once those exist), older saves move forward safely, as `acq_metal`'s travel stage did. |
-| **`StoryLogic` conditions** | Main dialogue reacts to evidence, deductions, flags, standing, conduct words, trust, Renown, Heat and Wanted, and the saved alchemy path. All of these conditions exist. |
-| **Investigations and deductions** (`InvestigationService`, `Rensei.Investigation`, `Rensei.Evidence`) | Clue markers start quests (`StartsQuest`); the Case Board checks deductions; a wrong answer gets the deduction's `Wrong` line. |
-| **Townsfolk** (`TownsfolkService`, `Rensei.Townsfolk`) | Clue lines advance quests; rumour lines teach rumours; schedules teach the clock. Ned's and Bess's existing clue lines stay as the cover story. |
-| **Dialogue** (`DialogueService`, `Rensei.Dialogues`) | Named story characters use the dialogue box, with conditions and actions (`StartQuest`, `SetFlag`, `GiveEvidence`, `Deed`, `StartMinigame`). |
-| **Brannoc's notice** (`brannoc_moved`) | Metal's Lindenmoor start for beat 7 (§2.4). |
-| **Morality, Heat, rumours, witnesses, Identities, travel, parties, puzzles, minigames, Forgotten Sites, Field Notes** | Each is taught by its beat in §2 and used as built, except the Identities NPC records (§2.5). |
+| **Quest engine** (`QuestService`, `Rensei.Quests`) | Each beat is an ordinary staged quest. `Requires` chains the beats, `Outcomes` carry the choices, and `Rewards.Deeds` records them. |
+| **Quest revisions** (`Revision` / `Prepended`) | Old saves move forward safely when a beat changes later. |
+| **`StoryLogic` conditions** | Dialogue reacts to evidence, deductions, flags, standing, conduct, trust, Renown, Heat, Wanted and the saved path. |
+| **Investigations** (`InvestigationService`, `Rensei.Investigation`, `Rensei.Evidence`) | Clue markers start quests; the Case Board checks deductions. |
+| **Townsfolk** (`TownsfolkService`, `Rensei.Townsfolk`) | Clue lines advance quests, rumour lines teach rumours, schedules teach the clock. Ned's and Bess's existing lines stay as the cover story. |
+| **Dialogue** (`DialogueService`, `Rensei.Dialogues`) | Named story characters use the dialogue box, with conditions and actions. |
+| **The two intro slots** | Ye's `IntroCutscene` (the waking cutscene); the Tutorial's `IntroCutscene` module and `TutorialController` messages (the opening cutscene). |
+| **Brannoc's notice** (`brannoc_moved`) | Metal's Lindenmoor start. |
+| **Morality, Heat, rumours, witnesses, Identities, travel, parties, puzzles, minigames, Forgotten Sites, Field Notes** | Each is taught by its beat and used as built, except Identities' NPC records (§2.5). |
 
-### 5.2 New for the main story
+### 6.2 New for the main story
 
-- **The waking cutscene** (replaces `IntroCutscene.Play`), the bird, the grey patch, the ash, and the one-time **wake point**.
-- **About 14 new short quests** for Chapter 1 (the beats), with their dialogue and stage text.
-- **New Field Notes:** "Open Ground" (beat 4), "Word Travels" (5), "A Medium" (7) and "Unseen" (9). Plus the **one-note-per-beat rule**: a note that would fire during a beat waits until the next one (a small queue on the existing `Flow.Hints`).
-- **New story characters** (Lore Bible §8.2): Registrar Lucan Prewitt (beat 12), Inspector Aurel Denby (beats 9–11) and Constable Mabry Selden (beat 10); later Wenna Fane, Odette Sallow, Sorrel Kade, Elder Saffa Orun and Peleas Amund. Ned Harrow and Bess Kettering, who exist as townsfolk, get story lines. Townsfolk speak in bubbles only, so beat 11's choice needs a **dialogue tree for Bess**.
+- **Cutscenes:** the Tutorial opening (§1.2), the waking cutscene with its third-person pull-out (§1.4), and the story cutscenes in §4. Shared assets: the swift, the grey patch, the door and counting table. Each section lists its new animation slots and sounds.
+- **About 14 short quests** for Chapter 1, with their dialogue and stage text.
+- **New Field Notes:** "Open Ground", "Word Travels", "Choosing a Path" and "Unseen", plus the one-note-per-beat rule (a small queue on `Flow.Hints`).
+- **New flags:** `Flow.TutorialIntroSeen`; account-level "seen" markers for the skip prompt.
+- **New story characters** (Lore Bible §8.2): Registrar Lucan Prewitt, Inspector Aurel Denby and Constable Mabry Selden for Chapter 1; later Wenna Fane, Odette Sallow, Sorrel Kade, Elder Saffa Orun and Peleas Amund. Ned and Bess get story lines, and Bess needs a **dialogue tree** for beat 11 (townsfolk speak in bubbles only).
 - **New data:**
-  - the notice board inspect point and its evidence (the Bureau's two sheets, §1.4);
-  - the first deduction (beat 6), "What the Marker Records": where it points (`lm_shaft_ore`), what the figures are (the notice's evidence) and when (`lm_ridge_survey`). Its conclusion: "Not a boundary stone: a Bureau mark for something sunk under the ridge, due this year.";
-  - the work-order evidence at the survey camp (beat 9);
-  - Codex entries "Strays", "The Tally", "Sinks" and "The Bird With No Name";
-  - deeds for the three beat 11 outcomes and for trespassing on a sealed State site;
-  - a Militia fine desk in Lindenmoor (fines are paid at Foreman Brask today, for State Heat only);
-  - the "travel alone" choice (a flag) for beat 13.
-- **Identities NPC records** (§2.5): NPC subjects in data, server writers, naming an NPC, and eviction safety.
-- **A guaranteed rumour** about the player's beat 4 fight, so beat 5 always has something to hear.
-- **The survey camp** at the mine approach (beat 9). It later becomes Lindenmoor's first stealth compound (stealth missions spec §2.2).
-- **Text changes the lore suggests** (owner's call, open question 2): the birth deeds' text ("Born in Amestris" could read "Came through as an Amestrian") and the creator's nation blurbs (Lore Bible §4.2).
+  - the notice inspect point and its evidence;
+  - the first deduction, "What the Marker Records", with three slots: where it points (`lm_shaft_ore`), what the figures are (the notice) and when (`lm_ridge_survey`). Its conclusion: "Not a boundary stone. It marks something the Bureau buried under the ridge, and it's due this year.";
+  - the work-order evidence (beat 9);
+  - Codex entries ("Farborn", "Equivalent Exchange", "Buried Debts", "The Bird With No Name");
+  - deeds for the three beat 11 choices and for trespassing on a sealed State site;
+  - a Militia fine desk in Lindenmoor (fines are taken only by Foreman Brask today, for State Heat);
+  - the "travel alone" flag.
+- **Identities NPC records** (§2.5).
+- **A guaranteed rumour** about the beat 4 fight, so beat 5 always has something to hear.
+- **The survey camp** at the mine (beat 9). It later becomes Lindenmoor's first stealth compound.
 
-### 5.3 To check before building
+### 6.3 To check before building
 
-- **The Tutorial's Alchemy beat for a new player:** a new player has no path until a teacher gives one (the creator's Alchemy step was removed). In the lore, Truth lets the stray's hands *try* a medium during the Weighing; the build must decide what the beat actually casts for a player with no path.
-- **Truth's finale lines in the Tutorial place:** compare them with the Lore Bible's (§6.2) before writing anything that quotes them.
+- **The Tutorial's Alchemy beat for a player with no path.** The creator no longer gives a path. In the lore, Truth lets the newcomer's hands try alchemy; the build must decide what the beat actually casts.
+- **The Tutorial's step data and client** (`TutorialSteps` and the Tutorial client) are in Studio, not in this repo. Read them before wiring the opening cutscene and the new finale lines.
 
 ---
 
-## 6. Open questions for the owner
+## 7. Open questions for the owner
 
-### 6.1 Closed by the owner's answers (2026-10-25)
+### 7.1 Closed
 
-| # | The question | The answer | Where it's applied |
-|---|---|---|---|
-| 1 | Who is the player when they wake? | "someone who was transported to another world (the alchemy world)" | A stray (§1, §2; Lore Bible §6) |
-| 2 | Where do the acquisition questlines start? | "Each trainer's starting quest should be in Lindenmoor for now, until we add the other maps later." | §2.3, §2.4 |
-| 3 | Must Chapter 1 require a finished alchemy path? | "doesn't require a finished alchemy path, but if players want to they can" | Beat 7, §2.3 |
-| 4 | Is "dross" the story's spine? | "Nah let's create a full lore for the game that's original, immersive, and still follows the FMA theme." | `Documents/Lore Bible.md`; §§1.4, 2, 3 |
-| 5 | Wrong-guess consequences in Chapter 1? | "Good." (off in Chapter 1, on from Act II) | §2.3, §4.2 |
-| 6 | Solo players and beats 12–13? | "Yes. (the identity quests should be able to do solo if you want)." | Beats 12–13, §2.5 |
+| Question | Answer |
+|---|---|
+| Who is the player? | Transported from another world: a **Farborn**. |
+| Where do trainer questlines start? | In Lindenmoor for now. Metal starts at Brannoc's notice ("pretty good"). |
+| Must Chapter 1 need a finished path? | No; starting one is enough. |
+| The story's spine | A full original lore, in the series' theme and words (Lore Bible). |
+| Wrong-guess consequences in Chapter 1? | Off; on from Act II. |
+| Solo players and beats 12–13 | Optional; beat 12 can be done solo. |
+| Truth's finale lines | "Use the proposed ones." |
+| Series terms and shipped text | "Keep the FMA terms." The nation names, "Xerxian" and the creator text stay. |
+| A better word than "strays" | **Farborn**. |
+| Can a Farborn go home? | It stays a mystery (option C): hints only, never confirmed, and no ending promises or denies it. |
+| More cutscenes | A small set, at really important moments only (§4). |
 
-### 6.2 New questions (PROPOSAL recommendations)
+### 7.2 New (PROPOSAL recommendation)
 
-1. **Truth's lines at the end of the Tutorial.** They're in Studio, not in the repo, so this draft couldn't read them. Use the Lore Bible's three lines ("You were not sent. You fell." ...), or keep yours and fit the lore to them?
-   **Recommended:** send me your current lines; keep yours where they fit, and add "You were not sent. You fell." if nothing yet says the player came from elsewhere.
-2. **Text that already ships with the series' own events in it.** The creator's nation blurbs mention "the Promised Day", "Briggs" and the series' eastern art, and the birth deeds say "Born in Amestris" although the player is a stray. Reword them to the Lore Bible's versions? The nation name "Xerxian" also echoes the series' ancient kingdom. The Lore Bible gives that kingdom its own name (**Sarn**) and keeps "Xerxian" only as the people's name; the nation could be renamed in the same pass if you want.
-   **Recommended:** yes, as one small text pass. They're display text only, and no save data changes.
-3. **Metal's start (beat 7).** Is Brannoc's notice in Lindenmoor enough as Metal's "starting quest in Lindenmoor", or should Brannoc stand at the training field again until other maps exist?
-   **Recommended:** the notice. Moving him back would undo the Foundry move, and the train ride in beat 14 carries a Metal student straight to him.
-4. **Can a stray ever go home?** This shapes the "Settle" ending and what Truth asks for.
-   **Recommended:** leave it unknown until Act V. Truth's answer is a price, and the player decides whether to pay it.
-5. **The series' terms and looks in older specs and assets.** Several appear there:
-   - "Philosopher's Stone" (and the "Philosopher's Tier" rank), "Equivalent Exchange" and the Silver Watch, in the morality specs;
-   - the spec's Taboo price for a human transmutation attempt, "a limb, leading to automail";
-   - the Truth icon: a white, seated, grinning figure with black arms (Changelog).
-
-   Adopt the Lore Bible's replacements? They are **tallystone**, **the Tally / the price**, the **Tallybook**, kinmaking costing **the worker's name** (automail stays only a prosthetics trade), and a Truth that wears borrowed faces.
-   **Recommended:** yes for anything players read or see. "Stone Abilities" can stay as an internal label, and the Marcoh rule is unchanged.
+1. **The Tutorial's existing Gate set.** The Tutorial already has a Gate set (exists), and the lore now describes the Gate as a plain iron-banded door with a counting table. Restyle the set to match, or keep the existing set and describe that instead?
+   **Recommended:** send a screenshot. If the set is close, keep it and add the counting table.

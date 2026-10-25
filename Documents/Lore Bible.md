@@ -1,127 +1,141 @@
 # Rensei Lore Bible (DRAFT for the owner)
 
-**Status:** **DRAFT**, 2026-10-25. Written for the owner to read, change and approve. Nothing here is canon until the owner says so.
+## The story in 60 seconds
 
-**Owner's request (their words, 2026-10-25):** "Nah let's create a full lore for the game that's original, immersive, and still follows the FMA theme." Also: "The player is someone who was transported to another world (the alchemy world)."
+You wake up in a strange world. You came from somewhere else, and you don't know how you got here.
+
+In this world, alchemy is real. Its first rule is Equivalent Exchange: to make something, you must give up something of equal value.
+
+Long ago, an empire found a way to cheat. It transmuted now and left the price as a debt, locked in a stone and buried in the ground. Centuries later the debts came due, and the land paid. Green fields turned to desert.
+
+Thirty years ago, the State did the same thing on a far bigger scale. When that debt came due, a whole province went grey and silent. The State called it a natural disaster. It wasn't.
+
+Ever since, the State has been hiding its debts by burying stones in quiet places, like the village where you woke.
+
+When a buried debt comes due, the Gate opens over the ground that's paying. Sometimes people fall through from other worlds. You're one of them.
+
+You owe this world nothing. That makes you useful to everyone, and dangerous to some.
+
+Now you have to decide who pays.
+
+---
+
+**Status:** **DRAFT**, 2026-10-25. Revised the same day after the owner's review: "change the word 'working' for the alchemy to something more FMA related. Make the ancient kingdom name something cooler. And I want the lore to be a little more understandable. You can use FMA words too I don't mind." Nothing here is canon until the owner says so.
 
 **How to read this file:**
-- **PROPOSAL** marks every invented name or fact. Where a whole table or list is new, its heading says so.
-- **(exists)** marks names, places and facts already in the game's data, quests, dialogue or specs. This file builds around them and never renames them.
+- **PROPOSAL** marks every invented name or fact. **(exists)** marks what's already in the game's data, quests, dialogue or specs.
 - **The owner's own story notes** are a web link in `README.md` (a chatgpt.com conversation). I couldn't read it. Wherever it disagrees with this file, the owner's notes win.
-- **The Tutorial's Gate and Truth lines** live in the Tutorial place in Studio (`TutorialSteps` and the Tutorial client), which aren't mirrored in this repo. Only one Truth line could be read: the Bout's *"Again. And this time, take hold of it."* (exists, in `TutorialController`). §6.2 proposes the Gate's finale lines; if the owner has already written them, theirs win and §6.2 bends to fit.
-- **The rule this lore follows:** the *theme* is Fullmetal Alchemist (alchemy with a cost and a law, a State that licenses alchemists, a Truth behind a Gate, nations at uneasy peace, industry, moral grey). The *content* is original. §9.2 lists the series' terms we don't use.
+- **Series words are welcome; the series' plot isn't.** The owner allows Fullmetal Alchemist's vocabulary (transmutation, transmutation circle, the Gate, Truth, Equivalent Exchange, State Alchemist, Philosopher's Stone and so on). The story, characters and events are our own (§9.2).
+- **Equivalent Exchange** is this world's name for the law. The draft's invented name, "the Tally", is dropped.
+
+**The few terms this file needs** (each is explained the first time it appears):
+
+| Term | In one line |
+|---|---|
+| **Equivalent Exchange** | Every transmutation has a price of equal value. |
+| **Philosopher's Stone** | In this world: a stone that holds a transmutation's unpaid price as a debt. It is *not* made of people. |
+| **The Gate** and **Truth** (exist) | Where every price is counted, and the one who counts it. |
+| **Farborn** (PROPOSAL) | People who fell through the Gate from another world. The player is one. |
+| **The Bureau** (PROPOSAL) | The Bureau of Survey and Assay: the State office that buries the debts. |
+| **The Eclipse** (PROPOSAL event) | The day thirty-one years ago when the State's biggest debt came due. |
+| **Mezarath** (PROPOSAL) | The ancient empire that invented the trick. |
 
 ---
 
 ## 1. The world in one page
 
-**Nothing is made. Everything is moved.** That is the first thing every alchemist learns. A working takes weight from one place and sets it down in another, and the price is paid there and then, out of the alchemist's own strain and the stuff at hand. The rule has a name: **the Tally** (PROPOSAL). Behind every circle stands **the Gate** (exists), where the Tally is kept, and behind the Gate sits **Truth** (exists), which keeps the count.
+**Equivalent Exchange.** Every alchemist learns it first: nothing is made from nothing. A transmutation takes something from one place and turns it into something else, and the price is paid there and then. You pay out of the materials and out of your own energy (in the game, the alchemy meter, exists). Behind every transmutation circle stands **the Gate** (exists), where every price is counted, and **Truth** (exists) does the counting.
 
-There is one way to cheat the Tally. A working can be done **on debt**: taken now, paid later, somewhere else. Long ago an eastern kingdom called **Sarn** (PROPOSAL) invented the trick and built **sinks** (PROPOSAL), arrays cut deep into bedrock that hold a debt until it falls due. Sarn borrowed for three centuries, one small working at a time, under its neighbours' land. When the debts came due, one after another over a hundred years, the eastern plains paid. They are the desert of Ishval now (exists, own history). Sarn itself fell to war, not to alchemy. Its scattered descendants are the people the game calls **Xerxian** (exists as a nation name only).
+**The cheat.** There is one way round the rule. You can transmute now and pay later: you put the price into a **Philosopher's Stone**, a heavy stone with a circle carved into it, and you bury it. The debt waits there, sometimes for decades. When it comes due, the Gate collects it from the ground around the stone: the grass goes grey, the soil dies, the water turns bad. Move the stone and you move who pays. (In this world, a Philosopher's Stone is never made of people.)
 
-**Amestris** (exists) is the State. Its **State Authority** (exists) licenses every alchemist. The Licence was written to stop debtwork for good. Then, in the **Bright Years** (PROPOSAL), the State's foundries ran hotter and cheaper than coal could explain, the railways reached every province, and nobody asked why. The **Bureau of Survey and Assay** (PROPOSAL), a quiet office of the Authority, had found the old Xerxian sinks and started borrowing again.
+**Mezarath.** Long ago the empire of **Mezarath** (PROPOSAL) invented the trick. For three centuries it transmuted on debt and buried its stones under its neighbours' land. When the debts came due, one after another over a hundred years, the eastern plains paid. They are the desert of Ishval now (exists). Mezarath fell in the war that followed, not to alchemy. Its survivors are the **Xerxian** people (exists).
 
-Thirty-one years ago the biggest debt was called. The sky didn't darken. On a clear summer day the colour went out of a whole province: the light turned flat and grey, every shadow leaned toward the Sunworks instead of away from the sun, and the ground **went quiet**, with no birdsong, no insects and no wind in the grass. At the same moment the Sunworks' great furnace, which the newspapers had called "the second sun", went out. The papers wrote that the second sun had been *eclipsed*, and the name stuck (**the Eclipse**, PROPOSAL event; the Eclipse cycle and the Eclipse Citadel exist in the world spec). The ground began to pay that day and hasn't stopped: colour first, then soil, water and timber. Most people walked out in time. On the State's maps it's **the Corrupted Lands** (exists). The people who live near it call it **the Paid Lands** (PROPOSAL). The State calls it a blight and blames Drachman sabotage.
+**Amestris** (exists) is the State. Its **State Authority** (exists) licenses alchemists; licensed alchemists are State Alchemists. The licence was written to ban debt transmutation forever. Then, in the boom years forty to sixty years ago, the State's foundries ran hotter and cheaper than coal could explain, and nobody asked why. A quiet office of the Authority, **the Bureau of Survey and Assay** (PROPOSAL; "the Bureau"), had found Mezarath's old buried circles and started borrowing again.
 
-Since then the Bureau has kept the country running by moving its debts around: sinking them in old mines, carrying them on night freight, freezing them in fortress vaults, slipping them over the border. It works until a sink falls due. And this year, a lot of them are.
+**The Eclipse.** Thirty-one years ago the biggest debt came due. The sky didn't go dark. On a bright summer day the colour drained out of a whole province, the Vell (PROPOSAL). Shadows leaned the wrong way, and the ground went silent: no birds, no insects, no wind. At the same moment the province's great furnace, which the newspapers called "the second sun", went out. The papers wrote that the second sun had been eclipsed, and the name **the Eclipse** stuck (the Eclipse cycle and the Eclipse Citadel exist in the world spec). The province has been paying ever since. On maps it's **the Corrupted Lands** (exists). The State calls it a natural blight and blames Drachma.
 
-**Every door swings both ways** (PROPOSAL, Truth's rule). When a debt is called, the Gate opens over the owed ground, and things fall through from the other side: seeds, coins with strange faces, a bird nobody can name. Sometimes a person. The people here call them **strays** (PROPOSAL). Strays used to be rare. This year they come down by the dozen, and **the player is one of them**: someone from another world who fell through the night the ground under Lindenmoor (exists) began to pay.
+**Hidden debts.** Since then, the Bureau has kept the country running by hiding its debts: burying stones in old mines, moving them on night trains, freezing them in fortress vaults, smuggling them over the border. It works until a stone comes due. This year, a lot of them do.
 
-A stray owes this world nothing. That is rare, useful, and it doesn't last if you're careless. The game asks what you will do with it, and who you will let pay.
+**The Farborn.** When the Gate opens to collect a debt, things fall through from other worlds: seeds, coins with strange faces, a bird nobody can name. Sometimes a person. People here call them **Farborn** (PROPOSAL). There used to be one or two a year. This year they come every week. **The player is one of them**: someone from another world who fell through the night the ground under Lindenmoor (exists) began to pay.
+
+A Farborn owes this world nothing. That's rare and useful, and it doesn't last if you're careless.
 
 ---
 
 ## 2. Alchemy
 
-### 2.1 The law: the Tally (PROPOSAL)
+### 2.1 Equivalent Exchange
 
-> *Nothing is made. Everything is moved. Weight for weight, kind for kind, and the Tally is kept.*
+Apprentices learn it as three plain rules (PROPOSAL wording):
+1. **Same amount.** A transmutation can't make more than it takes. A stone wall needs stone. (The game already shows this: Earth takes its material and colour from the ground under it.)
+2. **Same kind.** Things can only become what their nature allows. Fire needs something to burn; steel needs metal.
+3. **Pay now.** The price is paid at the moment of transmutation, out of the materials and the alchemist's own energy. Paying later is debt, and debt is forbidden.
 
-Every apprentice learns it as three clauses:
+Your energy is the alchemy meter (exists). It only fills while you fight, because a body at rest has nothing to spend. Vask says it (exists): "Nobody charges up in a quiet corner."
 
-| Clause | What it means | How the game already shows it |
+**Every transmutation has three steps:** understand the thing, break it down, rebuild it. In the game that's the clap and the circle, the hold, and the release (exists, `ALCHEMY_SYSTEM.md`). A stunned cast is lost and its cost isn't refunded, because the price was already paid.
+
+### 2.2 The five paths
+
+Each person's hands take to one kind of alchemy for life: **Flame, Ice, Earth, Wind or Metal** (exists; one path per character). Vask calls it your "medium" (exists).
+
+**How the paths are taught** (PROPOSAL lore on the existing questlines): a teacher won't let you touch a circle until you can explain a failure. So every path's questline has the same shape (exists): investigate what went wrong, rebuild it, face whoever caused it, pass the teacher's examination, and be recognised. Recognition is the moment your path is set.
+
+| Path | Teacher (exists) | What it's really about (from their existing lines) | The failure you investigate (exists) |
+|---|---|---|---|
+| **Flame** | **Calda** | Control. "Fire is a decision, not a feeling." | The burned laboratory in Bramble Woods |
+| **Ice** | **Veyra** | Patience. Stillness is "the absence of waste". | The frozen research station behind the Cypress ridge |
+| **Earth** | **Holt** | Understand before you change. | The cracked footbridge on the mine plateau |
+| **Wind** | **Ansel** | Seeing the invisible by what it moved. | The silent observatory on the ridge rim |
+| **Metal** | **Brannoc** | Precision. No waste. | The silent forge in the Foundry Yard |
+
+**State Alchemists.** The State Authority licenses alchemists (exists). Casting without a licence in front of the Authority is a crime (exists: the `unlicensed_cast` deed). The morality spec's licence path, with its exam and the silver watch, stays as designed. Lindenmoor's training field is where licensed teachers may take students before the licence exam (PROPOSAL).
+
+**Other countries** (PROPOSAL):
+- **Xing** pays in advance: long preparation and fasting before a transmutation. It's slow, strong and clean, the opposite of debt.
+- **Ishval** distrusts alchemy for a reason it can name: its land paid for Mezarath's debts. Ishvalans heal damaged land by hand, without alchemy, over a generation.
+- **Aerugo** treats alchemy as a guild trade, licensed by the Aerugonian Guild (exists), not by a state.
+- **Drachma** has few alchemists. Drachmans say that **cold keeps a debt asleep**, and they're right (§4, the Northern Wall).
+
+### 2.3 Mastery and the Gate (exists, with its meaning)
+
+- Each stage of Mastery holds 20 Mastery Points. To go further, an alchemist must face the Gate (the Truth/Gate trial, exists; the trial itself isn't built).
+- In the lore, Truth judges whether you can carry more. Teachers can take you up to the Gate and no further (exists: every trainer's "gate" line).
+- Some never come back (exists: a death at the Gate is permanent).
+
+### 2.4 Forbidden transmutation
+
+The Taboo layer exists in the morality spec; these are its three marks. Each is warned about before it happens and can't be undone (exists rule), and each is secret power, hunted once discovered (owner decision, 2026-10-19).
+
+| Forbidden act | What it is | The price |
 |---|---|---|
-| **Weight** | A working can't make more than it takes. A stone wall needs stone. | Earth takes its material and colour from the ground under it (exists: Earth kit, `EarthElement`). |
-| **Kind** | Stuff can only be moved into what its kind allows. Fire needs something to burn; steel needs metal. Each person's hands answer to one **medium** (§2.3). | One path per character (exists: `Identity.Affinity`). |
-| **Keeping** | The price is paid **now**, at the working, out of the materials and the alchemist's own **strain**. Anything paid later is debt, and debt is forbidden (§2.5). | The meter (exists): it fills only while fighting and every circle drinks from it. In-world, strain is what you pay with, and a resting body has nothing to spend. Vask says it (exists): "Nobody charges up in a quiet corner." |
+| **Using a Philosopher's Stone** (the game's "Stone Abilities", exists; the Marcoh lineage can't use them) | Transmuting now and leaving the price in a stone. The spec's effect, no meter cost for 30 seconds, is exactly that. | Nothing at once. The debt is written in your name and collected later from the ground around the stone. A Farborn who does it no longer owes this world nothing. |
+| **Human transmutation** | Trying to make, remake or bring back a person. It has never worked. | Paid at once: Truth takes part of the alchemist (exists in the morality spec: a limb, which leads to automail; kept at the owner's word). |
+| **Making chimeras** | Joining living things together, or metal to flesh so that it moves. | The chimera doesn't last. (The Armored Experiment in Brannoc's questline, exists, may be one.) |
 
-The game's **Price** rule (exists in the morality spec: every reward shows its price before you accept) is the Tally in miniature. Player-facing text calls it **the price**, never by the series' name for its law.
+**Philosopher's Stones are never made of people** (rule). In this world one is cast iron or cut rock with a circle in it: heavy, dull red, and warm to the touch. The Foundry Yard makes them in secret (§4).
 
-### 2.2 The three heats (PROPOSAL)
+### 2.5 The Gate and Truth
 
-Alchemists talk about a working the way a foundry talks about a pour:
-
-1. **Assay:** know the thing. What it is, how much of it there is, what holds it together.
-2. **Melt:** unmake it. The clap and the circle open it. (Every working melts something, even ice.)
-3. **Cast:** set it in its new shape.
-
-This matches the cast as built (exists, `ALCHEMY_SYSTEM.md`): the clap and the circle (assay and melt), the hold, the release (cast). A cast interrupted between melt and cast is wasted strain, which is why a stunned cast is lost and never refunded (exists).
-
-### 2.3 Media: the five paths
-
-A person's hands **take to a medium** (exists: Vask's line, "if your hands have taken to a medium"). There are five: **Flame, Ice, Earth, Wind and Metal** (exists). The Tally writes a person's hands once (PROPOSAL lore for the existing one-path rule): you get one medium for life.
-
-**How it's taught (PROPOSAL lore, built on the existing questlines).** The Licence's oldest teaching rule is **"read before you work"** (PROPOSAL). No licensed teacher lets a student touch a circle until the student can explain a failure. So every questline is the same shape (exists): investigate a failure, rebuild what failed, face whoever caused it, pass the teacher's examination, and be recognised. Recognition is the moment the medium sets.
-
-| Medium | Teacher (exists) | What the teacher says it's really about (from their existing lines) | The failure you read (exists) |
-|---|---|---|---|
-| **Flame** | **Calda** | Control. "Fire is a decision, not a feeling." | The burned laboratory in Bramble Woods: Corin Vale's fire. |
-| **Ice** | **Veyra** | Stillness. "Not the absence of motion. The absence of waste." | The frozen research station behind the Cypress ridge: Maren Ostrova's station. |
-| **Earth** | **Holt** | Foundations. Understand it before you change it. | The cracked footbridge on the mine plateau: a pier rebuilt by alchemy for speed and never checked. |
-| **Wind** | **Ansel** | Seeing the invisible by what it moved. | The silent observatory on the Cypress ridge rim: shutters wired shut for an experiment, over Siv's objection. |
-| **Metal** | **Brannoc** | Precision. No waste. | The silent forge in the Foundry Yard's great hall: a brittle shaft and a hasty repair. |
-
-**The Licence** (exists: the State Authority's alchemy licence). PROPOSAL detail: a licensed alchemist carries a **Tallybook**, a brass-bound book that records every working above a set weight, and the State audits it. Casting without a licence in front of the Authority is an offence (exists: the `unlicensed_cast` deed). Lindenmoor's training field is a **field school** (PROPOSAL): a place licensed teachers may take a student before the licence exam.
-
-**Other peoples' ways** (PROPOSAL):
-- **Xing:** **forepaying.** Xingnese alchemists pay *before* they work, with fasting, craft-offerings and long preparation. Slow, strong and clean, the opposite of debt. (This replaces the creator blurb's borrowed term; see §4.2.)
-- **Ishval:** **settling.** Not alchemy at all: the slow hand-work of mending paid ground, with water-craft, planting and stone-laying rites, over a generation. Ishvalans distrust alchemy (exists, in the creator blurb) for their own reason: their land paid for someone else's.
-- **Aerugo:** alchemy is a **guild trade**, licensed by the Aerugonian Guild (exists as a community), not the state.
-- **Drachma:** few alchemists, and a hard practical faith in cold. Drachmans say that **cold keeps a debt asleep** (PROPOSAL), which turns out to be true (§4, the Northern Wall).
-
-### 2.4 Mastery and the Gate (exists, given meaning)
-
-- **Stages** (exists): each stage of Mastery holds 20 Mastery Points. To carry more, an alchemist must face the Gate (the Truth/Gate trial, exists in progression; the trial itself isn't built).
-- **What the trial is** (PROPOSAL lore): Truth weighs whether the alchemist's hands can carry more of the Tally. Teachers can sharpen a student up to the Gate and no further (exists: every trainer's "gate" line).
-- **Some don't come back** (exists: a death at the Gate is permanent since 2026-10-19). In-world: the Gate keeps those who asked to carry more than they could.
-
-### 2.5 The forbidden arts (PROPOSAL names; the Taboo layer exists)
-
-The Licence calls them **the Unpaid Arts**. Each maps onto a Taboo mark the morality spec already lists (exists). Each is told before it happens and can't be undone (exists rule).
-
-| Art (PROPOSAL) | What it is | The existing Taboo mark it names | Truth's price |
-|---|---|---|---|
-| **Debtwork** | Working now and paying later, elsewhere. A debt is anchored in a **tallystone**: a cast block inscribed with the working's circle. When the debt is called, the Gate collects it from wherever the stone lies. Move the stone and you move who pays. | "Philosopher's Stone use" and the clans' **Stone Abilities** (exists: the Marcoh lineage can't use them). The spec's effect, casts cost no meter for 30 s, is exactly a working put on debt. | None at once. The debt is written in your name and called later, from the ground under your stone. A stray who does debtwork loses their clean account (§6.3). |
-| **Kinmaking** | Making, remaking or returning a person. It has never worked. | "Human transmutation attempt" | Paid at once, kind for kind. You tried to make a person, so the Gate takes what makes *you* a person to everyone else: **your name**. Nobody can hold it in mind, it fades off paper, and the people who loved you can only call you "you". This replaces the morality spec's placeholder price (a limb). Automail stays what it already is in the game: an ordinary prosthetics trade for industrial injuries (Wren, exists), with no link to the Gate. |
-| **Grafting** | Joining living kinds: beast to beast, beast to person, or metal to flesh so that it moves. | "Made a chimera" | The graft's own life, in time. Grafts don't last. |
-
-- **Tallystones are not made of people** (rule). A tallystone is cast iron or dressed stone with an array in it. It's ugly, heavy and warm to the touch. The Foundry Yard casts them (§4).
-- **Owner decision kept** (exists, 2026-10-19): Taboo is secret power, hunted once it's discovered.
-
-### 2.6 The Gate and Truth in this world
-
-- **The Gate** (exists) is the far side of every circle, where the Tally is kept. Every working passes through it the way a coin passes a counting table, and almost nobody ever sees it. People see it in three ways: when their mastery reaches a ceiling and they ask to carry more; when they attempt an Unpaid Art; and when they **fall through it from elsewhere** (§6).
-- **Truth** (exists) keeps the count. It isn't a god and it isn't a devil. It doesn't punish; it collects. It never lies, and it answers only the question asked. It has no face of its own. It always wears a borrowed one, slightly wrong: the eyes don't blink, and the voice doesn't come from the mouth. (It wore the drillmaster's in the Tutorial, §6.2.) People who have met it say the worst part is that the face is always someone they know. The existing Truth icon (a white, seated, grinning figure with black arms) mirrors the series' look, and the story concept's question 5 suggests replacing it.
-- **The Gate's look** (PROPOSAL): no eye and no reaching hands. It is a plain iron-banded door standing on nothing, with a long counting table in front of it, and the sound of counting behind it.
-- **Truth's rule** (PROPOSAL): **"Every door swings both ways."** When a debt is called, the Gate stands open over the owed ground, and things come through from the other side.
-- **When a debt is called** (PROPOSAL): collection takes a thing's *kind* first and its *weight* after. Wood forgets it's wood. Iron goes to red ash. Water turns heavy and glassy. Grass goes grey in a ring. People say **"a fall of grey"** for a small collection and **"a quiet"** for a big one, after the silence of the Eclipse.
+- **The Gate** (exists) stands behind every transmutation circle, and it's where every price is counted. It looks like a plain iron-banded door standing alone on white ground, with a long counting table in front of it (PROPOSAL look). Most people never see it. You see it when you reach a Mastery limit, when you try a forbidden transmutation, and when you fall through it from another world.
+- **Truth** (exists) does the counting. It isn't a god and it isn't a devil. It doesn't punish; it collects. It never lies, and it answers only the question asked. Its own form is the owner's existing figure (the white, seated, grinning icon, exists). It can also wear a borrowed face: in the Tutorial it wore Drillmaster Vask's (§6.2).
+- **"Every door swings both ways"** (PROPOSAL, from Truth's finale lines). When a debt is collected, the Gate opens over that ground, and things come through from the other side.
+- **What collection looks like** (PROPOSAL): it takes a thing's nature first and its substance after. Grass goes grey in a ring. Wood stops being wood, iron crumbles to red dust, water turns heavy and glassy. People call a small patch "**the grey**" ("came down with the grey").
 
 ---
 
 ## 3. History timeline (PROPOSAL)
 
-Years are counted from the Charter: **C.R.** ("Charter reckoning"). **This year is C.R. 214.**
-
 | Era | When | What happened |
 |---|---|---|
-| **1. Before the Writing** | time out of mind | Alchemy is a hedge-craft done by hand. Workings are small and paid on the spot. The ancestors of the Ishvalan people farm a green eastern plain. |
-| **2. The Sarnic Writing** | about 900 to 600 years before the Charter | Scholars of the kingdom of **Sarn** draw the first circles, write the Tally down, and invent **sinks**: deep arrays in bedrock that hold a working's price until it falls due. Sarn's cities grow rich on thousands of small borrowed workings. Its surveyors cut sinks across the old rock of the continent, under other peoples' land. |
-| **3. The Long Collection** | about 600 years before | The eastern sinks fall due one by one over a century. The plain pays slowly, field by field, and becomes desert. The people who paid name the debt and go to war over it, and Sarn is broken by that war, not by alchemy. Its scholars scatter. Their descendants are the Xerxian people (the **Xerxian Remnant**, exists; "Xerxian" is the game's existing nation name). The Ishvalan people swear the **Covenant of Ground**: *the ground is not ours to borrow against.* |
-| **4. The Charter** | C.R. 1 | The provinces unite as Amestris under the **State Authority**. The Licence is written to forbid debtwork forever. Borders settle with Aerugo to the south-west, Drachma to the north and Xing in the east across the desert. |
-| **5. The Bright Years** | C.R. 151 to 183 | The Bureau of Survey and Assay maps old Sarnic sinks while surveying for mines, and quietly starts borrowing again. At **the Sunworks** in the province of **the Vell**, a furnace burns with no fuel (**the Unpaid Fire**): thirty-two years of debt, written a day at a time. The foundries boom, the railways reach every region, and Lindenmoor's mines and field school open. |
-| **6. The Eclipse** | C.R. 183 | The Sunworks' debt is called. The sky stays bright, but the colour goes out of the Vell, shadows lean toward the Sunworks, and the ground goes quiet. The Unpaid Fire goes out, and the papers say the "second sun" was eclipsed. The province begins to pay, slowly, and most of its people walk out. The Bureau walls the ruin in as the **Eclipse Citadel** (exists as a place). The official story is "the Blight", caused by Drachman sabotage. The Northern Wall (exists) is extended, and licences are tightened. ("Alchemy isn't for people like us": Lise, exists.) |
-| **7. The Quiet Ledger** | C.R. 184 to now | The Bureau keeps the foundries running by **re-sinking**: moving debts into old mines, onto night freight, into frozen vaults and over the border. It records every sink in the **Deep Ledger** and every stray in the **Grey Book**. Lindenmoor's sink **LM-7** goes in (C.R. 184, due C.R. 214). Halvard, a licensed assayer, seals his vault over the ridge's deep array (C.R. 202). The Unlicensed Circle grows. |
-| **8. This year** | C.R. 214 | Sinks sunk after the Eclipse fall due across the country. Strays come down by the dozen. Under Lindenmoor's ridge, LM-7 starts to pay, and the player falls through. |
+| **1. Hand alchemy** | Time out of mind | Small transmutations, paid on the spot. The ancestors of the Ishvalan people farm a green eastern plain. |
+| **2. The empire of Mezarath** | About 900 to 600 years ago | Mezarath's scholars draw the first transmutation circles. They also invent the cheat: transmute now and leave the price in a buried stone. Mezarath grows rich on thousands of small debts buried under its neighbours' land, and carves huge circles into bedrock to hold the stones. |
+| **3. The long payment** | About 600 years ago | The debts come due one after another over a century. The eastern plain dies field by field and becomes desert. The people who paid go to war, and Mezarath falls. Its survivors scatter and become the Xerxian people (the Xerxian Remnant, exists). The Ishvalans swear an oath: *the ground is not ours to borrow against.* |
+| **4. The founding of Amestris** | About 200 years ago | The provinces unite under the State Authority. Alchemy needs a licence, and debt transmutation is banned forever. Borders settle with Aerugo (south-west), Drachma (north) and Xing (east, across the desert). |
+| **5. The boom years** | About 60 to 31 years ago | The Bureau finds Mezarath's old buried circles while surveying for mines and starts borrowing again. In the Vell, the Sunworks' furnace burns with no fuel for thirty years: a debt written a day at a time. Foundries boom, railways reach every region, and Lindenmoor's mines and training field open. |
+| **6. The Eclipse** | 31 years ago | The Sunworks' debt comes due. The colour goes out of the Vell, shadows lean the wrong way, the ground goes silent, and the "second sun" goes out. Most people walk out in time. The Bureau walls the ruin in as the **Eclipse Citadel** (exists). The official story is a natural blight caused by Drachman sabotage. The Northern Wall (exists) is extended, and licences get stricter. ("Alchemy isn't for people like us": Lise, exists.) |
+| **7. Hiding the debts** | 30 years ago to now | The Bureau keeps the foundries running by moving its debts around: into old mines, onto night trains, into frozen vaults, over the border. It keeps one secret **ledger** of every buried stone and every Farborn. Lindenmoor's stones go in thirty years ago, due this year (marked **LM-7**). Halvard, a licensed assayer, seals off the deep circle under the ridge twelve years ago. The Unlicensed Circle grows. |
+| **8. This year** | Now | Debts buried after the Eclipse come due all over the country. Farborn arrive every week. Under Lindenmoor's ridge, LM-7 starts to pay, and the player falls through. |
 
 ---
 
@@ -129,99 +143,101 @@ Years are counted from the Charter: **C.R.** ("Charter reckoning"). **This year 
 
 ### 4.1 The seven regions
 
-The regions (exists), their places and level bands come from the world spec. Each region's identity, tension and secret below are PROPOSAL, and each is checked against what the region is built as, or is specced to be built as.
+The regions, their places and level bands are from the world spec (exists). Their identity, tension and secret are PROPOSAL, checked against what each region is built or specced as.
 
 | Region | Identity | Tension | Secret |
 |---|---|---|---|
-| **Lindenmoor** (levels 1–6; built) | A farm-and-mine valley in Amestris: red tile roofs, Mill Creek, the station and the signal box, the mine approach and headframe, Bramble Woods, and a training field where five licensed teachers keep a field school (four now: Brannoc has left a notice, exists). It keeps its own constable (Militia law, exists). | The mines are failing and the harvest is thin. State notices go up on the board. Strays keep turning up on the ridge knoll, and folk are split between charity and fear. | The ridge is an old **Sarnic sink**. In C.R. 184 the Bureau sank Lindenmoor's debt (**LM-7**) into its outer end through a mine shaft it then boarded (exists: the "flooded" shaft). The **Ridge Marker**'s figures (exists) are the sink number and the due year: **this year**. Halvard found the sink's heart under No. 4 and locked it so the Bureau couldn't use it (exists: "No. 4 is not ore. The array goes deeper than the mine. They will want it"). |
-| **Foundry Yard** (5–12; built) | The State's great foundry: soot, iron, the crane bay, two shifts, the canteen, workers' row and the underworks tunnel (exists). It casts rail iron for the whole country. | Crews against foremen, pay fraud (exists: the shift ledger), apprentices with no hope of a licence (exists: Lise), and Authority inspectors. | Furnace One runs hotter than coal can make it. On nights the ledger calls "banked", Furnace One pours **tallystones** for the Bureau (exists hook: the 14th's false hours, signed C. Ashe, and the crate Ashe bought off the evening freight "in new State coin"). The licensed chalk going missing (exists: the Voided Ledger Line) is drawing stock for the stones' arrays. |
-| **Central City** (hub; specced) | The capital: Central Terminal, the Licensing Office, hearings and newspapers, the Bureau's records hall (exists in the stealth spec), and the undercity. | Politics. Licence hearings, rival offices, and petitions to open the Licence to working people. Everyone important knows your name by now. | The undercity's tunnels (exists in the world spec as the story route to the Corrupted Lands) are the Bureau's quiet freight line: tallystones go down from the records hall's cellars and out to the Paid Lands by night. The Deep Ledger is kept in the same cellars. |
-| **Ishval** (18–30; specced) | A desert of red stone, oases and a rail halt (exists). It was once a green plain: the oldest Paid Land. The Ishvalan Community (exists) farms the oases and keeps the Covenant of Ground. | The State railway runs across Ishvalan land. Licensers come and go. A quarry company works the cliffs (exists in the stealth spec). There's an old grievance with the Xerxian Remnant. | The Ishvalans keep the only record of a debt called to its end, and the only known cure: **settling**, slow and without alchemy. They have met strays before. They call them **the Gate-sent** (PROPOSAL). |
-| **Aerugo Borderlands** (12–22; specced) | Vineyards, the border customs fort (exists in the stealth spec), Vintner's Pass, and the ash wastes running down to the Paid Lands (exists in the world spec). Guild alchemists, smugglers and vintners. | Rivalry with Amestris, border patrols and smuggling. | The Bureau pays smugglers to sink State tallystones on the Aerugonian side. The "grey rot" killing the vineyards is collection. Amestris is exporting its debt to a rival. |
-| **Northern Wall** (25–35; specced) | The great fortress facing Drachma: switchbacks, snow, a garrison, Drachman traders, and the gatehouse cold store (exists in the stealth spec). | Old hatred of Drachma, kept warm by the Eclipse story. | **Cold keeps a debt asleep.** The Wall's vaults hold the State's worst tallystones frozen (**the Cold Store**), and the cooling is failing. The Wall faces south as much as north: it also guards the ice caves into the Paid Lands (exists as a route). |
-| **Corrupted Lands** (30–45; specced) | The Paid Lands. Grey ash plains, glassy rivers, the walled Eclipse Citadel, the Bureau's containment camp (exists in the stealth spec), and the Eclipse cycle with its crimson phase (exists in the world spec). | The State, the Circle's hidden cells and things that used to be alive. | It's still paying. The crimson phase is the hours when the Gate stands open over the Citadel, so collection quickens, more strays fall, and more **Unkinded** walk: animals, timber and people whose kind has been taken and who keep moving out of habit. The Bureau keeps re-sinking into the Citadel, so the Vell's debt grows instead of shrinking. |
+| **Lindenmoor** (levels 1–6; built) | A farming and mining valley in Amestris. Red tile roofs, Mill Creek, the station, the mine and the training field where licensed teachers take students (Brannoc has left a notice, exists). It has its own constable (Militia law, exists). | The mines are failing and the harvest is thin. State notices go up on the board. Farborn keep turning up on the ridge, and folk can't decide whether to help them or fear them. | Mezarath carved a huge circle into the ridge's bedrock. Thirty years ago the Bureau buried Lindenmoor's stones at its edge, through a mine shaft it then boarded up (exists: Bess's "flooded" shaft). The figures under the arrow on the **Ridge Marker** (exists) are the Bureau's number, LM-7, and the year the debt comes due: **this year**. Halvard found the circle's heart under his No. 4 working and locked it so the Bureau couldn't use it (exists: "No. 4 is not ore. The array goes deeper than the mine. They will want it"). |
+| **Foundry Yard** (5–12; built) | The State's great foundry: soot, iron, cranes, two shifts, the canteen, workers' row and the tunnels underneath (exists). | Crews against foremen, faked pay (exists: the shift ledger), apprentices who'll never get a licence (exists: Lise), and inspectors. | Furnace One runs hotter than coal can make it. On nights the ledger calls "banked", it casts **Philosopher's Stones** for the Bureau (exists hooks: the 14th's false hours, signed C. Ashe, and the crate Ashe paid for "in new State coin"). The missing licensed chalk (exists: the Voided Ledger Line) goes into the stones' circles. |
+| **Central City** (hub; specced) | The capital: the terminal, the Licensing Office, hearings and newspapers, the Bureau's records hall (exists in the stealth spec) and the undercity. | Politics: licence hearings, rival offices, and petitions to open the licence to working people. | The undercity's tunnels (exists in the world spec as the story route to the Corrupted Lands) are the Bureau's secret freight line. Stones go down from the records hall's cellars and out by night, and the ledger is kept down there. |
+| **Ishval** (18–30; specced) | A red desert with oases and a rail halt (exists). It was once a green plain. The Ishvalan Community (exists) farms the oases and keeps its oath. | The State railway crosses their land. A quarry company works the cliffs (exists in the stealth spec). There's an old grievance with the Xerxian Remnant. | The Ishvalans know how to heal paid ground by hand, without alchemy, slowly. They've met Farborn before; they call them **"Gate-sent"**. |
+| **Aerugo Borderlands** (12–22; specced) | Vineyards, the customs fort (exists in the stealth spec), Vintner's Pass, and the ash wastes running down to the Corrupted Lands (exists). | Rivalry with Amestris, border patrols and smugglers. | The Bureau pays smugglers to bury State stones on the Aerugonian side. The grey rot killing the vines is debt being collected. |
+| **Northern Wall** (25–35; specced) | The great fortress facing Drachma: switchbacks, snow, a garrison and the gatehouse cold store (exists in the stealth spec). | Old hatred of Drachma, kept alive by the Eclipse story. | Cold keeps a debt asleep. The Wall's vaults hold the State's worst stones frozen, and the cooling is failing. The Wall also guards the ice caves into the Corrupted Lands (exists as a route). |
+| **Corrupted Lands** (30–45; specced) | Grey plains, glassy rivers, the walled Eclipse Citadel, the Bureau's containment camp (exists in the stealth spec), and the Eclipse cycle with its crimson phase (exists). | The State, hidden Circle cells, and things that used to be alive. | The Vell is still paying. The crimson phase is when the Gate stands open over the Citadel: collection speeds up, more Farborn fall through, and more **husks** walk (animals and people whose nature was taken, still moving out of habit). The Bureau keeps burying new debt there, so it never ends. |
 
-### 4.2 The nations (own history; names exist)
+### 4.2 The nations
 
-| Nation | This game's history (PROPOSAL) | Proposed creator blurb (PROPOSAL; replaces today's) |
-|---|---|---|
-| **Amestris** | The Charter state, run by the State Authority. It is proud of its railways and frightened of Drachma. | "The Charter state at the heart of the map, rich on rail and iron, still living in the shadow of the Eclipse." |
-| **Xing** | An empire of merchant houses (exists as a community) across the eastern desert. It practises forepaying and deals in contracts. | "From the eastern empire across the desert, where alchemists pay before they work." |
-| **Ishval** | The people whose plain paid, over a century, for Sarn's borrowing. They keep the Covenant of Ground. Disciplined, devout, and wary of alchemy for a reason they can name. | "A desert people of the east who keep the Covenant of Ground, and remember what borrowed alchemy costs." |
-| **The Xerxian people** (nation name exists; their old kingdom is **Sarn**, PROPOSAL) | Sarn invented circles and sinks, and fell to the war that followed the Long Collection. Its descendants (the Remnant, exists) are split between those who atone and those who sell the old knowledge. | "Descendants of Sarn, the lost kingdom that first wrote the Tally down, and first learned to cheat it." |
-| **Aerugo** | A southern rival where alchemy is a guild trade, not a state licence. It is ahead in theory and behind in iron. | "From the southern nation of guild alchemists and vineyards, Amestris's oldest rival." |
-| **Drachma** | A cold northern empire, blamed for the Eclipse by Amestris. Its frontier settlers and traders (exists as a community) want the truth out. | "From the cold northern empire beyond the Wall, blamed for a disaster it didn't cause." |
+The nation names and the creator's nation blurbs stay as they are (owner, 2026-10-25: "Keep the FMA terms"). This game's own history for each (PROPOSAL):
 
-**Why these:** today's blurbs (exists, `Customization.NationBlurb`) mention the series' own events and places ("the Promised Day", "Briggs", its eastern art's name). The proposed blurbs keep each nation's flavour and give it this game's history. They're a text change for later (owner's call, see the story concept's open questions).
+| Nation | This game's history |
+|---|---|
+| **Amestris** | The State, run by the State Authority. Proud of its railways, afraid of Drachma, living in the Eclipse's shadow. |
+| **Xing** | An empire of merchant houses (exists) across the desert. Pays for its alchemy in advance. |
+| **Ishval** | The people whose plain paid for Mezarath's debts. Devout, disciplined, wary of alchemy, and keepers of the oath. |
+| **Xerxian** | The scattered descendants of Mezarath. Some try to make amends; others sell the old knowledge. |
+| **Aerugo** | A southern rival where alchemy is a guild trade. |
+| **Drachma** | A cold northern empire, blamed for the Eclipse. It wants its name cleared. |
 
 ---
 
 ## 5. Factions
 
-The factions are the existing ones in `Rensei.Factions` and `Rensei.Regions` (exists). Their goals and views of the player are PROPOSAL.
+These are the existing factions (`Rensei.Factions`, `Rensei.Regions`). Their goals and their view of the player are PROPOSAL.
 
-| Faction | Goal | How it sees the player (a stray) |
+| Faction | What it wants | How it sees a Farborn |
 |---|---|---|
-| **State Authority** | Order, industry, the Licence, and peace on the borders. Most of the Authority believes the Eclipse story. | **Paperwork.** A stray is registered at the nearest station and watched. If they're useful, the Authority offers them a licence path (exists: the State's exam). |
-| **↳ the Bureau of Survey and Assay** (PROPOSAL office inside the Authority) | Keep the country solvent by keeping its debts moving. It runs the sinks, the Deep Ledger and the Grey Book. Its inner office is the morality spec's hidden State faction (exists as the placeholder **Shadow Office**), the one that may recruit a Taboo user. | **An instrument and a warning.** Every stray marks a debt being called. Strays are also the only people who can walk into called ground and come back, so the Bureau uses them as couriers. |
-| **Foundry Hands** | Fair pay, safe furnaces, and looking after their own. | **A stranger who might be an inspector.** Keep quiet and they'll keep you. |
-| **Unlicensed Circle** | Open alchemy to anyone with the hands for it, and expose the Bureau. Hidden in Lindenmoor, the City and the Corrupted Lands (exists). | **A witness.** A stray proves a debt was called somewhere. Most cells want to protect and recruit you. |
-| **↳ the Reckoners** (PROPOSAL splinter of the Circle) | Wake the Cold Store and carry every stone back to the people who borrowed: the foundries and the Bureau's own halls. The State breaks, and the crews who work there pay too. | **A weapon.** An unweighed courier can carry a stone where nobody else can. |
-| **Townsfolk** | Peace, a fair price and a decent harvest. | **Superstition, then judgement.** "A stray on the knoll means the ground is owed." Charity or fear first; after that, they judge you by your deeds (exists: rumours and witnesses). |
-| **Amestrian Citizenry** | Ordinary Amestrians: patriotic and wary of Drachma. They believe the Blight story. | You're one of theirs if the Gate dressed you as one (§6.3). |
-| **Ishvalan Community** | Keep the Covenant, mend the ground, and keep the railway's hands off the oases. | **The Gate-sent.** Hospitality first, then a test: will you borrow against ground that isn't yours? |
-| **Xingnese Merchant Houses** | Trade, contracts and forepaid work. | **An unbought word.** A stray owes nobody, so a stray's testimony is worth money. |
-| **Drachman Frontier** | Clear Drachma's name for the Eclipse. | **A natural ally** for anyone who wants the truth out. |
-| **Aerugonian Guild** | Prove Amestris is sinking debt on Aerugonian ground. | **A useful outsider** who can cross the border without a guild's colours. |
-| **Xerxian Remnant** | Split: the atoners want Sarn's sinks closed, the sellers want the knowledge paid for. | **Their ancestors' bill come due.** Some can't look at you. |
-
-Lindenmoor's **Militia** law (exists as a jurisdiction) is the village constable's, not a faction. It counts with Townsfolk.
+| **State Authority** | Order, industry, licences and peaceful borders. Most of it believes the Eclipse story. | Paperwork: register them, watch them, and offer a licence if they're useful. |
+| **↳ the Bureau** (PROPOSAL office of the Authority) | Keep the country running by keeping its debts hidden and moving. Its inner circle is the morality spec's secret State office (exists as the placeholder "Shadow Office"). | A tool and a warning. Every Farborn means a debt is being collected somewhere, and Farborn are the only people who can walk into paying ground and come back. |
+| **Foundry Hands** | Fair pay, safe furnaces, and looking after their own. | A stranger who might be an inspector. |
+| **Unlicensed Circle** | Alchemy for anyone with the talent, and the Bureau exposed. Hidden in Lindenmoor, Central and the Corrupted Lands (exists). | A witness worth protecting and recruiting. |
+| **↳ the Reckoners** (PROPOSAL; the Circle's hard-liners) | Wake the frozen stones and send every debt back to the people who borrowed: the foundries and the Bureau's own halls. | A weapon: a courier who can carry stones where nobody else can. |
+| **Townsfolk** | Peace, fair prices and a decent harvest. | "A Farborn on the ridge means the ground is owed." Charity or fear at first, then judged by their deeds (exists: rumours and witnesses). |
+| **The six communities** (exist) | Amestrians want order; Ishvalans want their oath kept and the railway off their oases; Xing's houses want trade; Drachmans want their name cleared; the Aerugonian Guild wants proof of State smuggling; the Xerxian Remnant is split. | Each treats a Farborn as kin if the Gate gave them that people's look (§6.3). |
 
 ---
 
-## 6. The outsider
+## 6. The Farborn
 
 ### 6.1 How and why the player arrived (PROPOSAL)
 
-- **You fell; you weren't sent.** On the night LM-7 began to be called, the Gate stood open over Lindenmoor's ridge. You were near the door on the other side, wherever you were, and you came through. Nobody chose you. No prophecy names you. (This keeps the README's pillar: the title of Legendary Alchemist is earned, never predestined.)
-- **You're one of many.** This year the sinks sunk after the Eclipse fall due all over the country, and strays come down every week. In a server full of players, that's simply true: **every player is a stray.** The rise in strays *is* the story's alarm: the Bureau's Grey Book is filling faster than it ever has.
-- **Why it matters to the plot:** a stray is proof that a debt was called. A stray is also the only kind of person the Gate doesn't collect from (§6.3). So the Bureau needs strays, the Circle wants them, and in the end both sides of the last act need one who's still clean.
+- **You fell; nobody sent you.** The night Lindenmoor's debt started to be collected, the Gate opened over the ridge, and you were near the door on the other side. No prophecy names you. You'll earn whatever you become (the README's pillar).
+- **You're one of many.** Debts are coming due all over the country, and Farborn arrive every week. In a server full of players this is simply true: **every player is a Farborn.** That the number keeps rising is the story's alarm.
+- **Why it matters:** each Farborn proves a debt is being collected. A Farborn is also the only kind of person the Gate doesn't collect from (§6.3). So the Bureau needs them, the Circle wants them, and in the last act both sides need one.
 
-### 6.2 The Weighing: the Tutorial, explained (PROPOSAL)
+### 6.2 Truth's test (the Tutorial, explained)
 
-Nothing enters a world unweighed. Before the Gate lets a stray through, Truth weighs them. It builds a yard out of a borrowed memory, the yard of the man who has trained more newcomers than anyone in this world, **Drillmaster Vask** (exists), and it wears his face. It watches you move, strike, guard and take hold. It lets your hands try a medium that isn't yours yet (the Tutorial's Alchemy beat). The voice that speaks when you don't finish the Bout properly is Truth's own (exists: *"Again. And this time, take hold of it."*). Then the Gate opens and you walk through.
+Before the Gate lets anyone into this world, Truth tests them. The Tutorial now opens with the pull itself: a glimpse of the player's own world, the colour draining away, the fall, and the door with Truth waiting at the counting table (the story concept's §1.2). Then Truth builds a training yard from the memory of the man who has trained more newcomers than anyone, **Drillmaster Vask** (exists), and wears his face. It watches you move, strike, defend and take hold. It lets your hands try alchemy before you have a path (the Tutorial's Alchemy beat). The voice in the Bout is Truth's (exists: *"Again. And this time, take hold of it."*). Then the Gate opens.
 
-**Proposed Gate finale lines** (PROPOSAL; three lines inside the existing ~9-second finale, `FINALE_TIME`; check against the lines already in Studio):
+**Truth's finale lines** (owner, 2026-10-25: "Use the proposed ones"):
 > *You were not sent. You fell.*
 > *The ground here is paying, and every door swings both ways.*
 > *You owe this world nothing. Keep it that way, if you can.*
 
-**The real Vask** (PROPOSAL) is alive and drilling new hands at the Foundry Yard (his existing dialogue, `tutorial_drillmaster`, is all furnaces and night shifts). When you meet him in Act II he doesn't know you. "Strays keep telling me they've met me," he says. "I've never liked it."
+**The real Vask** (PROPOSAL) is alive and training new hands at the Foundry Yard. When you meet him in Act II he doesn't know you. "Farborn keep telling me they've met me," he says. "I've never liked it."
 
-### 6.3 The rules of being from elsewhere (PROPOSAL)
+### 6.3 The rules of being Farborn (PROPOSAL)
 
-1. **You arrive where a debt is being called.** Usually that's the Paid Lands. You landed in a green valley, because Lindenmoor's sink came due.
-2. **The Gate dresses you.** It can't put a person into a world without weighing them in its terms, so it weighs you in the likeness of one of this world's peoples: their look, their tongue and a few of their songs (your **nation**, exists: chosen in character creation). It also weighs you against a family line, and you carry that line's gift (your **clan**, exists: the surname roll). That's why the communities treat you as kin, and why a family sometimes recognises its own gift in a stranger.
-3. **You keep your own mind.** You remember home. The game never shows it, and you can mention it in a few dialogue choices. ("Where I'm from, nobody draws circles.")
-4. **You're unweighed.** Everyone born here carries a **birth-share** of the debt owed by the ground they were born on. You carry none, so a collection doesn't take you. You can stand in called ground far longer than anyone native, and in the crimson phase you're the only one who can.
-5. **Your medium is unset until a teacher sets it.** The first true working with a teacher writes your hands into the Tally, once, for life (exists: one path per character).
-6. **Debtwork writes a debt in your name.** One tallystone working and you're no longer clean (this ties the Taboo layer to the story: it closes the "Settle" ending, §7.4).
-7. **There's no known way home.** Truth answers questions with prices. (Whether a stray can ever go back is an owner decision; see the story concept's open questions.)
+1. **You arrive where a debt is being paid.** Usually that's the Corrupted Lands. You landed in a green valley because Lindenmoor's debt came due.
+2. **The Gate gives you a place here.** You arrive with the look and language of one of this world's peoples (your **nation**, chosen in character creation, exists) and the gift of one of its family lines (your **clan**, exists). That's why your nation's community treats you as kin.
+3. **You keep your own mind.** You remember home. The game never shows it, though you can mention it in a few dialogue choices.
+4. **You owe nothing.** Everyone born here inherits a share of what their land owes. You inherited none, so the Gate doesn't collect from you. You can stay in paying ground far longer than anyone native, and you're the only one who can survive the crimson phase.
+5. **Your path is set by a teacher.** Your first real transmutation under a teacher fixes your path for life (exists: one path per character).
+6. **Using a Philosopher's Stone puts you in debt.** Do it once and you're no longer debt-free.
 
-### 6.4 The bird (PROPOSAL)
+### 6.4 Can a Farborn go home?
 
-The swift in the waking cutscene **came through with you**. It's from your world. Nobody in this one has a word for it. Ned calls it "the stray's bird", and the Codex entry is **The Bird With No Name**. It's seen again over every big collection: wherever the door stands open, it's on the wing. Its last appearance is over the Eclipse Citadel in Act V.
+**It stays a mystery** (owner decision, 2026-10-25, option "C"). The story drops hints that a way back might exist and never confirms it. No ending promises it or rules it out, and future updates can take it up.
 
-### 6.5 How people react
+Hints to seed (PROPOSAL; never confirmed):
+- Truth's own line: "every door swings both ways."
+- The bird that came through with you is seen flying *into* the light over the Eclipse Citadel. Nobody sees it come out.
+- A few entries in the Bureau's ledger are marked "not found" with a question mark beside them.
+- Sorrel Kade once saw a Farborn walk into the crimson light and not come back. He doesn't know where they went, and he doesn't like guessing.
 
-| Who | Reaction (PROPOSAL) |
+### 6.5 The bird (PROPOSAL)
+
+The swift in the waking cutscene came through with you; it's from your world. Nobody here has a word for it. Ned calls it "the Farborn's bird", and its Codex entry is **The Bird With No Name**. It shows up wherever the Gate opens, and the last time it's seen is over the Eclipse Citadel.
+
+### 6.6 How people react (PROPOSAL)
+
+| Who | Reaction |
 |---|---|
-| **Lindenmoor's folk** | "Came down with the grey, did you?" Wary charity. Some leave bread on the knoll; some won't sell to strays. Rumours and deeds (exists) settle it either way. |
-| **The Bureau** | Courteous registration at the station, a number in the Grey Book, and after that, watching. |
-| **Licensed teachers** | Unease and interest: "You've seen the Gate before your first circle?" |
-| **The Circle** | A safe word and an offer. |
-| **Ishvalans** | Water first, questions later. |
-| **The real Vask** | He doesn't like it at all. |
+| Lindenmoor's folk | "Came down with the grey, did you?" Wary kindness: some leave bread on the ridge, some won't sell to Farborn. |
+| The Bureau | Polite registration at the station, a line in the ledger, and watching. |
+| Teachers | Uneasy and curious: "You've seen the Gate before your first circle?" |
+| The Circle | A password and an offer. |
+| Ishvalans | Water first, questions later. |
+| The real Vask | He doesn't like it at all. |
 
 ---
 
@@ -229,86 +245,82 @@ The swift in the waking cutscene **came through with you**. It's from your world
 
 ### 7.1 The question
 
-**"What does the State owe, who is it owed to, and who is paying?"** Each act answers one layer and opens the next:
+**"What does the State owe, and who is paying for it?"** Each act answers one part:
 
-| Act | The layer it reveals |
+| Act | What the player learns |
 |---|---|
-| I. Lindenmoor | There's a sink under the ridge, it falls due this year, and the Bureau means to push the debt deeper rather than pay it. |
-| II. Foundry Yard | The stones are cast here, on nights the ledger calls "banked", and moved by night freight. The State's industry runs on debt. |
-| III. Central City | The Deep Ledger (every sink) and the Grey Book (every stray). You find your own entry, **written the morning you arrived, before anyone had seen you**. (The Bureau has instruments that shiver when a door opens: **tally-glasses**.) |
+| I. Lindenmoor | Stones are buried under the ridge, the debt is due this year, and the Bureau would rather bury it deeper than pay. |
+| II. Foundry Yard | The stones are made here in secret and moved by night train. The State's industry runs on debt. |
+| III. Central City | The Bureau's ledger lists every buried stone and every Farborn. Your own entry was written the morning you arrived, before anyone had seen you, because the Bureau has instruments that sense the Gate opening. |
 | IV-a. Aerugo | Where the debt goes: over the border. |
-| IV-b. Ishval | How it can be stopped: settling, slowly, with no alchemy. |
-| IV-c. Northern Wall | How much there is: the Cold Store, and how close it is to waking. |
-| V. Corrupted Lands | The Eclipse was no blight. The Vell is still paying, and the Bureau is still adding to it. |
+| IV-b. Ishval | How to heal the damage: slowly, by hand, without alchemy. |
+| IV-c. Northern Wall | How much debt there is, and how close the frozen vaults are to failing. |
+| V. Corrupted Lands | The Eclipse wasn't a natural blight. The Vell is still paying, and the Bureau is still adding to it. |
 
 ### 7.2 Why the Corrupted Lands are corrupted
 
-The Vell paid the Sunworks' debt (§3). Collection took the land's kind first: the soil stopped being soil, the timber stopped being wood, and people and animals kept walking after they had stopped being anything (the **Unkinded**, the region's enemies). The Bureau never stopped sinking new debt into the Citadel, so the collection never finished. The **crimson phase** of the Eclipse cycle (exists) is when the Gate stands open over the Citadel: more collection, more Unkinded, and more strays.
+The Vell is paying the Sunworks' debt (§3). Collection takes a thing's nature first: soil stopped being soil and wood stopped being wood, and the animals and people who didn't leave became **husks**, still moving out of habit (the region's enemies). The Bureau never stopped burying new debt in the Citadel, so the collection never finished. The **crimson phase** of the Eclipse cycle (exists) is when the Gate stands open over the Citadel: more collection, more husks, and more Farborn.
 
-**The connection to the player:** it's the same door. The Lindenmoor sink is a small cousin of the Vell. Every stray fell through a collection, and the Grey Book's count shows the collections speeding up everywhere since the Bureau began re-sinking in earnest. The more the State borrows, the more doors open.
+**The link to the player:** it's the same door. Lindenmoor is a small version of the Vell. Every Farborn fell through a collection, and the more the State borrows, the more doors open.
 
 ### 7.3 The antagonists (PROPOSAL)
 
-- **Assayer-General Odette Sallow**, head of the Bureau of Survey and Assay. Exact, courteous and sincere. She believes the country would starve and go to war without its debts. Her plan, **the Even Measure**, is to break the Vell's debt into hundreds of small ones and re-sink them in old mines across the provinces, each due a century from now. No place is ever called hard again, and a hundred valleys grow a little poorer, quietly, for a hundred years. It needs the Citadel's founding stone carried into the open Gate at the crimson phase, by someone with a clean account: **a stray**. Her line: *"Nobody starves on a slightly poorer harvest. They starve in the Vell."*
-- **Sorrel Kade**, leader of the Reckoners. He was the first stray the Bureau ever registered: he fell into the Vell during the Eclipse, and they used him as a courier in called ground for twenty years. He wants the Cold Store woken and every stone carried back to the people who borrowed: the foundries and the Bureau's own halls. The State breaks, and the crews who work there pay with it. He's the player's dark mirror: what a stray becomes when every side uses them.
-- **Neither is a monster.** Each is right about the other. This follows the game's grey-choice rule (exists, `Morality and Reputation Proposal.md` goal 4).
+- **Assayer-General Odette Sallow** runs the Bureau. She's exact, polite and sincere, and believes the country would starve or go to war without its hidden debts. Her plan is to break the Vell's debt into hundreds of small ones and bury them in old mines across the country, each due a hundred years from now. No place would ever pay as the Vell did, and a hundred valleys would quietly grow a little poorer for a century. To do it she needs the Citadel's oldest stone carried into the open Gate during the crimson phase, by someone who owes nothing: **a Farborn**. Her line: *"Nobody starves on a slightly poorer harvest. They starve in the Vell."*
+- **Sorrel Kade** leads the Reckoners. He was the first Farborn the Bureau ever registered: he fell into the Vell on the day of the Eclipse and was used as a courier in the dead lands for twenty years. He wants the frozen stones woken and every debt sent back to the people who borrowed: the foundries and the Bureau's halls. That would break the State, and the people working in those places would pay too. He's the player's dark mirror: what a Farborn becomes when everyone uses them.
+- **Neither is a monster, and each is right about the other** (the game's grey-choice rule, exists).
 
 ### 7.4 Ending directions (PROPOSAL; Phase 10 isn't designed)
 
-These are shaped by the player's deeds, standing, licence path and Taboo marks, never by one last dialogue choice (exists rule).
+Endings are shaped by the player's deeds, standing, licence path and Taboo marks, never by one last dialogue choice (exists rule). **No ending promises or rules out going home** (§6.4).
 
-- **Expose:** the Deep Ledger goes public. The Bureau falls and debtwork stops. The foundries slow, and hard but honest years follow. What's owed is still owed, so the Ishvalan settling becomes everyone's long work.
-- **Even Measure:** you help Sallow. There will be no more Paid Lands. The price is split into a hundred small sinks for a hundred years, and the secret is kept.
-- **Settle:** a stray who is still clean carries the Citadel's stone into the Gate and asks Truth the price. It needs Ishvalan standing, the Remnant's knowledge, and **no Taboo marks**. What Truth asks for is the owner's call (§6.3, rule 7).
-- **Harness:** you take the Citadel's stone for yourself, by the Taboo route. You become strong and feared, and the debt is now yours.
-- **(Failure) the Reckoning:** if Kade isn't stopped, the Foundry Yard and the Bureau's halls in Central pay, along with everyone working in them.
+- **Expose:** the ledger goes public. The Bureau falls and the borrowing stops. Hard but honest years follow, and the old debts still have to be healed by hand.
+- **Sallow's way:** you carry the stone for her. The Vell stops paying, and the price is spread thin over a hundred valleys for a hundred years. The secret is kept.
+- **Pay it yourself:** a Farborn still free of debt carries the Citadel's stone into the Gate and asks Truth the price, so that no one else's land pays it. It needs Ishvalan trust, Xerxian knowledge, and **no Taboo marks**. What Truth asks for, and what the Farborn gets in return, is left open.
+- **Take the power:** you use the Citadel's stone yourself, by the Taboo route. You become strong and feared, and the debt is now yours.
+- **(Failure) Kade wins:** the Foundry Yard and the Bureau's halls pay, along with everyone working in them.
 
 ### 7.5 Smaller mysteries to seed early (PROPOSAL)
 
-1. **The figures on the Ridge Marker** (exists: "a row of figures"). They're a sink number and a due year: *LM·7 · DUE C.R. 214*. Ned thinks they're field measures.
-2. **The bird with no name** (§6.4).
+1. **The figures on the Ridge Marker** (exists): LM-7, and this year's date. Ned thinks they're field measurements.
+2. **The bird with no name** (§6.5).
 3. **Vask's face** (§6.2).
-4. **Furnace One runs hotter than coal** (Foundry Yard).
-5. **Where Halvard went.** His name turns up in the Deep Ledger: "retired, Northern Wall."
-6. **Hooks already in the game that this lore can answer later:** Maren Ostrova's guardian that "holds the station's cold" (exists: was her station keeping a stone asleep?), and the Armored Experiment, "plated with cast iron. It moves" (exists: a graft, done in Brannoc's forge by someone else).
+4. **Furnace One runs hotter than coal.**
+5. **Where Halvard went.** His name turns up in the Bureau's ledger: "retired, Northern Wall."
+6. **Existing hooks to answer later:** Maren Ostrova's guardian that "holds the station's cold" (exists: was her station keeping a stone asleep?), and the Armored Experiment, "plated with cast iron. It moves" (exists: a chimera?).
 
 ---
 
 ## 8. Key characters
 
-### 8.1 Existing characters (kept; their roles in the lore are PROPOSAL)
+### 8.1 Existing characters (kept; their lore roles are PROPOSAL)
 
-| Character | Where | Role in the lore |
+| Character | Where | Role |
 |---|---|---|
-| **Truth** | The Gate | Keeper of the Tally. It weighed you. |
-| **Drillmaster Vask** | Tutorial; real man at the Foundry Yard (PROPOSAL) | Truth borrowed his face for the Weighing. The real one drills new foundry hands. |
-| **Calda** (Flame), **Veyra** (Ice), **Holt** (Earth), **Ansel** (Wind) | Lindenmoor's training field | Licensed teachers at the field school. Each has their own view of the debt: Calda thinks it's a fire someone let get away; Veyra suspects the cold vaults; Holt reads the ground and doesn't like it; Ansel already knows more than he says (PROPOSAL views). |
-| **Brannoc** (Metal) | Foundry Yard (moved 2026-10-24); his notice stands in Lindenmoor | He knows Furnace One runs hot and won't say why. |
-| **Ned Harrow** | Lindenmoor, the groundskeeper | The first person you meet. He scrubs the Ridge Marker for "a few coins a season from the Survey" (PROPOSAL) and thinks it's about hedges (exists: his clue line). |
-| **Bess Kettering** | Lindenmoor, the mine hand | She knows what went down the "flooded" shaft in C.R. 184: her father, **Tom Kettering** (PROPOSAL), carted the crates. She tells the flood story (exists) until she trusts you. |
-| **Halvard** | Absent | The licensed assayer who locked the sink's heart (exists). Fate unknown. |
-| **Wren** (automail mechanic), **Coach Harlan**, **Master Thura** | Lindenmoor | Unchanged. Wren sells transmutation chalk (exists) and asks no questions. |
-| **Abel Crane** (signalman), **Jory Fallow** (miller), and the farmers **Garrick Ashby**, **Marta Quill**, **Osric Penhale** and **Ilse Dunmore** | Lindenmoor | Townsfolk: rumour-carriers and witnesses. |
-| **Foreman Brask**, **Mirra**, **Tobin**, **Lise** | Foundry Yard | Unchanged, including Lise's choice. Lise's chalk is the same stock the Bureau's stones need. |
-| **Edmund Rusk**, **Sella Marsh**, **Aldous Merriweather**, **Ivo Marchbank** and the rest of the Foundry roster | Foundry Yard | The crews. They are the Act II witnesses. |
-| **C. Ashe** | Foundry Yard (unseen) | The charge hand who faked the 14th's hours. PROPOSAL: **Cyprian Ashe**, the Bureau's man at Furnace One. |
+| **Truth** | The Gate | Counts every price. It tested you. |
+| **Drillmaster Vask** | The Tutorial; the real man is at the Foundry Yard (PROPOSAL) | Truth borrowed his face. |
+| **Calda** (Flame), **Veyra** (Ice), **Holt** (Earth), **Ansel** (Wind) | Lindenmoor's training field | Teachers. Each has a view of the debt (PROPOSAL): Calda sees a fire someone let get away; Veyra suspects the frozen vaults; Holt reads the ground and doesn't like it; Ansel knows more than he says. |
+| **Brannoc** (Metal) | Foundry Yard; his notice stands in Lindenmoor | Knows Furnace One runs hot and won't say why. |
+| **Ned Harrow** | Lindenmoor, groundskeeper | The first person you meet. He's paid a few coins a season to keep the Ridge Marker clean, and thinks it's about field boundaries (exists: his clue line). |
+| **Bess Kettering** | Lindenmoor, mine hand | Knows what really went down the "flooded" shaft: her father, Tom Kettering (PROPOSAL), carted the Bureau's crates. She tells the flood story (exists) until she trusts you. |
+| **Halvard** | Missing | The assayer who locked the circle's heart (exists). |
+| **Wren**, **Coach Harlan**, **Master Thura** | Lindenmoor | Unchanged. Wren fits automail, an ordinary trade here (exists). |
+| **Abel Crane**, **Jory Fallow**, and the farmers **Garrick Ashby**, **Marta Quill**, **Osric Penhale** and **Ilse Dunmore** | Lindenmoor | Townsfolk who carry rumours and witness what you do. |
+| **Foreman Brask**, **Mirra**, **Tobin**, **Lise**, and the Foundry crews | Foundry Yard | Unchanged. They're Act II's witnesses. |
+| **C. Ashe** | Foundry Yard (unseen) | The Bureau's man at Furnace One. PROPOSAL first name: Cyprian. |
 | **Corin Vale**, **Maren Ostrova**, **Dask**, **Siv**, **the Crystallized Guardian**, **the Armored Experiment** | Trial sites | Unchanged; §7.5 has the hooks. |
 
 ### 8.2 New story characters (all PROPOSAL)
 
-| Character | Where and when | Role |
+| Character | Where | Role |
 |---|---|---|
-| **Registrar Lucan Prewitt** | Lindenmoor Station's Bureau desk (Chapter 1, beat 12); later the Grey Book office in Central | A mild Bureau clerk who registers strays and keeps a page on you, as you keep one on him. He's a possible ally in Act III. |
-| **Inspector Aurel Denby** | Lindenmoor's mine approach (Chapter 1, beats 9–11) | A tired, decent Bureau inspector who thinks moving the debt deeper is saving the valley. |
-| **Constable Mabry Selden** | Lindenmoor's square (Chapter 1, beat 10) | The village's Militia constable. Fair, outnumbered, and unhappy about State inspectors. |
-| **Wenna Fane** | First as a note and a rumour (Chapter 1); in person in Act II | A Circle sink-hunter, Flame. She wrote the Adit's "Visitor's Note" (exists: "Someone has been here before me"). An ally or a rival. |
-| **Assayer-General Odette Sallow** | Central City (Act III onward) | The antagonist (§7.3). |
-| **Sorrel Kade** | Rumours from Act II; Corrupted Lands (Act V) | The Reckoners' leader (§7.3). |
-| **Elder Saffa Orun** | Ishval (Act IV-b) | Keeper of the Covenant. Teaches settling. |
-| **Peleas Amund** | Central City's undercity (Act III) | A Xerxian Remnant archivist: an atoner who can read the old sink-arrays. |
-| **Tom Kettering** | Dead; mentioned only | Bess's father, the Bureau carter. |
-
-Each later region gets its own minor cast in its own spec.
+| **Registrar Lucan Prewitt** | Lindenmoor Station (Chapter 1, beat 12); later Central | A mild Bureau clerk who records Farborn and keeps a record on you, as you do on him. A possible ally later. |
+| **Inspector Aurel Denby** | Lindenmoor mine (Chapter 1, beats 9–11) | A tired, decent Bureau inspector who believes burying the debt deeper saves the valley. |
+| **Constable Mabry Selden** | Lindenmoor square (beat 10) | The village constable. Fair, outnumbered, and unhappy about State inspectors. |
+| **Wenna Fane** | First as a note and a rumour; in person in Act II | A Circle agent who hunts buried stones, and a Flame user. She wrote the Adit's "Visitor's Note" (exists). |
+| **Assayer-General Odette Sallow** | Central (Act III onward) | The antagonist (§7.3). |
+| **Sorrel Kade** | Rumours from Act II; first met on the Aerugo ash wastes (Act IV-a); the Corrupted Lands (Act V) | The Reckoners' leader (§7.3). |
+| **Elder Saffa Orun** | Ishval (Act IV-b) | Keeper of the oath; teaches how to heal paid ground. |
+| **Peleas Amund** | Central's undercity (Act III) | A Xerxian scholar who can read Mezarath's old circles. |
 
 ---
 
@@ -316,89 +328,56 @@ Each later region gets its own minor cast in its own spec.
 
 ### 9.1 Voice
 
-- **Working people, concrete words.** People talk about their jobs, their pay, the weather and the trains (exists: the townsfolk's job lines). Alchemy is described in trade words: weight, kind, heat, stock, strain, price.
+- **Plain words.** People talk about work, pay, weather and trains (exists: the townsfolk's job lines). Alchemy is talked about in terms of price, debt, stone and circle.
 - **Short lines.** One fact per sentence. The dialogue box holds about 240 characters (exists rule); aim for 180.
-- **Nobody lectures.** People tell you what they need, not what they know. Lore comes out sideways: in a complaint, a notice, a joke, or a clue.
-- **Each voice has a register.** The State is polite and bureaucratic ("Persons arriving without papers are requested to..."). The Circle is quick and wry. Ishvalans are plain and unhurried. Truth uses short, even sentences, with no exclamation marks and no comfort.
-- **Grey, not grim.** Kindness is real and small: a bed, a meal, a warning. Villains have reasons. No choice is the "good ending" button (exists rule).
+- **Nobody lectures.** Lore comes out in a complaint, a notice, a joke or a clue.
+- **Each voice has a register.** The State is polite and official. The Circle is quick and dry. Ishvalans are plain and unhurried. Truth speaks in short, even sentences, with no comfort.
+- **Grey, not grim.** Kindness is small and real. Villains have reasons. No choice is the "good" button (exists rule).
 
-### 9.2 Words to avoid
+### 9.2 What to avoid
 
-| Avoid | Why | Use instead |
+**Series words are allowed** (owner, 2026-10-25): transmutation, transmutation circle, alchemist, State Alchemist, the silver watch, Equivalent Exchange, the Gate, Truth, Philosopher's Stone, human transmutation, chimera, automail, the nation names (including Xerxian), and the shipped creator text.
+
+| Avoid | Why | Instead |
 |---|---|---|
-| "Equivalent Exchange" | The series' own law | **the Tally**, **the price** |
-| "Philosopher's Stone", "Philosopher's Tier" | The series' own object (and ours isn't made of people) | **tallystone**; a rank name to be chosen. "Stone Abilities" can stay as the internal label. |
-| homunculus / homunculi, Father, the Promised Day, Briggs, alkahestry, "dragon's pulse", a country-wide circle | The series' plot, characters and terms | This file's history |
-| "chimera" | The series' word | **graft**, **grafting** |
-| "human transmutation" in player-facing text | Too close to the series | **kinmaking** (the code and spec term can stay) |
-| "State Alchemist", a silver watch | The series' titles and tokens | **licensed alchemist**, **Tallybook** |
-| "toll" at the Gate | The series' word for the Gate's price | **price** |
-| Xerxes, an ancient kingdom destroyed in one night by one working, a whole people paid as the price | The series' ancient history | **Sarn**, which borrowed slowly and fell to war; its debts were paid field by field over a century |
-| A solar eclipse, the sky going dark at noon | The series' climax | The colour going out, shadows leaning the wrong way, the ground going quiet. "Eclipse" is only the newspapers' name for the second sun going out. |
-| A Gate with an eye on it, black hands pulling people through, a white grinning Truth | The series' look | A plain iron-banded door and a counting table. Truth only ever wears a borrowed face. |
-| Body parts taken at the Gate; automail as the price of a forbidden working | The series' price | Kinmaking costs the worker's **name**. Automail is only a prosthetics trade. |
-| A national exam with written, practical and interview stages; a dog-of-the-military nickname | The series' State Alchemist exam | The Licence is earned through a teacher's examination and the existing exam quest. Its details stay this game's own (the morality spec's licence path). |
-| A secret beneath the capital that the whole country is built around | The series' plot | The undercity is only the Bureau's freight line and the Deep Ledger's cellars. |
-| magic, mana, spell, wizard | Not this world | working, medium, circle, strain, alchemist |
-| chosen one, destiny, prophecy | Breaks pillar 6 (earned, not predestined) | Nothing. The player earns it. |
-| "corruption" in speech | It's only the State's map word | "the Paid Lands", "called ground", "a fall of grey" |
-| "dross" | The draft's retired placeholder | "debt", "a sink", "a tallystone" |
-| modern slang, "OK" | Breaks the period | "Right.", "Fair.", "Done." |
-
-**Kept although they come from the series** (the owner's existing choices): the nation names (Amestris, Ishval, Xing, Drachma, Aerugo, and "Xerxian" as a people's name only; their kingdom is Sarn), the Gate, Truth, automail (as a prosthetics trade only), the Marcoh clan, and the plain job labels "Flame Alchemist" and the like.
+| The series' plot: homunculi, Father, a "Promised Day" plan, a country-wide transmutation circle, a secret under the capital that the country is built around | The words are allowed; the story isn't | This file's history |
+| Philosopher's Stones made of people | The series' secret | Ours are stone and iron holding a debt |
+| An ancient empire wiped out in one night by one transmutation; Xerxes | The series' history | Mezarath borrowed for centuries and fell to war |
+| The sky going dark at the Eclipse | The series' climax | The colour drains, shadows lean wrong, the ground goes silent |
+| The series' characters, or their exam scenes and nicknames | Their story | Our characters; the licence path as the morality spec designs it |
+| magic, mana, spell, wizard | Not this world | transmutation, alchemy, circle, price |
+| chosen one, destiny, prophecy | Breaks pillar 6: earned, not given | Nothing. The player earns it. |
+| Promising or denying a way home | Owner decision: it stays a mystery | Hints only (§6.4) |
+| New invented jargon | The owner asked for understandable lore | Everyday words: debt, price, buried stone, the Gate takes its due |
+| "stray", "dross", "working", "the Tally" | Retired draft words | **Farborn**, debt, transmutation, Equivalent Exchange |
+| Modern slang, "OK" | Breaks the period | "Right.", "Fair.", "Done." |
 
 ### 9.3 How much to explain
 
-- **At the moment of use, never before.** A thing is explained when the player first needs it, in at most two short sentences or one Field Note (exists system).
-- **Show it, then name it.** The player sees the grey ring before anyone says "a fall of grey".
-- **One new idea per quest.** Chapter 1 needs only four ideas: **the Tally** (things have a price), **strays** (you), **sinks** (debts buried in the ground) and **the Bureau** (who buries them). Everything else waits.
-- **Answer one question, open at most one.** Mysteries move forward; they don't pile up.
-- **The Codex holds the rest** (exists): a player who wants more reads it, and a player who doesn't never has to.
+- **Explain at the moment of use, never before,** in at most two short sentences or one Field Note (exists system).
+- **Show it, then name it.** The player sees the grey patch before anyone says "the grey".
+- **Chapter 1 needs four ideas and no more:** Equivalent Exchange (everything has a price), **Farborn** (you), **buried debt** (stones in the ground) and **the Bureau** (who buries them).
+- **Answer one question and open at most one.**
+- **The Codex holds the rest** (exists).
 
 ---
 
-## 10. Glossary (PROPOSAL unless marked)
+## 10. Glossary
+
+Only the terms that matter. PROPOSAL unless marked.
 
 | Term | Meaning |
 |---|---|
-| **Birth-share** | The share of a ground's debt everyone born on it carries. Strays have none. |
-| **Bright Years** | C.R. 151–183: the boom the Bureau's borrowing paid for. |
-| **Bureau of Survey and Assay** | The Authority's office for mines and surveys, and secretly for debts. |
-| **Called** | Said of a debt being collected. "Called ground" is ground that's paying. |
-| **C.R.** | Charter reckoning, the year count. This year is C.R. 214. |
-| **Covenant of Ground** | The Ishvalan oath: *the ground is not ours to borrow against.* |
-| **Debtwork** | The forbidden art of working now and paying later. |
-| **Deep Ledger** | The Bureau's master record of every sink. |
-| **The Eclipse** | C.R. 183: the day the Sunworks' debt was called. The colour went out of the Vell, shadows leaned the wrong way, and the ground went quiet. The name comes from the papers: the "second sun" (the Unpaid Fire) was eclipsed. (The Eclipse cycle and the Eclipse Citadel exist.) |
-| **Even Measure** | Sallow's plan to split the Vell's debt into hundreds of small sinks, each due in a century. |
-| **Fall of grey** | A small collection: grass, soil or ore gone grey and dead in a patch. |
-| **Field school** | A training ground where licensed teachers may take students before the licence exam (Lindenmoor's training field). |
-| **Forepaying** | The Xingnese way: pay before the working. |
-| **Gate** (exists) | The far side of every circle, where the Tally is kept. |
-| **Gate-sent** | The Ishvalan word for a stray. |
-| **Grafting** | The forbidden art of joining living kinds. |
-| **Grey Book** | The Bureau's register of strays. |
-| **Kinmaking** | The forbidden art of making, remaking or returning a person. Truth takes the worker's name. |
-| **LM-7** | Lindenmoor's sink. Sunk C.R. 184, due C.R. 214. |
-| **Medium** (exists, Vask's word) | The one path a person's hands take to: Flame, Ice, Earth, Wind or Metal. |
-| **Paid Lands** | What the people who live near them call the Corrupted Lands. |
-| **Quiet, a** | A big collection, named after the silence of the Eclipse. |
-| **Reckoners** | The Circle's splinter that wants every stone carried back to the people who borrowed. |
-| **Re-sinking** | Moving a debt by moving its tallystone, so somewhere else pays. |
-| **Settling** | The Ishvalan craft of mending called ground, without alchemy. |
-| **Sink** | A deep array in bedrock that holds a debt until it falls due. The kingdom of Sarn built the first ones. |
-| **Sarn** | The old eastern kingdom that invented circles and sinks. It fell to war about 600 years ago. Its descendants are the Xerxian people (nation name exists). |
-| **Strain** | What an alchemist pays small workings with: the body's own effort (the meter, exists). |
-| **Stray** | A person who fell through the Gate from elsewhere. Every player is one. |
-| **Sunworks** | The Bright Years works in the Vell, home of the Unpaid Fire. It's the Eclipse Citadel now. |
-| **Tally** | The law of exchange: weight for weight, kind for kind, paid now. |
-| **Tallybook** | A licensed alchemist's audited book of workings. |
-| **Tally-glass** | A Bureau instrument that shivers when a door opens. |
-| **Tallystone** | A cast block that anchors a debt. Using one is the game's "Stone Abilities". |
-| **Three heats** | Assay, melt and cast: the three steps of every working. |
-| **Truth** (exists) | The keeper of the count. It has no face of its own and wears borrowed ones. |
-| **Unkinded** | Things whose kind has been collected and that still move. |
-| **Unpaid Arts** | The Licence's name for debtwork, kinmaking and grafting. |
-| **Unpaid Fire** | The Sunworks' furnace, which burned with no fuel. |
-| **The Vell** | The province that paid for the Eclipse. |
-| **The Weighing** | What the Tutorial really is: Truth weighing a stray before letting them in. |
+| **The Bureau** | The Bureau of Survey and Assay, the State office that secretly buries the country's debts. |
+| **Corrupted Lands** (exists) | The province that has been paying the Eclipse's debt for thirty-one years. |
+| **The Eclipse** | The day the Sunworks' debt came due. The colour drained from the Vell, the ground went silent, and the "second sun" furnace went out (the papers said it had been eclipsed). The Eclipse cycle and the Eclipse Citadel exist. |
+| **Equivalent Exchange** (series word) | The law: every transmutation costs something of equal value, paid now. |
+| **Farborn** | Someone who fell through the Gate from another world. Every player is one. |
+| **The Gate** and **Truth** (exist) | Where every price is counted, and the one who counts it. |
+| **The grey** | A patch of ground where a debt is being collected: dead, colourless grass. |
+| **Husks** | Animals and people in the Corrupted Lands whose nature was taken. They still move. |
+| **LM-7** | The Bureau's mark for Lindenmoor's buried stones, due this year. |
+| **Mezarath** | The ancient empire that invented debt transmutation. Its survivors are the Xerxian people. |
+| **Philosopher's Stone** (series word; our meaning) | A stone that holds a transmutation's unpaid price as a debt. It is not made of people. Using one is the game's "Stone Abilities". |
+| **The Reckoners** | The Circle's hard-liners, led by Sorrel Kade. |
+| **The Vell** / **the Sunworks** | The province and the furnace whose debt caused the Eclipse. |
