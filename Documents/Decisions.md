@@ -96,6 +96,7 @@ This document records established project decisions to keep development consiste
 
 ## Shelved features
 - The Nemesis system is shelved. Don't implement it unless the owner brings it back.
+  - **2026-10-25:** the owner brought it back into the backlog, after the swimming revamp: "Nemesis System (Gotta make the concept first)". The first step is a concept for the owner to approve. Nothing is built until the owner approves it.
 
 ## Implementation rules
 - Audit before changing scripts.

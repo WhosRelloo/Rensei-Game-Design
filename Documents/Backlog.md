@@ -7,6 +7,7 @@ Owner's to-do list, in the owner's words. The order is the owner's, and none of 
 1. [x] **Lindenmoor expansion import into Ye** (owner: "The Lindenmoor expansion is gonna go in Ye"). The village stays where it is; the hub's trainers and trial sites move onto their reserved spots; the cliff gets `RenseiNoGrip`. Steps: `Documents/Lindenmoor Kit.md`, "Expansion (Blender)". *(Done 2026-10-24, import plan Tasks 1–9: in Ye's Studio Edit session, smoke-tested; not live until the owner saves Ye, walks it once in Play and publishes the place, Modules and RenseiServer. See `Documents/Lindenmoor Kit.md`, "The import is done".)* **Publish on hold** (owner, 2026-10-24: "Hold both"): Ye and Foundry Yard stay unpublished until the Foundry Yard plan finishes Foundry's game data, then both are published together. Publishing Foundry ships its new map.
 2. **The Foundry Yard plan** (the first full region). When it has finished Foundry's game data, Ye (with the Lindenmoor expansion) and Foundry Yard are published together (owner, 2026-10-24: "Hold both"); the checkpoint is in `Documents/Lindenmoor Kit.md`.
 3. **The gun class rework and the swimming revamp** (below), still after all the Foundry tasks.
+4. **Then, in order** (owner, 2026-10-25): assassinations, stealth missions, consequences for wrong guesses, the Nemesis concept, and reputation in investigations. See "After the swimming revamp" below.
 
 ## Next, right after World Plan 1 (owner, 2026-10-21 and 2026-10-23)
 - [ ] **Build every region in Blender** (owner, 2026-10-23): "Here's a PDF of all of the region layouts, I want all of them built in blender once all tasks are complete." The brief is `Documents/Rensei-Regional-Map-Design-Brief.pdf` (9 pages: world connections, shared rules, then one page per region). Seven places:
@@ -31,6 +32,14 @@ Owner's to-do list, in the owner's words. The order is the owner's, and none of 
 ## After the Foundry Yard plan (owner, 2026-10-23)
 - [ ] **Gun class rework:** "Fix gun shoot mode aiming mechanics. (balance out the gun class completely, add a reload animation as well)".
 - [ ] **Swimming revamp:** "Completely audit and revamp the swimming system. (I want it to be directional, with a dive system)".
+
+## After the swimming revamp (owner, 2026-10-25)
+In the owner's order:
+1. [ ] **Assassinations** that work with the detection system (sight, light, sound). "I threw anims in the spreadsheet for it": read the animation spreadsheet first. This is the same work as the two assassination items under "Stealth and identity" below. It stays **PvE only**, as the owner said there.
+2. [ ] **Stealth missions.**
+3. [ ] **Consequences for wrong guesses** in minigames and puzzles on quests.
+4. [ ] **Nemesis system:** "Gotta make the concept first". The owner has brought it back into scope (see Decisions.md), so it starts as a concept and design for the owner to approve, not code.
+5. [ ] **Reputation shapes investigations:** expand the reputation system so it changes how NPCs answer during investigations. "some will lie to you or just refuse to tell you the truth, or some evil NPC's will spill secrets easier, etc."
 
 ## After the world plans (owner, 2026-10-20)
 
