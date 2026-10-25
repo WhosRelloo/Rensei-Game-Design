@@ -211,6 +211,15 @@ def main():
         kinds[p["Attr"]["Kind"]] = kinds.get(p["Attr"]["Kind"], 0) + 1
     check("70+ townsfolk posts (about 25 townsfolk), every kind, 5+ shelters",
           len(posts) >= 70 and set(kinds) == set(schema.POST_KINDS) and kinds["Shelter"] >= 5, kinds)
+    # Foundry Yard plan Task 4: a townsperson runs only to a Shelter post within TownsfolkService.ShelterRadius (150);
+    # every post keeps a 145-stud margin under it (PROPOSAL), measured in a straight line between the markers' At
+    shelters = [p for p in posts if p["Attr"]["Kind"] == "Shelter"]
+    far = []
+    for p in posts:
+        best = min((math.dist(p["At"], s["At"]), s["Attr"]["PostId"]) for s in shelters) if shelters else (math.inf, "-")
+        if best[0] > 145:
+            far.append(f"{p['Attr']['PostId']} {best[0]:.0f} ({best[1]})")
+    check("every post has a Shelter within 145 studs (Foundry Yard plan)", not far, f"{len(far)} posts: {far}")
     ix0, iz0, ix1, iz1 = PL.wall_clear_rect(L)
     out = [p["Attr"]["PostId"] for p in posts if not (ix0 <= p["At"][0] <= ix1 and iz0 <= p["At"][2] <= iz1)]
     check("every post is inside the walls' clear band", not out, out)

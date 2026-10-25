@@ -90,7 +90,10 @@ TOP_KEYS = ("Region", "PlaceId", "Footprint", "Palette", "Heights", "Districts",
 #   the kept village Map.Lindenmoor. (Lindenmoor's own "Keep", a list of area objects, is a different thing.)
 #   NoCollide / NoCollideKinds: the walk-through lists of the import (part-name substrings / prefab kinds; final review
 #   I4); absent = kit.py's default for the region (("Glass", "Glow") and no kinds for a region_builder region).
-OPTIONAL_KEYS = ("KeepMapChildren", "MapChild", "NoCollide", "NoCollideKinds")
+#   RestoreRefuseFlags: the Studio fix flags (attribute names on World.Map.<MapChild>) that make the import's
+#   restore.lua refuse while any is set (Foundry Yard game-data plan Task 4, Ruling 1);
+#   Notes: free-text strings for later readers (a Studio-side change the builder doesn't make); never read by the builder.
+OPTIONAL_KEYS = ("KeepMapChildren", "MapChild", "NoCollide", "NoCollideKinds", "RestoreRefuseFlags", "Notes")
 
 
 class SchemaError(Exception):

@@ -172,8 +172,8 @@
     {"Tag": "RenseiPost", "At": [-630, 0, 480], "Yaw": 0, "Attr": {"PostId": "station_porter_yard", "Kind": "Work"}},
     {"Tag": "RenseiPost", "At": [-602, 0, 430], "Yaw": 90, "Attr": {"PostId": "station_shelter", "Kind": "Shelter"}},
     {"Tag": "RenseiPost", "At": [280, 0, 154], "Yaw": 0, "Attr": {"PostId": "yard_hand_1", "Kind": "Work"}},
-    {"Tag": "RenseiPost", "At": [420, 0, 154], "Yaw": 0, "Attr": {"PostId": "yard_hand_2", "Kind": "Work"}},
-    {"Tag": "RenseiPost", "At": [560, 0, 154], "Yaw": 0, "Attr": {"PostId": "yard_hand_3", "Kind": "Work"}},
+    {"Tag": "RenseiPost", "At": [420, 0, 164], "Yaw": 0, "Attr": {"PostId": "yard_hand_2", "Kind": "Work"}},
+    {"Tag": "RenseiPost", "At": [560, 0, 164], "Yaw": 0, "Attr": {"PostId": "yard_hand_3", "Kind": "Work"}},
     {"Tag": "RenseiPost", "At": [640, 0, 200], "Yaw": 180, "Attr": {"PostId": "yard_hand_4", "Kind": "Work"}},
     {"Tag": "RenseiPost", "At": [500, 0, 200], "Yaw": 0, "Attr": {"PostId": "yard_shelter", "Kind": "Shelter"}},
     {"Tag": "RenseiPost", "At": [290, 0, -110], "Yaw": 90, "Attr": {"PostId": "crane_bay_1", "Kind": "Work"}},
@@ -243,7 +243,24 @@
     {"Tag": "RenseiPost", "At": [-480, 0, 437], "Yaw": 180, "Attr": {"PostId": "lower_home_1", "Kind": "Home"}},
     {"Tag": "RenseiPost", "At": [-380, 0, 437], "Yaw": 180, "Attr": {"PostId": "lower_home_2", "Kind": "Home"}},
     {"Tag": "RenseiPost", "At": [-300, 0, 437], "Yaw": 180, "Attr": {"PostId": "lower_home_3", "Kind": "Home"}},
-    {"Tag": "RenseiPost", "At": [-440, 0, 436], "Yaw": 180, "Attr": {"PostId": "lower_shelter", "Kind": "Shelter"}}
+    {"Tag": "RenseiPost", "At": [-440, 0, 436], "Yaw": 180, "Attr": {"PostId": "lower_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiPost", "At": [300, 0, 180], "Yaw": 0, "Attr": {"PostId": "freight_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiPost", "At": [305, 0, -150], "Yaw": 0, "Attr": {"PostId": "crane_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiPost", "At": [350, 0, -515], "Yaw": 0, "Attr": {"PostId": "stack_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiPost", "At": [602, 0, -610], "Yaw": 0, "Attr": {"PostId": "casting_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiPost", "At": [-90, 0, -340], "Yaw": 0, "Attr": {"PostId": "square_south_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiPost", "At": [-400, 0, -370], "Yaw": 0, "Attr": {"PostId": "boarding_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiPost", "At": [-560, 0, -330], "Yaw": 0, "Attr": {"PostId": "row_south_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiPost", "At": [-480, 0, -650], "Yaw": 0, "Attr": {"PostId": "row_north_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiPost", "At": [-166.5, 0, 468.1], "Yaw": 0, "Attr": {"PostId": "court_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiPost", "At": [-200, 0, -120], "Yaw": 0, "Attr": {"PostId": "shed_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiPost", "At": [-401, 0, 281.7], "Yaw": 0, "Attr": {"PostId": "cinder_west_shelter", "Kind": "Shelter"}},
+    {"Tag": "RenseiPost", "At": [-90, 0, 268], "Yaw": 0, "Attr": {"PostId": "cinder_east_shelter", "Kind": "Shelter"}}
   ],
-  "Budget": 45000
+  "Budget": 45000,
+  "RestoreRefuseFlags": ["FoundryPosts", "FoundryForge", "FoundryLedges"],
+  "Notes": [
+    "Foundry Yard plan Task 4: the four market stalls' Shelf parts are walk-through in Studio (foundry_posts.lua), so traders can reach their counters; the builder still makes them solid",
+    "Foundry Yard plan Task 4: the same four stalls' Canopy parts each carry a PathfindingModifier with PassThrough (FoundryCanopyPassThrough, foundry_posts.lua), because the canopy shuts the navmesh under it although a townsperson fits beneath; the canopies stay solid; the builder doesn't add the modifiers"
+  ]
 }

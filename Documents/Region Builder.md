@@ -54,6 +54,8 @@ The region file is `Art/Regions/<Region>/layout.json`. `region_builder/schema.py
 | `MapChild` | no | The `World.Map` child the import builds. Absent means the Region name. Letters, digits and `_`, starting with a letter. |
 | `NoCollide` | no | Part-name substrings that are walk-through in the import (see "Collision"). Absent means the region's default. |
 | `NoCollideKinds` | no | Prefab kinds that are walk-through in the import. Absent means the region's default. |
+| `RestoreRefuseFlags` | no | The Studio fix flags (attribute names on `World.Map.<MapChild>`) that make the import's `restore.lua` refuse while any is set. |
+| `Notes` | no | Free-text strings for later readers, e.g. a change made in Studio that the builder doesn't make. The builder never reads them. |
 
 `KeepMapChildren` may not name the `MapChild`. Lindenmoor's file has its own top-level `Keep` (a list of area objects). That is a different thing, and the import ignores it.
 
