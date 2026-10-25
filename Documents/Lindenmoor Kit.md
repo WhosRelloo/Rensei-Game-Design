@@ -505,11 +505,15 @@ Do this in Edit, never in Play, in this order. Each Studio-fix script takes its 
 6. **`seam_pits.lua`**, `MODE = "undo"`. It refuses while the road cut is applied.
 7. **`gorge_fix.lua`** `undo`: `python -I Art/Studio/Regions/Lindenmoor/bundle_gorge_fix.py fix <out.lua> undo`. It refuses while the road cut, the bed or the seam pits are applied.
 8. **`regrade_seam.lua`**, `MODE = "undo"`. It refuses while the road cut, the seam pits or the gorge fix are applied.
-9. **`import/restore.lua`.** It refuses, changing nothing, while the expansion still carries any of the seven fix flags (`LindenmoorSeamRegrade`, `LindenmoorSeamPits`, `LindenmoorGorgeFix`, `LindenmoorGorgeBed`, `LindenmoorRoadCut`, `LindenmoorShelters`, `LindenmoorEastWest`; the region file's `RestoreRefuseFlags`), so steps 2–8 come first. It does not check `LindenmoorPostFixes` (step 1 has no restore guard), so step 1 must already be done.
+9. **`import/restore.lua`.** It refuses, changing nothing, while the expansion still carries any of the eight fix flags (`LindenmoorSeamRegrade`, `LindenmoorSeamPits`, `LindenmoorGorgeFix`, `LindenmoorGorgeBed`, `LindenmoorRoadCut`, `LindenmoorShelters`, `LindenmoorEastWest`, `LindenmoorPostFixes`; the region file's `RestoreRefuseFlags`), so steps 1–8 come first. (`LindenmoorPostFixes` joined the list in the Foundry Yard plan's final fix, 2026-10-25; `restore.lua` was regenerated with `kit.py Lindenmoor --date 2026-10-24`, and only its flag list changed.)
    - It moves `LindenmoorExpansion` into `Post-Region_Lindenmoor_<date>`, together with its `Travel`, its `SeamFillers` and the shelter posts.
    - It pastes the terrain back under the water boxes.
 10. **`prep_ye.lua` undo, from a fresh bundle:** `python -I Art/Studio/Regions/Lindenmoor/bundle_prep.py prep <out.lua> undo`. The undo bundle doesn't need fresh pads: `bundle_prep.py` skips the `pads.json` freshness check for `undo`, because prep_ye.lua's undo reads no pad data (Foundry Yard plan Task 9, Ruling 38; an `apply` bundle still refuses a stale `pads.json`). It refuses while `World.Map` has `FoundryMove` (Foundry Yard plan Task 8), so step 0 (`retire_ye.lua` undo) comes first. Then check there is exactly one `RenseiArrival` with `Point = "RoadStart"`: the old North Road's.
 11. **Revert the data and script files.** Take every Studio copy from `ServerStorage.RenseiBackups["Pre-LindenmoorImport_2026-10-24"]`. Backups are named `Rensei.<Module>`, `RenseiServer.<Service>`, `TownsfolkService.Mover`, `UI.<Module>` and `RenseiTests.<Suite>`. Back up each current copy, then set its Source from the backup.
+    - **After a publish, the Foundry Yard plan's save upgrade is one-way.** `QuestService.Boot` has written `Revision = 2` into players' acq_metal saves and moved their Stage up by one; old code would read them one stage ahead, and stage 7 errors in the old `StageDone`, past repair. So once published:
+      - **keep** acq_metal's 7-stage definition (`Revision = 2`, `Prepended`) in `Rensei.Quests`, `StoryLogic.UpgradeQuest` and `StoryLogic.Stale`, and `QuestService.Boot` (with ServerHandler's call). Never set `Rensei.Quests`, `Rensei.StoryLogic`, `RenseiServer.QuestService` or ServerHandler from a backup;
+      - **revert only** the map, Brannoc and text changes;
+      - **change acq_metal's stages only by a forward revision** (`Revision = 3` with its own `Prepended[3]`). See `Documents/Foundry Yard Kit.md`, "Rolling back the game data", step 7.
     - **Never take `Rensei.Puzzles` or `UI.CompassUI` from git.** The repo copies at the plan's base, `2378b54`, were behind Studio:
       - Puzzles lacks `adit_boards` and the Breakable kind;
       - CompassUI lacks the `InTruth` line (no directions at the Gate).
@@ -568,7 +572,7 @@ Each is recorded in the import plan's ledger. None blocks the publish.
 - **The expansion is over its own 42,000 ceiling.** It is at 45,425 (Ruling 25 accepts it; the binding limit is the place's 80,000). Ye has **about 3.6k parts of headroom** left (76,372 of 80,000), and the next region work must fit in it.
 
 ### Joint publish checkpoint (Ye and Foundry Yard)
-**On hold (owner, 2026-10-24: "Hold both").** Ye (the Lindenmoor expansion) and Foundry Yard go live **together**, now that the Foundry Yard game-data plan has finished (2026-10-25; `Documents/Foundry Yard Kit.md`, "The game data"). **Publishing Foundry Yard ships its new map** and its game data. Nothing has been published; the owner does every step below. The order is the package routine in `Documents/World Travel.md` §10.
+**On hold (owner, 2026-10-24: "Hold both").** Ye (the Lindenmoor expansion) and Foundry Yard go live **together**, now that the Foundry Yard game-data plan has finished (2026-10-25; `Documents/Foundry Yard Kit.md`, "The game data"). **Publishing Foundry Yard ships its new map** and its game data. Nothing has been published; the owner does every step below. The order is the package routine in `Documents/World Travel.md` §10, except that each place's servers are shut down right after its own publish ("Publish the places", below).
 
 **First, in Studio:** both Edit sessions hold every change below, unsaved.
 1. **Save Ye and Foundry Yard in Studio. Don't publish anything yet.**
@@ -583,6 +587,15 @@ Each is recorded in the import plan's ledger. None blocks the publish.
      - the square at a shift change (14:00: the crews at the canteen);
      - the cooling pond (swim and dive).
    - While there, look at the owner items in the Foundry Yard Kit ("For the owner to look at"): the Silent Forge's second anvil and `RepairedGear`.
+3. **Check for test leftovers, in both places, in Edit** (Play stopped). None of these may be published:
+   - the scripts `LMTestHook_TEMP` and `LMQuestDump_TEMP` (in `ServerScriptService`);
+   - `ServerStorage.LMTestHook` and `ServerStorage.LMRunSuite`;
+   - the `ServerStorage` attributes `PlayLock` and `WalksQuick`.
+
+   A read-only line for the command bar, which must print `nil nil nil nil nil nil` in each place:
+   `local S, T = game.ServerStorage, game.ServerScriptService print(T:FindFirstChild("LMTestHook_TEMP"), T:FindFirstChild("LMQuestDump_TEMP"), S:FindFirstChild("LMTestHook"), S:FindFirstChild("LMRunSuite"), S:GetAttribute("PlayLock"), S:GetAttribute("WalksQuick"))`
+
+   Checked 2026-10-25 at the plan's end: none in either place.
 
 **Then publish, in this order:**
 1. **Publish the packages from Ye:**
@@ -598,9 +611,10 @@ Each is recorded in the import plan's ledger. None blocks the publish.
    - Ye;
    - then Foundry Yard, so it carries the updated packages;
    - the Main Menu and the Tutorial are unchanged by both plans, so they aren't published.
-4. **Migrate to Latest Update** (or shut down all servers) for Ye and Foundry Yard, **last**. Then no old server runs the old code against the new saves.
+   - **Shut down all servers for each place right after its own publish:** Ye's right after Ye is published, Foundry Yard's right after Foundry Yard is published. Don't use a gradual Migrate to Latest Update. **Why:** an old server still running would misread saves the new code has already upgraded (acq_metal one stage ahead).
+   - Shutting down after the publish (not before) matters: the servers restart on the latest *published* version.
 
-Migrate comes after the place publishes, because it moves running servers onto the latest *published* version. Run before a place is published, it would restart that place's servers on the old version.
+**After the publish, the save upgrade is one-way.** `QuestService.Boot` writes `Revision = 2` into players' acq_metal saves and moves their Stage up by one. A rollback must therefore **keep** acq_metal's 7-stage definition in `Rensei.Quests`, `StoryLogic.UpgradeQuest` / `Stale` and `QuestService.Boot` (with ServerHandler's call). Only the map, Brannoc and text changes may be reverted, and any change to acq_metal's stages must be a forward revision (`Revision = 3`). Details: `Documents/Foundry Yard Kit.md`, "Rolling back the game data", step 7.
 
 **1. The Modules package** (`ReplicatedStorage.Modules`). Changed scripts:
 - **The Lindenmoor import:**

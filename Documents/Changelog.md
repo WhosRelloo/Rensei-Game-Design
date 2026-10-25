@@ -36,12 +36,12 @@ Every number is a **PROPOSAL** unless it is measured or the owner chose it. The 
 - **Part count:** Ye's workspace is 76,326 parts.
 
 **The game scripts** (both places, through `sync.py`; a backup of each first in `Pre-FoundryData_2026-10-24`):
-- **Quest revisions:** `StoryLogic.UpgradeQuest` and `StageIndex`; `QuestService` with revisions, `Boot` (the save upgrade on join, which in Studio waits for the test hook's snapshot) and deeds as rewards. A stale save takes no signal until upgraded.
+- **Quest revisions:** `StoryLogic.UpgradeQuest` and `StageIndex`; `QuestService` with revisions, `Boot` (the save upgrade on join, which in Studio waits for the test hook's snapshot) and deeds as rewards. A stale save takes no signal until upgraded. Since the final fix, `UpgradeQuest` never moves a save below stage 1. **The upgrade is one-way once published:** a rollback keeps acq_metal's 7 stages, `UpgradeQuest` / `Stale` and `Boot` (the Kits' rollback sections).
 - **`acq_metal`:** a travel stage first ("Travel to the Foundry Yard"). Brannoc's new lines, the notice, the trial numbers, and the Foundry areas.
 - **The Mover:** corner repair, a body rule, a 3D sight ray and honest stuck counting.
 - **TownsfolkService:** a failed walk holds and retries; a townsperson is placed only when no player is within 300 studs; the server checks the Talk range.
 - **Smaller changes:** `MinigameService.Submit` (for tests) and `ServerHandler` (calls `Boot`).
-- **The region schema** now type-checks `RestoreRefuseFlags` and `Notes`. Foundry's `restore.lua` refuses while `FoundryPosts`, `FoundryForge`, `FoundryLedges`, `FoundryWalks` or `FoundryAnvil` is set.
+- **The region schema** now type-checks `RestoreRefuseFlags` and `Notes`. Foundry's `restore.lua` refuses while `FoundryPosts`, `FoundryForge`, `FoundryLedges`, `FoundryWalks` or `FoundryAnvil` is set. Lindenmoor's `restore.lua` (regenerated, only its flag list changed) now also refuses while `LindenmoorPostFixes` is set.
 
 **Tests** (every Play session ran the hook protocol; the owner's `Data.Quests` dump was identical before and after in every session):
 - **Pure checks:**
@@ -52,13 +52,13 @@ Every number is a **PROPOSAL** unless it is measured or the owner chose it. The 
   - test_bundle_forge 41/0, test_ye_fixes PASS and test_bundle_prep 6/0.
 - **Foundry (final sweep, Task 9 and its fix round):**
   - Play_FoundrySmoke 15/0 and Play_FoundryData 2/0 (`acq_metal` end to end through the real services);
-  - Ledger 8/0, Forge 8/0, Roster 7/0, AcqMetal 13/0, Regions 9/0, QuestRevision 14/0, QuestEngine 8/0;
+  - Ledger 8/0, Forge 8/0, Roster 7/0, AcqMetal 13/0, Regions 9/0, QuestRevision 15/0, QuestEngine 8/0;
   - Exams 5/0, Clue 1/0, Clock 5/0, NoGrip 6/0;
   - Crowd 14/0 (1.016 ms), MoverRepair 12/0 and FoundryPaths 7/0;
   - **Play_FoundryWalks 6/0 in three separate sessions,** each with 73 of 73 walks arrived and none failed.
 - **Ye:**
   - LindenmoorSmoke 10/0, LindenmoorData 3/0;
-  - Exams 5/0, Clue 1/0, Regions 9/0, AcqMetal 13/0, QuestEngine 8/0, QuestRevision 14/0;
+  - Exams 5/0, Clue 1/0, Regions 9/0, AcqMetal 13/0, QuestEngine 8/0, QuestRevision 15/0;
   - Townsfolk 18/0, Crowd 14/0 (1.058 ms), Hurt 11/0, YePaths 7/0 and MoverRepair 12/0.
 - **Travel suites, both places:**
   - Boot 2/0, Station 20/0, Road 11/0, Gate 13/0 and Arrive 5/0;
@@ -73,7 +73,7 @@ Every number is a **PROPOSAL** unless it is measured or the owner chose it. The 
   3. publish the packages from Ye;
   4. update Foundry's packages by hand and check them equal;
   5. publish Ye, then Foundry Yard;
-  6. Migrate to Latest Update, last.
+  6. shut down all servers for each place right after its own publish (not a gradual Migrate: old servers would misread upgraded saves).
 - **Look at:** the Silent Forge's second anvil, `RepairedGear` (it may float), and the PROPOSAL numbers. All are listed in the Foundry Yard Kit's "For the owner to look at".
 
 ### Discord announcement
@@ -84,8 +84,8 @@ Hold: not live yet; goes out together with the Lindenmoor expansion. Post this w
 **Update: Foundry Yard Comes Alive**
 
 **A real town at the end of the line**
-- Foundry Yard is a whole town now: the station, Cinder Lane's terraces, the rail yards, Workers' Row, the square with its market and canteen, and the great hall where the furnaces never go cold.
-- Take the train from Lindenmoor, or walk the South Road in.
+- Foundry Yard is a whole town now: the station, Cinder Lane's terraces, the rail yards, Workers' Row, the square with its market and canteen, and the great hall where the furnaces roar day and night.
+- Take the train from Lindenmoor, or walk the road north from Lindenmoor.
 
 **A town at work**
 - 26 townsfolk live and work here on two shifts: crane and furnace hands, yard hands, a porter, cooks, traders, errand runners and more.

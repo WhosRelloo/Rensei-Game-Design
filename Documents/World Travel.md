@@ -266,6 +266,8 @@ The same suite files are copied into **both** places. All of them passed in both
 
 ## 10. Owner's next steps
 
+**The Ye + Foundry Yard publish (the Lindenmoor expansion and the Foundry Yard plans) follows "Joint publish checkpoint (Ye and Foundry Yard)" in `Documents/Lindenmoor Kit.md`, not the steps below:** it publishes no Main Menu or Tutorial, and it shuts down each place's servers right after that place's publish.
+
 1. **Publish.** We never publish; this is yours. In this order:
    1. **Packages:** publish `RenseiServer` and `Modules` from Ye (the final fix wave changed both), and make sure the `ClientHandler` package is the version with the slide fix.
    2. **Update the packages in Foundry by hand.** Foundry never updates a package on its own: update `RenseiServer`, `Modules` and `ClientHandler` there, then check they match Ye.

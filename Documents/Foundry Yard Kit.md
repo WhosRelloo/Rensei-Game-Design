@@ -272,7 +272,11 @@ Do this in Edit, never in Play. Before each step, check that `ServerStorage`'s `
      - `RenseiTests.` TestKit and Test_Regions.
    - **Ye (22):** the same 15 package scripts, plus `RenseiTests.` TestKit, Test_Regions, Play_Exams, Play_Townsfolk, Play_TownsfolkHurt, Play_LindenmoorData and Play_LindenmoorSmoke.
    - **Never take `Rensei.Puzzles` or `UI.CompassUI` from git.** This plan changed neither, so it has no backup of them. Their Studio text is ahead of git at the Lindenmoor plan's base (see `Documents/Lindenmoor Kit.md`, "Rolling everything back", step 11).
-   - **If the packages were already published,** revert the package scripts in Ye, publish Modules and RenseiServer again, and update Foundry's packages by hand (World Travel.md §10). Revert the place scripts (`RenseiTests`) in each place.
+   - **If the packages were already published, the save upgrade is one-way.** On join, `QuestService.Boot` writes `Revision = 2` into each player's acq_metal state and moves its Stage up by one. Old code would read those saves one stage ahead, and on stage 7 the old `StageDone` errors; the save can't be repaired after that. So, after a publish:
+     - **keep** acq_metal's 7-stage definition (`Revision = 2`, `Prepended`) in `Rensei.Quests`, `StoryLogic.UpgradeQuest` and `StoryLogic.Stale` (keep `Rensei.StoryLogic` whole), and `QuestService.Boot` (keep `RenseiServer.QuestService` whole, and ServerHandler's call to it). Never set these from the backups;
+     - **revert only** the map steps (1–6), Brannoc, and text changes (dialogue, descriptions, names), as forward edits;
+     - **change acq_metal's stages only by a forward revision:** `Revision = 3` with its own `Prepended[3]` (negative to take stages out; `UpgradeQuest` keeps every save at stage 1 or later). Never by editing revision 2's stage list.
+     - Then revert, in Ye, only the package scripts these rules allow, publish Modules and RenseiServer again, and update Foundry's packages by hand (World Travel.md §10). Revert the place scripts (`RenseiTests`) in each place. The same holds for a save the new code upgraded in an unhooked Studio Play.
 8. **Delete the scripts this plan created.** They have no pre-plan backup. Each carries `FoundryDataAdd = true`: delete every script outside `RenseiBackups` with that attribute, after checking the count.
    - **Foundry (22):**
      - `StarterPlayerScripts.TownsfolkClient` and `StarterCharacterScripts.Health`;
