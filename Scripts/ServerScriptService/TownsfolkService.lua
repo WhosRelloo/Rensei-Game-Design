@@ -50,7 +50,9 @@
 --     them back to their schedule. The Talk prompt is off while they flee or shelter.
 --   * Talk (Task 6; owner 2026-10-23: speech over their heads in Special Elite, no reply choices): a TalkPrompt on
 --     the root. Talk(Player, Id) signals the quest "Talk", then says ONE line (TownsfolkLogic.NextTalk): the clue line
---     while the player is on Def.Clue's quest stage (then signals Def.Clue.Signal), otherwise that player's rotation
+--     while the player is on Def.Clue's quest stage (then gives Def.Clue.Evidence, if any, through
+--     StoryService.GiveEvidence, and only then signals Def.Clue.Signal, so the next stage's catch-up already sees the
+--     evidence: Foundry Yard plan Task 2), otherwise that player's rotation
 --     with this townsperson: greeting by standing tier -> a rumour they haven't heard from them (RumourService.HeardIn)
 --     -> the job line -> greeting... The rotation lives in memory only. No DialogueService: townsfolk carry no
 --     DialogueId.
@@ -411,6 +413,11 @@ function TownsfolkService.Talk(Player, Id)
 	-- rumours and clues are worded for this player (names only they know, "They say you ..."): theirs alone
 	local Private = Kind == "Rumour" or Kind == "Clue"
 	TownsfolkService.Say(Id, Text, Kind, Private and {Only = Player} or nil)
+	-- (Foundry Yard plan Task 2) the clue line's evidence, given BEFORE its signal: the next stage's catch-up sees it
+	if Kind == "Clue" and type(Clue.Evidence) == "string" then
+		local EOk, EErr = pcall(function() require(ServerScriptService.StoryService).GiveEvidence(Player, Clue.Evidence) end)
+		if not EOk then warn("TownsfolkService: clue evidence failed:", EErr) end
+	end
 	if Kind == "Clue" and Clue.Signal ~= nil then
 		local COk, CErr = pcall(QuestService.Signal, Player, "Signal", Clue.Signal)
 		if not COk then warn("TownsfolkService: clue signal failed:", CErr) end

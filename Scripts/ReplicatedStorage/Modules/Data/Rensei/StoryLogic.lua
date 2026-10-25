@@ -44,7 +44,7 @@ StoryLogic.List = List
 
 -- ===== quest stages =====
 -- A definition either has Stages = {{Id, Text, Objectives}} or the original flat Objectives list
--- (one stage).
+-- (one stage). A revised definition carries Revision / Prepended (UpgradeQuest, below).
 function StoryLogic.Stages(Def)
 	if Def.Stages then return Def.Stages end
 	Def.__Stages = Def.__Stages or {{Id = "s1", Text = Def.Description, Objectives = Def.Objectives or {}}}
@@ -74,6 +74,21 @@ function StoryLogic.StageDone(Stage, Progress)
 	for _, O in ipairs(Stage.Objectives) do
 		if not O.Optional and not StoryLogic.Done(O, Progress) then return false end
 	end
+	return true
+end
+
+-- Saved quest states follow a revised quest (Foundry Yard plan, 2026-10-24). A definition with Revision = n and
+-- Prepended = {[r] = k} put k new stages in front of its stage list at revision r. A saved Active state from an older
+-- revision (State.Revision missing = 1) moves forward past those stages, so the player stays on the stage they were
+-- on. Returns true when it changed State.
+function StoryLogic.UpgradeQuest(Def, State)
+	if type(Def) ~= "table" or type(State) ~= "table" or type(Def.Revision) ~= "number" then return false end
+	local From = type(State.Revision) == "number" and State.Revision or 1
+	if From >= Def.Revision then return false end
+	local Shift = 0
+	for R = From + 1, Def.Revision do Shift += (type(Def.Prepended) == "table" and Def.Prepended[R]) or 0 end
+	State.Stage = (State.Stage or 1) + Shift
+	State.Revision = Def.Revision
 	return true
 end
 

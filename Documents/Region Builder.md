@@ -475,7 +475,8 @@ Rosters live in `ReplicatedStorage.Modules.Data.Rensei.Townsfolk`, as `Townsfolk
 	Idle = "NPC_Blacksmith",           -- optional: the idle at Work posts
 	Schedule = { {6, 14, "crane_bay_2"}, {14, 15, "canteen_seat_4"}, {15, 6, "workers_row_3"} },
 	Greetings = nil,                   -- optional per-tier overrides {Hostile = ..., Neutral = ...}
-	Clue = nil,                        -- optional {Quest = "<QuestId>", Stage = <stage>, Text = "...", Signal = "<target>"}
+	Clue = nil,                        -- optional {Quest = "<QuestId>", Stage = <stage>, Text = "...", Signal = "<target>", Evidence = "<evidence id>"}
+	                                   --   (Evidence optional: the evidence the line gives, before it signals)
 }
 ```
 
@@ -496,7 +497,7 @@ Rosters live in `ReplicatedStorage.Modules.Data.Rensei.Townsfolk`, as `Townsfolk
 - two townsfolk at the same post at the same hour.
 
 **Talk.** Each Talk says one line, in a bubble over their head. In order:
-1. the clue line, if you're on `Clue.Quest` at `Clue.Stage` (no `Stage` means any stage). It then signals `Clue.Signal`.
+1. the clue line, if you're on `Clue.Quest` at `Clue.Stage` (no `Stage` means any stage). It then gives `Clue.Evidence` (if set), and then signals `Clue.Signal`.
 2. Otherwise, the next step of your rotation with them:
    - a greeting by your standing tier (Hostile, Distrusted, Neutral, Trusted, Honoured);
    - a rumour you haven't heard from them;

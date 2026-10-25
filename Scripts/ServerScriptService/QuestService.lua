@@ -9,9 +9,19 @@
 -- ONCE, only on a character with none, and the flag Acquired_<Path> records it) and
 -- Training = {[Source] = multiplier} (ProgressionService.AddTraining: the stage cap and Truth/Gate
 -- still apply, so a quest can never move a player past the Gate).
+-- Foundry Yard plan (Task 2, 2026-10-24):
+--   * Rewards may carry Deeds = {"deedId"}: each recorded once by MoralityService when the rewards are paid.
+--   * Revised quests (Revision / Prepended, StoryLogic.UpgradeQuest): a quest started now records its definition's
+--     Revision; Boot (ServerHandler) moves every joining player's saved states from older revisions forward
+--     (UpgradeAll), so stages put in front of a quest never move a player back. In Studio with the test hook
+--     installed, Boot first waits for the hook's snapshot of that player (WaitForSnapshot), so the snapshot holds the
+--     save as it was and a restore never puts back an upgraded save.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
+local ServerStorage = game:GetService("ServerStorage")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 local Definitions = require(ReplicatedStorage.Modules.Data.Rensei.Quests)
 local StoryLogic = require(ReplicatedStorage.Modules.Data.Rensei.StoryLogic)
@@ -84,6 +94,7 @@ local function GiveRewards(Player, Data, Rewards, Source)
 	for Source, Mult in pairs(Rewards.Training or {}) do
 		ProgressionService.AddTraining(Player, Source, Mult)
 	end
+	for _, Deed in ipairs(Rewards.Deeds or {}) do require(ServerScriptService.MoralityService).Record(Player, Deed) end
 end
 
 -- ===== start / abandon / track =====
@@ -111,7 +122,7 @@ function QuestService.Start(Player, QuestId)
 	local Def = Definitions[QuestId]
 	local Progress = {}
 	for _, Objective in ipairs(StoryLogic.AllObjectives(Def)) do Progress[Objective.Id] = 0 end
-	local State = {Stage = 1, Progress = Progress, Started = os.time()}
+	local State = {Stage = 1, Progress = Progress, Started = os.time(), Revision = Def.Revision}
 	Data.Quests.Active[QuestId] = State
 	if (Data.Quests.Tracked or "") == "" or not Data.Quests.Active[Data.Quests.Tracked] then Data.Quests.Tracked = QuestId end
 	UIService.Notify(Player, "Banner", {Text = "Quest Accepted - [" .. Def.Title .. "]"})
@@ -215,6 +226,60 @@ function QuestService.Signal(Player, Kind, Target, Amount)
 	end
 	if Changed then ProgressionService.Sync(Player) end
 	return Changed
+end
+
+-- ===== revised quests (Foundry Yard plan, Task 2) =====
+-- Runs StoryLogic.UpgradeQuest over every saved Active state with its definition; true if any changed.
+function QuestService.UpgradeAll(Data)
+	if type(Data) ~= "table" or type(Data.Quests) ~= "table" or type(Data.Quests.Active) ~= "table" then return false end
+	local Changed = false
+	for QuestId, State in pairs(Data.Quests.Active) do
+		if StoryLogic.UpgradeQuest(Definitions[QuestId], State) then Changed = true end
+	end
+	return Changed
+end
+
+-- In Studio with the test hook installed (its Script is in the DataModel from Play's first frame, before its
+-- BindableFunction is made, so both names count), waits until the hook has taken Player's snapshot. True at once
+-- outside Studio or with no hook; false when Player leaves or after SNAP_WAIT seconds (warned).
+local SNAP_POLL, SNAP_WAIT = 0.25, 120 -- s (PROPOSAL)
+function QuestService.WaitForSnapshot(Player)
+	if not RunService:IsStudio() then return true end
+	if not (ServerScriptService:FindFirstChild("LMTestHook_TEMP") or ServerStorage:FindFirstChild("LMTestHook")) then return true end
+	local T0 = os.clock()
+	while ServerStorage:GetAttribute("LMSnapTaken") ~= Player.Name do
+		if Player.Parent == nil then return false end
+		if os.clock() - T0 >= SNAP_WAIT then
+			warn("QuestService: no test-hook snapshot of " .. tostring(Player.Name) .. " after " .. SNAP_WAIT .. " s; saved quests not upgraded")
+			return false
+		end
+		task.wait(SNAP_POLL)
+	end
+	return true
+end
+
+-- Once (ServerHandler): every player in the game now and every one who joins has their saved quest states upgraded
+-- (UpgradeAll) once their data is there, polled every DATA_POLL s up to DATA_TRIES times, stopping when they leave.
+-- (Not "Start": QuestService.Start(Player, QuestId) starts a quest.)
+local DATA_POLL, DATA_TRIES = 0.5, 240 -- s, polls (PROPOSAL)
+local Booted = false
+function QuestService.Boot()
+	if Booted then return end
+	Booted = true
+	local function Upgrade(Player)
+		if not QuestService.WaitForSnapshot(Player) then return end -- the test hook first (Studio only)
+		for _ = 1, DATA_TRIES do
+			if Player.Parent == nil then return end
+			local Data = ProgressionService.GetData(Player)
+			if Data then
+				if QuestService.UpgradeAll(Data) then ProgressionService.Sync(Player) end
+				return
+			end
+			task.wait(DATA_POLL)
+		end
+	end
+	Players.PlayerAdded:Connect(function(Player) task.spawn(Upgrade, Player) end)
+	for _, Player in ipairs(Players:GetPlayers()) do task.spawn(Upgrade, Player) end
 end
 
 return QuestService

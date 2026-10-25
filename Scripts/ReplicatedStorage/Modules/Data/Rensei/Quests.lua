@@ -10,7 +10,9 @@
 --       }},
 --     },
 --     (a flat Objectives = {...} list still works: one stage)
---     Rewards = {Exp, Money, Items = {{Name, Amount}}, Codex = {"Entry"}},
+--     Rewards = {Exp, Money, Items = {{Name, Amount}}, Codex = {"Entry"}, Deeds = {"deedId"} (recorded once each on completion)},
+--     Revision = n, Prepended = {[r] = k}  -- a revised quest: k stages put in front at revision r; saved states from
+--       older revisions move forward past them on join (see StoryLogic.UpgradeQuest)
 --     Outcomes = {[Value of flag Outcome_<QuestId>] = {Text, Rewards = {...}, Deeds = {"deedId"}}},  -- extra, per ending
 --       (Deeds: Rensei.Deeds, recorded once by MoralityService when the quest completes)
 --     Repeatable = false, Cooldown = seconds (repeatables only),

@@ -98,6 +98,7 @@ DialogueService.Start()
 task.spawn(require(ServerScriptService.EnemyService).Start) -- waits for the WCS server first
 require(ServerScriptService.AdminService).Start() -- admin panel (F2), AdminConfig decides who
 require(ServerScriptService.InvestigationService).Start() -- inspect points (RenseiInspect) + Case Board
+require(ServerScriptService.QuestService).Boot() -- saved quest stages follow revised quests (Foundry Yard plan)
 require(ServerScriptService.IdentityService).Start() -- Player Identities: encounters, observations, introductions
 require(ServerScriptService.PuzzleService).Start() -- per-player mechanisms (RenseiMechanism) + puzzles
 require(ServerScriptService.MinigameService).Start() -- Pressure Board, Array Restoration

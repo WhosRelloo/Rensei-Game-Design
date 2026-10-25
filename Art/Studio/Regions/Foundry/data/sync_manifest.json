@@ -33,5 +33,10 @@
   {"Label": "RenseiTests.Play_Arrive", "Studio": "ServerStorage/RenseiTests/Play_Arrive", "Class": "ModuleScript", "Repo": "Art/Studio/Travel/src/Play_Arrive.lua", "Places": ["ye", "foundry"], "Create": false},
   {"Label": "RenseiTests.Play_Gate", "Studio": "ServerStorage/RenseiTests/Play_Gate", "Class": "ModuleScript", "Repo": "Art/Studio/Travel/src/Play_Gate.lua", "Places": ["ye", "foundry"], "Create": false},
   {"Label": "RenseiTests.Play_Station", "Studio": "ServerStorage/RenseiTests/Play_Station", "Class": "ModuleScript", "Repo": "Art/Studio/Travel/src/Play_Station.lua", "Places": ["ye", "foundry"], "Create": false},
-  {"Label": "RenseiTests.Play_Boot", "Studio": "ServerStorage/RenseiTests/Play_Boot", "Class": "ModuleScript", "Repo": "Art/Studio/Travel/src/Play_Boot.lua", "Places": ["foundry"], "Create": false}
+  {"Label": "RenseiTests.Play_Boot", "Studio": "ServerStorage/RenseiTests/Play_Boot", "Class": "ModuleScript", "Repo": "Art/Studio/Travel/src/Play_Boot.lua", "Places": ["foundry"], "Create": false},
+  {"Label": "Rensei.StoryLogic", "Studio": "ReplicatedStorage/Modules/Data/Rensei/StoryLogic", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/Data/Rensei/StoryLogic.lua", "Places": ["ye", "foundry"], "Create": false},
+  {"Label": "RenseiServer.QuestService", "Studio": "ServerStorage/RenseiServer/QuestService", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/QuestService.lua", "Places": ["ye", "foundry"], "Create": false},
+  {"Label": "RenseiServer.ServerHandler", "Studio": "ServerStorage/RenseiServer/ServerHandler", "Class": "Script", "Repo": "Scripts/ServerScriptService/ServerHandler.server.lua", "Places": ["ye", "foundry"], "Create": false},
+  {"Label": "RenseiTests.Test_QuestRevision", "Studio": "ServerStorage/RenseiTests/Test_QuestRevision", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_QuestRevision.lua", "Places": ["ye", "foundry"], "Create": true},
+  {"Label": "RenseiTests.Play_QuestEngine", "Studio": "ServerStorage/RenseiTests/Play_QuestEngine", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_QuestEngine.lua", "Places": ["ye", "foundry"], "Create": true}
 ]}
