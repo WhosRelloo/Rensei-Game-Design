@@ -512,7 +512,7 @@ Do this in Edit, never in Play, in this order. Each Studio-fix script takes its 
 11. **Revert the data and script files.** Take every Studio copy from `ServerStorage.RenseiBackups["Pre-LindenmoorImport_2026-10-24"]`. Backups are named `Rensei.<Module>`, `RenseiServer.<Service>`, `TownsfolkService.Mover`, `UI.<Module>` and `RenseiTests.<Suite>`. Back up each current copy, then set its Source from the backup.
     - **After a publish, the Foundry Yard plan's save upgrade is one-way.** `QuestService.Boot` has written `Revision = 2` into players' acq_metal saves and moved their Stage up by one; old code would read them one stage ahead, and stage 7 errors in the old `StageDone`, past repair. So once published:
       - **keep** acq_metal's 7-stage definition (`Revision = 2`, `Prepended`) in `Rensei.Quests`, `StoryLogic.UpgradeQuest` and `StoryLogic.Stale`, and `QuestService.Boot` (with ServerHandler's call). Never set `Rensei.Quests`, `Rensei.StoryLogic`, `RenseiServer.QuestService` or ServerHandler from a backup;
-      - **revert only** the map, Brannoc and text changes;
+      - of the **Foundry Yard plan's** changes, revert only the map, Brannoc and text changes. Lindenmoor's own reverts in steps 1–10 (including step 3's `Rensei.Townsfolk`) still apply, but none of them may remove what acq_metal's kept stages depend on: the Foundry `Arrive` target, the area names its stages use, and Brannoc in Foundry;
       - **change acq_metal's stages only by a forward revision** (`Revision = 3` with its own `Prepended[3]`). See `Documents/Foundry Yard Kit.md`, "Rolling back the game data", step 7.
     - **Never take `Rensei.Puzzles` or `UI.CompassUI` from git.** The repo copies at the plan's base, `2378b54`, were behind Studio:
       - Puzzles lacks `adit_boards` and the Breakable kind;
@@ -613,6 +613,7 @@ Each is recorded in the import plan's ledger. None blocks the publish.
    - the Main Menu and the Tutorial are unchanged by both plans, so they aren't published.
    - **Shut down all servers for each place right after its own publish:** Ye's right after Ye is published, Foundry Yard's right after Foundry Yard is published. Don't use a gradual Migrate to Latest Update. **Why:** an old server still running would misread saves the new code has already upgraded (acq_metal one stage ahead).
    - Shutting down after the publish (not before) matters: the servers restart on the latest *published* version.
+   - **Publish Foundry Yard immediately after Ye.** Between the two publishes, Ye's new servers upgrade saves while Foundry's old servers still run, so a player who travels across in that gap could be misread. The gap is the only exposure; keep it to a minute or two.
 
 **After the publish, the save upgrade is one-way.** `QuestService.Boot` writes `Revision = 2` into players' acq_metal saves and moves their Stage up by one. A rollback must therefore **keep** acq_metal's 7-stage definition in `Rensei.Quests`, `StoryLogic.UpgradeQuest` / `Stale` and `QuestService.Boot` (with ServerHandler's call). Only the map, Brannoc and text changes may be reverted, and any change to acq_metal's stages must be a forward revision (`Revision = 3`). Details: `Documents/Foundry Yard Kit.md`, "Rolling back the game data", step 7.
 

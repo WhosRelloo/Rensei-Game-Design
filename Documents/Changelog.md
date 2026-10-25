@@ -70,10 +70,11 @@ Every number is a **PROPOSAL** unless it is measured or the owner chose it. The 
 - **The joint publish checkpoint** is in `Documents/Lindenmoor Kit.md`:
   1. save both places;
   2. walk each once in Play;
-  3. publish the packages from Ye;
-  4. update Foundry's packages by hand and check them equal;
-  5. publish Ye, then Foundry Yard;
-  6. shut down all servers for each place right after its own publish (not a gradual Migrate: old servers would misread upgraded saves).
+  3. check both places for test leftovers (the checkpoint's command-bar line);
+  4. publish the packages from Ye;
+  5. update Foundry's packages by hand and check them equal;
+  6. publish Ye and shut down all Ye servers straight away;
+  7. publish Foundry Yard immediately after and shut down all its servers straight away. Don't use a gradual Migrate: old servers would misread upgraded saves.
 - **Look at:** the Silent Forge's second anvil, `RepairedGear` (it may float), and the PROPOSAL numbers. All are listed in the Foundry Yard Kit's "For the owner to look at".
 
 ### Discord announcement
