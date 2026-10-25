@@ -110,15 +110,15 @@ The Taboo layer exists in the morality spec; these are its three marks. Each is 
 | Forbidden act | What it is | The price |
 |---|---|---|
 | **Using a Philosopher's Stone** (the game's "Stone Abilities", exists; the Marcoh lineage can't use them) | Transmuting now and leaving the price in a stone. The spec's effect, no meter cost for 30 seconds, is exactly that. | Nothing at once. The debt is written in your name and collected later from the ground around the stone. A Farborn who does it no longer owes this world nothing. |
-| **Human transmutation** | Trying to make, remake or bring back a person. It has never worked. | Paid at once: Truth takes part of the alchemist (exists in the morality spec: a limb, which leads to automail; kept at the owner's word). |
+| **Human transmutation** | Trying to make, remake or bring back a person. It has never worked. | Paid at once: Truth takes a limb, and the alchemist goes on with automail (exists in the morality spec; owner, 2026-10-25: "A limb, then automail."). |
 | **Making chimeras** | Joining living things together, or metal to flesh so that it moves. | The chimera doesn't last. (The Armored Experiment in Brannoc's questline, exists, may be one.) |
 
 **Philosopher's Stones are never made of people** (rule). In this world one is cast iron or cut rock with a circle in it: heavy, dull red, and warm to the touch. The Foundry Yard makes them in secret (§4).
 
 ### 2.5 The Gate and Truth
 
-- **The Gate** (exists) stands behind every transmutation circle, and it's where every price is counted. It looks like a plain iron-banded door standing alone on white ground, with a long counting table in front of it (PROPOSAL look). Most people never see it. You see it when you reach a Mastery limit, when you try a forbidden transmutation, and when you fall through it from another world.
-- **Truth** (exists) does the counting. It isn't a god and it isn't a devil. It doesn't punish; it collects. It never lies, and it answers only the question asked. Its own form is the owner's existing figure (the white, seated, grinning icon, exists). It can also wear a borrowed face: in the Tutorial it wore Drillmaster Vask's (§6.2).
+- **The Gate** (exists) stands behind every transmutation circle, and it's where every price is counted. It looks exactly as it stands in the Tutorial place: the owner's existing Gate set, kept as built (owner, 2026-10-25: "Keep the existing set"). Most people never see it. You see it when you reach a Mastery limit, when you try a forbidden transmutation, and when you fall through it from another world.
+- **Truth** (exists) does the counting. It isn't a god and it isn't a devil. It doesn't punish; it collects. It never lies, and it answers only the question asked. It looks like the figure in the Tutorial place, as built there (owner, 2026-10-25: "He should look like the one we have in tutorial"). The repo can't show the model itself; the game's Truth icon (exists, Changelog) is a white, seated, grinning figure with black arms. Truth always appears in its own form.
 - **"Every door swings both ways"** (PROPOSAL, from Truth's finale lines). When a debt is collected, the Gate opens over that ground, and things come through from the other side.
 - **What collection looks like** (PROPOSAL): it takes a thing's nature first and its substance after. Grass goes grey in a ring. Wood stops being wood, iron crumbles to red dust, water turns heavy and glassy. People call a small patch "**the grey**" ("came down with the grey").
 
@@ -196,7 +196,7 @@ These are the existing factions (`Rensei.Factions`, `Rensei.Regions`). Their goa
 
 ### 6.2 Truth's test (the Tutorial, explained)
 
-Before the Gate lets anyone into this world, Truth tests them. The Tutorial now opens with the pull itself: a glimpse of the player's own world, the colour draining away, the fall, and the door with Truth waiting at the counting table (the story concept's §1.2). Then Truth builds a training yard from the memory of the man who has trained more newcomers than anyone, **Drillmaster Vask** (exists), and wears his face. It watches you move, strike, defend and take hold. It lets your hands try alchemy before you have a path (the Tutorial's Alchemy beat). The voice in the Bout is Truth's (exists: *"Again. And this time, take hold of it."*). Then the Gate opens.
+Before the Gate lets anyone into this world, Truth tests them. The Tutorial now opens with the pull itself: a glimpse of the player's own world, the colour draining away, the fall, and the Gate as it stands in the Tutorial, with Truth waiting before it (the story concept's §1.2). Then Truth builds a training yard, and a copy of its drillmaster, from the memory of the man who has trained more newcomers than anyone: **Drillmaster Vask** (exists). The copy runs the drills while Truth watches you move, strike, defend and take hold. It lets your hands try alchemy before you have a path (the Tutorial's Alchemy beat). The voice in the Bout is Truth's (exists: *"Again. And this time, take hold of it."*). Then the Gate opens.
 
 **Truth's finale lines** (owner, 2026-10-25: "Use the proposed ones"):
 > *You were not sent. You fell.*
@@ -283,7 +283,7 @@ Endings are shaped by the player's deeds, standing, licence path and Taboo marks
 
 1. **The figures on the Ridge Marker** (exists): LM-7, and this year's date. Ned thinks they're field measurements.
 2. **The bird with no name** (§6.5).
-3. **Vask's face** (§6.2).
+3. **Vask's yard** (§6.2): the real Vask has never met you, but Farborn keep telling him they trained with him.
 4. **Furnace One runs hotter than coal.**
 5. **Where Halvard went.** His name turns up in the Bureau's ledger: "retired, Northern Wall."
 6. **Existing hooks to answer later:** Maren Ostrova's guardian that "holds the station's cold" (exists: was her station keeping a stone asleep?), and the Armored Experiment, "plated with cast iron. It moves" (exists: a chimera?).
@@ -297,7 +297,7 @@ Endings are shaped by the player's deeds, standing, licence path and Taboo marks
 | Character | Where | Role |
 |---|---|---|
 | **Truth** | The Gate | Counts every price. It tested you. |
-| **Drillmaster Vask** | The Tutorial; the real man is at the Foundry Yard (PROPOSAL) | Truth borrowed his face. |
+| **Drillmaster Vask** | The Tutorial; the real man is at the Foundry Yard (PROPOSAL) | Truth's test copies him and his yard from memory. |
 | **Calda** (Flame), **Veyra** (Ice), **Holt** (Earth), **Ansel** (Wind) | Lindenmoor's training field | Teachers. Each has a view of the debt (PROPOSAL): Calda sees a fire someone let get away; Veyra suspects the frozen vaults; Holt reads the ground and doesn't like it; Ansel knows more than he says. |
 | **Brannoc** (Metal) | Foundry Yard; his notice stands in Lindenmoor | Knows Furnace One runs hot and won't say why. |
 | **Ned Harrow** | Lindenmoor, groundskeeper | The first person you meet. He's paid a few coins a season to keep the Ridge Marker clean, and thinks it's about field boundaries (exists: his clue line). |
@@ -350,6 +350,7 @@ Endings are shaped by the player's deeds, standing, licence path and Taboo marks
 | Promising or denying a way home | Owner decision: it stays a mystery | Hints only (§6.4) |
 | New invented jargon | The owner asked for understandable lore | Everyday words: debt, price, buried stone, the Gate takes its due |
 | "stray", "dross", "working", "the Tally" | Retired draft words | **Farborn**, debt, transmutation, Equivalent Exchange |
+| A new look for the Gate or Truth (the retired draft's "iron-banded door and counting table", or Truth wearing a borrowed face) | Owner, 2026-10-25: "Keep the existing set"; Truth "should look like the one we have in tutorial" | Describe them as they stand in the Tutorial place |
 | Modern slang, "OK" | Breaks the period | "Right.", "Fair.", "Done." |
 
 ### 9.3 How much to explain

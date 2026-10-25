@@ -38,6 +38,13 @@
 >
 > "after the player's camera goes to the center, the camera should smoothly transition from first person to 3rd person."
 
+**Third round (the last lore questions):**
+
+> Human transmutation's price: "A limb, then automail."
+> Truth's look: "He should look like the one we have in tutorial."
+> The Gate set: "Keep the existing set."
+> Mezarath and Farborn: "Keep both."
+
 **What they change in this draft:**
 - **The player is Farborn:** someone who fell through the Gate from another world (Lore Bible §6). "Stray" is retired.
 - **The lore uses series words, in plain language:** transmutation, Equivalent Exchange (the law's name here), Philosopher's Stone (in this world, a stone that holds an unpaid debt and is never made of people), State Alchemist. The story, characters and events stay original.
@@ -83,9 +90,9 @@
 | 1 | **Home, just a glimpse** (0–4 s) | Looking out of a rain-streaked window at dusk. Everything beyond the glass is soft and out of focus; home stays the player's own. A small dark bird, a **swift**, sits on a wire outside. Rain on glass, far-off everyday noise. |
 | 2 | **The colour drains** (4–8 s) | The sound drops away to nothing. The colour runs out of the picture from the edges in, until it's grey. The swift takes off. |
 | 3 | **The pull** (8–13 s) | The view tips forward and falls. The window is gone and there's only white rushing past. The player's own hands come up into frame. A low sound grows: beads clicking on wood, like someone counting. |
-| 4 | **The Gate** (13–18 s) | The fall slows and stops. Standing on white ground: a plain iron-banded **door**, alone, slightly open, with a long **counting table** in front of it. The counting stops. |
-| 5 | **Truth** (18–23 s) | Someone is sitting at the table: a stern drillmaster, **Vask's face** (in the lore, a face Truth has borrowed). He doesn't blink. He looks up and says one line: *"Another one. Let's see what you're worth."* |
-| 6 | **The yard appears** (23–27 s) | He stands. The white fills in around the player, posts, walls and ground, until it's the Tutorial's training yard, with Vask standing in it. The letterbox lifts, the HUD fades in, and Vask's first beat (Footwork) starts. |
+| 4 | **The Gate** (13–18 s) | The fall slows and stops. The player is standing before **the Gate as it stands in the Tutorial** (the owner's existing set). The counting stops. |
+| 5 | **Truth** (18–23 s) | **Truth** is there in its own form, as built in the Tutorial place. It turns toward the player and says one line: *"Another one. Let's see what you're worth."* |
+| 6 | **The yard appears** (23–27 s) | The white fills in around the player (posts, walls, ground) until it's the Tutorial's training yard, with Vask, Truth's copy of the drillmaster, standing in it. The letterbox lifts, the HUD fades in, and Vask's first beat (Footwork) starts. |
 
 - **The one link to the waking cutscene:** the **swift**. Here it flies off as the colour drains (shot 2); in Lindenmoor it crosses the sky above the player (waking shot 3). It's the same bird, and it came through with them.
 - **Where it hooks in** (checked in `Scripts/Tutorial/`):
@@ -98,9 +105,9 @@
 - **Once per profile; skippable after the first view** (PROPOSAL). A save slot sees it once. If the same account has already seen it on another slot, a "Hold to skip" prompt appears, using the existing prompt style (no new UI art).
 - **Uses only existing UI:** plain screen fades and letterbox bars.
 - **New assets:**
-  - **Models:** the swift (shared with the waking cutscene), a small window-and-rain set, the white ground, the iron-banded door and the counting table, and a Vask double for the table. They're built off the playable map in the Tutorial place. The Tutorial already has a Gate set (exists); its look may differ from the plain door, which is open question 1.
-  - **Animations (slots the owner would upload):** `Intro_SwiftPerch` and `Intro_SwiftTakeoff` (the swift), `Intro_FallHands` (first-person hands rising), `Intro_TruthSeatedLookUp` and `Intro_TruthStand` (Vask's double).
-  - **Sounds:** rain on glass, far-off everyday noise, the silence drop, the counting beads, a low door creak, and Truth-Vask's one line (voice or a text line in the letterbox).
+  - **Models:** the swift (shared with the waking cutscene), a small window-and-rain set, and white ground for the fall. They're built off the playable map in the Tutorial place. **The Gate and Truth reuse the Tutorial's existing set and figure as built** (owner: "Keep the existing set"); shots 4–5 are staged at that set, or at a copy of it.
+  - **Animations (slots the owner would upload):** `Intro_SwiftPerch` and `Intro_SwiftTakeoff` (the swift), `Intro_FallHands` (first-person hands rising), and `Intro_TruthTurn` for Truth turning toward the player (only if the Tutorial's Truth figure is rigged; otherwise a camera move does the work).
+  - **Sounds:** rain on glass, far-off everyday noise, the silence drop, the counting beads, and Truth's one line (voice, or a text line in the letterbox).
 
 ### 1.3 Where they wake
 
@@ -300,7 +307,7 @@ The **Legendary Alchemist** title stays earned: top Renown plus the main story's
 
 | Act | The moment | Why it earns a cutscene | Length (s) | View | Skippable after the first view | One-line shot summary |
 |---|---|---|---|---|---|---|
-| Prologue | **Pulled through** (joining the Tutorial) | The player's arrival in this world, and the first sight of the Gate | 25 | First person | Yes | A rainy window, the colour drains, the fall, the iron door and counting table, Truth with Vask's face (§1.2). |
+| Prologue | **Pulled through** (joining the Tutorial) | The player's arrival in this world, and the first sight of the Gate | 25 | First person | Yes | A rainy window, the colour drains, the fall, the Gate as it stands in the Tutorial, and Truth's one line (§1.2). |
 | Prologue | **The Gate opens** (the Tutorial's finale, exists) | Truth's three lines set up the whole story | 9 | First person | Yes | The door swings open on light while Truth speaks (exists; new lines only). |
 | I | **Waking** | The first breath in a new world | 17 | First, then third person | Yes | Sky, the swift, the grey ring, look left, look right, out to the play camera (§1.4). |
 | I | **The circle wakes** (beat 8, Halvard's vault opens) | The key reveal of Act I: a buried debt is real | 15 | Third person | Yes | As the vault opens, a vast old circle glows faintly through the rock floor and away under the ridge; grass on the slope outside goes grey. |
@@ -377,7 +384,7 @@ All payouts stay once only (exists: a quest leaves Active before anything is pai
 
 ### 6.2 New for the main story
 
-- **Cutscenes:** the Tutorial opening (§1.2), the waking cutscene with its third-person pull-out (§1.4), and the story cutscenes in §4. Shared assets: the swift, the grey patch, the door and counting table. Each section lists its new animation slots and sounds.
+- **Cutscenes:** the Tutorial opening (§1.2), the waking cutscene with its third-person pull-out (§1.4), and the story cutscenes in §4. Shared assets: the swift and the grey patch. The Gate and Truth reuse the Tutorial's existing set and figure. Each section lists its new animation slots and sounds.
 - **About 14 short quests** for Chapter 1, with their dialogue and stage text.
 - **New Field Notes:** "Open Ground", "Word Travels", "Choosing a Path" and "Unseen", plus the one-note-per-beat rule (a small queue on `Flow.Hints`).
 - **New flags:** `Flow.TutorialIntroSeen`; account-level "seen" markers for the skip prompt.
@@ -418,8 +425,11 @@ All payouts stay once only (exists: a quest leaves Active before anything is pai
 | A better word than "strays" | **Farborn**. |
 | Can a Farborn go home? | It stays a mystery (option C): hints only, never confirmed, and no ending promises or denies it. |
 | More cutscenes | A small set, at really important moments only (§4). |
+| Human transmutation's price | "A limb, then automail." |
+| Truth's look | "He should look like the one we have in tutorial." Truth always appears in its own form, as built in the Tutorial place. |
+| The Tutorial's Gate set | "Keep the existing set." The lore and the cutscenes describe the Gate as it stands in the Tutorial. |
+| The names Mezarath and Farborn | "Keep both." |
 
-### 7.2 New (PROPOSAL recommendation)
+### 7.2 New
 
-1. **The Tutorial's existing Gate set.** The Tutorial already has a Gate set (exists), and the lore now describes the Gate as a plain iron-banded door with a counting table. Restyle the set to match, or keep the existing set and describe that instead?
-   **Recommended:** send a screenshot. If the set is close, keep it and add the counting table.
+None. Every question so far is answered.
