@@ -7,7 +7,8 @@ Owner's to-do list, in the owner's words. The order is the owner's, and none of 
 1. [x] **Lindenmoor expansion import into Ye** (owner: "The Lindenmoor expansion is gonna go in Ye"). The village stays where it is; the hub's trainers and trial sites move onto their reserved spots; the cliff gets `RenseiNoGrip`. Steps: `Documents/Lindenmoor Kit.md`, "Expansion (Blender)". *(Done 2026-10-24, import plan Tasks 1–9: in Ye's Studio Edit session, smoke-tested; not live until the owner saves Ye, walks it once in Play and publishes the place, Modules and RenseiServer. See `Documents/Lindenmoor Kit.md`, "The import is done".)* **Publish on hold** (owner, 2026-10-24: "Hold both"): Ye and Foundry Yard stay unpublished until the Foundry Yard plan finishes Foundry's game data, then both are published together. Publishing Foundry ships its new map.
 2. **The Foundry Yard plan** (the first full region). When it has finished Foundry's game data, Ye (with the Lindenmoor expansion) and Foundry Yard are published together (owner, 2026-10-24: "Hold both"); the checkpoint is in `Documents/Lindenmoor Kit.md`.
 3. **The gun class rework and the swimming revamp** (below), still after all the Foundry tasks.
-4. **Then, in order** (owner, 2026-10-25): assassinations, stealth missions, consequences for wrong guesses, the Nemesis concept, and reputation in investigations. See "After the swimming revamp" below.
+4. **Then, in order** (owner, 2026-10-25): assassinations, stealth missions, consequences for wrong guesses, the Nemesis system (design approved: `Documents/specs/2026-10-25-nemesis-design.md`), reputation in investigations, then the main story. See "After the swimming revamp" below.
+5. **Overnight go-ahead** (owner, 2026-10-25): "you can do everything you listed while I'm sleep, just make sure to post on the changelogs." Nothing is published; every finished piece gets a Changelog entry with a held Discord post.
 
 ## Next, right after World Plan 1 (owner, 2026-10-21 and 2026-10-23)
 - [ ] **Build every region in Blender** (owner, 2026-10-23): "Here's a PDF of all of the region layouts, I want all of them built in blender once all tasks are complete." The brief is `Documents/Rensei-Regional-Map-Design-Brief.pdf` (9 pages: world connections, shared rules, then one page per region). Seven places:
@@ -40,6 +41,7 @@ In the owner's order:
 3. [ ] **Consequences for wrong guesses** in minigames and puzzles on quests.
 4. [ ] **Nemesis system:** "Gotta make the concept first". The owner has brought it back into scope (see Decisions.md), so it starts as a concept and design for the owner to approve, not code.
 5. [ ] **Reputation shapes investigations:** expand the reputation system so it changes how NPCs answer during investigations. "some will lie to you or just refuse to tell you the truth, or some evil NPC's will spill secrets easier, etc."
+6. [ ] **The main story** (concept draft: `Documents/specs/2026-10-25-main-story-concept.md`). Placed here by the controller (the owner left the slot open on 2026-10-25): after the reputation item, before the remaining regions are built, so it can teach every system. The owner can move it.
 
 ## After the world plans (owner, 2026-10-20)
 
@@ -68,12 +70,12 @@ These start after the world, travel and seasons plans are finished (`Documents/s
 - [ ] **Add assassinations to the game,** "like we talked about before (ONLY PVE)".
 
 ### Quests and UI
-- [ ] **Trainer quests:** the alchemy trainers' quests don't work ("Pass [Trainer]'s examination").
-- [ ] **Leaderboard:** the scroll doesn't work.
-- [ ] **Party health bars:** they don't update live.
+- [x] **Trainer quests:** the alchemy trainers' quests don't work ("Pass [Trainer]'s examination"). *(Done: confirmed by the owner 2026-10-25.)*
+- [x] **Leaderboard:** the scroll doesn't work. *(Done: confirmed by the owner 2026-10-25.)*
+- [ ] **Party health bars:** they don't update live. *(Still broken: owner, 2026-10-25.)*
 
 ### World life (owner, 2026-10-20, during World Plan 1)
-- [ ] **Civilian NPCs** that walk around Lindenmoor and react to the players and the environment, building on the rumour, reputation and morality systems (`RumourService`, `MoralityService`, `WitnessService`, `PerceptionService`).
+- [x] **Civilian NPCs** that walk around Lindenmoor and react to the players and the environment, building on the rumour, reputation and morality systems (`RumourService`, `MoralityService`, `WitnessService`, `PerceptionService`). *(Done: the townsfolk system; confirmed by the owner 2026-10-25.)*
 
 ## Already queued
 - [ ] **Trading:** design approved (`Documents/specs/2026-10-19-trading-design.md`). The owner's rule: only after all the plans.
