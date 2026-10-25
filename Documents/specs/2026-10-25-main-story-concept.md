@@ -44,6 +44,8 @@
 > Truth's look: "He should look like the one we have in tutorial."
 > The Gate set: "Keep the existing set."
 > Mezarath and Farborn: "Keep both."
+>
+> "Human transmutation should also have a chance to give u the full armor set like in FMA (I have the armor in the files & roblox studio places)" (§3.4)
 
 **What they change in this draft:**
 - **The player is Farborn:** someone who fell through the Gate from another world (Lore Bible §6). "Stray" is retired.
@@ -297,6 +299,35 @@ Phase 10 (endings) isn't designed yet. These PROPOSAL directions are shaped by d
 
 The **Legendary Alchemist** title stays earned: top Renown plus the main story's capstone.
 
+### 3.4 Human transmutation: the price (PROPOSAL)
+
+**Owner, 2026-10-25:** "Human transmutation should also have a chance to give u the full armor set like in FMA (I have the armor in the files & roblox studio places)".
+
+Human transmutation is a Taboo act (the morality spec). It's always warned about first and can't be undone. When it happens, Truth takes one of two prices:
+
+| Outcome | Chance (PROPOSAL; the owner may tune it) | What happens |
+|---|---|---|
+| **A limb** | 85% | Truth takes an arm or a leg. The character carries on with automail (exists: Wren fits and repairs it). |
+| **The whole body** | 15% | Truth takes all of it. The soul is held in a suit of armor, the owner's existing armor set, by the circle burned inside it (the "soul mark"). |
+
+**In the world** (Lore Bible §2.4.1):
+- Most people take an armor-bound character for a big person who never removes their helmet.
+- Anyone who knows alchemy, and every State agent, knows what a talking empty suit means.
+- The bond only ends if the body is found again behind the Gate. Whether that's possible is a hint tied to "going home", never confirmed.
+
+**In play (concept level, all PROPOSAL):**
+- **No food, sleep or tiredness.** Armor-bound characters don't eat, don't sleep and don't tire. How "no tiredness" maps onto stamina is a tuning call.
+- **Healing by repair.** No passive regeneration. They are mended by an alchemist's transmutation (any player or NPC alchemist) or by a smith. Wren's existing automail repair action is a natural model.
+- **Tough but loud.** Higher damage resistance, but every step clanks. They make more footstep noise through the existing noise system (`NoiseService`), so stealth is harder.
+- **No swimming.** They sink in deep water and walk along the bottom, and they can only climb out where the bottom rises. There's no breath meter, because they don't breathe. This ties into the swimming revamp's diving.
+- **Alchemy works** as before.
+- **The look:** the owner's existing armor set in the Studio places. Its exact model path and parts must be confirmed in Studio before building.
+- **Permanent** for that character, unless a future body-recovery questline is done.
+- **Taboo:**
+  - It records the Taboo mark "Attempted human transmutation" (morality spec).
+  - The armor is evidence: when an Authority agent sees the character up close, it counts as discovery under the spec's rules. Discovery means State Wanted 5, and the Circle cuts the character off. The spec's secret State office may offer recruitment instead.
+  - Human transmutation is paid at once, so on its own it doesn't put a Farborn in debt. Only a Philosopher's Stone does.
+
 ---
 
 ## 4. Story cutscenes
@@ -398,6 +429,7 @@ All payouts stay once only (exists: a quest leaves Active before anything is pai
   - a Militia fine desk in Lindenmoor (fines are taken only by Foreman Brask today, for State Heat);
   - the "travel alone" flag.
 - **Identities NPC records** (§2.5).
+- **The armor-bound state** (§3.4): the outcome roll, the armor look (the owner's existing set, path to confirm in Studio), repair healing, footstep noise, sinking, and its Taboo handling. It belongs with the Taboo layer's build, not Chapter 1.
 - **A guaranteed rumour** about the beat 4 fight, so beat 5 always has something to hear.
 - **The survey camp** at the mine (beat 9). It later becomes Lindenmoor's first stealth compound.
 
@@ -425,7 +457,7 @@ All payouts stay once only (exists: a quest leaves Active before anything is pai
 | A better word than "strays" | **Farborn**. |
 | Can a Farborn go home? | It stays a mystery (option C): hints only, never confirmed, and no ending promises or denies it. |
 | More cutscenes | A small set, at really important moments only (§4). |
-| Human transmutation's price | "A limb, then automail." |
+| Human transmutation's price | "A limb, then automail", plus a rarer chance of the whole body, with the soul bound to the owner's armor set (§3.4). |
 | Truth's look | "He should look like the one we have in tutorial." Truth always appears in its own form, as built in the Tutorial place. |
 | The Tutorial's Gate set | "Keep the existing set." The lore and the cutscenes describe the Gate as it stands in the Tutorial. |
 | The names Mezarath and Farborn | "Keep both." |

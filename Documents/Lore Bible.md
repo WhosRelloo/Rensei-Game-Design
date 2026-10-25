@@ -110,8 +110,30 @@ The Taboo layer exists in the morality spec; these are its three marks. Each is 
 | Forbidden act | What it is | The price |
 |---|---|---|
 | **Using a Philosopher's Stone** (the game's "Stone Abilities", exists; the Marcoh lineage can't use them) | Transmuting now and leaving the price in a stone. The spec's effect, no meter cost for 30 seconds, is exactly that. | Nothing at once. The debt is written in your name and collected later from the ground around the stone. A Farborn who does it no longer owes this world nothing. |
-| **Human transmutation** | Trying to make, remake or bring back a person. It has never worked. | Paid at once: Truth takes a limb, and the alchemist goes on with automail (exists in the morality spec; owner, 2026-10-25: "A limb, then automail."). |
+| **Human transmutation** | Trying to make, remake or bring back a person. It has never worked. | Paid at once. Usually Truth takes a limb, and the alchemist goes on with automail (exists in the morality spec; owner, 2026-10-25: "A limb, then automail."). Sometimes Truth takes the whole body, and the soul ends up in a suit of armor (§2.4.1). |
 | **Making chimeras** | Joining living things together, or metal to flesh so that it moves. | The chimera doesn't last. (The Armored Experiment in Brannoc's questline, exists, may be one.) |
+
+#### 2.4.1 Human transmutation: what Truth takes
+
+**Owner, 2026-10-25:** "Human transmutation should also have a chance to give u the full armor set like in FMA (I have the armor in the files & roblox studio places)".
+
+| Outcome | Chance (PROPOSAL; the owner may tune it) | What happens |
+|---|---|---|
+| **A limb** | 85% | Truth takes an arm or a leg. The character carries on with automail (exists: Wren fits and repairs it). |
+| **The whole body** | 15% | Truth takes all of it. The soul is left in a suit of armor: the owner's existing armor set. |
+
+**How it works in this world** (PROPOSAL):
+- **The soul mark.** When Truth takes the whole body, the soul catches on the nearest thing big enough to hold a person's shape. In a workshop that's usually an old suit of armor. The circle the alchemist drew is burned into the inside of the breastplate, and that **soul mark** is what holds the soul in place. Break the mark and the soul comes loose.
+- **How people react.** Most people see a very large person in old armor who never takes the helmet off. Children want to knock on it. Anyone who knows alchemy, and every State agent, knows what an empty suit that talks means: a human transmutation.
+- **The body isn't destroyed.** Truth keeps it behind the Gate, and the bond only ends if the body is found again. Nobody knows whether something can be brought back through the Gate. That is the same question as whether a Farborn can go home (§6.4), and it stays a hint, never confirmed.
+
+**What being armor-bound means in play** (PROPOSAL; the full notes are in the story concept, §3.4):
+- **Needs:** no eating, no sleeping, and no tiring.
+- **Healing:** by repair, from an alchemist's transmutation or a smith, instead of regenerating.
+- **Strengths and weaknesses:** tough, but it clanks, so stealth is harder. It sinks in deep water and can't swim.
+- **Alchemy** works as before.
+- **Permanent** unless a future body-recovery questline is done.
+- **A Taboo outcome.** Morality and the State Authority treat it as one.
 
 **Philosopher's Stones are never made of people** (rule). In this world one is cast iron or cut rock with a circle in it: heavy, dull red, and warm to the touch. The Foundry Yard makes them in secret (§4).
 
@@ -222,6 +244,7 @@ Hints to seed (PROPOSAL; never confirmed):
 - Truth's own line: "every door swings both ways."
 - The bird that came through with you is seen flying *into* the light over the Eclipse Citadel. Nobody sees it come out.
 - A few entries in the Bureau's ledger are marked "not found" with a question mark beside them.
+- People bound to armor say that sometimes they can feel their body, far away, as if it were waiting behind a door (§2.4.1).
 - Sorrel Kade once saw a Farborn walk into the crimson light and not come back. He doesn't know where they went, and he doesn't like guessing.
 
 ### 6.5 The bird (PROPOSAL)
