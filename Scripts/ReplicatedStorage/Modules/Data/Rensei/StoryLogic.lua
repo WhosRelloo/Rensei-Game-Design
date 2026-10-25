@@ -90,7 +90,7 @@ end
 -- Prepended = {[r] = k} put k new stages in front of its stage list at revision r. A saved Active state from an older
 -- revision (State.Revision missing = 1) moves forward past those stages, so the player stays on the stage they were
 -- on. Returns true when it changed State. (Fix round 1, Ruling 22: the new stage is clamped to the last stage, and a
--- non-number Prepended value counts as 0.)
+-- non-number Prepended value counts as 0. Final review I1: and never below stage 1.)
 function StoryLogic.UpgradeQuest(Def, State)
 	if type(Def) ~= "table" or type(State) ~= "table" or type(Def.Revision) ~= "number" then return false end
 	local From = type(State.Revision) == "number" and State.Revision or 1
@@ -103,6 +103,7 @@ function StoryLogic.UpgradeQuest(Def, State)
 	local Stage = (type(State.Stage) == "number" and State.Stage or 1) + Shift
 	local Count = (type(Def.Stages) == "table" and #Def.Stages) or (type(Def.Objectives) == "table" and 1) or 0
 	if Count > 0 then Stage = math.min(Stage, Count) end
+	Stage = math.max(Stage, 1) -- (final review I1) never below stage 1, even for a negative Prepended
 	State.Stage = Stage
 	State.Revision = Def.Revision
 	return true

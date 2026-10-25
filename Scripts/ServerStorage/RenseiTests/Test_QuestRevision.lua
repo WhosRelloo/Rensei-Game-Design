@@ -4,7 +4,8 @@
 -- non-number Prepended values (Minor 4); a state without a Stage, a second UpgradeAll and an untouched Completed
 -- (Minor 6, through QuestService.UpgradeAll with injected defs); stale-revision states as "not yet known" to stage
 -- gates (I1, StoryLogic.Stale / Meets). Task 3 adds AcqMetalOldSaveMoves (the real acq_metal at revision 2); Task 9
--- (Ruling 24) adds AcqMetalEveryOldStageMoves (old stages 1..6 -> 2..7 through UpgradeAll, Completed untouched).
+-- (Ruling 24) adds AcqMetalEveryOldStageMoves (old stages 1..6 -> 2..7 through UpgradeAll, Completed untouched). The
+-- final review fix (I1) adds NegativePrependedNeverBelowOne (the new stage is clamped to at least 1).
 local StoryLogic = require(game.ReplicatedStorage.Modules.Data.Rensei.StoryLogic)
 
 local Copy = require(script.Parent.SmokeKit).Copy -- (Task 9, Ruling 37: the shared helper)
@@ -104,6 +105,17 @@ return {
 		local State = {Stage = 2}
 		T.Eq(StoryLogic.UpgradeQuest({Revision = 2, Prepended = {[2] = 5}, Stages = {{}, {}, {}}}, State), true, "changed")
 		T.Eq(State.Stage, 3, "2 + 5 clamped to the 3 stages")
+	end,
+	-- (final review I1) the new stage is never below 1: a negative Prepended (a hand-written mistake) can't send a save
+	-- to stage 0 or below, with or without a stage list to clamp against
+	NegativePrependedNeverBelowOne = function(T)
+		local State = {Stage = 2}
+		T.Eq(StoryLogic.UpgradeQuest({Revision = 2, Prepended = {[2] = -5}, Stages = {{}, {}, {}}}, State), true, "changed")
+		T.Eq(State.Stage, 1, "2 - 5 clamped up to stage 1 (3 stages)")
+		local Bare = {Stage = 1}
+		T.Eq(StoryLogic.UpgradeQuest({Revision = 3, Prepended = {[2] = -1, [3] = -2}}, Bare), true, "changed")
+		T.Eq(Bare.Stage, 1, "1 - 3 clamped up to stage 1 (no stage list)")
+		T.Eq(Bare.Revision, 3)
 	end,
 	-- Minor 4: a non-number Prepended value counts as 0
 	IgnoresNonNumberPrepended = function(T)
