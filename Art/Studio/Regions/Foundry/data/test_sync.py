@@ -100,8 +100,10 @@ def main():
         check(f"{p['Label']} places", p["Places"] and set(p["Places"]) <= {"ye", "foundry"}, p["Places"])
         check(f"{p['Label']} class", p["Class"] in ("ModuleScript", "Script", "LocalScript"), p["Class"])
         check(f"{p['Label']} path", len(p["Studio"].split("/")) >= 2 and p["Studio"].split("/")[-1], p["Studio"])
-    check("pair count foundry", len(sync.pairs_for(manifest, "foundry")) == 79, len(sync.pairs_for(manifest, "foundry")))
-    check("pair count ye", len(sync.pairs_for(manifest, "ye")) == 76, len(sync.pairs_for(manifest, "ye")))
+    check("pair count foundry", len(sync.pairs_for(manifest, "foundry")) == 91,  # 79 + the swim revamp's 12 (Task 1)
+          len(sync.pairs_for(manifest, "foundry")))
+    check("pair count ye", len(sync.pairs_for(manifest, "ye")) == 88,  # 76 + the swim revamp's 12
+          len(sync.pairs_for(manifest, "ye")))
 
     # 3. norm_hash against Studio's value
     with open(os.path.join(REPO, "Art/Studio/Regions/TownsfolkClient.lua"), "rb") as f:
@@ -394,6 +396,52 @@ def main():
     check("missing repo: counted MISSING, the other pair SAME", "SAME 1 / DIFFER 0 / MISSING 1" in said, said)
     check("missing repo: exit 1", code == 1, code)
     check("missing repo: Studio still asked about it", "Gone.Repo" in asked, asked)
+
+    # ===== Swim revamp Task 1: --backup with the swim folder, and the swim pairs in the real manifest =====
+    code, said, got = gen_backup_line(["--backup", "Pre-SwimRevamp_2026-10-25"])
+    check("swim: --backup Pre-SwimRevamp_2026-10-25 on the BACKUP line", code == 0 and got == "Pre-SwimRevamp_2026-10-25",
+          (code, got, said))
+    code, said, got = gen_backup_line(["--backup", "Swim"])
+    check("swim: --backup Swim rejected", code == 2 and "bad --backup name" in said and got is None, (code, got, said))
+    with open(sync.MANIFEST, encoding="utf-8") as f:
+        real = json.load(f)["Pairs"]
+    labels = [p["Label"] for p in real]
+    check("swim: every manifest label is unique", len(labels) == len(set(labels)),
+          sorted(l for l in set(labels) if labels.count(l) > 1))
+    swim = {  # Label: (Studio, Class, Repo, Create)
+        "Rensei.Perception": ("ReplicatedStorage/Modules/Data/Rensei/Perception", "ModuleScript",
+                              "Scripts/ReplicatedStorage/Modules/Data/Rensei/Perception.lua", False),
+        "RenseiServer.SwimService": ("ServerStorage/RenseiServer/SwimService", "ModuleScript",
+                                     "Scripts/ServerScriptService/SwimService.lua", False),
+        "RenseiServer.PerceptionService": ("ServerStorage/RenseiServer/PerceptionService", "ModuleScript",
+                                           "Scripts/ServerScriptService/PerceptionService.lua", False),
+        "RenseiServer.NoiseService": ("ServerStorage/RenseiServer/NoiseService", "ModuleScript",
+                                      "Scripts/ServerScriptService/NoiseService.lua", False),
+        "SPScripts.SwimClient": ("StarterPlayer/StarterPlayerScripts/SwimClient", "LocalScript",
+                                 "Scripts/StarterPlayer/StarterPlayerScripts/SwimClient.client.lua", False),
+        "Rensei.SwimLogic": ("ReplicatedStorage/Modules/Data/Rensei/SwimLogic", "ModuleScript",
+                             "Scripts/ReplicatedStorage/Modules/Data/Rensei/SwimLogic.lua", True),
+        "Managers.SwimController": ("ReplicatedStorage/Modules/Managers/SwimController", "ModuleScript",
+                                    "Scripts/ReplicatedStorage/Modules/Managers/SwimController.lua", True),
+        "RenseiTests.Test_SwimLogic": ("ServerStorage/RenseiTests/Test_SwimLogic", "ModuleScript",
+                                       "Scripts/ServerStorage/RenseiTests/Test_SwimLogic.lua", True),
+        "RenseiTests.SwimKit": ("ServerStorage/RenseiTests/SwimKit", "ModuleScript",
+                                "Scripts/ServerStorage/RenseiTests/SwimKit.lua", True),
+        "RenseiTests.Play_Swim": ("ServerStorage/RenseiTests/Play_Swim", "ModuleScript",
+                                  "Scripts/ServerStorage/RenseiTests/Play_Swim.lua", True),
+        "RenseiTests.Test_Perception": ("ServerStorage/RenseiTests/Test_Perception", "ModuleScript",
+                                        "Scripts/ServerStorage/RenseiTests/Test_Perception.lua", True),
+        "RenseiTests.Test_Sound": ("ServerStorage/RenseiTests/Test_Sound", "ModuleScript",
+                                   "Scripts/ServerStorage/RenseiTests/Test_Sound.lua", True),
+    }
+    byl = {p["Label"]: p for p in real}
+    for lab, (studio, cls, repo, create) in swim.items():
+        p = byl.get(lab)
+        check(f"swim: pair {lab}", p is not None and p["Studio"] == studio and p["Class"] == cls and p["Repo"] == repo
+              and p["Create"] is create and p["Places"] == ["ye", "foundry"], p)
+    for lab in ("Rensei.TuningConfig", "UI.MobileControls", "UI.SettingsUI"):  # already there (Foundry plan / gun rework)
+        p = byl.get(lab)
+        check(f"swim: pair {lab} in both places", p is not None and p["Places"] == ["ye", "foundry"], p)
 
     print(f"PASS {PASSES[0]} / FAIL {len(FAILS)}")
     for f in FAILS:
