@@ -157,14 +157,26 @@ if IsServer then
 	end
 	local AmmoLeft = {} -- [Character] = {[Item] = rounds}
 	local Aim = {} -- [Character] = {Dir, At} or {Bad = true, At} (guns, below: SetAim)
+	-- the reload (gun rework Task 7, 2026-10-25; below: Reload)
+	local WCS = require(ReplicatedStorage.Modules.Framework.WCS)
+	local StunState = require(ReplicatedStorage.Modules.Skills.States.Stun)
+	local ReloadCfg = Tuning.Weapons.Guns.Reload
+	local ReloadToken = {} -- [Character] = the running reload's token
+	local Restarting = {} -- [Character] = a restart watcher is waiting
 
-	-- per-character entries go when the character does
+	-- per-character entries go when the character does. Every armed character (players and NPCs) is tracked: turning
+	-- shooting mode off tops up a part-used magazine (gun rework Task 7: the top-up lives here, not in Requests.Shoot).
 	local Tracked = {}
 	local function Track(Character)
 		if Tracked[Character] then return end
 		Tracked[Character] = true
+		Character:GetAttributeChangedSignal("ShootingMode"):Connect(function()
+			if Character:GetAttribute("ShootingMode") ~= nil or not WeaponManager.ItemStats(Character) then return end
+			if (Character:GetAttribute("Ammo") or 0) < (Character:GetAttribute("MaxAmmo") or 0) then WeaponManager.Reload(Character) end
+		end)
 		Character.Destroying:Once(function()
 			Tracked[Character], DrawToken[Character], AmmoLeft[Character], Aim[Character] = nil, nil, nil, nil
+			ReloadToken[Character], Restarting[Character] = nil, nil
 		end)
 	end
 
@@ -356,21 +368,105 @@ if IsServer then
 		return (Character:GetAttribute("Ammo") or 0) > 0
 	end
 
+	-- the reload animation, only when the slot holds an id (an empty slot plays nothing and warns nothing). The slot is
+	-- found once and kept, and its AnimationId is read on every call: Assets.Animations has about 21,500 descendants (the
+	-- weapon KeyframeSequences), and walking them on every reload cost 20-40 ms of server time (measured in Play,
+	-- 2026-10-25). AnimationManager also lists the animations once, when it loads.
+	local ReloadSlot = nil -- the slot's Animation, or false when there is none
+	local function ReloadAnimReady()
+		local Anims = ReplicatedStorage.Assets.Animations
+		if ReloadSlot == nil or (ReloadSlot and (ReloadSlot.Name ~= ReloadCfg.Anim or not ReloadSlot:IsDescendantOf(Anims))) then
+			ReloadSlot = false
+			for _, A in ipairs(Anims:GetDescendants()) do
+				if A:IsA("Animation") and A.Name == ReloadCfg.Anim then ReloadSlot = A break end
+			end
+		end
+		return ReloadSlot ~= false and ReloadSlot.AnimationId ~= ""
+	end
+	task.defer(ReloadAnimReady) -- the one walk happens at load, not on the first reload
+
+	-- the interrupt rule (gun rework, PROPOSAL): things done to you cancel a reload; your own actions don't
+	local function ReloadBlocked(Character)
+		local WC = WCS.Character.GetCharacterFromInstance(Character)
+		return (WC and WC:HasStatusEffects({StunState})) or Character:GetAttribute("Knocked") == true
+			or Character:GetAttribute("GrippedBy") ~= nil or Character:GetAttribute("CarriedBy") ~= nil
+			or Character:GetAttribute("Traversal") == "Swim"
+	end
+
+	-- The restart watcher (one per character): waits, each Heartbeat, until nothing blocks a reload, then reloads if the
+	-- magazine isn't full. It gives up when the character goes or its WeaponItem changes.
+	local function WatchRestart(Character)
+		if Restarting[Character] then return end
+		Restarting[Character] = true
+		local Item = Character:GetAttribute("WeaponItem")
+		task.spawn(function()
+			while ReloadBlocked(Character) do
+				RunService.Heartbeat:Wait()
+				if not Character.Parent or Character:GetAttribute("WeaponItem") ~= Item then
+					Restarting[Character] = nil
+					return
+				end
+			end
+			Restarting[Character] = nil
+			if (Character:GetAttribute("Ammo") or 0) < (Character:GetAttribute("MaxAmmo") or 0) then WeaponManager.Reload(Character) end
+		end)
+	end
+
+	-- Automatic only (no reload button). Plays the owner's reload (the Guns_Reload slot, Art/Studio/Guns/reload_slot.lua)
+	-- sped to fit the reload time. A reload asked for while something blocks it, or blocked part-way, starts (again, from
+	-- the beginning) once nothing does (gun rework Task 7, 2026-10-25; it was a task.delay nothing could stop).
 	function WeaponManager.Reload(Character)
 		local Stats = WeaponManager.ItemStats(Character)
 		if not Stats or not Stats.Magazine then return end
 		if (Character:GetAttribute("ReloadingUntil") or 0) > workspace:GetServerTimeNow() then return end
 		if (Character:GetAttribute("Ammo") or 0) >= Stats.Magazine then return end
+		if ReloadBlocked(Character) then
+			WatchRestart(Character)
+			return
+		end
+		local Token = {}
+		ReloadToken[Character] = Token
 		local Item = Character:GetAttribute("WeaponItem")
 		local ReloadTime = Stats.Reload * SkillMods.Mult(Character, "GunReload") -- Marksman
+		local Until = workspace:GetServerTimeNow() + ReloadTime
 		Character:SetAttribute("ReloadTime", ReloadTime)
-		Character:SetAttribute("ReloadingUntil", workspace:GetServerTimeNow() + ReloadTime)
-		task.delay(ReloadTime, function()
+		Character:SetAttribute("ReloadingUntil", Until)
+		if ReloadAnimReady() then
+			local AnimationManager = require(ReplicatedStorage.Modules.Managers.AnimationManager)
+			AnimationManager.Play(Character, ReloadCfg.Anim, {
+				Priority = Enum.AnimationPriority.Action,
+				Speed = ReloadCfg.AnimLength and ReloadCfg.AnimLength / ReloadTime or 1,
+			})
+		end
+		task.spawn(function()
+			while workspace:GetServerTimeNow() < Until do
+				RunService.Heartbeat:Wait()
+				if ReloadToken[Character] ~= Token then return end
+				if ReloadBlocked(Character) then
+					WeaponManager.CancelReload(Character)
+					WatchRestart(Character)
+					return
+				end
+			end
+			if ReloadToken[Character] ~= Token then return end
 			if Character.Parent and Character:GetAttribute("WeaponItem") == Item then
 				Character:SetAttribute("Ammo", Stats.Magazine)
-				Character:SetAttribute("ReloadingUntil", nil)
 			end
+			ReloadToken[Character] = nil
+			Character:SetAttribute("ReloadingUntil", nil)
+			Character:SetAttribute("ReloadTime", nil)
 		end)
+	end
+
+	-- Stops the running reload, if any: its attributes go and its animation stops. The magazine stays as it was.
+	function WeaponManager.CancelReload(Character)
+		if not ReloadToken[Character] then return end
+		ReloadToken[Character] = nil
+		Character:SetAttribute("ReloadingUntil", nil)
+		Character:SetAttribute("ReloadTime", nil)
+		if ReloadAnimReady() then
+			require(ReplicatedStorage.Modules.Managers.AnimationManager).Stop(Character, ReloadCfg.Anim)
+		end
 	end
 
 	local function Tracer(From, To)
