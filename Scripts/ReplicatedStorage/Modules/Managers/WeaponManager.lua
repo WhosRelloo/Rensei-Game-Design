@@ -296,8 +296,8 @@ if IsServer then
 	end
 
 	-- The server time a shot is resolved at: a player's shot is rewound by their ping (GunAim.RewindTime, capped by
-	-- Aim.MaxRewind); NPCs shoot at where things are now.
-	local function RewindAt(Character)
+	-- Aim.MaxRewind); NPCs shoot at where things are now. Exported for Play_Guns (Ruling 17).
+	function WeaponManager.RewindAt(Character)
 		local Player = Players:GetPlayerFromCharacter(Character)
 		if not Player then return workspace:GetServerTimeNow() end -- NPCs see the truth
 		local Ok, Ping = pcall(Player.GetNetworkPing, Player)
@@ -329,18 +329,20 @@ if IsServer then
 	end
 
 	-- The nearest live character -- never the Shooter -- whose box the ray Origin + Dir * t meets before MaxT, each where it stood
-	-- at server time At (PositionHistory) or, without a history, where it stands now. Returns Model, t or nil.
+	-- at server time At (PositionHistory, with the live root as its newest sample) or, without a history, where it stands
+	-- now. Returns Model, t or nil.
 	function WeaponManager.ShotTarget(Shooter, Origin, Dir, MaxT, At)
 		local Cfg = Tuning.Weapons.Guns.Aim
 		local Live = workspace:FindFirstChild("World") and workspace.World:FindFirstChild("Live")
 		local H = History()
+		local Now = workspace:GetServerTimeNow()
 		local Best, BestT = nil, MaxT
 		for _, M in ipairs(Live and GunAim.Candidates(Live) or {}) do
 			if M ~= Shooter then
 				local Humanoid = M:FindFirstChildOfClass("Humanoid")
 				local Root = Humanoid and Humanoid.Health > 0 and M:FindFirstChild("HumanoidRootPart")
 				if Root then
-					local CF = (H and H.At(M, At)) or Root.CFrame
+					local CF = (H and H.At(M, At, Root.CFrame, Now)) or Root.CFrame
 					local T = GunAim.RayBox(Origin, Dir, BestT, CF * CFrame.new(Cfg.HitBoxOffset), Cfg.HitBox)
 					if T and T < BestT then Best, BestT = M, T end
 				end
@@ -430,7 +432,7 @@ if IsServer then
 		Params.FilterDescendantsInstances = {Character, workspace.World.Visuals, workspace.World.Live}
 		local Wall = workspace:Raycast(Origin, Dir * Range, Params)
 		local WallT = Wall and (Wall.Position - Origin).Magnitude or Range
-		local Victim, T = WeaponManager.ShotTarget(Character, Origin, Dir, WallT, RewindAt(Character))
+		local Victim, T = WeaponManager.ShotTarget(Character, Origin, Dir, WallT, WeaponManager.RewindAt(Character))
 		local EndT = T or WallT
 		-- the tracer starts at the gun's barrel
 		local Tool = HeldTool(Character) -- the gun (a held hotbar item may sit beside it)
