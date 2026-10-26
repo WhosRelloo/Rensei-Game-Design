@@ -12,6 +12,8 @@ local FAN = 12 -- PROPOSAL: Fan the Hammer's damage a shot, the same for every g
 local ANIM_LENGTH = 4.07 -- the owner's reload 97563934064498, measured in Task 1 (2026-10-25)
 local FAN_LAST_HIT = 0.42 -- Fan the Hammer's last HitTime after its request
 local GUN_NAMES = {"Revolver", "Renetti", "Forge Tac", "Sykov"} -- the four guns (ItemData), so no loop passes empty
+-- Each gun's shot through Resolve: {Damage, Range, Falloff.Start}, the plan's PROPOSAL numbers written out by hand
+local SHOT = {Revolver = {20, 70, 20}, Renetti = {10, 60, 15}, ["Forge Tac"] = {26, 110, 40}, Sykov = {13, 90, 25}}
 -- Worked by hand for the plan's numbers (Shots[1]: Startup 0.12 + Active 0.02 + the gun's Recovery):
 --   Revolver  20 / 0.56 = 35.7 burst, 120 / (6 * 0.56 + 1.8) = 23.3 sustained
 --   Renetti   10 / 0.34 = 29.4,       120 / (12 * 0.34 + 1.6) = 21.1
@@ -83,6 +85,12 @@ return {
 		for _, Name in ipairs(GUN_NAMES) do
 			local Fake = {GetAttribute = function(_, K) return ({Weapon = "Guns", WeaponItem = Name})[K] end}
 			T.Eq(WeaponManager.Resolve(Fake, Guns().Skill).Damage, FAN, "Fan the Hammer's damage with the " .. Name)
+			-- positive control (Task 3 review, folded into Task 5): the same Fake does pick up this gun's shot numbers
+			local Want = SHOT[Name]
+			local Shot = WeaponManager.Resolve(Fake, Guns().Shots[1])
+			T.Eq(Shot.Damage, Want[1], Name .. "'s shot Damage")
+			T.Eq(Shot.Range, Want[2], Name .. "'s shot Range")
+			T.Eq(Shot.Falloff and Shot.Falloff.Start, Want[3], Name .. "'s shot Falloff.Start")
 		end
 	end,
 
@@ -100,6 +108,7 @@ return {
 	AimFreshCoversFan = function(T)
 		local Aim = Guns().Aim
 		T.True(Aim ~= nil, "Guns.Aim exists")
+		if Aim == nil then return end
 		T.True(type(Aim.AimFresh) == "number" and Aim.AimFresh >= FAN_LAST_HIT + 0.2,
 			"AimFresh " .. tostring(Aim.AimFresh) .. " >= " .. (FAN_LAST_HIT + 0.2))
 	end,
@@ -107,6 +116,7 @@ return {
 	ReloadAnimLength = function(T)
 		local Reload = Guns().Reload
 		T.True(Reload ~= nil, "Guns.Reload exists")
+		if Reload == nil then return end
 		if ANIM_LENGTH == nil then
 			T.Eq(Reload.AnimLength, nil, "AnimLength")
 		else

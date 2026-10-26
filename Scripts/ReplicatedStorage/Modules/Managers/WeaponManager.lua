@@ -156,7 +156,7 @@ if IsServer then
 		Place(Character, Tool, true)
 	end
 	local AmmoLeft = {} -- [Character] = {[Item] = rounds}
-	local Aim = {} -- [Character] = {Dir, At} (guns, below)
+	local Aim = {} -- [Character] = {Dir, At} or {Bad = true, At} (guns, below: SetAim)
 
 	-- per-character entries go when the character does
 	local Tracked = {}
@@ -284,25 +284,65 @@ if IsServer then
 	end
 
 	-- ===== Guns =====
-	local MAX_AIM_ANGLE = math.rad(100) -- aim may not point behind the character
+	local ShotRandom = Random.new() -- a shot's spread (GunAim.Spread)
 
-	function WeaponManager.SetAim(Character, Dir)
-		if typeof(Dir) ~= "Vector3" or Dir ~= Dir or Dir.Magnitude < 0.5 or Dir.Magnitude > 1.5 then return end
-		Aim[Character] = {Dir = Dir.Unit, At = os.clock()}
+	-- PositionHistory (Task 6), found and required once it exists: nil until then, and nil in places without it.
+	local HistoryModule = nil
+	local function History()
+		if HistoryModule then return HistoryModule end
+		local M = game:GetService("ServerScriptService"):FindFirstChild("PositionHistory")
+		if M then HistoryModule = require(M) end
+		return HistoryModule
 	end
 
+	-- The server time a shot is resolved at (Task 6 rewinds it by the shooter's ping).
+	local function RewindAt(Character)
+		return workspace:GetServerTimeNow()
+	end
+
+	-- Store the aim the client sent (GunAim.Validate: finite, unit-ish, within MaxYaw of your facing and MaxPitch of the
+	-- horizon). Returns the unit direction, or nil when refused; a refused aim is remembered too, so the shot it was sent
+	-- for fires nothing (gun rework 2026-10-25; it used to fire straight ahead).
+	function WeaponManager.SetAim(Character, Dir)
+		local Root = Character:FindFirstChild("HumanoidRootPart")
+		local Cfg = Tuning.Weapons.Guns.Aim
+		local Ok = Root and GunAim.Validate(Dir, Root.CFrame.LookVector, Cfg.MaxYaw, Cfg.MaxPitch)
+		Aim[Character] = Ok and {Dir = Ok, At = os.clock()} or {Bad = true, At = os.clock()}
+		return Ok
+	end
+
+	-- A fresh (< Aim.AimFresh) valid aim gives its direction; a fresh refused aim gives nil (no shot); no fresh aim gives
+	-- the root's flat look (NPCs, and skills sent with no aim).
 	local function AimDirection(Character, Root)
-		local Look = Root.CFrame.LookVector
 		local A = Aim[Character]
-		if A and os.clock() - A.At < 2 then
-			local Flat = Vector3.new(A.Dir.X, 0, A.Dir.Z)
-			local FlatLook = Vector3.new(Look.X, 0, Look.Z)
-			if Flat.Magnitude < 1e-3 or FlatLook.Magnitude < 1e-3
-				or math.acos(math.clamp(Flat.Unit:Dot(FlatLook.Unit), -1, 1)) <= MAX_AIM_ANGLE then
-				return A.Dir
+		if A and os.clock() - A.At < Tuning.Weapons.Guns.Aim.AimFresh then
+			if A.Bad then return nil end
+			return A.Dir
+		end
+		local Look = Root.CFrame.LookVector
+		local Flat = Vector3.new(Look.X, 0, Look.Z)
+		return Flat.Magnitude > 1e-3 and Flat.Unit or Look
+	end
+
+	-- The nearest live character -- never the Shooter -- whose box the ray Origin + Dir * t meets before MaxT, each where it stood
+	-- at server time At (PositionHistory) or, without a history, where it stands now. Returns Model, t or nil.
+	function WeaponManager.ShotTarget(Shooter, Origin, Dir, MaxT, At)
+		local Cfg = Tuning.Weapons.Guns.Aim
+		local Live = workspace:FindFirstChild("World") and workspace.World:FindFirstChild("Live")
+		local H = History()
+		local Best, BestT = nil, MaxT
+		for _, M in ipairs(Live and GunAim.Candidates(Live) or {}) do
+			if M ~= Shooter then
+				local Humanoid = M:FindFirstChildOfClass("Humanoid")
+				local Root = Humanoid and Humanoid.Health > 0 and M:FindFirstChild("HumanoidRootPart")
+				if Root then
+					local CF = (H and H.At(M, At)) or Root.CFrame
+					local T = GunAim.RayBox(Origin, Dir, BestT, CF * CFrame.new(Cfg.HitBoxOffset), Cfg.HitBox)
+					if T and T < BestT then Best, BestT = M, T end
+				end
 			end
 		end
-		return Look
+		return Best, Best and BestT or nil
 	end
 
 	function WeaponManager.CanFire(Character)
@@ -365,47 +405,54 @@ if IsServer then
 		Debris:AddItem(A, 2.5)
 	end
 
-	-- One hitscan shot. Uses a round; empty -> automatic reload. Returns {Victim, Result} pairs.
+	-- One hitscan shot (gun rework 2026-10-25). The direction is the validated aim (AimDirection); an aim that failed
+	-- validation fires nothing and spends no round (it used to fire straight ahead). The shot stops at the first wall
+	-- (World.Live excluded from that ray) and hits the nearest character box before it (ShotTarget; Task 6 rewinds them).
+	-- A def with no Range now defaults to 90 (was 80); every Shots def and Fan the Hammer carry their own Range.
+	-- Uses a round; empty -> automatic reload. Returns {Victim, Result} pairs.
 	function WeaponManager.Fire(Character, SkillName, Def)
 		local Results = {}
 		local Root = Character:FindFirstChild("HumanoidRootPart")
 		if not Root or not WeaponManager.CanFire(Character) then return Results end
-		Character:SetAttribute("Ammo", Character:GetAttribute("Ammo") - 1)
-
+		local Cfg = Tuning.Weapons.Guns.Aim
 		local Dir = AimDirection(Character, Root)
-		if Def.Spread and Def.Spread > 0 then
-			local S = math.rad(Def.Spread)
-			Dir = (CFrame.lookAt(Vector3.zero, Dir) * CFrame.Angles((math.random() * 2 - 1) * S, (math.random() * 2 - 1) * S, 0)).LookVector
-		end
-		local Origin = Root.Position + Vector3.new(0, 1.5, 0)
+		if not Dir then return Results end
+		Character:SetAttribute("Ammo", Character:GetAttribute("Ammo") - 1)
+		Dir = GunAim.Spread(Dir, Def.Spread, ShotRandom)
+		local Origin = GunAim.Muzzle(Root.Position)
+		local Range = (Def.Range or 90) * SkillMods.Mult(Character, "GunRange") -- Marksman
 		local Params = RaycastParams.new()
 		Params.FilterType = Enum.RaycastFilterType.Exclude
-		Params.FilterDescendantsInstances = {Character, workspace.World.Visuals}
-		local Range = (Def.Range or 80) * SkillMods.Mult(Character, "GunRange") -- Marksman
-		local Ray = workspace:Raycast(Origin, Dir * Range, Params)
+		Params.FilterDescendantsInstances = {Character, workspace.World.Visuals, workspace.World.Live}
+		local Wall = workspace:Raycast(Origin, Dir * Range, Params)
+		local WallT = Wall and (Wall.Position - Origin).Magnitude or Range
+		local Victim, T = WeaponManager.ShotTarget(Character, Origin, Dir, WallT, RewindAt(Character))
+		local EndT = T or WallT
 		-- the tracer starts at the gun's barrel
 		local Tool = HeldTool(Character) -- the gun (a held hotbar item may sit beside it)
 		local Barrel = Tool and Tool:FindFirstChild("Barrel", true)
-		Tracer(Barrel and Barrel:IsA("BasePart") and Barrel.Position or Origin, Ray and Ray.Position or Origin + Dir * Range)
-		MuzzleFlash(Barrel and Barrel:IsA("BasePart") and Barrel or nil, Dir)
-
-		if Ray then
-			local Model = Ray.Instance:FindFirstAncestorOfClass("Model")
-			while Model and not Model:FindFirstChildOfClass("Humanoid") and Model.Parent ~= workspace do
-				Model = Model.Parent:FindFirstAncestorOfClass("Model")
-			end
-			local Humanoid = Model and Model:FindFirstChildOfClass("Humanoid")
-			if Humanoid and Humanoid.Health > 0 and Model:IsDescendantOf(workspace.World.Live) then
-				local SkillData = require(ReplicatedStorage.Modules.Data.SkillData)
-				local DamageManager = require(ReplicatedStorage.Modules.Managers.DamageManager)
-				local Info = table.clone(SkillData[SkillName])
-				Info.Damage = Def.Damage
-				Info.Ranged = true
-				Info.ShotDistance = (Ray.Position - Origin).Magnitude
-				local Result = DamageManager(Character, Model, Info)
-				table.insert(Results, {Victim = Model, Result = Result})
-			end
+		Barrel = Barrel and Barrel:IsA("BasePart") and Barrel or nil
+		Tracer(Barrel and Barrel.Position or Origin, Origin + Dir * EndT)
+		MuzzleFlash(Barrel, Dir)
+		local Shown = "Miss"
+		if Victim then
+			local SkillData = require(ReplicatedStorage.Modules.Data.SkillData)
+			local DamageManager = require(ReplicatedStorage.Modules.Managers.DamageManager)
+			local Info = table.clone(SkillData[SkillName])
+			Info.Damage = Def.Damage
+			Info.Ranged = true
+			Info.ShotDistance = T
+			Info.Falloff = Def.Falloff
+			Info.Meter = Tuning.Meter.OnShotHit
+			if not GunAim.Flinches(T, Cfg) then Info.StunTime = 0 end -- no flinch past FlinchRange (DamageManager skips a 0 stun)
+			local Result = DamageManager(Character, Victim, Info)
+			table.insert(Results, {Victim = Victim, Result = Result})
+			-- a GuardBroken shot shows as a Hit (gun rework Ruling 9 -- PROPOSAL: the guard broke, so the shot landed)
+			Shown = ((Result == "Hit" or Result == "GuardBroken") and "Hit")
+				or ((Result == "Blocked" or Result == "Shielded" or Result == "Countered") and "Blocked") or "Miss"
 		end
+		Character:SetAttribute("LastShotResult", Shown) -- the hit marker (GunAimUI, Task 9)
+		Character:SetAttribute("LastShotAt", workspace:GetServerTimeNow())
 		if Character:GetAttribute("Ammo") <= 0 then WeaponManager.Reload(Character) end
 		return Results
 	end

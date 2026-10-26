@@ -78,5 +78,6 @@
   {"Label": "RenseiTests.Test_GunAim", "Studio": "ServerStorage/RenseiTests/Test_GunAim", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_GunAim.lua", "Places": ["ye", "foundry"], "Create": true},
   {"Label": "RenseiTests.Test_GunBalance", "Studio": "ServerStorage/RenseiTests/Test_GunBalance", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_GunBalance.lua", "Places": ["ye", "foundry"], "Create": true},
   {"Label": "RenseiTests.GunKit", "Studio": "ServerStorage/RenseiTests/GunKit", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/GunKit.lua", "Places": ["ye", "foundry"], "Create": true},
-  {"Label": "RenseiTests.Play_GunKit", "Studio": "ServerStorage/RenseiTests/Play_GunKit", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_GunKit.lua", "Places": ["ye", "foundry"], "Create": true}
+  {"Label": "RenseiTests.Play_GunKit", "Studio": "ServerStorage/RenseiTests/Play_GunKit", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_GunKit.lua", "Places": ["ye", "foundry"], "Create": true},
+  {"Label": "RenseiTests.Play_Guns", "Studio": "ServerStorage/RenseiTests/Play_Guns", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Guns.lua", "Places": ["ye", "foundry"], "Create": true}
 ]}

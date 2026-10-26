@@ -1,5 +1,6 @@
 -- Guns: the client sends its camera direction right before a shot. WeaponManager validates it
--- (unit vector, not behind the character) and only uses it for the next ~2 seconds.
+-- (GunAim.Validate: unit-ish, within MaxYaw / MaxPitch) and only uses it for the next TuningConfig
+-- Weapons.Guns.Aim.AimFresh seconds; a refused aim fires nothing in that time (gun rework 2026-10-25).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local WeaponManager = require(ReplicatedStorage.Modules.Managers.WeaponManager)
