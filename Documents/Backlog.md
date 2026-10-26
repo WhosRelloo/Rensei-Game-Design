@@ -28,11 +28,6 @@ Owner's to-do list, in the owner's words. The order is the owner's, and none of 
   | Corrupted Lands | 3,072 × 2,560 | ash, charred earth, dead olive, corruption crimson |
 
   - Notes for when this starts: the brief's footprints replace the world spec's earlier "about 3,000 × 3,000" target. Each region's station, gate, freight yard, road passages and arrival points (World Plan 1) must be rebuilt into the new layouts, not lost. Keep the approved main-map style (the stepped part-ground). The layout pictures are schematics, "not final Studio coordinates".
-- [ ] **Hostages:** "make a cool option for other players to take others hostage, and have it intertwine with the game's mechanics already". The owner's choices are in the spec draft `Documents/specs/2026-10-21-hostage-design.md`, which is waiting for owner approval:
-  - taking: from knocked, plus a stealth grab;
-  - what the captor can do: shield, ransom, bounty, journeys;
-  - getting free: struggle, rescue, time limit, captor's choice;
-  - where: never in safe zones.
 
 ## After the Foundry Yard plan (owner, 2026-10-23)
 - [x] **Gun class rework:** "Fix gun shoot mode aiming mechanics. (balance out the gun class completely, add a reload animation as well)". *(Done 2026-10-25, gun rework plan Tasks 1–13: the aim camera and crosshair, the rebalanced guns and Fan the Hammer, and the owner's reload animation 97563934064498, in the Edit sessions of Ye and Foundry Yard; tested; **not live** until the owner publishes. See `Documents/Changelog.md`, "2026-10-25 — Guns rework: aiming fixed, the class rebalanced, the reload animation (not live)", for the publish checkpoint and the rollback.)*
