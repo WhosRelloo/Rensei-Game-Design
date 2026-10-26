@@ -1,6 +1,6 @@
 # Rensei Controls (for testers)
 
-Checked against the game's input code on 2026-10-25: ClientHandler, Keybinds, Settings, UIHandler, HUDUI, CombatModeUI, JumpManager, SwimClient, DialogueUI, EmoteWheelUI and MobileControls. Keys marked **(rebindable)** can be changed in Menu (P) > Keybinds.
+Checked against the game's input code on 2026-10-25: ClientHandler, Keybinds, Settings, UIHandler, HUDUI, CombatModeUI, JumpManager, SwimClient, DialogueUI, EmoteWheelUI and MobileControls (and GunAimUI, after the gun rework). Keys marked **(rebindable)** can be changed in Menu (P) > Keybinds.
 
 ## Moving
 | Key | Action |
@@ -21,12 +21,12 @@ Attacks and blocking only work in **Combat Mode**.
 | E | Combat Mode on or off (draw or sheathe). Out of combat, E also uses prompts (talk, inspect, doors). |
 | Left Mouse | Light combo. Hold to keep swinging. In the air: aerial attack. While running: dash attack. |
 | Ctrl + Left Mouse | Uppercut (launches into an air juggle) |
-| Right Mouse | Feint (cancels a light attack's wind-up). With guns in shooting mode: **fire**. |
+| Right Mouse | Feint (cancels a light attack's wind-up). With guns in shooting mode: **fire (hold to keep firing)**. |
 | R | Heavy attack. Pressed mid-combo, it comes out as soon as the current swing ends. |
 | F **(rebindable)** | Tap: parry. Hold: block. A fresh press can parry even while you're being hit. |
 | G **(rebindable)** | Lock on to a target |
 | T **(rebindable)** | Weapon skill |
-| Y **(rebindable)** | Guns: shooting mode on or off. Right Mouse fires while it's on. |
+| Y **(rebindable)** | Guns: shooting mode on or off; the camera moves over your shoulder while it's on. Right Mouse fires while it's on. |
 
 ## Alchemy (Combat Mode)
 | Key | Action |
@@ -83,12 +83,16 @@ Every button does the same thing as its key. The fight buttons appear only in Co
 | Run (toggle) | Shift |
 | Slide (out of combat) | Ctrl |
 | Skill (with a weapon) | T |
+| Aim / Stop (with a gun, in Combat Mode) | Y |
+| Fire (hold to keep firing; shows while shooting) | Right Mouse |
 | Z, X, C (hold to keep the clap) | Z, X, C |
 | V (Carry, otherwise Ultimate) | V |
 | Grip (near a knocked body) | B |
 | Bag, Stats, Menu, Mastery, Journal | `, M, P, K, J |
 
 On a wall, the thumbstick moves you the same way W A S D does.
+
+On touch screens, shots near an enemy lean onto them.
 
 ## Testers only
 | Key | Action |

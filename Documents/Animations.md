@@ -1,6 +1,6 @@
 # Animations — sheet to game map
 
-Sources: the three animation sheets: **general** ("Animation ID's"), **weapon styles** and **skills**. Last pass **2026-10-19** (Rapier set, Dagger idle and light 3, Katana unsheathe, Rapier grip).
+Sources: the three animation sheets: **general** ("Animation ID's"), **weapon styles** and **skills**. Last pass **2026-10-19** (Rapier set, Dagger idle and light 3, Katana unsheathe, Rapier grip). The owner's gun reload was added 2026-10-25.
 
 In Studio every animation is an `Animation` object under `ReplicatedStorage.Assets.Animations`, found by **name** (`AnimationManager`).
 - **Empty ID:** an `Animation` with an empty id plays its local `KeyframeSequence` save in Studio only, and nothing in a live server.
@@ -52,6 +52,7 @@ In Studio every animation is an `Animation` object under `ReplicatedStorage.Asse
 | Guns Walk | `Guns_Walk` | ✅ 2026-10-18 | Guns `WalkAnim` |
 | Guns M1 1–4 (whip) | `Guns_Whip1`–`4` (104678448678860, 111673179001500, 132014168951584, 84893375216590) | ✅ 2026-10-18 | gun light string, `AnimPeak` per hit with the old fist animations as fallback |
 | Guns GRIP / GRIP VICTIM | `Guns_Grip` / `Grips.Guns_Gripped` | ✅ 2026-10-18 | `Downed.Grips.Guns` (3.0 s) |
+| Gun Reload (owner, 2026-10-25) | `Guns_Reload` (97563934064498), in `Weapons.Guns` | ✅ 2026-10-25 (4.07 s; Rensei group; loads in Ye and Foundry Yard) | the automatic reload, fitted to the reload time (`AnimLength`), at Action priority (gun rework; not live until the owner publishes) |
 
 ## Weapon styles (style sheet): Fist styles only
 

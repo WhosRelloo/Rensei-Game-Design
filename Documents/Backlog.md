@@ -35,7 +35,12 @@ Owner's to-do list, in the owner's words. The order is the owner's, and none of 
   - where: never in safe zones.
 
 ## After the Foundry Yard plan (owner, 2026-10-23)
-- [ ] **Gun class rework:** "Fix gun shoot mode aiming mechanics. (balance out the gun class completely, add a reload animation as well)".
+- [x] **Gun class rework:** "Fix gun shoot mode aiming mechanics. (balance out the gun class completely, add a reload animation as well)". *(Done 2026-10-25, gun rework plan Tasks 1–13: the aim camera and crosshair, the rebalanced guns and Fan the Hammer, and the owner's reload animation 97563934064498, in the Edit sessions of Ye and Foundry Yard; tested; **not live** until the owner publishes. See `Documents/Changelog.md`, "2026-10-25 — Guns rework: aiming fixed, the class rebalanced, the reload animation (not live)", for the publish checkpoint and the rollback.)*
+  - **Follow-ups (not started):**
+    - [ ] **A touch lock-on button** in the touch combat buttons (spec §5.6: out of scope for the rework).
+    - [ ] **Review the PROPOSAL decisions** in the spec's §8 (`Documents/specs/2026-10-25-gun-rework-design.md`) and the controller's later rulings listed in the Changelog entry.
+    - [ ] **Detach matches by name outside Give** (test-only workaround in Play_Guns): a gun destroyed outside `WeaponManager.Give` and given again in the same frame loses its attributes to the old Tool's late detach. Players can't do this; the full fix is for Detach to track the current Tool, not its name.
+    - [ ] **A server-side grace for a Fan the Hammer aimed behind** (instead of the client's 0.4 s wait before it sends).
 - [ ] **Swimming revamp:** "Completely audit and revamp the swimming system. (I want it to be directional, with a dive system)".
 
 ## After the swimming revamp (owner, 2026-10-25)

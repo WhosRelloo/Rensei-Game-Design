@@ -4,6 +4,207 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-25 — Guns rework: aiming fixed, the class rebalanced, the reload animation (not live)
+
+The gun rework plan (`Documents/plans/2026-10-25-gun-rework.md`, Tasks 1–13, run 2026-10-25; spec `Documents/specs/2026-10-25-gun-rework-design.md`) answers the owner's request: "Fix gun shoot mode aiming mechanics. (balance out the gun class completely, add a reload animation as well)". All of it is in the Studio Edit sessions of **Ye** (106992859583940) and **Foundry Yard** (109591196441030), the same in both. **Nothing is saved or published.** The owner had already published Ye, Foundry Yard and the packages (2026-10-25) before the gun code reached the packages, so this is its own publish (the checkpoint below). This is the plan's only Changelog entry.
+
+Every number is a **PROPOSAL** unless the owner chose it or it was measured. The rules and the per-gun table are in `Documents/COMBAT_SYSTEM.md`, "Guns".
+
+**What was wrong** (the spec's audit, §2–3):
+- **A1 Parallax:** the shot left the head along the camera's look, so it landed off the crosshair: 1.5 studs low in shift lock, beside and below a lock-on target.
+- **A2 The free mouse:** with shift lock off (the default) players aimed with the cursor, but the shot went to the screen's centre.
+- **A3 The crosshair** was a generated "+" on the HUD, not tied to the shot (29 px off, half the top-bar inset), and not the game's own marker.
+- **A4 Turn-and-shoot:** a shot aimed behind fired straight ahead, because the server hadn't seen the turn yet, and it still spent the round.
+- **A5 Moving targets:** the server tested where targets are now, not where the shooter saw them.
+- **A6 Eaten clicks:** one shot per press, and a press while the last shot ran was dropped.
+- **A7 Enemy gunners** fired flat from head height with a perfect 0.12 s hitscan.
+- **A8 Touch:** FIRE fired once per tap, and `Controls.md` didn't list AIM or FIRE.
+- **B1 Fan the Hammer** scaled against the pistol whip, so each shot dealt the gun's full damage (Forge Tac 72 in all).
+- **B2 Weapon Mastery** made long shots weaker (12.5% instead of 50% at max).
+- **B3 A missed shot** cost an extra 0.15 s of recovery.
+- **B4 Shots built alchemy meter** as fast as melee, from safety.
+- **B5 Every shot flinched,** at any range, so a fast gun could keep cancelling windups from 90 studs.
+- **B6 Forge Tac** beat the Revolver at everything.
+- **B7 Shooting mode survived water.**
+
+**What changed:**
+- **Aiming:**
+  - **The aim camera:** in shooting mode (not locked on) the mouse locks to the centre, the camera moves over the right shoulder and the character turns with it. Leaving the mode restores your shift-lock setting.
+  - **The crosshair is the game's own marker** (`Uis.Crosshair`), and the shot goes from the muzzle to what's under it. Locked on, the shot aims at the target's centre and the crosshair sits on the target. A blocked line of fire dims it.
+  - **Hold to fire** (RMB or FIRE), with a 0.2 s input buffer; the hold sends at most 4 requests a second.
+  - **The server** checks every aim (70° up or down, 100° from your facing) and **refuses** a bad one: no shot, no round. A quick turn-and-shoot is held up to 0.4 s until the server sees the turn.
+  - **Lag compensation:** shots are tested where targets stood (one-way ping + 0.1 s, capped at 0.25 s), timed from the click. A 20 Hz position history (`PositionHistory`, new) feeds it.
+  - **Fire limits:** 5 Fire requests a second per player on the server. A snap log (`GunSnapCount`) counts suspicious turns and punishes nothing.
+- **Balance** (per-gun numbers in `COMBAT_SYSTEM.md`):
+  - **Revolver** (the hand cannon): Recovery 0.36 → 0.42, Reload 2.0 → 1.8, Range 90 → 70.
+  - **Renetti** (quick and close): Range 90 → 60.
+  - **Forge Tac** (the marksman): Damage 24 → 26, Magazine 7 → 5, Reload 2.0 → 1.8, Recovery 0.45 → 0.62, Range 90 → 110.
+  - **Sykov** (the all-rounder): unchanged.
+  - Each gun has its own falloff; burst ≤ 37 and sustained 20–26 for every gun.
+  - **Fan the Hammer:** 12 per shot for every gun, range 40, spread 3°. A Fan the server refuses costs nothing.
+  - **Mastery** strengthens bonuses only; **flinch** only within 25 studs; **2 meter** per shot hit; **no whiff penalty** on shots.
+- **The reload:** the owner's animation plays at Action priority, fitted to the reload time. Reloading is still automatic; leaving shooting mode with a part-empty magazine tops it up; a stun, knock, grip, carry or water cancels it and it restarts once you're free; your own actions don't.
+- **Feedback** (existing UI only): the hit marker (red hit, grey blocked), the crosshair bloom and a per-gun camera kick (off with Camera Shake, bloom only).
+- **Water:** shooting mode ends when you start swimming, and can't start in water.
+- **Enemy gunners:** a 0.35 s windup with the crit telegraph, 2.5° spread, aimed at your centre.
+- **Touch:** holding FIRE keeps firing; a 2.5° aim assist (touch only, never townsfolk); the touch hint reads "SHOOTING MODE · hold FIRE to shoot · STOP to leave".
+- **Smaller fixes found on the way:** `WeaponManager.Give` detaches an old gun before destroying it; `EnemyService.MakeCombatant` (Spawn's combat setup, unchanged) is shared with the test kit; `Requests.Aim`'s header comment.
+- **Tests and kits:** `GunKit` and `Play_GunKit` (test dummies on a Play-only floor at y 2000), `SmokeKit.TempPart` / `Guarded`, the five gun suites, and `Art/Studio/Guns/client_checks.lua` for the client. Play_Stealth's Grunt cases now spawn their own Grunt instead of taking the first live one (the cause of its old flaky failures); after Task 12 moved the last of them, it passed 9/0 in all four runs.
+
+**The owner's decisions kept:**
+- No reload button: reloading stays automatic.
+- M1 with a gun is the pistol whip and never fires; shooting is its own mode (Y, rebindable); RMB fires while it's on.
+- Only the game's existing UI assets.
+- **The reload animation is the owner's: 97563934064498** ("Reloaded", Rensei group). It loads in both places (Task 1: 4.07 s), in the slot `Assets.Animations.Weapons.Guns.Guns_Reload`.
+
+**Decisions taken without the owner** (each a PROPOSAL; one number or switch each):
+- **From the spec (§8):**
+  1. the aim camera (mouse locked, over the shoulder, character turns with the camera);
+  2. the crosshair is the existing `Uis.Crosshair` marker;
+  3. lag compensation, shooter-favoured, capped at 0.25 s;
+  4. hold to fire and a 0.2 s input buffer;
+  5. per-gun ranges: Revolver 70, Renetti 60, Forge Tac 110, Sykov 90;
+  6. the per-gun numbers, with burst ≤ 37 and sustained 20–26;
+  7. shots flinch only within 25 studs;
+  8. 2 meter per shot hit;
+  9. no whiff penalty on shots;
+  10. Fan the Hammer: 12 per shot for every gun, range 40, spread 3°;
+  11. Weapon Mastery strengthens bonuses only;
+  12. the reload top-up on leaving shooting mode;
+  13. the reload interrupt rule;
+  14. the magazine and reload numbers;
+  15. the slot holds the owner's id;
+  16. enemy gunners: 0.35 s windup with the telegraph, 2.5° spread, centre aim;
+  17. no headshot multiplier;
+  18. touch aim assist 2.5°, touch only, never townsfolk;
+  19. recoil kicks, off with Camera Shake;
+  20. the snap log punishes nothing;
+  21. the server refuses an invalid aim instead of firing straight ahead;
+  22. the hold loop at 4 requests a second and the server limiter at 5;
+  23. a stored aim lasts 0.75 s.
+- **The controller's rulings after the spec:**
+  - **Flick grace 0.4 s** (PROPOSAL): the server holds a quick-turn shot until the turn arrives (measured lag 0.20–0.27 s in Studio), then fires or drops it.
+  - **The shot ticket:** lag compensation counts from the click, not the strike (cap 0.25 s, PROPOSAL).
+  - **Far shots** (past 25 studs) don't flinch, cancel animations or cause hitstop.
+  - **Shots pass through knocked bodies.**
+  - **Position history sampled at 20 Hz** (PROPOSAL), for the server's frame budget (0.07 ms a frame measured).
+  - **Fan the Hammer aimed behind** turns you and fires 0.4 s later (PROPOSAL); a refused Fan costs nothing.
+  - **A guard-breaking shot shows as a hit** on the marker.
+  - **Touch assist ignores townsfolk** (by their folder and their `TownsfolkId`).
+  - **The hit box** is 4 × 5 × 2 around the root, 0.5 low (PROPOSAL; the measured R6 height, depth 2 for side-on shots).
+
+**Tests** (hooked Play in each place, one Play session at a time; the owner's whole-profile save dump was identical before and after in every session):
+- **The final sweep (Task 12), both places:**
+
+  | Suite | Ye | Foundry Yard |
+  |---|---|---|
+  | Test_GunAim | 21/0 | 21/0 |
+  | Test_GunBalance | 8/0 | 8/0 |
+  | Play_GunKit | 3/0 | 3/0 |
+  | Play_Guns | 25/0 | 25/0 |
+  | Play_GunReload | 11/0 | 10/1, then 11/0 four times |
+  | Play_GunNpc | 4/0 | 4/0 |
+  | Client checks | 20/1 | 21/0 |
+  | Play_Stealth | 9/0 (and 9/0 three times before) | not in Foundry |
+  | Play_Assault, Play_TownsfolkHurt, Play_LindenmoorSmoke | 1/0, 11/0, 10/0 | — |
+  | Play_FoundrySmoke, Play_FoundryData | — | 15/0, 2/0 |
+  | Play_Boot, Road, Arrive | 2/0, 11/0, 5/0 | 2/0, 11/0, 5/0 |
+  | Play_Station | 19/1, rerun 20/0 | 19/1, rerun 20/0 |
+  | Play_Gate | 13/0 | 12/1, rerun 13/0 |
+  | Play_Travel, RideEvents | 5/2, 8/1 (known) | 5/2, 8/1 (known) |
+
+  - **No regressions.** Travel 5/2 and RideEvents 8/1 fail only on the Cabin / Second ticket in the owner's real save, as before. Station's DeathAboard is a first-respawn flake from before the rework. Gate failed once in Foundry during a server hitch (not gun code).
+  - **Play_GunReload in Foundry:** EmptyReloadsInTime failed once in five runs during a server hitch; its 0.1 s slack was kept (a flaky timing test is better than a loose one).
+  - **Client checks in Ye:** KickRespectsCameraShake failed because Studio was behind another window (client at 15 fps); it passed in Foundry at 42 fps.
+- **RED → GREEN, task by task** (each check seen to fail first):
+  - Task 1: test_sync 12 failures → 829/0 (`sync.py --backup` and the missing-repo check); the reload id loads (4.07 s).
+  - Task 2: Test_GunAim 1/15 → 16/0.
+  - Task 3: Test_GunBalance 0/8 → 8/0.
+  - Task 4: Play_GunKit 2/1 → 3/0.
+  - Task 5: Play_Guns 2/7 → 9/0; fix round 13/0.
+  - Task 6: Play_Guns 9/3 → 12/0; fix rounds 14/0.
+  - Task 7: reload_slot check 0/2 → 7/0 in both places; Play_GunReload 3/3 → 6/0; fix round 6/2 → 8/0.
+  - Task 8: client checks 0/7 → 6/1, then 7/0 with the flick grace (its seam fails at FlickGrace 0); a 10 s hold sent 38 requests (90 at a 0.1 s gap).
+  - Task 9: the five feedback checks 0/5 → 5/0; all client checks 12/0.
+  - Task 10: the touch checks 0/4 and the kick-undo check 0/1 → client checks 17/0.
+  - Task 11: Play_GunNpc 0/3 → 3/0. A 60 s watch: 54 shots, none refused; 26 of 26 on a still target, 11 of 28 on a strafing one.
+  - Final fix A: Play_Guns 15/9 → 24/0; the Give fix 24/1 → 25/0.
+  - Final fix B: the three new client checks 0/3 → client checks 20/0.
+  - Task 12: the delayed Fan guard 0/1 → passes.
+- **Studio == repo** (`sync.py --check`): Ye SAME 76 / DIFFER 0 / MISSING 0, Foundry SAME 79 / 0 / 0. test_sync 930/0. `reload_slot.lua` check 7/0 in both places.
+
+**Not tested:**
+- **A real phone:** Studio's device emulator couldn't be driven; the harness covered the touch logic (hint, held FIRE, STOP, the assist).
+- **Two real players and live ping:** the shot ticket, the lag compensation and the flick grace were tested in Studio, at about zero ping.
+- **A real-mouse RMB hold** (the harness held fire through the same input path) and **the Alt shift-lock toggle.** An Alt press that reaches Studio's Play window turns shift lock on and writes your save; the test hook restored it.
+
+**Owner playtest list:**
+- Your own strafing offsets your shot (the direction comes from your client's muzzle and is fired from the server's).
+- The muzzle sits at root + 1.5 even when crouched.
+- Shots pass through knocked bodies.
+- Knocked targets are valid touch-assist picks.
+- Big flicks on a live server (the 0.4 s flick grace against real ping), and whether far shots feel fair with lag (the 0.25 s cap bounds it).
+- A Fan the Hammer started while a quick-turn shot is held is refused.
+- On a phone or the emulator: AIM shows, holding FIRE repeats, STOP leaves; how the 2.5° assist feels.
+- The kick and the hit tint: how they feel.
+- A real-mouse RMB hold.
+- The Alt shift-lock toggle, in and out of shooting mode.
+- A Fan aimed behind while running is still refused (it costs nothing).
+- Fan's turn toward your aim happens even when the Fan can't fire (cooldown or ammo).
+- Keep Studio focused (in front) during camera checks: in the background its client drops to 15 fps.
+
+**Backups and rollback:**
+- **Backups:** `ServerStorage.RenseiBackups["Pre-GunRework_2026-10-25"]` in both places (24 in Ye, 23 in Foundry Yard, which has no Play_Stealth). It also holds the RED copies of created scripts; those are never restored.
+- **The rollback order** (Edit, both places):
+  1. Revert the scripts from that backup for this plan's labels: TuningConfig, WeaponManager, DamageManager, SettingsUI, HUDUI, MobileControls, ServerHandler, Requests.Shoot, Requests.WeaponSkill, Requests.Aim, EnemyService, ClientHandler, SmokeKit and Play_Stealth (Ye). SmokeKit and Play_Stealth go back from the backup like any other script.
+  2. Delete the scripts this plan created: GunAim, GunAimUI, PositionHistory, GunKit, Play_GunKit and the five gun suites (Test_GunAim, Test_GunBalance, Play_Guns, Play_GunReload, Play_GunNpc).
+  3. Run `Art/Studio/Guns/reload_slot.lua` with MODE "undo" (removes only the `Guns_Reload` slot it made, and its flag).
+- Reverting TuningConfig alone undoes the balance numbers.
+
+**For the owner: the publish checkpoint.** This plan publishes nothing. It follows `Documents/World Travel.md` §10, after the joint Ye + Foundry Yard publish the owner has already done:
+1. **Save** Ye and Foundry Yard in Studio (the changes are in their Edit sessions).
+2. **Publish the packages from Ye:**
+   - **Modules:** TuningConfig, GunAim (new), WeaponManager, DamageManager, GunAimUI (new), SettingsUI, HUDUI, MobileControls;
+   - **RenseiServer:** ServerHandler, Requests.Shoot, Requests.WeaponSkill, Requests.Aim (a comment only), EnemyService, PositionHistory (new);
+   - **ClientHandler.**
+   - **The reload slot** sits in `ReplicatedStorage.Assets`, which Task 1's survey found is a package. It was written into both places' copies, so publish `Assets` from Ye too.
+3. **Update Foundry Yard's packages by hand** (Modules, RenseiServer, ClientHandler, Assets), then check they equal Ye with `sync.py --check` (expect Ye 76 / 0 / 0, Foundry 79 / 0 / 0) and `reload_slot.lua` MODE "check" (7/0).
+4. **Publish the places:** Ye and Foundry Yard. The new test suites in `ServerStorage.RenseiTests` go out with them, like the earlier plans' suites.
+5. **Last: Migrate to Latest Update** for Ye and Foundry Yard (or shut down all their servers), so no old server keeps the old gun code beside the new.
+- **The Tutorial:** if the Tutorial place uses the Modules package, the gun code reaches it when the package updates. It's safe there, because WeaponManager falls back to current positions without PositionHistory. Confirm which places use the Modules package before publishing.
+
+### Discord announcement
+
+Hold: not live yet. Post this when the owner publishes the gun update.
+
+```md
+**Update: Guns Reworked**
+
+**Aiming that works**
+- Shooting mode now aims where your crosshair is. The camera moves over your shoulder, and your shots land on the crosshair.
+- Locked on? Your shots go to your target.
+- Hold right mouse (or FIRE) to keep shooting.
+- Quick turn-and-shoot works now.
+
+**Every gun feels different**
+- Revolver: a hard-hitting hand cannon.
+- Renetti: quick and close.
+- Forge Tac: a long-range marksman pistol.
+- Sykov: the all-rounder.
+- Hits flash your crosshair, and guns kick when they fire.
+
+**Reloading**
+- A new reload animation.
+- Reloading is still automatic, and now it also tops up your gun when you leave shooting mode.
+- Getting hit interrupts a reload. It starts again once you're free.
+
+**Also**
+- Fan the Hammer is a close-range move now.
+- You can't shoot while swimming.
+- Bandit gunners give you a moment to react, and they don't hit every shot.
+- Touch players get a little aim help.
+```
+
 ## 2026-10-24 — Foundry Yard comes alive: game data, Brannoc's move, the shift ledger (not live)
 
 The Foundry Yard game-data plan (`Documents/plans/2026-10-24-foundry-yard-game-data.md`, Tasks 1–10, run 2026-10-24 to 2026-10-25) gave the new Foundry map its game. All of it is in the Studio Edit sessions of **Foundry Yard** (109591196441030) and **Ye** (106992859583940). **Nothing is saved or published.** The owner's "Hold both" stands: Ye and Foundry Yard go out together, through the joint publish checkpoint in `Documents/Lindenmoor Kit.md`. This is the plan's only Changelog entry.
