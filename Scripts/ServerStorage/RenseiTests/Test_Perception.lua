@@ -27,4 +27,12 @@ return {
 		for Enemy, Type in pairs(P.EnemyTypes) do T.True(P.Types[Type] ~= nil, Enemy .. " -> " .. Type) end
 		T.True(P.AlwaysAware.TrialFlame and P.AlwaysAware.Sparring, "arena foes keep distance aggro")
 	end,
+	-- swimming revamp (2026-10-26): a diver (Submerged) is seen at x0.3 of a walking swimmer, not at 0
+	SubmergedSight = function(T)
+		local Dry = P.Rate("Grunt", 12, 1, 1, P.MoveMult(16), 1, false)
+		T.True(type(P.SubmergedMult) == "number", "SubmergedMult exists")
+		local Under = P.Rate("Grunt", 12, 1, 1, P.SubmergedMult, 1, false)
+		T.Near(Under / Dry, 0.3 / P.MoveMult(16), 1e-6, "x0.3 of the walking rate")
+		T.True(Under > 0, "seen, not invisible")
+	end,
 }

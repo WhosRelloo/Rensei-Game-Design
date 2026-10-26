@@ -15,6 +15,10 @@
 -- speed buff no longer reads as sprinting. Sounds come through Hear (NoiseService): walls muffle them, and
 -- Agents hear alchemy from twice as far. An enemy that gave up at its leash (Lose with its home and range)
 -- stops re-noticing players who stay beyond it, so it no longer flips Alert <-> Cautious at the edge.
+-- Swimming revamp (2026-10-26, PROPOSAL): sight rays ignore water (the surface used to block every ray to a diver,
+-- an accidental total cloak: Play_Swim's RED measured 0 awareness under water), and a diver (the Submerged attribute
+-- SwimService sets) is seen at Perception.SubmergedMult (x0.3) in place of the movement multiplier; it wins over
+-- crouching.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -33,6 +37,7 @@ PerceptionService.ExposureOf = function() return nil end
 
 local Rays = RaycastParams.new()
 Rays.FilterType = Enum.RaycastFilterType.Exclude
+Rays.IgnoreWater = true -- water no longer hides a diver by blocking rays (swimming revamp, finding A11)
 local Budget = 0 -- sight rays left this tick (all NPCs)
 
 -- perception time: advanced by Step(Dt), so every timer (memory, investigate, search, cautious) follows the
@@ -189,7 +194,8 @@ local function Update(S, Dt, PlayerList)
 					S.Seen[Player] = T
 					S.Spot[Player] = CR.Position
 					local V = CR.AssemblyLinearVelocity
-					local Move = C:GetAttribute("Crouching") and P.CrouchMult
+					local Move = C:GetAttribute("Submerged") and P.SubmergedMult
+						or C:GetAttribute("Crouching") and P.CrouchMult
 						or P.MoveMult(Vector3.new(V.X, 0, V.Z).Magnitude, C:GetAttribute("SpeedMultiplier"))
 					local Exposure = PerceptionService.ExposureOf(C)
 					Gain = P.Rate(S.Type, Dist, Cone, Vis, Move, Exposure and P.ExposureMult(Exposure) or 1, Cautious)

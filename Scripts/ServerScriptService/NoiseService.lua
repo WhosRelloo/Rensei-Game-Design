@@ -5,7 +5,9 @@
 -- Sources (radii in Rensei.Perception.Sounds / Steps, all PROPOSAL):
 --   * footsteps, from the floor's material: grass / dirt 4, wood 7, metal / gravel 9, other 5; running x2;
 --     crouched 0 (here, every StepEvery seconds while moving);
---   * landing from a height (a fall faster than LandSpeed) 12, here; diving into deep water 12, here;
+--   * landing from a height (a fall faster than LandSpeed) 12, here; diving into deep water 12, here; the head
+--     breaking the surface after a dive 6 and sprint strokes at the surface 8 every 0.8 s, here (swimming revamp
+--     2026-10-26); swimming underwater is silent;
 --   * dash / roll 10 (CharacterHandler), melee hit 20 (HitListeners, here), alchemy cast 30 (AlchemyService;
 --     Agents hear it x2), gunshot 60 (the Shoot request).
 -- A player's own last sound is shown on their eye sigil: character attributes Noise (radius) and NoiseAt.
@@ -73,6 +75,23 @@ local function StepPlayer(Character, Dt)
 	local Swim = Traversal == "Swim"
 	if Swim and not T.Swim then NoiseService.Emit(Root.Position, "Splash", Character) end
 	T.Swim = Swim
+	-- swimming revamp (2026-10-26): the head breaking the surface after a dive (Submerged true -> nil in the Swim
+	-- state), and sprint strokes at the surface (every StrokeEvery s while SwimSprint and not Submerged)
+	local Sub = Character:GetAttribute("Submerged") == true
+	if T.Sub and not Sub and Swim then
+		local Head = Character:FindFirstChild("Head")
+		NoiseService.Emit(Head and Head.Position or Root.Position, "Surface", Character)
+	end
+	T.Sub = Sub
+	if Swim and not Sub and Character:GetAttribute("SwimSprint") then
+		T.Stroke = (T.Stroke or 0) + Dt
+		if T.Stroke >= P.StrokeEvery then
+			T.Stroke = 0
+			NoiseService.Emit(Root.Position, "Stroke", Character)
+		end
+	else
+		T.Stroke = P.StrokeEvery -- the first stroke of a sprint sounds at once
+	end
 	if Floor == Enum.Material.Air then
 		T.FallSpeed = math.max(T.FallSpeed, -V.Y)
 		return

@@ -6,6 +6,9 @@
 --   SwimKit.Rig(At)                 an anchored R6 test rig (__swimtest_rig) with its head at At, in workspace. The
 --                                   caller destroys it (SwimKit.Drop).
 --   SwimKit.Drop(Rig)               destroys a rig and forgets it in SwimService / MovementState.
+--   SwimKit.Spots().Watch           (Task 7) a bank point for a watcher rig, the diver's surface point in front of it,
+--                                   and how far under the diver's head goes (Under: in Ye's 5.2-deep pool 1 stud, so
+--                                   the feet stay clear of the pool's floor and all three sight points can be seen).
 --   SwimKit.WithPlayerAt(Player, CF, Fn)  anchors the real character's root at CF, runs Fn, and ALWAYS puts back the
 --                                   CFrame, Anchored, Breath / Drowning / Submerged (nil) and Combat Mode, even on error.
 local Players = game:GetService("Players")
@@ -21,11 +24,17 @@ local SPOTS = {
 	[FOUNDRY] = {
 		PondDeep = {At = Vector3.new(488, 3, -148), Depth = 9}, -- the cooling pond's centre (782 columns are 9 deep)
 		PondEdge = {At = Vector3.new(424, 3, -148), Depth = 9}, -- one column in from the west bank (lip 1 stud)
+		-- Task 7's stealth check: a watcher standing on the west bank (ground top 4) facing the water, and the diver's
+		-- surface point 8 studs in front of it over a 9-deep column
+		Watch = {Ground = Vector3.new(418, 4, -148), Diver = Vector3.new(426, 3, -148), Under = 2.5},
 	},
 	[YE] = {
 		MillPond = {At = Vector3.new(-112, 5.2, -552), Depth = 5.2}, -- surveyed top 5.19, bed 0 (Ground.Tops)
 		GorgePool = {At = Vector3.new(224, 5.2, -552), Depth = 5.2}, -- bed 0 (Ground.Tops)
 		Creek = {At = Vector3.new(-375, 5.2, -527), Depth = 4.2}, -- creek_west_water_0: top 5.2, bed 1 (too shallow to dive)
+		-- Task 7's stealth check: a watcher on the Mill Pond's north bank (dry column, ground 7) and the diver 12 studs
+		-- south over a 5.2-deep column
+		Watch = {Ground = Vector3.new(-112, 7, -536), Diver = Vector3.new(-112, 5.2, -548), Under = 1},
 		Plunge = nil, -- Task 8 (the plunge hole) sets it
 	},
 }

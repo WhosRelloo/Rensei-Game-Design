@@ -72,6 +72,9 @@ end
 
 -- ===== Plan 2 (S2): crouching, light, sound =====
 Perception.CrouchMult = 0.5 -- sight while crouching (replaces the movement multiplier)
+-- swimming revamp (2026-10-26, PROPOSAL): sight of a diver (attribute Submerged, set by SwimService). It wins over
+-- crouching. A strong stealth tool, not invisibility: an NPC close by can still spot you.
+Perception.SubmergedMult = 0.3
 
 -- Exposure 0..1 (LightService) -> sight multiplier: x0.2 in deep shadow up to x1.2 in bright light
 Perception.ExposureMin = 0.2
@@ -102,7 +105,10 @@ end
 -- sounds (studs). An NPC within the radius goes to look at the spot: it learns where, not who.
 Perception.Sounds = {
 	Cast = 30, Clap = 8, Gunshot = 60, Hit = 20, Land = 12, Roll = 10, Splash = 12, Break = 25, LockPick = 6,
+	-- swimming revamp (2026-10-26, PROPOSAL): a head breaking the surface after a dive; a sprint stroke at the surface
+	Surface = 6, Stroke = 8,
 }
+Perception.StrokeEvery = 0.8 -- seconds between sprint-stroke sounds at the surface (PROPOSAL)
 Perception.LoudAlchemy = {Cast = true, Clap = true} -- Agents hear these from twice as far
 Perception.AgentHearing = 2
 Perception.WallCut = 0.4 -- each wall between the sound and the NPC takes 40% off the radius

@@ -55,4 +55,11 @@ return {
 		local Crouch = P.Rate("Grunt", 12, 1, 1, P.CrouchMult, 1, false)
 		T.Near(Crouch, Stand * 0.5, 1e-9)
 	end,
+	-- swimming revamp (2026-10-26): surfacing after a dive and sprint strokes at the surface make noise
+	SwimSounds = function(T)
+		T.Eq(P.Sounds.Surface, 6, "surfacing")
+		T.Eq(P.Sounds.Stroke, 8, "a sprint stroke")
+		T.Eq(P.StrokeEvery, 0.8, "strokes every 0.8 s")
+		T.True(P.Sounds.Surface < P.Sounds.Splash, "surfacing is quieter than jumping in")
+	end,
 }

@@ -2,6 +2,8 @@
 -- (game.ServerStorage.LMRunSuite:Invoke("Play_Swim")). Spots come from SwimKit (hard-coded from Task 1's survey).
 -- Drowning and every other water rule is tested on an anchored test rig, never on the real player; the one real-
 -- player case (SprintRefusedOnLand) only asks for a sprint on land. Every test removes its rig and clears what it set.
+-- Task 7 adds DiverIsHardToSee (a watcher rig registered with PerceptionService, stepped by hand; the real player held
+-- by SwimKit.WithPlayerAt under, then over, the water) and SurfaceMakesNoise (NoiseService.Log).
 local ServerScriptService = game:GetService("ServerScriptService")
 local ServerStorage = game:GetService("ServerStorage")
 local Players = game:GetService("Players")
@@ -26,7 +28,77 @@ local function Steps(Rig, N)
 	for _ = 1, N do SwimService().Step(Rig, true) end
 end
 
+-- Task 7: the awareness a watcher rig gains on the real player in 1 s of perception steps, with the player's head
+-- HeadAt (anchored by SwimKit.WithPlayerAt; SwimService stepped so Submerged follows the head)
+local function GainOn(Rig, Player, Character, HeadAt)
+	local PS = require(ServerScriptService.PerceptionService)
+	local Root = Character:FindFirstChild("HumanoidRootPart")
+	local Head = Character:FindFirstChild("Head")
+	local Look = Rig.HumanoidRootPart.Position - HeadAt
+	Root.CFrame = CFrame.lookAt(Root.Position + (HeadAt - Head.Position), Root.Position + (HeadAt - Head.Position) + Vector3.new(Look.X, 0, Look.Z))
+	Root.AssemblyLinearVelocity = Vector3.zero
+	for _ = 1, 3 do SwimService().Step(Character, Player) end
+	PS.Reset(Rig)
+	for _ = 1, 5 do PS.Step(0.2) end
+	return PS.Awareness(Rig, Player), Character:GetAttribute("Submerged") == true
+end
+
 return {
+	-- Task 7: water no longer hides a diver by blocking sight rays (finding A11); a diver is seen at x0.3
+	DiverIsHardToSee = function(T)
+		local W = SwimKit.Spots().Watch
+		if not W then T.True(true, "no watch spot in this place") return end
+		local P = Players:GetPlayers()[1]
+		if not (P and P.Character) then T.True(true, "no player") return end
+		local PS = require(ServerScriptService.PerceptionService)
+		local LS = ServerScriptService:FindFirstChild("LightService") and require(ServerScriptService.LightService)
+		local Rig = SwimKit.Rig(W.Ground + Vector3.new(0, 4.5, 0))
+		Rig:PivotTo(CFrame.lookAt(Rig:GetPivot().Position, Vector3.new(W.Diver.X, Rig:GetPivot().Position.Y, W.Diver.Z)))
+		local GainUnder, GainDry, WasUnder, WasDry
+		local Ok, Err = pcall(function()
+			PS.SetAuto(false)
+			if LS then LS.SetAuto(false) end
+			PS.Register(Rig, {Type = "Grunt", Combat = false})
+			SwimKit.WithPlayerAt(P, P.Character.HumanoidRootPart.CFrame, function(C)
+				GainUnder, WasUnder = GainOn(Rig, P, C, W.Diver - Vector3.new(0, W.Under, 0))
+				GainDry, WasDry = GainOn(Rig, P, C, W.Diver + Vector3.new(0, 1, 0))
+			end)
+		end)
+		PS.Unregister(Rig)
+		SwimKit.Drop(Rig)
+		PS.SetAuto(true)
+		if LS then LS.SetAuto(true) end
+		if not Ok then error(Err, 0) end
+		T.True(WasUnder and not WasDry, ("Submerged under %s, dry %s"):format(tostring(WasUnder), tostring(WasDry)))
+		T.True(GainUnder > 0, ("a diver is seen (gain under %.4f, dry %.4f)"):format(GainUnder, GainDry))
+		T.True(GainDry > 0, "the dry swimmer is seen")
+		T.Near(GainUnder / GainDry, 0.3, 0.1, ("seen at about x0.3 (under %.4f / dry %.4f)"):format(GainUnder, GainDry))
+	end,
+	SurfaceMakesNoise = function(T)
+		local NS = require(ServerScriptService.NoiseService)
+		WithRig(T, 3, function(Rig, Spot)
+			Steps(Rig, 2)
+			T.Eq(Rig:GetAttribute("Submerged"), true, "under")
+			T.Eq(MovementState.Get(Rig), "Swim", "in the Swim state")
+			NS.StepPlayer(Rig, 0.15)
+			local Log = {}
+			NS.Log = Log
+			local Ok, Err = pcall(function()
+				SwimKit.PutHead(Rig, Spot.At + Vector3.new(0, 1, 0))
+				Steps(Rig, 2)
+				NS.StepPlayer(Rig, 0.15)
+				NS.StepPlayer(Rig, 0.15)
+			end)
+			NS.Log = nil
+			if not Ok then error(Err, 0) end
+			local N = 0
+			for _, E in ipairs(Log) do
+				if E.Kind == "Surface" and (E.Position - Rig.Head.Position).Magnitude < 3 then N += 1 end
+			end
+			T.Eq(Rig:GetAttribute("Submerged"), nil, "surfaced")
+			T.Eq(N, 1, "one Surface sound")
+		end)
+	end,
 	DepthAtTheDiveSite = function(T)
 		local S = SwimKit.Spots()
 		local Any = false
