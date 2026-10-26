@@ -50,6 +50,11 @@ local SHOT_REACH = 200 -- ShotTarget's MaxT in these cases
 -- (+-5) don't. The pairs are SNAP_PAUSE s apart, past the window.
 local SNAP_GAP, SNAP_WIDE, SNAP_NARROW, SNAP_PAUSE = 0.05, 130, 10, 0.3
 local FLINCH_ANIM = ReplicatedStorage.Assets.Animations.Shared.Combat.Fist.BlockIdle -- any looped, non-Core track will do
+-- The flick grace (Ruling 28; TuningConfig Aim.FlickGrace 0.4, PROPOSAL): a Fire request aimed straight behind the test
+-- player (180 degrees, past MaxYaw 100) is held 0.4 s; with no turn nothing has fired GRACE_PAST s later. Its control: the
+-- same request, with the root turned to face the aim TURN_AT s later (inside the grace), fires: the Revolver's Startup is
+-- 0.12 s, so LastShotAt has changed and one round is gone by GRACE_PAST.
+local GRACE_PAST, TURN_AT = 0.5, 0.1
 
 local function Guard(Body, After)
 	SmokeKit.Guarded(Player, Body, function() GunKit.Unequip(Player) end, function()
@@ -169,6 +174,42 @@ return {
 			T.Eq(#Results, 0, "results of an aim straight behind")
 			T.Eq(S:GetAttribute("Ammo"), REVOLVER_MAG, "Ammo after a refused aim")
 			T.Eq(S:GetAttribute("LastShotAt"), Before, "LastShotAt after a refused aim")
+		end)
+		-- through the Shoot request (Ruling 28): behind with no turn is still refused once the flick grace has run out;
+		-- turning to face the aim inside the grace fires it (the control). The test player, anchored on GunKit's floor.
+		local C = Player.Character
+		local Root = C.HumanoidRootPart
+		local WasCombat, WasAnchored = C:GetAttribute("CombatMode"), Root.Anchored
+		local Gun
+		Guard(function()
+			local Shoot = ShootRequest()
+			local Top = GunKit.Spot()
+			Root.Anchored = true
+			C:PivotTo(CFrame.lookAt(Top + Vector3.new(0, 3, 0), Top + Vector3.new(0, 3, 0) + AHEAD))
+			C:SetAttribute("CombatMode", true)
+			Gun = WeaponManager.Give(C, "Revolver")
+			T.True(Gun ~= nil, "the Revolver given")
+			C:SetAttribute("ShootingMode", true)
+			GunKit.Settle()
+			local T0 = os.clock()
+			while (C:GetAttribute("ReloadingUntil") or 0) > workspace:GetServerTimeNow() and os.clock() - T0 < 3 do task.wait() end
+			C:SetAttribute("Ammo", REVOLVER_MAG)
+			local Was = C:GetAttribute("LastShotAt")
+			Shoot(Player, "Fire", -AHEAD)
+			task.wait(GRACE_PAST)
+			T.Eq(C:GetAttribute("Ammo"), REVOLVER_MAG, "Ammo " .. GRACE_PAST .. " s after a Fire request aimed behind (no turn)")
+			T.Eq(C:GetAttribute("LastShotAt"), Was, "LastShotAt " .. GRACE_PAST .. " s after a Fire request aimed behind (no turn)")
+			Shoot(Player, "Fire", -AHEAD)
+			task.wait(TURN_AT)
+			C:PivotTo(CFrame.lookAt(Root.Position, Root.Position - AHEAD)) -- the turn reaches the server inside the grace
+			task.wait(GRACE_PAST - TURN_AT)
+			T.True(C:GetAttribute("LastShotAt") ~= Was, "control: the request aimed behind fired once the root turned to it " .. TURN_AT .. " s later")
+			T.Eq(C:GetAttribute("Ammo"), REVOLVER_MAG - 1, "control: Ammo after that shot")
+		end, function()
+			C:SetAttribute("ShootingMode", nil)
+			if Gun then Gun:Destroy() end -- the test's own Revolver (Give's clone), never the player's item
+			C:SetAttribute("CombatMode", WasCombat)
+			Root.Anchored = WasAnchored
 		end)
 	end,
 

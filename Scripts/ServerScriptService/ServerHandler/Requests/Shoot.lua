@@ -13,8 +13,13 @@
 -- validated first (WeaponManager.SetAim) and an invalid aim returns before AttackRunner: no animation, no round. An aimed
 -- Fire request whose aim turned more than Aim.SnapDeg from the previous one's within Aim.SnapWindow adds 1 to the
 -- character's GunSnapCount attribute (a log only; checked before the mode gates). Shooting mode can't be turned on in water.
+-- The flick grace (Ruling 28, PROPOSAL): a Fire refused only because its yaw is past Aim.MaxYaw (GunAim.Validate's "behind")
+-- is held -- one per character, a newer Fire request replaces it -- and its aim re-checked each Heartbeat for up to
+-- Aim.FlickGrace s, because the server's copy of a client-owned root lags its turn by about 0.2-0.27 s. Accepted: it goes
+-- on through the same gates as an immediately valid request; still refused: dropped. Nothing is spent while it waits.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 local Managers = ReplicatedStorage.Modules.Managers
 local States = ReplicatedStorage.Modules.Skills.States
@@ -31,6 +36,7 @@ local Cfg = require(ReplicatedStorage.Modules.Data.Rensei.TuningConfig).Weapons.
 
 local NextShot = {} -- [Character] = shot animation index
 local LastFire = {} -- [Character] = {Dir, At}: the previous Fire's aim (the snap log)
+local Pending = {} -- [Character] = token of the Fire request held by the flick grace
 local AllowFire, ForgetFire = GunAim.Limiter(Cfg.FireRate, Cfg.FireBurst)
 Players.PlayerRemoving:Connect(ForgetFire)
 
@@ -55,7 +61,9 @@ local function Watch(Character)
 	end
 	local Humanoid = Character:WaitForChild("Humanoid", 10)
 	if Humanoid then Humanoid.Died:Connect(function() Character:SetAttribute("ShootingMode", nil) end) end
-	Character.AncestryChanged:Connect(function(_, Parent) if not Parent then NextShot[Character], LastFire[Character] = nil, nil end end)
+	Character.AncestryChanged:Connect(function(_, Parent)
+		if not Parent then NextShot[Character], LastFire[Character], Pending[Character] = nil, nil, nil end
+	end)
 end
 local function Hook(P)
 	P.CharacterAdded:Connect(Watch)
@@ -64,22 +72,10 @@ end
 for _, P in ipairs(Players:GetPlayers()) do Hook(P) end
 Players.PlayerAdded:Connect(Hook)
 
-return function(Player, Action, Arg)
-	local Character = Player.Character
-	if not Character then return end
+-- a Fire request whose aim SetAim accepted: the snap log, then the gates and the shot
+local function Fire(Character, Dir)
 	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
 	if not Humanoid or Humanoid.Health <= 0 then return end
-
-	if Action == "Mode" then
-		local On = Arg == true
-		if On and (not GunReady(Character) or MovementState.Blocked(Character) or Character:GetAttribute("Traversal") == "Swim") then return end
-		Character:SetAttribute("ShootingMode", On or nil)
-		return
-	end
-	if Action ~= "Fire" then return end
-	if not AllowFire(Player, os.clock()) then return end
-	local Dir = WeaponManager.SetAim(Character, Arg) -- validated there (GunAim.Validate); refused: no shot, no round
-	if not Dir then return end
 	-- the snap log (Ruling 13: before the mode / AttackRunner gates, so every aimed Fire request is compared with the
 	-- previous one): a turn over SnapDeg within SnapWindow of the previous aimed Fire. A log only.
 	local Now = os.clock()
@@ -110,4 +106,50 @@ return function(Player, Action, Arg)
 			return WeaponManager.Fire(...)
 		end,
 	})
+end
+
+-- the flick grace: SetAim again each Heartbeat with the same aim until it passes (-> Fire) or FlickGrace runs out
+local function Hold(Character, Arg)
+	local Token = {}
+	Pending[Character] = Token
+	task.spawn(function()
+		local Until = os.clock() + Cfg.FlickGrace
+		while os.clock() < Until do
+			RunService.Heartbeat:Wait()
+			if Pending[Character] ~= Token or not Character.Parent then return end
+			local Dir = WeaponManager.SetAim(Character, Arg)
+			if Dir then
+				Pending[Character] = nil
+				Fire(Character, Dir)
+				return
+			end
+		end
+		if Pending[Character] == Token then Pending[Character] = nil end
+	end)
+end
+
+return function(Player, Action, Arg)
+	local Character = Player.Character
+	if not Character then return end
+	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+	if not Humanoid or Humanoid.Health <= 0 then return end
+
+	if Action == "Mode" then
+		local On = Arg == true
+		if On and (not GunReady(Character) or MovementState.Blocked(Character) or Character:GetAttribute("Traversal") == "Swim") then return end
+		Character:SetAttribute("ShootingMode", On or nil)
+		return
+	end
+	if Action ~= "Fire" then return end
+	if not AllowFire(Player, os.clock()) then return end
+	Pending[Character] = nil -- a newer Fire request replaces a held one
+	local Dir = WeaponManager.SetAim(Character, Arg) -- validated there (GunAim.Validate); refused: no shot, no round
+	if not Dir then
+		-- refused only for its yaw (form, length and pitch passed): the flick grace
+		local Root = Character:FindFirstChild("HumanoidRootPart")
+		local _, Why = GunAim.Validate(Arg, Root and Root.CFrame.LookVector or Vector3.zero, Cfg.MaxYaw, Cfg.MaxPitch)
+		if Root and Why == "behind" and (Cfg.FlickGrace or 0) > 0 then Hold(Character, Arg) end
+		return
+	end
+	Fire(Character, Dir)
 end

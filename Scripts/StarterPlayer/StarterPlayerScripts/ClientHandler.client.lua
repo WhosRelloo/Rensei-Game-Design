@@ -273,8 +273,8 @@ for Key, Skill in pairs(Controls) do
 		if Skill == "Feint" then
 			if State == Enum.UserInputState.Begin then
 				if not GunAimUI.FireInput(true) then RequestRemote:FireServer("Feint") end
-			elseif State == Enum.UserInputState.End then
-				GunAimUI.FireInput(false)
+			elseif State == Enum.UserInputState.End or State == Enum.UserInputState.Cancel then
+				GunAimUI.FireInput(false) -- (Cancel: the input was taken away mid-hold -- a release too)
 			end
 			return Enum.ContextActionResult.Sink
 		end

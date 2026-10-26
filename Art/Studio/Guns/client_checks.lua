@@ -20,12 +20,15 @@
 -- reads or writes the owner's Settings except ReleaseRestores' precondition (it reads the save's ShiftLock).
 --
 -- RED seams (0 / false = off; a copy in the scratch folder sets them, as dumphelper's MODE line):
---   HOLD_GAP: GunAimUI.HoldGap for HoldLoopUnderBucket (0.1 = the first draft's loop);
---   NO_FLICK_DEFER: GunAimUI.FlickDefer = false for FlickAndFire (today's same-frame send).
+--   HOLD_GAP: GunAimUI.HoldGap for HoldLoopUnderBucket (0.1 = the first draft's loop: about 9 requests a second at 60 Hz
+--     Heartbeats, just over the shared bucket's refill of 8 a second, so its 16-token burst lasts the 10 s hold -- the
+--     RED fails on the request count, not on a dropped Mode request; measured 2026-10-25: 90 and 91 requests);
+--   NO_FLICK_GRACE: Aim.FlickGrace = 0 on the Server for FlickAndFire (no flick grace: Requests.Shoot refuses a shot
+--     whose yaw is past MaxYaw at once, as before gun rework Ruling 28); put back after the case.
 -- ONLY: "" runs every check; else a comma list of check names.
 local ONLY = ""
 local HOLD_GAP = 0
-local NO_FLICK_DEFER = false
+local NO_FLICK_GRACE = false
 
 local CLIENT = [==[
 -- GunChecks_TEMP (Play only; made by Art/Studio/Guns/client_checks.lua, gone at Stop): the client half of the gun checks.
@@ -205,7 +208,6 @@ function Checks.Flick(Args)
 	local Was = Vector3.new(L.X, 0, L.Z).Unit
 	local Turn = CFrame.Angles(0, math.rad(Args.Deg), 0)
 	local Aim = Turn:VectorToWorldSpace(Was)
-	if Args.NoDefer then GunAimUI.FlickDefer = false end
 	local F = Camera.Focus.Position
 	Camera.CFrame = CFrame.new(F) * Turn * CFrame.new(-F) * Camera.CFrame
 	GunAimUI.ForceAim = Aim
@@ -213,7 +215,6 @@ function Checks.Flick(Args)
 	FireInput(false)
 	task.wait(0.3)
 	GunAimUI.ForceAim = nil
-	GunAimUI.FlickDefer = true
 	return {Began = Began, Turned = Deg(Was, Aim)}
 end
 
@@ -242,7 +243,6 @@ function Checks.Reset()
 		GunAimUI.FireInput(false)
 		GunAimUI.ForceAim = nil
 		GunAimUI.HoldGap = HomeHoldGap
-		GunAimUI.FlickDefer = true
 	end
 	if LockOn.Target then LockOn.Release() end
 	if Saved then
@@ -271,7 +271,8 @@ local SERVER = [==[
 -- client checks, a TestKit suite run through LMRunSuite. Expected numbers, worked by hand (TuningConfig PROPOSALs,
 -- 2026-10-25), as constants:
 --   SHOULDER: Aim.ShoulderOffset (1.75, 0.5, 0), the aim camera's Humanoid.CameraOffset.
---   MAX_SENDS 41: Aim.HoldGap 0.25 s -> at most 10 / 0.25 = 40 requests in a 10 s hold, +1 for the press itself. The
+--   MAX_SENDS 41: Aim.HoldGap 0.25 s -> at most 10 / 0.25 = 40 requests in a 10 s hold, +1 for the press itself (4 a
+--     second, well under the shared bucket's refill of 8: the Mode-off request after the hold always gets through). The
 --     hold aims straight down (90 degrees, past Aim.MaxPitch 70), so the server refuses every shot and the loop never
 --     waits on a shot: it sends as fast as HoldGap lets it.
 --   HOLD_SHOTS 3..4: the Revolver's shot takes Startup 0.12 + Active 0.02 + Recovery 0.42 = 0.56 s, and the next request
@@ -280,12 +281,14 @@ local SERVER = [==[
 --     stand-in's 1.5 above it, both wider than the marker's 0.5 half-size: the control (the camera's look from the muzzle)
 --     misses.
 --   LOCK_AT 15 studs ahead (inside LockOn's 60-stud acquire range; the floor is 2000 up, nothing else is near).
---   FLICK 150 degrees: past Aim.MaxYaw 100, so the server refuses the shot unless its root facing has caught up.
+--   FLICK 150 degrees: past Aim.MaxYaw 100, so the server refuses the shot unless its root facing has caught up: its copy
+--     of the root lags the client's turn by about 0.20-0.27 s (measured 2026-10-25), inside Aim.FlickGrace 0.4 (Ruling 28).
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SmokeKit = require(script.Parent.SmokeKit)
 local GunKit = require(script.Parent.GunKit)
 local WeaponManager = require(ReplicatedStorage.Modules.Managers.WeaponManager)
+local Tuning = require(ReplicatedStorage.Modules.Data.Rensei.TuningConfig)
 local Remote = ReplicatedStorage:WaitForChild("GunChecks_TEMP_Remote")
 local Player = Players:GetPlayers()[1]
 
@@ -296,12 +299,13 @@ local SHOT_LANDS = 0.4 -- s after the release: a request sent just before it rea
 local MARKER_AT = 40
 local LOCK_AT, LOCK_DEG = 15, 0.5
 local FLICK, FLICK_EPS = 150, 1
+local FLICK_WAIT = 1.5 -- s: the grace (up to 0.4) + Startup 0.12 + replication, with room
 local MODE_NIL_WITHIN = 0.5
 local PIXEL = 1
 local AHEAD = Vector3.new(0, 0, -1)
 local UP = Vector3.new(0, 3, 0) -- an R6 root stands 3 over the floor
 local HOLD_GAP = Remote:GetAttribute("HoldGap") or 0
-local NO_FLICK_DEFER = Remote:GetAttribute("NoFlickDefer") == true
+local NO_FLICK_GRACE = Remote:GetAttribute("NoFlickGrace") == true
 
 local Replies = {}
 Remote.OnServerEvent:Connect(function(P, Id, Done, Data)
@@ -423,22 +427,28 @@ local Suite = {
 			while C:GetAttribute("ShootingMode") and os.clock() - T0 < MODE_NIL_WITHIN do task.wait() end
 			local Mode = C:GetAttribute("ShootingMode")
 			print(("[GunChecks] HoldLoopUnderBucket: %d Fire requests in 10 s; ShootingMode after: %s"):format(R.Sends, tostring(Mode)))
-			-- both results in one line, so a RED run shows whether the Mode request was dropped too
-			T.True(R.Sends <= MAX_SENDS and Mode == nil, ("Fire requests in a 10 s hold: %d (max %d); ShootingMode %s s after the hold's Mode-off request: %s (want nil)%s")
-				:format(R.Sends, MAX_SENDS, tostring(MODE_NIL_WITHIN), tostring(Mode), HOLD_GAP > 0 and (" [seam HoldGap " .. HOLD_GAP .. "]") or ""))
+			T.True(R.Sends <= MAX_SENDS, ("Fire requests in a 10 s hold: %d (max %d)%s"):format(R.Sends, MAX_SENDS,
+				HOLD_GAP > 0 and (" [seam HoldGap " .. HOLD_GAP .. "]") or ""))
+			-- guard: the shared bucket still has room for the Mode-off request after the hold
+			T.True(Mode == nil, ("guard: ShootingMode %s s after the hold's Mode-off request: %s (want nil)"):format(tostring(MODE_NIL_WITHIN), tostring(Mode)))
 		end)
 	end,
 
 	FlickAndFire = function(T)
 		Armed(function(C)
+			local Aim = Tuning.Weapons.Guns.Aim
+			local Grace = Aim.FlickGrace
+			if NO_FLICK_GRACE then Aim.FlickGrace = 0 end
 			local Was = C:GetAttribute("LastShotAt")
-			local R = Ask("Flick", {Deg = FLICK, NoDefer = NO_FLICK_DEFER})
+			local Ok, R = pcall(Ask, "Flick", {Deg = FLICK})
 			local T0 = os.clock()
-			while C:GetAttribute("LastShotAt") == Was and os.clock() - T0 < 1 do task.wait() end
+			while Ok and C:GetAttribute("LastShotAt") == Was and os.clock() - T0 < FLICK_WAIT do task.wait() end
+			Aim.FlickGrace = Grace
+			if not Ok then error(R, 0) end
 			T.Eq(R.Began, true, "FireInput(true) in shooting mode")
 			T.Near(R.Turned, FLICK, FLICK_EPS, "the flick's turn from the facing")
 			T.True(C:GetAttribute("LastShotAt") ~= Was, "the server accepted a shot fired " .. FLICK .. " degrees from the facing in the flick's frame"
-				.. (NO_FLICK_DEFER and " [seam: no defer]" or ""))
+				.. (NO_FLICK_GRACE and " [seam: FlickGrace 0]" or ""))
 		end)
 	end,
 
@@ -501,7 +511,7 @@ local Remote = Instance.new("RemoteEvent")
 Remote.Name = "GunChecks_TEMP_Remote"
 Remote:SetAttribute("Only", ONLY)
 Remote:SetAttribute("HoldGap", HOLD_GAP)
-Remote:SetAttribute("NoFlickDefer", NO_FLICK_DEFER)
+Remote:SetAttribute("NoFlickGrace", NO_FLICK_GRACE)
 Remote.Parent = ReplicatedStorage
 local Suite = Instance.new("ModuleScript")
 Suite.Name = "GunChecks_TEMP_Suite"

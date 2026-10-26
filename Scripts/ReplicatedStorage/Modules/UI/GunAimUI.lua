@@ -16,9 +16,7 @@ local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Cfg = Tuning.Weapons.Guns.Aim
 local RequestRemote = ReplicatedStorage.Remotes.RequestRemote
--- Sends / HoldGap / ForceAim / FlickDefer: client_checks seams
-local GunAimUI = {Sends = 0, HoldGap = Cfg.HoldGap, ForceAim = nil, FlickDefer = true}
-local FLICK_DEFER_DEG = 60 -- PROPOSAL (gun rework Ruling 23): a snap turning the character more than this defers the send a frame
+local GunAimUI = {Sends = 0, HoldGap = Cfg.HoldGap, ForceAim = nil} -- Sends / HoldGap / ForceAim: client_checks seams
 
 local function Char() return Player.Character end
 local function Shooting()
@@ -27,12 +25,17 @@ local function Shooting()
 end
 -- the lock-on target's root, or nil (ClientHandler's AlchemyAim uses this too)
 local LockOnModule = script.Parent:FindFirstChild("LockOn")
+local LockOn = LockOnModule and require(LockOnModule) or nil -- (nil in a place without it: never locked)
 function GunAimUI.LockedRoot()
-	local Ok, LockOn = pcall(function() return LockOnModule and require(LockOnModule) end)
-	local T = Ok and LockOn and LockOn.Target
+	local T = LockOn and LockOn.Target
 	return T and T.Parent and T:FindFirstChild("HumanoidRootPart") or nil
 end
 local function Crosshair() return UIState.Gui:FindFirstChild("Crosshair") end
+-- a full-screen menu (the bg backdrop) or a dialogue is open: no aim camera, no firing
+local function MenuOpen()
+	local Gui = UIState.Gui
+	return (Gui:FindFirstChild("bg") and Gui.bg.Visible) or (Gui:FindFirstChild("Dialogue") and Gui.Dialogue.Visible) or false
+end
 local HomePosition = nil
 
 -- the crosshair's centre as a camera ray (its ScreenGui decides whether the top-bar inset counts)
@@ -75,8 +78,9 @@ end
 function GunAimUI.Assist(_, Point) return Point end
 function GunAimUI.Kick() end -- Task 9
 
--- hold to fire (PROPOSAL): Began true = press (false when not shooting, so RMB falls back to Feint); false = release
-local FireHeld, FireWanted, FireLoop = false, 0, nil
+-- hold to fire (PROPOSAL): Began true = press (false when not shooting, so RMB falls back to Feint); false = release.
+-- FireLoop is true while the loop's thread runs; it is always cleared when the loop ends, even on an error.
+local FireHeld, FireWanted, FireLoop = false, 0, false
 local function GunReady(C)
 	return C:GetAttribute("CombatState") == nil and (C:GetAttribute("Ammo") or 0) > 0
 		and (C:GetAttribute("ReloadingUntil") or 0) <= workspace:GetServerTimeNow()
@@ -85,18 +89,13 @@ local function SendShot(C)
 	local Dir = GunAimUI.AimDirection()
 	local Root = C:FindFirstChild("HumanoidRootPart")
 	local Flat = Vector3.new(Dir.X, 0, Dir.Z)
-	local Flick = false
-	-- face the shot (the aim camera already turns you; this keeps the server's facing check safe), not while locked on
+	-- face the shot (the aim camera already turns you; this keeps the server's facing check safe), not while locked on.
+	-- After a big flick the server's copy of the root lags (about 0.2-0.27 s, measured 2026-10-25): Requests.Shoot holds
+	-- such a shot for Aim.FlickGrace until its facing catches up (gun rework Ruling 28).
 	if Root and Flat.Magnitude > 0.1 and not GunAimUI.LockedRoot() then
-		local Look = Root.CFrame.LookVector
-		local Was = Vector3.new(Look.X, 0, Look.Z)
-		Flick = Was.Magnitude > 1e-3 and Was.Unit:Dot(Flat.Unit) < math.cos(math.rad(FLICK_DEFER_DEG))
 		Root.CFrame = CFrame.lookAt(Root.Position, Root.Position + Flat)
 	end
 	GunAimUI.Sends += 1
-	-- flick-and-fire (gun rework Ruling 23, PROPOSAL): after a big turn the request waits for the next Heartbeat, so the
-	-- server sees the new facing first (it checks the shot against its own copy of the root, Aim.MaxYaw)
-	if Flick and GunAimUI.FlickDefer then RunService.Heartbeat:Wait() end
 	RequestRemote:FireServer("Shoot", "Fire", Dir)
 	GunAimUI.Kick()
 end
@@ -106,16 +105,21 @@ function GunAimUI.FireInput(Began)
 	if not C or C:GetAttribute("Knocked") or not Shooting() then return false end
 	FireHeld, FireWanted = true, os.clock()
 	if FireLoop then return true end
-	FireLoop = task.spawn(function()
-		local Sent = -math.huge
-		while Shooting() and not C:GetAttribute("Knocked") and (FireHeld or os.clock() - FireWanted <= Cfg.Buffer) do
-			if GunReady(C) and os.clock() - Sent >= GunAimUI.HoldGap then
-				Sent, FireWanted = os.clock(), 0
-				SendShot(C)
+	FireLoop = true
+	task.spawn(function()
+		local Ok, Err = pcall(function()
+			local Sent = -math.huge
+			while Shooting() and not C:GetAttribute("Knocked") and not MenuOpen()
+				and (FireHeld or os.clock() - FireWanted <= Cfg.Buffer) do
+				if GunReady(C) and os.clock() - Sent >= GunAimUI.HoldGap then
+					Sent, FireWanted = os.clock(), 0
+					SendShot(C)
+				end
+				RunService.Heartbeat:Wait()
 			end
-			RunService.Heartbeat:Wait()
-		end
-		FireLoop = nil
+		end)
+		FireLoop = false
+		if not Ok then warn("GunAimUI fire loop:", Err) end
 	end)
 	return true
 end
@@ -137,11 +141,9 @@ function GunAimUI.Start()
 	local Cross = Crosshair()
 	HomePosition = Cross and Cross.Position
 	RunService:BindToRenderStep("RenseiGunAim", Enum.RenderPriority.Camera.Value + 1, function()
-		local Gui = UIState.Gui
-		local MenuOpen = (Gui:FindFirstChild("bg") and Gui.bg.Visible) or (Gui:FindFirstChild("Dialogue") and Gui.Dialogue.Visible)
 		local C = Char()
 		local H = C and C:FindFirstChildOfClass("Humanoid")
-		if not Shooting() or MenuOpen or not H then Release() return end
+		if not Shooting() or MenuOpen() or not H then Release() return end
 		Owned = true
 		local CrossNow = Crosshair()
 		if CrossNow then CrossNow.Visible = true end
@@ -151,7 +153,11 @@ function GunAimUI.Start()
 			if CrossNow then
 				local G = CrossNow:FindFirstAncestorOfClass("ScreenGui")
 				local P = (G and G.IgnoreGuiInset) and Camera:WorldToViewportPoint(Target.Position) or Camera:WorldToScreenPoint(Target.Position)
-				CrossNow.Position = UDim2.fromOffset(P.X, P.Y)
+				if P.Z <= 0 then
+					CrossNow.Visible = false -- the target is behind the camera: no marker rather than a mirrored one
+				else
+					CrossNow.Position = UDim2.fromOffset(P.X, P.Y)
+				end
 			end
 			return
 		end

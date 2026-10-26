@@ -570,6 +570,10 @@ TuningConfig.Weapons = {
 			ShoulderOffset = Vector3.new(1.75, 0.5, 0), -- the aim camera (Humanoid.CameraOffset) -- PROPOSAL (gun rework 2026-10-25)
 			TouchAssist = 2.5, -- degrees; 0 = off -- PROPOSAL (gun rework 2026-10-25)
 			SnapDeg = 120, SnapWindow = 0.1, -- the snap log -- PROPOSAL (gun rework 2026-10-25)
+			-- flick-and-fire (Ruling 28): a Fire refused only for its yaw is held this long, re-checked each Heartbeat, while
+			-- the server's copy of the root catches up with the client's turn (it lags about 0.20-0.27 s, measured in Studio
+			-- Play 2026-10-25); then fired or dropped. 0 = off -- PROPOSAL (gun rework 2026-10-25)
+			FlickGrace = 0.4,
 		},
 		-- the owner's animation 97563934064498 (Task 7). AnimLength: its Track.Length, measured 2026-10-25 (Task 1 survey).
 		Reload = {Anim = "Guns_Reload", AnimLength = 4.07}, -- PROPOSAL (gun rework 2026-10-25): the slot name
