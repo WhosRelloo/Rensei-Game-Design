@@ -277,12 +277,13 @@ TuningConfig.Swim = {
 	DiveTime = 0.35, -- seconds the dive pushes
 	DiveMinDepth = 4.5, -- water at least this deep (surface to bed) to dive: Ye's pools 5.2 yes, its creeks 4.2 no
 	SurfaceBand = 0.6, -- studs: the head counts as at the surface within this (x4 = sunk under by something else)
-	RootBelowSurface = 1.5, -- studs the root floats under the surface (Task 5 re-measures it)
+	RootBelowSurface = 1.4, -- studs the root floats under the surface (measured in Ye's Mill Pond, 2026-10-26: 1.40)
 	SurfaceHoldGain = 6, -- vertical speed per stud of error holding a surface swimmer at the surface
 	SurfaceHoldMax = 8, -- the most that hold may push up or down
 	MaxPitch = 80, -- degrees: the most the body (and an underwater W) pitches up or down
 	TurnResponsiveness = 12, -- the underwater AlignOrientation's responsiveness
-	MaxForce = 30000, -- the controller's LinearVelocity force (finite: walls, beds and knockbacks still push; Task 5 tunes)
+	MaxForce = 30000, -- the controller's LinearVelocity force (finite: walls, beds and knockbacks still push; Task 5's
+	-- spike: it sinks a floating swimmer 3.4 studs in 0.7 s and an AlignOrientation does pitch a Swimming humanoid)
 	ClimbOutHeight = 4.5, -- a ledge at most this far above the water can be climbed onto with Space
 	ClimbOutReach = 3, -- ... and at most this far away
 	ClimbOutForward = 30, ClimbOutUp = 30, -- the climb-out push (like JumpManager's ledge vault)
