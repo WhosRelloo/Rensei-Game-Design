@@ -34,7 +34,7 @@ local function Report() Remote:FireServer(Results) end
 local Ok, SC = pcall(function() return require(ReplicatedStorage.Modules.Managers:FindFirstChild("SwimController")) end)
 if not Ok or type(SC) ~= "table" or not SC.Start then
 	for _, N in ipairs({"PlaceholderSlotsLoad", "LevelAtTheSurface", "DiveGoesUnder", "SteersDown", "RisesToSurface",
-		"NoDiveInTheShallows", "ShiftLockYields"}) do
+		"NoDiveInTheShallows", "ShiftLockYields", "AirMeterIsTheHudBar", "DiveButton"}) do
 		table.insert(Results, {N, false, "no SwimController: " .. tostring(SC)})
 	end
 	Report()
@@ -203,6 +203,53 @@ Check("ShiftLockYields", function()
 	ClientActions.Run("SwimDive", false)
 	SettingsUI.CameraFree(H)
 	return Seen >= 20 and Bad == 0, ("%d of 30 frames under, AutoRotate on in %d"):format(Seen, Bad)
+end)
+
+-- Task 6: the air meter is the HUD's own Meter bar (ids from Task 1's survey of StarterGui.Uis.HUD.Stats.BlueBar),
+-- and no code-built SwimHUD exists
+Check("AirMeterIsTheHudBar", function()
+	local S = Spots.Main
+	if not FloatAt(S) then return false, "the controller didn't start" end
+	Aim(0)
+	Tap("SwimDive")
+	ClientActions.Run("SwimDive", true) -- hold: stay under
+	local T0 = os.clock()
+	while os.clock() - T0 < 2 do Frames(1) end
+	local Stats = Player.PlayerGui:FindFirstChild("Uis") and Player.PlayerGui.Uis:FindFirstChild("HUD")
+		and Player.PlayerGui.Uis.HUD:FindFirstChild("Stats")
+	local Air = Stats and Stats:FindFirstChild("AirBar")
+	local Shown = Air ~= nil and Air.Visible and Char():GetAttribute("Submerged") == true
+	local Img = Air and Air.Image or "-"
+	local FillImg = "-"
+	if Air then
+		for _, D in ipairs(Air:GetDescendants()) do
+			if D:IsA("ImageLabel") and D.Image ~= "" then FillImg = D.Image end
+		end
+	end
+	ClientActions.Run("SwimDive", false)
+	local NoOld = Player.PlayerGui:FindFirstChild("SwimHUD") == nil
+	return Shown and Img == "rbxassetid://128875786456593" and FillImg == "rbxassetid://94626531816891" and NoOld,
+		("AirBar %s, visible %s, Submerged %s, images %s / %s, no SwimHUD %s"):format(tostring(Air ~= nil),
+			tostring(Air and Air.Visible), tostring(Char():GetAttribute("Submerged")), Img, FillImg, tostring(NoOld))
+end)
+
+Check("DiveButton", function()
+	local S = Spots.Main
+	Player:SetAttribute("ForceMobileControls", true)
+	local Ok2, Res, Why = pcall(function()
+		if not FloatAt(S) then return false, "the controller didn't start" end
+		Aim(0)
+		Frames(10)
+		local Gui = Player.PlayerGui:FindFirstChild("MobileControls")
+		local B = Gui and Gui:FindFirstChild("Cluster") and Gui.Cluster:FindFirstChild("SwimDive")
+		local Shown = Gui ~= nil and Gui.Enabled and B ~= nil and B.Visible
+		Tap("SwimDive")
+		local Mode = SC.Mode
+		return Shown and Mode == "Under", ("DIVE button shown %s, mode after a tap %s"):format(tostring(Shown), tostring(Mode))
+	end)
+	Player:SetAttribute("ForceMobileControls", nil)
+	if not Ok2 then error(Res, 0) end
+	return Res, Why
 end)
 
 local R0 = Root()

@@ -11,8 +11,11 @@
 --     attribute is on; stamina is the server's). WalkSpeed is no longer changed for it.
 --   * the loop animation: Swim_Sprint / Swim_Forward / Swim_Idle, at the surface and underwater (the owner: the
 --     underwater idle is Swim_Idle). The dive and surfacing one-shots and the climb-out are the controller's.
---   * the breath bar: a thin bar under the centre of the screen while you're short of air (attribute Breath), red
---     while drowning (Task 6 replaces it with the HUD's own bar).
+--   * the air meter (owner rule: existing UI assets only): a run-time clone of the HUD's own Meter bar
+--     (StarterGui.Uis.HUD.Stats.BlueBar, cyan) named AirBar, in the HUD's Stats list under the vitals, filled through
+--     Modules.UI.Fill. It shows while you're under water (attribute Submerged) or short of air (Breath), labelled
+--     "AIR" (a clone of the HUD's own CashFrame.Display text, as HUDUI's hover values), "DROWNING" and blinking at 0.
+--     The old code-built SwimHUD bar is gone. Nothing in StarterGui is edited.
 --   * touch: MobileControls' SPRINT / RISE / DIVE buttons (shown only while swimming) run the actions "SwimSprint",
 --     "SwimRise" and "SwimDive" registered here: held = the same as holding Shift / Space / Ctrl.
 local Players = game:GetService("Players")
@@ -56,40 +59,42 @@ UserInputService.InputBegan:Connect(function(Input)
 	elseif Input.KeyCode == Enum.KeyCode.Space then RisePressed() end
 end)
 
--- ===== breath bar (minimal: a thin gold bar, red while drowning) =====
-local Gui = Instance.new("ScreenGui")
-Gui.Name = "SwimHUD"
-Gui.ResetOnSpawn = false
-Gui.IgnoreGuiInset = true
-Gui.Parent = Player:WaitForChild("PlayerGui")
-local Bar = Instance.new("Frame")
-Bar.Name = "Breath"
-Bar.AnchorPoint = Vector2.new(0.5, 0)
-Bar.Position = UDim2.fromScale(0.5, 0.62)
-Bar.Size = UDim2.fromOffset(170, 4)
-Bar.BackgroundColor3 = Color3.fromRGB(20, 18, 16)
-Bar.BackgroundTransparency = 0.35
-Bar.BorderSizePixel = 0
-Bar.Visible = false
-Bar.Parent = Gui
-local Fill = Instance.new("Frame")
-Fill.Name = "Fill"
-Fill.Size = UDim2.fromScale(1, 1)
-Fill.BackgroundColor3 = Color3.fromRGB(230, 205, 120)
-Fill.BorderSizePixel = 0
-Fill.Parent = Bar
-local Label = Instance.new("TextLabel")
-Label.Name = "Label"
-Label.BackgroundTransparency = 1
-Label.AnchorPoint = Vector2.new(0.5, 1)
-Label.Position = UDim2.new(0.5, 0, 0, -3)
-Label.Size = UDim2.fromOffset(170, 14)
-Label.Font = Enum.Font.Garamond
-Label.TextSize = 13
-Label.TextColor3 = Color3.fromRGB(225, 220, 210)
-Label.TextStrokeTransparency = 0.6
-Label.Text = "BREATH"
-Label.Parent = Bar
+-- ===== the air meter: a clone of the HUD's own Meter bar (made on first need, again if the HUD was rebuilt) =====
+local Fill = require(ReplicatedStorage.Modules.UI.Fill)
+local AirBar, AirLabel = nil, nil
+local function Air()
+	if AirBar and AirBar.Parent then return AirBar end
+	local Uis = Player:FindFirstChild("PlayerGui") and Player.PlayerGui:FindFirstChild("Uis")
+	local HUD = Uis and Uis:FindFirstChild("HUD")
+	local Stats = HUD and HUD:FindFirstChild("Stats")
+	local SUis = game:GetService("StarterGui"):FindFirstChild("Uis")
+	local Src = SUis and SUis:FindFirstChild("HUD") and SUis.HUD:FindFirstChild("Stats") and SUis.HUD.Stats:FindFirstChild("BlueBar")
+	if not (Stats and Src) then return nil end
+	AirBar = Src:Clone() -- the pristine bar (the HUD's live one is already wrapped by Fill)
+	AirBar.Name = "AirBar"
+	local Last = 0
+	for _, C in ipairs(Stats:GetChildren()) do
+		if C:IsA("GuiObject") then Last = math.max(Last, C.LayoutOrder) end
+	end
+	AirBar.LayoutOrder = Last + 1 -- the next slot in the Stats list, under the vitals
+	AirBar.Visible = false
+	local Display = HUD:FindFirstChild("CashFrame") and HUD.CashFrame:FindFirstChild("Display")
+	if Display then
+		AirLabel = Display:Clone()
+		for _, K in ipairs(AirLabel:GetChildren()) do if not K:IsA("UIStroke") then K:Destroy() end end
+		AirLabel.Name = "AirLabel"
+		AirLabel.BackgroundTransparency = 1
+		AirLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+		AirLabel.Position = UDim2.fromScale(0.5, 0.5)
+		AirLabel.Size = UDim2.fromScale(0.6, 1.6)
+		AirLabel.TextColor3 = Color3.new(1, 1, 1)
+		AirLabel.ZIndex = AirBar.ZIndex + 5
+		AirLabel.Text = "AIR"
+		AirLabel.Parent = AirBar
+	end
+	AirBar.Parent = Stats
+	return AirBar
+end
 
 local function Hook(Character)
 	local Humanoid = Character:WaitForChild("Humanoid", 10)
@@ -139,14 +144,20 @@ local function Hook(Character)
 		else
 			Set(nil)
 		end
-		-- breath bar
+		-- the air meter
 		local Breath = Character:GetAttribute("Breath")
-		Bar.Visible = Breath ~= nil and Humanoid.Health > 0
-		if Breath then
-			Fill.Size = UDim2.fromScale(math.clamp(Breath / Tuning.BreathMax, 0, 1), 1)
-			local Drowning = Character:GetAttribute("Drowning") == true
-			Fill.BackgroundColor3 = Drowning and Color3.fromRGB(220, 80, 70) or Color3.fromRGB(230, 205, 120)
-			Label.Text = Drowning and "DROWNING" or "BREATH"
+		local Show = (Breath ~= nil or Character:GetAttribute("Submerged") == true) and Humanoid.Health > 0
+		local Bar = (Show or (AirBar and AirBar.Parent)) and Air()
+		if Bar then
+			Bar.Visible = Show
+			if Show then
+				local Drowning = Character:GetAttribute("Drowning") == true
+				local Inner = Bar:FindFirstChild("Bar")
+				if Inner then Fill.Set(Inner, (Breath or Tuning.BreathMax) / Tuning.BreathMax) end
+				-- drowning: the bar blinks (its own transparency, every 0.25 s)
+				Bar.ImageTransparency = (Drowning and math.floor(os.clock() / 0.25) % 2 == 1) and 0.7 or 0
+				if AirLabel then AirLabel.Text = Drowning and "DROWNING" or "AIR" end
+			end
 		end
 	end)
 end

@@ -6,8 +6,10 @@
 --                      the clap), with cooldowns, once the player has an alchemy path
 --   out of combat:     Slide
 --   near a knocked body: Grip (V carries: it's the V button)
---   swimming (2026-10-18): SPRINT (hold) and RISE (hold) in Dash's and Jump's spots; the on-foot buttons that
---                      do nothing in water (Jump, Dash, Fight, Run, Slide) hide meanwhile. Actions: SwimClient.
+--   swimming (2026-10-18): SPRINT (hold) and RISE (hold; tap at a low ledge = climb out) in Dash's and Jump's spots,
+--                      and DIVE (swimming revamp 2026-10-26: tap at the surface = dive, hold underwater = sink) in
+--                      Slide's spot; the on-foot buttons that do nothing in water (Jump, Dash, Fight, Run, Slide)
+--                      hide meanwhile. Actions: SwimClient.
 -- Shown on touch screens (Player attribute MobileControls is set while it shows, and the desktop
 -- alchemy slot bar hides). In Studio, set the Player attribute ForceMobileControls = true to test it
 -- on a PC. Roblox's own jump button is hidden: ours also climbs and wall-runs.
@@ -63,6 +65,9 @@ local Layout = {
 	-- swimming only (owner 2026-10-18): hold to sprint-swim (stamina) / hold to rise to the surface
 	SwimSprint = {0.60, 0.80, 0.21, "SPRINT", "Swim"},
 	SwimRise = {0.42, 0.90, 0.21, "RISE", "Swim"},
+	-- swimming revamp (2026-10-26, PROPOSAL): tap at the surface = dive; hold underwater = sink. In Slide's spot
+	-- (Slide and Aim are hidden while swimming)
+	SwimDive = {0.20, 0.88, 0.16, "DIVE", "Swim"},
 }
 local TOGGLES = {Sprint = true} -- tap on / tap off (sprinting is held Shift on a keyboard)
 
