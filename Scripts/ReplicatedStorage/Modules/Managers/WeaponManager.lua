@@ -296,11 +296,18 @@ if IsServer then
 		for _, Player in ipairs(Players:GetPlayers()) do PlayerAdded(Player) end
 	end
 
-	-- NPCs / tests: arm a character directly with an item's Tool.
+	-- NPCs / tests: arm a character directly with an item's Tool. Each old Tool is detached before it is destroyed (gun
+	-- rework Ruling 36): its own detach is a deferred signal and matches the item by name, so giving the same item again
+	-- had the old Tool's late detach clear the new one's Weapon / WeaponItem / Ammo.
 	function WeaponManager.Give(Character, ItemName)
 		local Source = ReplicatedStorage.Assets.Items.Weapon:FindFirstChild(ItemName)
 		if not Source then return nil end
-		for _, T in ipairs(Character:GetChildren()) do if T:IsA("Tool") then T:Destroy() end end
+		for _, T in ipairs(Character:GetChildren()) do
+			if T:IsA("Tool") then
+				Detach(Character, T)
+				T:Destroy()
+			end
+		end
 		local Tool = Source:Clone()
 		Tool.Parent = Character
 		Attach(Character, Tool) -- immediately (ChildAdded is deferred)

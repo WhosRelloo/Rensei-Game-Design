@@ -45,6 +45,7 @@ end
 -- so no Died / respawn; its WCS character, then the rig).
 local GRUNT_AT = Vector3.new(0, 2500, 0) -- PROPOSAL: the floor's top centre (both maps' tops are under y 430; GunKit's floor is at 2000)
 local GRUNT_FLOOR = Vector3.new(80, 1, 80) -- PROPOSAL
+local GRUNT_SWEEP = 60 -- PROPOSAL: studs from GRUNT_AT; After removes any enemy this near (a Spawn that threw half-way)
 
 local function RemoveEnemy(Rig)
 	local E = ES.Active[Rig]
@@ -75,6 +76,14 @@ local function OwnGrunt(Body)
 		PS.SetAuto(false); LS.SetAuto(false)
 	end, function()
 		if Rig then RemoveEnemy(Rig) end
+		-- (Ruling 36) a Spawn that threw after parenting its rig leaves Rig nil: sweep EnemyService's Active list for
+		-- anything standing on this floor and remove it the same way
+		local Near = {}
+		for Other in pairs(ES.Active) do
+			local Root = Other:FindFirstChild("HumanoidRootPart")
+			if Root and (Root.Position - GRUNT_AT).Magnitude <= GRUNT_SWEEP then table.insert(Near, Other) end
+		end
+		for _, Other in ipairs(Near) do RemoveEnemy(Other) end
 		C:SetAttribute("Crouching", nil)
 		PS.SetAuto(true); LS.SetAuto(true)
 	end)

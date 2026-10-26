@@ -46,10 +46,11 @@ local HISTORY_EPS = 0.6 -- studs: a frame's slack (16 studs/s x one ~25 ms Studi
 local CAP = 0.25 -- seconds: GunAim.RewindTime(2.0, Aim) = clamp(2.0 + Interp 0.1, 0, MaxRewind 0.25) (TuningConfig PROPOSAL)
 local FAR_BACK = 0.6 -- seconds: past the cap (9.6 studs back)
 local SHOT_REACH = 200 -- ShotTarget's MaxT in these cases
--- The snap log (Ruling 13; TuningConfig Aim.SnapDeg 120, SnapWindow 0.1, PROPOSAL): two aimed Fire requests SNAP_GAP s
--- apart, SNAP_WIDE degrees apart (+-65 from the facing: inside MaxYaw 100, and 130 > 120) count once; SNAP_NARROW apart
--- (+-5) don't. The pairs are SNAP_PAUSE s apart, past the window.
-local SNAP_GAP, SNAP_WIDE, SNAP_NARROW, SNAP_PAUSE = 0.05, 130, 10, 0.3
+-- The snap log (Ruling 13; TuningConfig Aim.SnapDeg 120, SnapWindow 0.1, PROPOSAL): two aimed Fire requests sent back to
+-- back (inside the window: a 0.05 s wait between them flaked once when the Studio server hitched past 0.1 s), SNAP_WIDE
+-- degrees apart (+-65 from the facing: inside MaxYaw 100, and 130 > 120) count once; SNAP_NARROW apart (+-5) don't. The
+-- pairs are SNAP_PAUSE s apart, past the window.
+local SNAP_WIDE, SNAP_NARROW, SNAP_PAUSE = 130, 10, 0.3
 local FLINCH_ANIM = ReplicatedStorage.Assets.Animations.Shared.Combat.Fist.BlockIdle -- any looped, non-Core track will do
 -- The flick grace (Ruling 28; TuningConfig Aim.FlickGrace 0.4, PROPOSAL): a Fire request aimed straight behind the test
 -- player (180 degrees, past MaxYaw 100) is held 0.4 s; with no turn nothing has fired GRACE_PAST s later. Its control: the
@@ -535,14 +536,12 @@ return {
 			C:SetAttribute("GunSnapCount", nil)
 			task.wait(SNAP_PAUSE) -- past the window of any earlier request
 			Shoot(Player, "Fire", Turned(-SNAP_WIDE / 2))
-			task.wait(SNAP_GAP)
 			Shoot(Player, "Fire", Turned(SNAP_WIDE / 2))
-			T.Eq(C:GetAttribute("GunSnapCount"), 1, SNAP_WIDE .. " degrees in " .. SNAP_GAP .. " s")
+			T.Eq(C:GetAttribute("GunSnapCount"), 1, SNAP_WIDE .. " degrees back to back")
 			task.wait(SNAP_PAUSE)
 			Shoot(Player, "Fire", Turned(-SNAP_NARROW / 2))
-			task.wait(SNAP_GAP)
 			Shoot(Player, "Fire", Turned(SNAP_NARROW / 2))
-			T.Eq(C:GetAttribute("GunSnapCount"), 1, SNAP_NARROW .. " degrees in " .. SNAP_GAP .. " s (control: no count)")
+			T.Eq(C:GetAttribute("GunSnapCount"), 1, SNAP_NARROW .. " degrees back to back (control: no count)")
 		end, function()
 			C.HumanoidRootPart.Anchored = WasAnchored
 			C:SetAttribute("GunSnapCount", Was)
@@ -747,6 +746,23 @@ return {
 			T.Eq(Aims, 1, "control: aims taken from 3 more requests " .. REFILL .. " s later")
 		end, function()
 			WeaponManager.SetAim = SetAim
+		end)
+	end,
+
+	-- RED before Ruling 36: Give destroyed the old Tools without detaching them; their detach is a deferred signal and
+	-- matches by item name, so giving the same gun twice in one frame let the first Revolver's late detach clear the
+	-- second's Weapon / WeaponItem / Ammo / MaxAmmo. Now Give detaches each old Tool before destroying it.
+	GiveSameGunTwice = function(T)
+		Guard(function()
+			local Rig = GunKit.Dummy(AHEAD * 30, "GunKit_Twice")
+			GunKit.Settle()
+			assert(WeaponManager.Give(Rig, "Revolver"), "the first Revolver")
+			assert(WeaponManager.Give(Rig, "Revolver"), "the second Revolver") -- the same frame
+			RunService.Heartbeat:Wait()
+			task.wait() -- (and the end of that resumption cycle: every deferred signal has run)
+			T.Eq(Rig:GetAttribute("WeaponItem"), "Revolver", "WeaponItem a Heartbeat after giving the Revolver twice")
+			T.Eq(Rig:GetAttribute("Ammo"), REVOLVER_MAG, "Ammo a Heartbeat after giving the Revolver twice")
+			T.Eq(Rig:GetAttribute("MaxAmmo"), REVOLVER_MAG, "MaxAmmo a Heartbeat after giving the Revolver twice")
 		end)
 	end,
 }
