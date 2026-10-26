@@ -20,7 +20,10 @@ local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Cfg = Tuning.Weapons.Guns.Aim
 local RequestRemote = ReplicatedStorage.Remotes.RequestRemote
-local GunAimUI = {Sends = 0, HoldGap = Cfg.HoldGap, ForceAim = nil} -- Sends / HoldGap / ForceAim: client_checks seams
+-- Sends / HoldGap / ForceAim / FaceWait: client_checks seams. FaceWait (FaceAim, below): how long a press waits after a
+-- turn past Aim.MaxYaw, so the server's copy of the facing has followed -- Aim.FlickGrace, the longest the server's
+-- facing is known to lag a big client turn (0.20-0.27 s measured 2026-10-25; Ruling 28) -- PROPOSAL (final fix B4)
+local GunAimUI = {Sends = 0, HoldGap = Cfg.HoldGap, ForceAim = nil, FaceWait = Cfg.FlickGrace}
 -- the feedback's numbers (gun rework plan, Task 9) -- PROPOSAL (gun rework 2026-10-25)
 local FX = {
 	KickTime = 0.18, -- s: a kick's pitch (Items[WeaponItem].Kick degrees) falls linearly back to 0 -- PROPOSAL
@@ -99,8 +102,9 @@ function GunAimUI.AimDirection()
 end
 -- Touch aim assist (Task 10): only on a touch screen (MobileControls.Active) with Aim.TouchAssist on. The aim point
 -- moves onto the root of the character nearest the crosshair ray, within TouchAssist degrees and the crosshair's reach,
--- that is alive, not you, and seen from the camera (Cast reaches it). Only World.Live's own children
--- (GunAim.Candidates' direct-only list): never townsfolk. Else Point. A pure function of (Ray, Point), no state: it
+-- that is alive, not you, and seen from the camera (Cast reaches it). Never townsfolk: only World.Live's own children
+-- (GunAim.Candidates' direct-only list, so nothing in a Folder), and never a Model carrying TownsfolkId (as
+-- DamageManager tells them apart; final fix B1). Else Point. A pure function of (Ray, Point), no state: it
 -- runs every frame (the blocked-line dim) as well as for each shot, and it casts only for the pick (and again only when
 -- that one is hidden).
 function GunAimUI.Assist(Ray, Point)
@@ -110,7 +114,7 @@ function GunAimUI.Assist(Ray, Point)
 	for _, M in ipairs(GunAim.Candidates(workspace.World.Live, true)) do
 		local H = M:FindFirstChildOfClass("Humanoid")
 		local Root = M:FindFirstChild("HumanoidRootPart")
-		if M ~= C and Root and H and H.Health > 0 then
+		if M ~= C and Root and H and H.Health > 0 and M:GetAttribute("TownsfolkId") == nil then
 			table.insert(Centres, Root.Position)
 			table.insert(Models, M)
 		end
@@ -149,16 +153,33 @@ local function GunReady(C)
 	return C:GetAttribute("CombatState") == nil and (C:GetAttribute("Ammo") or 0) > 0
 		and (C:GetAttribute("ReloadingUntil") or 0) <= workspace:GetServerTimeNow()
 end
+-- turn the root flat toward Dir (the client owns its root; the server's copy follows). False when Dir is (near) vertical.
+local function FaceFlat(Root, Dir)
+	local Flat = Vector3.new(Dir.X, 0, Dir.Z)
+	if Flat.Magnitude <= 0.1 then return false end
+	Root.CFrame = CFrame.lookAt(Root.Position, Root.Position + Flat)
+	return true
+end
+-- A weapon skill press (Fan the Hammer: ClientHandler's WeaponSkillInput) sends the aim right before it. An aim past
+-- Aim.MaxYaw from your facing would be refused, and the Fan with it, so (not while locked on, not knocked) the root
+-- turns flat toward the aim first, as SendShot does (final fix B4). Returns how long the press should wait before it is
+-- sent -- FaceWait after such a turn (the server's copy of the facing lags it), else 0.
+function GunAimUI.FaceAim()
+	local C = Char()
+	local Root = C and C:FindFirstChild("HumanoidRootPart")
+	if not Root or C:GetAttribute("Knocked") or GunAimUI.LockedRoot() then return 0 end
+	local Dir = GunAimUI.AimDirection()
+	local _, Why = GunAim.Validate(Dir, Root.CFrame.LookVector, Cfg.MaxYaw, Cfg.MaxPitch)
+	if Why ~= "behind" or not FaceFlat(Root, Dir) then return 0 end
+	return GunAimUI.FaceWait or 0
+end
 local function SendShot(C)
 	local Dir = GunAimUI.AimDirection()
 	local Root = C:FindFirstChild("HumanoidRootPart")
-	local Flat = Vector3.new(Dir.X, 0, Dir.Z)
 	-- face the shot (the aim camera already turns you; this keeps the server's facing check safe), not while locked on.
 	-- After a big flick the server's copy of the root lags (about 0.2-0.27 s, measured 2026-10-25): Requests.Shoot holds
 	-- such a shot for Aim.FlickGrace until its facing catches up (gun rework Ruling 28).
-	if Root and Flat.Magnitude > 0.1 and not GunAimUI.LockedRoot() then
-		Root.CFrame = CFrame.lookAt(Root.Position, Root.Position + Flat)
-	end
+	if Root and not GunAimUI.LockedRoot() then FaceFlat(Root, Dir) end
 	GunAimUI.Sends += 1
 	RequestRemote:FireServer("Shoot", "Fire", Dir)
 	GunAimUI.Kick()
@@ -248,7 +269,8 @@ local function Release()
 	SeenChar, TintUntil, PulseAt, BloomUntil = nil, -math.huge, -math.huge, -math.huge
 end
 
--- the marker's own look and place, noted once: at Start, or on the first frame it exists (it may load after Start)
+-- the marker's own look and place, noted once: at Start, or on the first frame it exists (it may load after Start).
+-- Called at the top of every frame, before anything writes to the marker; it returns at once when already noted.
 local function NoteHome(Cross)
 	if not Cross or HomeSize then return end
 	local Image = Cross:IsA("ImageLabel") or Cross:IsA("ImageButton")
@@ -260,30 +282,36 @@ end
 function GunAimUI.Start()
 	NoteHome(Crosshair())
 	RunService:BindToRenderStep("RenseiGunAim", Enum.RenderPriority.Camera.Value + 1, function()
+		local CrossNow = Crosshair()
+		NoteHome(CrossNow) -- (before this frame moves or tints it)
 		local C = Char()
 		local H = C and C:FindFirstChildOfClass("Humanoid")
 		if not Shooting() or MenuOpen() or not H then Release() return end
-		local CrossNow = Crosshair()
-		if not Owned then NoteHome(CrossNow) end -- (before this frame moves or tints it)
 		Owned = true
 		if CrossNow then CrossNow.Visible = true end
 		local Target = GunAimUI.LockedRoot()
 		if Target then
-			SettingsUI.CameraFree(H) -- LockOn owns the camera; the marker goes onto the target
-			if CrossNow then
-				local G = CrossNow:FindFirstAncestorOfClass("ScreenGui")
-				local P = (G and G.IgnoreGuiInset) and Camera:WorldToViewportPoint(Target.Position) or Camera:WorldToScreenPoint(Target.Position)
-				if P.Z <= 0 then
-					CrossNow.Visible = false -- the target is behind the camera: no marker rather than a mirrored one
-				else
-					CrossNow.Position = UDim2.fromOffset(P.X, P.Y)
-				end
-			end
+			SettingsUI.CameraFree(H) -- LockOn owns the camera; the marker goes onto the target (RenseiGunAimMarker)
 		else
 			if CrossNow and HomePosition then CrossNow.Position = HomePosition end
 			SettingsUI.CameraLock(C, H, Cfg.ShoulderOffset, false)
 		end
 		if CrossNow then Feedback(CrossNow, C) end
+	end)
+	-- locked on, the marker goes onto the target through the camera this frame renders: after LockOn's own step (Camera
+	-- + 1 too, bound at each lock; the order of equal priorities isn't set, so it could run after this module's and the
+	-- marker trailed its lerp by a frame) and after the kick (Camera + 2) -- final fix B2
+	RunService:BindToRenderStep("RenseiGunAimMarker", Enum.RenderPriority.Camera.Value + 3, function()
+		local Target = Owned and GunAimUI.LockedRoot()
+		local CrossNow = Target and Crosshair()
+		if not CrossNow then return end
+		local G = CrossNow:FindFirstAncestorOfClass("ScreenGui")
+		local P = (G and G.IgnoreGuiInset) and Camera:WorldToViewportPoint(Target.Position) or Camera:WorldToScreenPoint(Target.Position)
+		if P.Z <= 0 then
+			CrossNow.Visible = false -- the target is behind the camera: no marker rather than a mirrored one
+		else
+			CrossNow.Position = UDim2.fromOffset(P.X, P.Y)
+		end
 	end)
 	-- the kick: KickLeft x K degrees of pitch, K = 1 - (time since the shot) / KickTime clamped to 0..1, added after the
 	-- camera (Camera + 2). The camera module builds each frame's look from the last frame's Camera.CFrame
@@ -291,6 +319,11 @@ function GunAimUI.Start()
 	-- otherwise every frame's kick would stay and the view would never come back down.
 	-- The undo only applies while the camera still is the CFrame the kick wrote: a script that set the camera outright
 	-- in between (MasteryUI's lookAt, say) has already dropped the kick, and must not get it taken off again.
+	-- A RELATIVE write in between would also fail the guard and leave the kick on. None is there (final fix B3, read in
+	-- Studio 2026-10-25, Ye and Foundry alike): BasicVFX's camera shake (its CameraShaker) writes Camera.CFrame *= shake
+	-- at RenderPriority.Camera (200) -- after this undo (Camera - 1) and before the kick (Camera + 2), never between the
+	-- kick and the next frame's undo -- so the CFrame guard stands. A relative writer bound after Camera + 2 would need a
+	-- pitch-delta undo here instead.
 	RunService:BindToRenderStep("RenseiGunKickUndo", Enum.RenderPriority.Camera.Value - 1, function()
 		if KickApplied ~= 0 then
 			if KickedCF and Camera.CFrame:FuzzyEq(KickedCF, 1e-4) then

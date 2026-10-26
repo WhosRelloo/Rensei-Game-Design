@@ -141,7 +141,9 @@ function GunAim.Flinches(D, Cfg)
 	return D <= Cfg.FlinchRange
 end
 
--- Touch aim assist: the centre nearest the ray within MaxDeg and MaxDist, or nil.
+-- Touch aim assist: the centre nearest the ray within MaxDeg and MaxDist, or nil. Contract: it returns the element of
+-- Centres itself (the same Vector3 value, never a copy or a new point), so a caller may table.find it to learn which
+-- character it was (GunAimUI.Assist does).
 function GunAim.Assist(Origin, Dir, Centres, MaxDeg, MaxDist)
 	local Best, BestDeg = nil, MaxDeg
 	for _, P in ipairs(Centres) do

@@ -32,10 +32,16 @@
 -- and (Task 9's review) KickUndoAfterCameraWrite.
 -- The touch screen is MobileControls' own seam, the Player attribute ForceMobileControls, set on the client by each
 -- check and cleared after it (Reset clears it too); nothing else is set.
+-- The final-review fix (half B) adds AssistIgnoresTownsfolkId (B1), LockOnMarkerOnTarget (B2) and FanFacesAim (B4).
+-- Every case puts back the character's LastShotAt / LastShotResult (and the weapon skill's cooldown attributes) it
+-- found (B5); AssistIgnoresTownsfolk makes World.Live.Townsfolk in the Play copy when the place has none, and removes it
+-- after (B6: Foundry).
+--   FACE_WAIT: -1 = off; else GunAimUI.FaceWait for FanFacesAim (0 = the turn, but no wait for the server's facing).
 -- ONLY: "" runs every check; else a comma list of check names.
 local ONLY = ""
 local HOLD_GAP = 0
 local NO_FLICK_GRACE = false
+local FACE_WAIT = -1
 
 local CLIENT = [==[
 -- GunChecks_TEMP (Play only; made by Art/Studio/Guns/client_checks.lua, gone at Stop): the client half of the gun checks.
@@ -59,6 +65,7 @@ local Ok, GunAimUI = pcall(function() return Module and require(Module) end)
 if not Ok then GunAimUI = nil end
 local StandIn = GunAimUI == nil
 local HomeHoldGap = GunAimUI and GunAimUI.HoldGap
+local HomeFaceWait = GunAimUI and GunAimUI.FaceWait
 
 local function Char() return Player.Character end
 local function Root() local C = Char() return C and C:FindFirstChild("HumanoidRootPart") end
@@ -446,21 +453,24 @@ local function WaitGone(Name)
 	assert(not workspace:FindFirstChild(Name), Name .. " never left the client")
 end
 -- the dummy Args.Target where the server put it: in Args.In ("Live": a child of World.Live; "Townsfolk": in its townsfolk
--- folder), its root at Args.At
+-- folder), its root at Args.At, carrying a TownsfolkId attribute exactly when Args.Folk
 local function AssistDummy(Args)
 	local Live = workspace.World.Live
 	local Parent = Args.In == "Townsfolk" and Live:WaitForChild("Townsfolk", 5) or Live
 	assert(Parent, "no World.Live.Townsfolk on the client")
+	local function There(M, R)
+		return R ~= nil and (R.Position - Args.At).Magnitude < 0.05 and (M:GetAttribute("TownsfolkId") ~= nil) == (Args.Folk == true)
+	end
 	local T0 = os.clock()
 	local M = Parent:FindFirstChild(Args.Target)
 	local R = M and M:FindFirstChild("HumanoidRootPart")
-	while not (R and (R.Position - Args.At).Magnitude < 0.05) and os.clock() - T0 < 5 do
+	while not There(M, R) and os.clock() - T0 < 5 do
 		Frames(1)
 		M = Parent:FindFirstChild(Args.Target)
 		R = M and M:FindFirstChild("HumanoidRootPart")
 	end
-	assert(R and (R.Position - Args.At).Magnitude < 0.05, "the dummy " .. Args.Target .. " never reached " .. Parent:GetFullName()
-		.. " at its spot on the client")
+	assert(There(M, R), "the dummy " .. Args.Target .. " never reached " .. Parent:GetFullName()
+		.. " at its spot on the client" .. (Args.Folk and " with its TownsfolkId" or " without a TownsfolkId"))
 	return M, R
 end
 
@@ -538,6 +548,63 @@ function Checks.TouchStop()
 	return R
 end
 
+-- ===== The final-review fix (half B) =====
+-- B2: lock on to Args.Target and, every frame for Args.Seconds (after everything else in it), how far the marker's
+-- centre sits from the target's root as the frame's own camera projects it: the larger of the two axes, in pixels.
+-- Only frames with the marker shown and placed on the target (an offset position) count.
+function Checks.LockOnMarker(Args)
+	local Target = workspace.World.Live:WaitForChild(Args.Target, 5)
+	local TRoot = Target and Target:WaitForChild("HumanoidRootPart", 5)
+	assert(TRoot, "the lock-on dummy never streamed in")
+	assert(LockOn.Target == nil, "precondition: nothing locked")
+	local X = Cross()
+	assert(X, "no marker")
+	local Gui = X:FindFirstAncestorOfClass("ScreenGui")
+	local R = {Frames = 0, Max = 0, Locked = false}
+	local Ok, Err = pcall(function()
+		LockOn.Toggle() -- the module's own API (the Lock Target key)
+		Sample(Args.Seconds, function()
+			if LockOn.Target ~= Target then return end
+			R.Locked = true
+			local Pos = X.Position
+			if not X.Visible or Pos.X.Scale ~= 0 or Pos.Y.Scale ~= 0 then return end
+			local P = TRoot.Position
+			local S = Gui.IgnoreGuiInset and Camera:WorldToViewportPoint(P) or Camera:WorldToScreenPoint(P)
+			if S.Z <= 0 then return end
+			R.Frames += 1
+			R.Max = math.max(R.Max, math.abs(S.X - Pos.X.Offset), math.abs(S.Y - Pos.Y.Offset))
+		end)
+	end)
+	if LockOn.Target then LockOn.Release() end
+	if not Ok then error(Err, 0) end
+	return R
+end
+
+-- B4: the weapon skill pressed (ClientActions "WeaponSkill", the key's and the touch button's path) with the aim Args.Deg
+-- degrees from the root's facing (ForceAim, as Flick), out of shooting mode; ForceAim stays Args.Hold s (past FaceWait).
+-- Args.FaceWait >= 0: GunAimUI.FaceWait for this press (the seam), put back after.
+function Checks.FanTurn(Args)
+	assert(WaitMode(false, 3), "precondition: ShootingMode off on the client")
+	local L = Root().CFrame.LookVector
+	local Was = Vector3.new(L.X, 0, L.Z).Unit
+	local Aim = CFrame.Angles(0, math.rad(Args.Deg), 0):VectorToWorldSpace(Was)
+	local Ok, Err = pcall(function()
+		assert(GunAimUI, "no GunAimUI")
+		if Args.FaceWait and Args.FaceWait >= 0 then GunAimUI.FaceWait = Args.FaceWait end
+		GunAimUI.ForceAim = Aim
+		ClientActions.Run("WeaponSkill", true)
+		ClientActions.Run("WeaponSkill", false)
+		task.wait(Args.Hold)
+	end)
+	if GunAimUI then
+		GunAimUI.ForceAim = nil
+		GunAimUI.FaceWait = HomeFaceWait
+	end
+	if not Ok then error(Err, 0) end
+	local L2 = Root().CFrame.LookVector
+	return {Turned = Deg(Was, Aim), FacingOff = Deg(Vector3.new(L2.X, 0, L2.Z), Aim)}
+end
+
 -- put everything the checks touched back
 function Checks.Reset()
 	for _, Name in ipairs({"GunChecks_TEMP_Sample", "GunChecks_TEMP_Flash", "GunChecks_TEMP_Pitch", "GunChecks_TEMP_Write"}) do
@@ -550,6 +617,7 @@ function Checks.Reset()
 		GunAimUI.ForceAim = nil
 		GunAimUI.HoldGap = HomeHoldGap
 		GunAimUI.ShakeOn = HomeShakeOn
+		GunAimUI.FaceWait = HomeFaceWait
 	end
 	if LockOn.Target then LockOn.Release() end
 	if Saved then
@@ -661,6 +729,22 @@ local HINT_WAIT, AFTER_RELEASE = 0.3, 1
 --     CFrame in the kick's first frame: the old undo then took the first frame's kick (1.36 degrees at 60 fps) off that
 --     level camera, and the view stayed 1.36 down; the guarded undo leaves it level (within KICK_BACK 0.1).
 local KICK_SETTLE = 0.3
+-- The final-review fix (half B):
+--   FOLK_ID: the TownsfolkId a direct child of World.Live carries in AssistIgnoresTownsfolkId (any value marks
+--     townsfolk, as DamageManager reads it); the dummy NEAR_DEG 1 off the crosshair, as AssistIgnoresTownsfolk's.
+--   LOCK_SECONDS 0.6: LockOnMarkerOnTarget samples from the lock until the camera has settled (LockOn lerps toward its
+--     goal each frame); every sampled frame's marker must sit less than PIXEL 1 from the target's root as that frame's
+--     camera projects it, on each axis, over at least LOCK_FRAMES 10 frames (0.6 s is 36 at 60 fps). Per axis, because
+--     a UDim offset is a whole pixel, truncated toward zero (UDim2.fromOffset(10.7, -3.6) is (10, -3), read in Studio
+--     2026-10-25): a marker placed through the right camera is off by [0, 1) on each axis, up to 1.41 px diagonally.
+--   FanFacesAim: the aim FLICK 150 degrees from the facing (past Aim.MaxYaw 100), out of shooting mode. FAN_HOLD 0.6 s:
+--     ForceAim stays past FaceWait (Aim.FlickGrace 0.4). FAN_WAIT 1.5 s more for the Fan's first shot (its Startup +
+--     replication, with room). One shot spends one round: Ammo below the magazine's MaxAmmo.
+--   RESTORE: the character attributes every case puts back (B5).
+local FOLK_ID = "GunChecks_TEMP"
+local LOCK_SECONDS, LOCK_FRAMES = 0.6, 10
+local FAN_HOLD, FAN_WAIT = 0.6, 1.5
+local RESTORE = {"LastShotAt", "LastShotResult", "WeaponSkillReadyAt", "WeaponSkillCooldown", "WeaponSkillName"}
 local function SameColor(A, B)
 	return typeof(A) == "Color3" and math.abs(A.R - B.R) + math.abs(A.G - B.G) + math.abs(A.B - B.B) < 3 / 255
 end
@@ -672,6 +756,7 @@ local function ShakeNote(S)
 end
 local HOLD_GAP = Remote:GetAttribute("HoldGap") or 0
 local NO_FLICK_GRACE = Remote:GetAttribute("NoFlickGrace") == true
+local FACE_WAIT = Remote:GetAttribute("FaceWait") or -1
 
 local Replies = {}
 Remote.OnServerEvent:Connect(function(P, Id, Done, Data)
@@ -713,6 +798,8 @@ local function Armed(Body)
 	local C = Player.Character
 	local Root = C.HumanoidRootPart
 	local WasCombat, WasAnchored = C:GetAttribute("CombatMode"), Root.Anchored
+	local Was = {}
+	for _, Name in ipairs(RESTORE) do Was[Name] = C:GetAttribute(Name) end
 	local Gun
 	SmokeKit.Guarded(Player, function()
 		Connect()
@@ -734,6 +821,7 @@ local function Armed(Body)
 		C:SetAttribute("ShootingMode", nil)
 		if Gun then Gun:Destroy() end -- the test's own Revolver (Give's clone), never the player's item
 		C:SetAttribute("CombatMode", WasCombat)
+		for _, Name in ipairs(RESTORE) do C:SetAttribute(Name, Was[Name]) end -- (after ShootingMode: no flash)
 		GunKit.Clean()
 		if not Ok then error(Err, 0) end
 	end)
@@ -986,21 +1074,89 @@ local Suite = {
 	end,
 
 	-- Task 10. Townsfolk (World.Live's townsfolk folder) are never picked; the same dummy as a child of World.Live is.
+	-- A place without the folder (Foundry) gets one in its Play copy for the case, removed after (final fix B6).
 	AssistIgnoresTownsfolk = function(T)
 		Armed(function()
-			local Folk = workspace.World.Live:FindFirstChild(TOWNSFOLK)
-			assert(Folk, "precondition: World.Live." .. TOWNSFOLK .. " exists (Task 1's survey)")
-			local D, At = AssistTarget("GunChecks_AssistFolk", NEAR_DEG)
-			D.Parent = Folk
-			local In = Ask("Assist", {Target = D.Name, In = "Townsfolk", At = At, Touch = true})
-			print(("[GunChecks] AssistIgnoresTownsfolk: %.3f degrees off; in the townsfolk folder picked %s")
-				:format(In.Deg, tostring(In.Picked)))
+			local Live = workspace.World.Live
+			local Folk = Live:FindFirstChild(TOWNSFOLK)
+			local Made = nil
+			if not Folk then
+				Made = Instance.new("Folder")
+				Made.Name = TOWNSFOLK
+				Made.Parent = Live
+				Folk = Made
+			end
+			local Ok, Err = pcall(function()
+				local D, At = AssistTarget("GunChecks_AssistFolk", NEAR_DEG)
+				D.Parent = Folk
+				local In = Ask("Assist", {Target = D.Name, In = "Townsfolk", At = At, Touch = true})
+				print(("[GunChecks] AssistIgnoresTownsfolk: %.3f degrees off; in the townsfolk folder%s picked %s")
+					:format(In.Deg, Made and " (made for the case)" or "", tostring(In.Picked)))
+				T.Near(In.Deg, NEAR_DEG, DEG_EPS, "precondition: the dummy's root is off the crosshair ray by (degrees)")
+				T.Eq(In.Active, true, "MobileControls.Active() with ForceMobileControls set")
+				T.True(In.Unchanged and not In.Picked, ("a dummy in World.Live.%s %d degree off the crosshair isn't picked"):format(TOWNSFOLK, NEAR_DEG))
+				D.Parent = Live
+				local Direct = Ask("Assist", {Target = D.Name, In = "Live", At = At, Touch = true})
+				T.True(Direct.Picked, "control: the same dummy as a direct child of World.Live is picked")
+			end)
+			if Made then Made:Destroy() end
+			if not Ok then error(Err, 0) end
+		end)
+	end,
+
+	-- Final fix B1. A Model carrying TownsfolkId is townsfolk wherever it sits: a direct child of World.Live with one isn't
+	-- picked; the same dummy without it is (the control).
+	AssistIgnoresTownsfolkId = function(T)
+		Armed(function()
+			local D, At = AssistTarget("GunChecks_AssistFolkId", NEAR_DEG)
+			D:SetAttribute("TownsfolkId", FOLK_ID)
+			local In = Ask("Assist", {Target = D.Name, In = "Live", At = At, Touch = true, Folk = true})
+			print(("[GunChecks] AssistIgnoresTownsfolkId: %.3f degrees off; with TownsfolkId picked %s"):format(In.Deg, tostring(In.Picked)))
 			T.Near(In.Deg, NEAR_DEG, DEG_EPS, "precondition: the dummy's root is off the crosshair ray by (degrees)")
 			T.Eq(In.Active, true, "MobileControls.Active() with ForceMobileControls set")
-			T.True(In.Unchanged and not In.Picked, ("a dummy in World.Live.%s %d degree off the crosshair isn't picked"):format(TOWNSFOLK, NEAR_DEG))
-			D.Parent = workspace.World.Live
-			local Direct = Ask("Assist", {Target = D.Name, In = "Live", At = At, Touch = true})
-			T.True(Direct.Picked, "control: the same dummy as a direct child of World.Live is picked")
+			T.True(In.Unchanged and not In.Picked, ("a direct child of World.Live carrying TownsfolkId %d degree off the crosshair isn't picked"):format(NEAR_DEG))
+			D:SetAttribute("TownsfolkId", nil)
+			local Plain = Ask("Assist", {Target = D.Name, In = "Live", At = At, Touch = true, Folk = false})
+			T.True(Plain.Picked, "control: the same dummy without TownsfolkId is picked")
+		end)
+	end,
+
+	-- Final fix B2. Locked on, the marker sits on the target as each frame's final camera shows it (after LockOn's lerp).
+	LockOnMarkerOnTarget = function(T)
+		Armed(function()
+			local D = GunKit.Dummy(AHEAD * LOCK_AT, "GunChecks_LockMarker")
+			GunKit.Settle()
+			local R = Ask("LockOnMarker", {Target = D.Name, Seconds = LOCK_SECONDS})
+			print(("[GunChecks] LockOnMarkerOnTarget: %d frames; the marker at most %.2f px from the target on an axis"):format(R.Frames, R.Max))
+			T.True(R.Locked, "LockOn.Toggle() locked onto the dummy")
+			T.True(R.Frames >= LOCK_FRAMES, ("precondition: the marker was on the target in %d sampled frames (min %d)"):format(R.Frames, LOCK_FRAMES))
+			T.True(R.Max < PIXEL, ("the marker sat %.2f px (on an axis) from the target's root through the frame's camera (under %d)"):format(R.Max, PIXEL))
+		end)
+	end,
+
+	-- Final fix B4. G (the weapon skill: Fan the Hammer) with the aim 150 degrees from the facing, out of shooting mode:
+	-- the client turns to face the aim first, so the server takes the aim and the Fan fires.
+	FanFacesAim = function(T)
+		Armed(function(C)
+			C:SetAttribute("ShootingMode", nil)
+			local T0 = os.clock()
+			while (C:GetAttribute("WeaponSkillReadyAt") or 0) > workspace:GetServerTimeNow() and os.clock() - T0 < 5 do task.wait() end
+			local Max, Was, Stamina = C:GetAttribute("MaxAmmo"), C:GetAttribute("LastShotAt"), C:GetAttribute("Stamina")
+			T.Eq(C:GetAttribute("Ammo"), Max, "precondition: a full magazine")
+			local R = Ask("FanTurn", {Deg = FLICK, Hold = FAN_HOLD, FaceWait = FACE_WAIT}, 10)
+			T0 = os.clock()
+			while C:GetAttribute("LastShotAt") == Was and os.clock() - T0 < FAN_WAIT do task.wait() end
+			local Fired = C:GetAttribute("LastShotAt") ~= Was
+			T0 = os.clock()
+			while C:GetAttribute("CombatState") ~= nil and os.clock() - T0 < 3 do task.wait() end -- the Fan ends
+			print(("[GunChecks] FanFacesAim: aim %.1f degrees from the facing; the client root then %.1f off the aim; fired %s, Ammo %s / %s; Stamina %s -> %s%s")
+				:format(R.Turned, R.FacingOff, tostring(Fired), tostring(C:GetAttribute("Ammo")), tostring(Max),
+				tostring(Stamina), tostring(C:GetAttribute("Stamina")),
+				FACE_WAIT >= 0 and (" [seam FaceWait " .. FACE_WAIT .. "]") or ""))
+			T.Near(R.Turned, FLICK, FLICK_EPS, "precondition: the aim's turn from the facing")
+			T.True(Fired, ("the Fan aimed %d degrees from the facing fired (the server took the aim)%s"):format(FLICK,
+				FACE_WAIT >= 0 and (" [seam FaceWait " .. FACE_WAIT .. "]") or ""))
+			T.True((C:GetAttribute("Ammo") or Max) < Max, "the Fan spent rounds")
 		end)
 	end,
 
@@ -1092,6 +1248,7 @@ Remote.Name = "GunChecks_TEMP_Remote"
 Remote:SetAttribute("Only", ONLY)
 Remote:SetAttribute("HoldGap", HOLD_GAP)
 Remote:SetAttribute("NoFlickGrace", NO_FLICK_GRACE)
+Remote:SetAttribute("FaceWait", FACE_WAIT)
 Remote.Parent = ReplicatedStorage
 local Suite = Instance.new("ModuleScript")
 Suite.Name = "GunChecks_TEMP_Suite"

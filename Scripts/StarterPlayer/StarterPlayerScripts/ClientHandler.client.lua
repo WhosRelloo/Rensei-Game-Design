@@ -213,6 +213,18 @@ end
 
 local function WeaponSkillInput()
 	if not InCombatMode() or not Character:GetAttribute("Weapon") then return false end
+	-- guns: an aim past MaxYaw from your facing would be refused, and the Fan with it. GunAimUI.FaceAim turns you to face
+	-- it first; after such a turn the press waits until the server's copy of your facing has followed (final fix B4).
+	local Wait = Character:GetAttribute("Weapon") == "Guns" and GunAimUI.FaceAim() or 0
+	if Wait > 0 then
+		local Was = Character
+		task.delay(Wait, function()
+			if Character ~= Was or Knocked() or not InCombatMode() then return end
+			SendAim()
+			RequestRemote:FireServer("WeaponSkill")
+		end)
+		return true
+	end
 	SendAim()
 	RequestRemote:FireServer("WeaponSkill")
 	return true
