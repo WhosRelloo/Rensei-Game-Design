@@ -196,7 +196,8 @@ local function UseSlot(Number)
 	UIState.Request("HoldItem", Number)
 end
 
--- ===== Guns' shooting mode: a crosshair and a hint while it's on (Requests.Shoot) =====
+-- ===== Guns' shooting mode: a hint while it's on (Requests.Shoot). The crosshair is the game's own marker
+-- (Uis.Crosshair), drawn where the shot will go by GunAimUI (gun rework 2026-10-25; it was a "+" label here). =====
 local ShootHint
 local function UpdateShooting()
 	local Character = Player.Character
@@ -207,22 +208,16 @@ local function UpdateShooting()
 		ShootHint.BackgroundTransparency = 1
 		ShootHint.Size = UDim2.fromScale(1, 1)
 		ShootHint.Parent = HUD
-		local Cross = Instance.new("TextLabel")
-		Cross.Name = "Crosshair"
-		Cross.BackgroundTransparency = 1
-		Cross.AnchorPoint = Vector2.new(0.5, 0.5)
-		Cross.Position = UDim2.fromScale(0.5, 0.5)
-		Cross.Size = UDim2.fromOffset(28, 28)
-		Cross.Text = "+"
-		Cross.TextScaled = true
-		Cross.TextColor3 = Color3.fromRGB(240, 220, 160)
-		Cross.TextStrokeTransparency = 0.4
-		Cross.FontFace = HUD.CashFrame.Display.FontFace
-		Cross.Parent = ShootHint
-		local Hint = Cross:Clone()
+		local Hint = Instance.new("TextLabel")
 		Hint.Name = "Hint"
+		Hint.BackgroundTransparency = 1
+		Hint.AnchorPoint = Vector2.new(0.5, 0.5)
 		Hint.Position = UDim2.fromScale(0.5, 0.86)
 		Hint.Size = UDim2.fromScale(0.3, 0.025)
+		Hint.TextScaled = true
+		Hint.TextColor3 = Color3.fromRGB(240, 220, 160)
+		Hint.TextStrokeTransparency = 0.4
+		Hint.FontFace = HUD.CashFrame.Display.FontFace
 		Hint.Text = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled and "SHOOTING MODE  ·  FIRE to shoot  ·  STOP to leave"
 			or "SHOOTING MODE  ·  RMB fire  ·  Y leave  ·  M1 still pistol-whips"
 		Hint.Parent = ShootHint

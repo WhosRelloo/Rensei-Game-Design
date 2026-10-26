@@ -79,11 +79,13 @@ end)
 local function InCombatMode()
 	return Character ~= nil and Character:GetAttribute("CombatMode") == true
 end
+-- guns' shooting mode on the client: the aim camera, the crosshair, the aim, hold to fire (gun rework 2026-10-25)
+local GunAimUI = require(Modules.UI.GunAimUI)
 
--- Guns aim where the camera looks: the direction goes to the server just before the shot.
+-- Guns aim where the crosshair points (GunAimUI): the direction goes to the server just before the shot.
 local function SendAim()
 	if Character and Character:GetAttribute("Weapon") == "Guns" then
-		ReplicatedStorage.Remotes.RequestRemote:FireServer("Aim", Camera.CFrame.LookVector)
+		ReplicatedStorage.Remotes.RequestRemote:FireServer("Aim", GunAimUI.AimDirection())
 	end
 end
 
@@ -179,11 +181,8 @@ end
 -- Hotfix 2026-10-23 (lock-on aim): while locked on, alchemy aims from the character at the locked
 -- target's centre. The lock camera sits over the right shoulder and above the player, so its look
 -- line (the old aim) ran beside and below the target and casts missed.
-local LockOnModule = ReplicatedStorage.Modules.UI:FindFirstChild("LockOn")
 local function AlchemyAim()
-	local Ok, LockOn = pcall(function() return LockOnModule and require(LockOnModule) end)
-	local T = Ok and LockOn and LockOn.Target
-	local TRoot = T and T.Parent and T:FindFirstChild("HumanoidRootPart")
+	local TRoot = GunAimUI.LockedRoot()
 	local Root = Character and Character:FindFirstChild("HumanoidRootPart")
 	if TRoot and Root then
 		local To = TRoot.Position - (Root.Position + Vector3.new(0, 0.5, 0)) -- same height the server aims from
@@ -222,22 +221,10 @@ end
 -- Guns (owner 2026-10-17): M1 is always the pistol whip. Shooting is its own mode: Y (rebindable "Aim")
 -- toggles it with a gun drawn in Combat Mode, then RMB fires (RMB is Feint the rest of the time). The
 -- server owns the mode (character attribute ShootingMode) and validates every shot (Requests.Shoot).
-local function Shooting()
-	return Character ~= nil and Character:GetAttribute("ShootingMode") == true
-end
+-- Firing (hold to fire, the aim, the turn to face the shot) is GunAimUI.FireInput (gun rework 2026-10-25).
 local function AimToggle()
 	if Knocked() or not InCombatMode() or Character:GetAttribute("Weapon") ~= "Guns" then return false end
-	RequestRemote:FireServer("Shoot", "Mode", not Shooting())
-	return true
-end
-local function FireInput()
-	if Knocked() or not Shooting() then return false end
-	-- turn to where the camera looks, so the shot goes where you aim
-	local Root = Character:FindFirstChild("HumanoidRootPart")
-	local Look = Camera.CFrame.LookVector
-	local Flat = Vector3.new(Look.X, 0, Look.Z)
-	if Root and Flat.Magnitude > 0.1 then Root.CFrame = CFrame.lookAt(Root.Position, Root.Position + Flat) end
-	RequestRemote:FireServer("Shoot", "Fire", Look)
+	RequestRemote:FireServer("Shoot", "Mode", Character:GetAttribute("ShootingMode") ~= true)
 	return true
 end
 
@@ -261,7 +248,7 @@ ClientActions.Register("Slide", function(Began)
 end)
 ClientActions.Register("WeaponSkill", function(Began) if Began then WeaponSkillInput() end end)
 ClientActions.Register("Aim", function(Began) if Began then AimToggle() end end)
-ClientActions.Register("Fire", function(Began) if Began then FireInput() end end)
+ClientActions.Register("Fire", function(Began) GunAimUI.FireInput(Began) end)
 for _, Key in ipairs({"Z", "X", "C"}) do
 	ClientActions.Register("Alchemy" .. Key, function(Began) AlchemyInput(Key, Began) end)
 end
@@ -281,10 +268,13 @@ for Key, Skill in pairs(Controls) do
 		if CombatInputs[Skill] and State == Enum.UserInputState.Begin and not InCombatMode() then
 			return Enum.ContextActionResult.Pass
 		end
-		-- RMB = Feint (server cancels a light attack still in its windup) -- or, in guns' shooting mode, FIRE.
+		-- RMB = Feint (server cancels a light attack still in its windup) -- or, in guns' shooting mode, FIRE
+		-- (held: GunAimUI keeps firing until the release).
 		if Skill == "Feint" then
 			if State == Enum.UserInputState.Begin then
-				if not FireInput() then ReplicatedStorage.Remotes.RequestRemote:FireServer("Feint") end
+				if not GunAimUI.FireInput(true) then RequestRemote:FireServer("Feint") end
+			elseif State == Enum.UserInputState.End then
+				GunAimUI.FireInput(false)
 			end
 			return Enum.ContextActionResult.Sink
 		end
@@ -431,3 +421,4 @@ HitboxManager.Initiate()
 MoverManager.Initiate()
 AnimationManager.Initiate()
 WeaponManager.StartClient()
+GunAimUI.Start()
