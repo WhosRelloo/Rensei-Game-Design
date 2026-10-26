@@ -1,9 +1,9 @@
 -- PositionHistory (gun rework 2026-10-25): the last KEEP seconds of every live character's root CFrame, so a player's shot is
 -- tested where its shooter saw the target (lag compensation, capped by TuningConfig.Weapons.Guns.Aim.MaxRewind). PROPOSAL.
 -- The characters are GunAim.Candidates -- the same list WeaponManager.ShotTarget tests -- kept as a cached list of
--- {Model, Root} (Ruling 14: walking World.Live every sample cost ~0.2 ms). Live.DescendantAdded / DescendantRemoving of
--- a Model, Humanoid or Folder only marks the list dirty (Removing fires before the instance leaves, so it is never
--- rebuilt inside the handler); the next Sample rebuilds it, and it is rebuilt at least every REBUILD seconds anyway.
+-- {Model, Root} (Ruling 14: walking World.Live every sample cost ~0.2 ms). A Live.DescendantAdded / DescendantRemoving
+-- that can change the candidates (Mark, below) only marks the list dirty (it is never rebuilt inside the handler); the
+-- next Sample rebuilds it, and it is rebuilt at least every REBUILD seconds anyway.
 -- A rebuild drops the history of anything no longer a candidate, so Samples never outgrows the candidates.
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -23,13 +23,44 @@ local Samples = {} -- [Model] = {{T, CF}, ...} oldest first
 local Started = false
 
 local Cached = {} -- {{Model = M, Root = HumanoidRootPart or nil}, ...}: GunAim.Candidates(Live) at the last rebuild
+local IsCached = {} -- [Model] = true for the Models in Cached
 local Dirty = true
 local BuiltAt = -math.huge
 local Watched = nil -- the World.Live the connections below watch
 local Watching = {}
 
+local Marks = 0 -- times Mark set Dirty (a test seam: PositionHistory.DirtyMarks)
+
+-- Only an add / remove that can change GunAim.Candidates marks the list dirty (gun rework final fix A7): a Model or
+-- Folder whose Parent is Live, a Model in a Folder in Live, or a Humanoid directly inside one of those Models -- and a
+-- cached candidate itself (a removal's signal is deferred, so it may come after the Model has left: no Parent to read).
+-- A Tool given to a character (its Models), effects parented inside a character and the like don't.
+local function Level(M) -- 1: a child of Live; 2: a child of a Folder in Live; nil: anything deeper
+	local P = M.Parent
+	if P == Watched then return 1 end
+	if P and P:IsA("Folder") and P.Parent == Watched then return 2 end
+	return nil
+end
+
 local function Mark(D)
-	if D:IsA("Model") or D:IsA("Humanoid") or D:IsA("Folder") then Dirty = true end
+	local Counts
+	if D:IsA("Model") then
+		Counts = IsCached[D] or Level(D) ~= nil
+	elseif D:IsA("Folder") then
+		Counts = D.Parent == Watched
+	elseif D:IsA("Humanoid") then
+		local M = D.Parent
+		Counts = M ~= nil and M:IsA("Model") and (IsCached[M] or Level(M) ~= nil)
+	end
+	if Counts then
+		Dirty = true
+		Marks += 1
+	end
+end
+
+-- how many adds / removes under World.Live have marked the cached candidates dirty so far (Play_Guns' MarkIgnoresTools)
+function PositionHistory.DirtyMarks()
+	return Marks
 end
 
 local function Watch(Live)
@@ -46,13 +77,13 @@ end
 
 local function Rebuild(Live, Now)
 	table.clear(Cached)
-	local Keep = {}
+	table.clear(IsCached)
 	for _, M in ipairs(Live and GunAim.Candidates(Live) or {}) do
-		Keep[M] = true
+		IsCached[M] = true
 		table.insert(Cached, {Model = M, Root = M:FindFirstChild("HumanoidRootPart")})
 	end
 	for M in pairs(Samples) do
-		if not Keep[M] then Samples[M] = nil end
+		if not IsCached[M] then Samples[M] = nil end
 	end
 	Dirty = false
 	BuiltAt = Now

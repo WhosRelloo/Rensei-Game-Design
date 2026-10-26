@@ -24,9 +24,11 @@
 --   * SmokeKit.TempPart(Props) (gun rework Task 4, 2026-10-25; moved from Play_Stealth's Part): an anchored Part with
 --     Props, in workspace, remembered until SmokeKit.ClearTemp() destroys every remembered part.
 --   * SmokeKit.Guarded(Player, Body, Before, After) (gun rework Task 4; the clean-up half of Play_Stealth's Guard):
---     remembers the player's character pivot, runs Before() (optional), then pcall(Body); then clears the temp parts,
---     runs pcall(After) (optional), always puts the character back (pivot, zero velocity), and re-raises Body's error
---     (or After's, when only After failed).
+--     remembers the player's character pivot and root anchoring, then (gun rework final fix A8, in this order):
+--     pcall(Before) (optional; when it fails Body is skipped), pcall(Body), pcall(After) (optional, while the temp parts
+--     still stand), ClearTemp, and the character put back -- anchored, pivoted home, velocity zeroed, then its anchoring
+--     from before the case restored (pcall too). Re-raises the first error: Before's or Body's, then After's, then the
+--     put-back's.
 local CollectionService = game:GetService("CollectionService")
 local SSS = game:GetService("ServerScriptService")
 local MovementState = require(game:GetService("ReplicatedStorage").Modules.Managers.MovementState)
@@ -54,16 +56,28 @@ end
 function SmokeKit.Guarded(Player, Body, Before, After)
 	local C = Player.Character
 	local Home = C:GetPivot()
-	if Before then Before() end
-	local Ok, Err = pcall(Body)
-	SmokeKit.ClearTemp()
+	local Root = C:FindFirstChild("HumanoidRootPart")
+	local WasAnchored = Root and Root.Anchored
+	-- (gun rework final fix A8) Before runs under pcall too: when it fails, Body is skipped and the clean-up still runs
+	local Ok, Err = true, nil
+	if Before then Ok, Err = pcall(Before) end
+	if Ok then Ok, Err = pcall(Body) end
+	-- After runs while the temp parts (a test floor) are still there, so whatever it un-anchors stands on them
 	local AfterOk, AfterErr = true, nil
 	if After then AfterOk, AfterErr = pcall(After) end
-	C:PivotTo(Home)
-	local Root = C:FindFirstChild("HumanoidRootPart")
-	if Root then Root.AssemblyLinearVelocity = Vector3.zero end
+	SmokeKit.ClearTemp()
+	-- home, held anchored for the move and the velocity reset; the root's anchoring from before the case comes back last
+	local HomeOk, HomeErr = pcall(function()
+		if Root and Root.Parent then Root.Anchored = true end
+		C:PivotTo(Home)
+		if Root and Root.Parent then
+			Root.AssemblyLinearVelocity = Vector3.zero
+			Root.Anchored = WasAnchored
+		end
+	end)
 	if not Ok then error(Err, 0) end
 	if not AfterOk then error(AfterErr, 0) end
+	if not HomeOk then error(HomeErr, 0) end
 end
 
 function SmokeKit.Copy(V)

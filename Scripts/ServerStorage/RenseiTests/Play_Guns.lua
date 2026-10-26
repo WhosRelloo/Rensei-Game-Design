@@ -62,6 +62,38 @@ local GRACE_PAST, TURN_AT = 0.5, 0.1
 -- max(0, 2 - 3) = 0, under BlockManager.Check's floor 0.17 -- "GuardBroken". (Posture regen waits RegenDelay 1.5 s after
 -- a change, and both shots are synchronous, so nothing regenerates in between.)
 local POSTURE_FULL, SHOT_POSTURE, GUARD_LEFT, POSTURE_EPS = 100, 3, 2, 0.01
+-- The shot ticket (final fix A1): a player's shot is rewound from its REQUEST, not from its strike. The test player fires
+-- through the real Shoot request at a mover going +X at FAST (24 studs/s), OFF_PATH studs away, standing level with
+-- where the mover will be so the shot meets the box face on (its half-width 2, Aim.HitBox PROPOSAL). Studio's ping is
+-- about 0, so a request at time t is rewound to t - INTERP (Aim.Interp 0.1, PROPOSAL); the Revolver's strike comes
+-- STARTUP (Shots[1].Startup 0.12, PROPOSAL) after the request.
+--   Shot 1, aimed at Where(t - INTERP): rewound from the request it meets the box dead centre; rewound from the strike
+--   (the old rule) the box stands 24 x 0.12 = 2.88 studs further on: a miss by 0.88 at least (later frames: more).
+--   Shot 2 (control), aimed at Where(t + STARTUP - INTERP), where the old rule looks: rewound from the request, the box
+--   is 2.88 behind that line (a miss); the old rule hits it (0 to ~0.6 off, a frame's lateness).
+-- The mover starts at TICKET_FROM and runs TICKET_FOR s; shot 1 goes TICKET_FIRST s after it starts (its line at
+-- TICKET_FROM + 24 x (0.6 - 0.1) = -24 = TICKET_X1), shot 2 TICKET_SECOND s after (-36 + 24 x (1.8 + 0.02) = 7.7 =
+-- TICKET_X2), past shot 1's Startup + Active + Recovery (0.12 + 0.02 + 0.42 = 0.56 s).
+local INTERP, STARTUP = 0.1, 0.12
+local TICKET_FROM, TICKET_FOR, TICKET_FIRST, TICKET_SECOND = -36, 3, 0.6, 1.8
+local TICKET_X1, TICKET_X2 = -24, 7.7
+local SHOT_WITHIN = 0.5 -- seconds for an accepted Fire request to have fired (Startup 0.12 + frames)
+-- Fan the Hammer (final fix A2; TuningConfig Guns.Skill PROPOSAL): Stamina 15, three strikes (HitTimes 0.12 / 0.27 /
+-- 0.42), one round each. Stamina regen waits RegenDelay 0.8 s, so FAN_LOOK after the press nothing has regenerated yet.
+-- With FAN_LEFT 2 rounds the strikes spend 1, 1 and then nothing (the second empties the gun and starts the reload).
+local FAN_STAMINA, FAN_SHOTS, FAN_LEFT, FAN_LOOK, STAMINA_EPS = 15, 3, 2, 0.2, 0.01
+local FAN_DONE = 1.0 -- seconds: the Fan's Startup + Active + Recovery 0.78 s, and a margin
+-- The flick hold (final fix A3, Ruling 29): HOLD_PEEK s after a held Fire request, a valid Requests.Aim; HOLD_LOOK s
+-- later (several Heartbeats of the hold) the stored aim must still be the valid one.
+local HOLD_PEEK, HOLD_LOOK = 0.05, 0.15
+-- The limiter (Aim.FireRate 5 / FireBurst 5, PROPOSAL): BURST + 3 requests at once take BURST aims; REFILL s later 1.5
+-- tokens are back, so 1 of 3 more gets through.
+local RATE, BURST, REFILL = 5, 5, 0.3
+
+-- the test player's attributes a case may change, put back by PlayerGun (final fix A8: LastShotAt, LastShotResult and
+-- Traversal too)
+local PLAYER_KEEP = {"CombatMode", "ShootingMode", "LastShotAt", "LastShotResult", "Traversal", "WeaponSkillReadyAt",
+	"WeaponSkillCooldown", "WeaponSkillName", "GunSnapCount"}
 
 local function Guard(Body, After)
 	SmokeKit.Guarded(Player, Body, function() GunKit.Unequip(Player) end, function()
@@ -106,12 +138,88 @@ local function Looping(M)
 	return Track
 end
 
--- the Shoot request handler the server runs (ServerHandler.Requests.Shoot, the same module instance and state)
-local function ShootRequest()
+-- a request handler the server runs (ServerHandler.Requests.<Name>: Shoot, Aim, WeaponSkill), the same module instance
+-- and state
+local function Request(Name)
 	local SH = game:GetService("ServerScriptService"):FindFirstChild("ServerHandler")
-	local M = SH and SH:FindFirstChild("Requests") and SH.Requests:FindFirstChild("Shoot")
-	assert(M, "no ServerScriptService.ServerHandler.Requests.Shoot")
+	local M = SH and SH:FindFirstChild("Requests") and SH.Requests:FindFirstChild(Name)
+	assert(M, "no ServerScriptService.ServerHandler.Requests." .. Name)
 	return require(M)
+end
+local function ShootRequest() return Request("Shoot") end
+
+-- the test player stood on GunKit's floor at Spot() + Offset, root anchored, facing -Z
+local function PutPlayer(Offset)
+	local At = GunKit.Spot() + Offset + Vector3.new(0, 3, 0)
+	Player.Character:PivotTo(CFrame.lookAt(At, At + AHEAD))
+end
+
+-- The test player armed for a case (the Shoot / Aim / WeaponSkill requests read the player's own character): stood at
+-- Offset (PutPlayer), in Combat Mode, holding the test's own Revolver (WeaponManager.Give's clone) with a full
+-- magazine, not in shooting mode. Body(C, Root). After (optional) runs first; then shooting mode goes, the Revolver is
+-- destroyed, PLAYER_KEEP's attributes and Stamina are put back (the root's anchoring and pivot: SmokeKit.Guarded).
+local function PlayerGun(Body, After, Offset)
+	local C = Player.Character
+	local Root = C.HumanoidRootPart
+	local Kept = {}
+	for I, A in ipairs(PLAYER_KEEP) do Kept[I] = C:GetAttribute(A) end
+	local Stamina = ResourceManager.Get(C, "Stamina")
+	local Gun
+	Guard(function()
+		Root.Anchored = true
+		PutPlayer(Offset or Vector3.zero)
+		C:SetAttribute("CombatMode", true)
+		Gun = WeaponManager.Give(C, "Revolver")
+		assert(Gun ~= nil, "the Revolver given")
+		GunKit.Settle()
+		local T0 = os.clock()
+		while (C:GetAttribute("ReloadingUntil") or 0) > workspace:GetServerTimeNow() and os.clock() - T0 < 3 do task.wait() end
+		C:SetAttribute("Ammo", REVOLVER_MAG)
+		Body(C, Root)
+	end, function()
+		local Ok, Err = true, nil
+		if After then Ok, Err = pcall(After) end
+		C:SetAttribute("ShootingMode", nil)
+		if Gun then
+			Gun:Destroy() -- the test's own Revolver (Give's clone), never the player's item
+			-- its detach is a deferred signal: let it run now. Left for later, it ran after the next case's Give and, the
+			-- name being the same, cleared that new Revolver's Weapon / Ammo / ShootingMode (seen in the RED session)
+			task.wait()
+		end
+		for I, A in ipairs(PLAYER_KEEP) do C:SetAttribute(A, Kept[I]) end
+		ResourceManager.Set(C, "Stamina", Stamina)
+		if not Ok then error(Err, 0) end
+	end)
+end
+
+-- A target at From (an offset from the spot) and Go(): from now it moves along +X at Speed for For s (PivotTo every
+-- Heartbeat; it stops if the kit removes it). Go returns Where(t) -- where the test puts the target's root at server
+-- time t, from x0 read once before it moves and the test's own clock; nothing read back from the rig after that -- and
+-- Finish(), which waits for the end of the path.
+local function Mover(From, Speed, For)
+	local Tg = GunKit.Dummy(From, "GunKit_Mover")
+	local function Go()
+		local Start = Tg:GetPivot()
+		local Root0 = Tg.HumanoidRootPart.Position
+		local T0 = workspace:GetServerTimeNow()
+		local function Along(t) return Speed * math.clamp(t - T0, 0, For) end
+		local Done = false
+		local Conn
+		Conn = RunService.Heartbeat:Connect(function()
+			if not Tg.Parent then Conn:Disconnect() return end
+			local X = Along(workspace:GetServerTimeNow())
+			Tg:PivotTo(Start + Vector3.new(X, 0, 0))
+			if X >= Speed * For then Done = true end
+		end)
+		local function Finish()
+			local Wait0 = os.clock()
+			while not Done and os.clock() - Wait0 < For + 2 do task.wait() end
+			Conn:Disconnect()
+			assert(Done, "the moving target finished its path")
+		end
+		return function(t) return Root0 + Vector3.new(Along(t), 0, 0) end, Finish
+	end
+	return Tg, Go
 end
 
 -- one shot at Target: the results, and the Health it lost
@@ -133,25 +241,11 @@ end
 -- root at server time t (from x0, read once before it moves, and the test's own clock; nothing read back from the rig
 -- after that).
 local function MovingTarget(ShooterAlong, Speed)
-	Speed = Speed or SPEED
-	local Tg = GunKit.Dummy(Vector3.new(MOVE_FROM, 0, 0), "GunKit_Mover")
+	local Tg, Go = Mover(Vector3.new(MOVE_FROM, 0, 0), Speed or SPEED, MOVE_FOR)
 	local S = GunKit.Shooter(Vector3.new(ShooterAlong, 0, OFF_PATH), GunKit.Spot() + Vector3.new(ShooterAlong, 0, 0), "Revolver")
 	GunKit.Settle()
-	local Start = Tg:GetPivot()
-	local Root0 = Tg.HumanoidRootPart.Position
-	local T0 = workspace:GetServerTimeNow()
-	local function Along(t) return Speed * math.clamp(t - T0, 0, MOVE_FOR) end
-	local Done = false
-	local Conn = RunService.Heartbeat:Connect(function()
-		local X = Along(workspace:GetServerTimeNow())
-		Tg:PivotTo(Start + Vector3.new(X, 0, 0))
-		if X >= Speed * MOVE_FOR then Done = true end
-	end)
-	local Wait0 = os.clock()
-	while not Done and os.clock() - Wait0 < MOVE_FOR + 2 do task.wait() end
-	Conn:Disconnect()
-	assert(Done, "the moving target finished its path")
-	local function Where(t) return Root0 + Vector3.new(Along(t), 0, 0) end
+	local Where, Finish = Go()
+	Finish()
 	return Tg, S, S.HumanoidRootPart.Position + MUZZLE_UP, Where
 end
 
@@ -183,24 +277,11 @@ return {
 			T.Eq(S:GetAttribute("LastShotAt"), Before, "LastShotAt after a refused aim")
 		end)
 		-- through the Shoot request (Ruling 28): behind with no turn is still refused once the flick grace has run out;
-		-- turning to face the aim inside the grace fires it (the control). The test player, anchored on GunKit's floor.
-		local C = Player.Character
-		local Root = C.HumanoidRootPart
-		local WasCombat, WasAnchored = C:GetAttribute("CombatMode"), Root.Anchored
-		local Gun
-		Guard(function()
+		-- turning to face the aim inside the grace fires it (the control). The test player, anchored on GunKit's floor
+		-- (PlayerGun puts LastShotAt and LastShotResult back after; final fix A8).
+		PlayerGun(function(C, Root)
 			local Shoot = ShootRequest()
-			local Top = GunKit.Spot()
-			Root.Anchored = true
-			C:PivotTo(CFrame.lookAt(Top + Vector3.new(0, 3, 0), Top + Vector3.new(0, 3, 0) + AHEAD))
-			C:SetAttribute("CombatMode", true)
-			Gun = WeaponManager.Give(C, "Revolver")
-			T.True(Gun ~= nil, "the Revolver given")
 			C:SetAttribute("ShootingMode", true)
-			GunKit.Settle()
-			local T0 = os.clock()
-			while (C:GetAttribute("ReloadingUntil") or 0) > workspace:GetServerTimeNow() and os.clock() - T0 < 3 do task.wait() end
-			C:SetAttribute("Ammo", REVOLVER_MAG)
 			local Was = C:GetAttribute("LastShotAt")
 			Shoot(Player, "Fire", -AHEAD)
 			task.wait(GRACE_PAST)
@@ -212,11 +293,6 @@ return {
 			task.wait(GRACE_PAST - TURN_AT)
 			T.True(C:GetAttribute("LastShotAt") ~= Was, "control: the request aimed behind fired once the root turned to it " .. TURN_AT .. " s later")
 			T.Eq(C:GetAttribute("Ammo"), REVOLVER_MAG - 1, "control: Ammo after that shot")
-		end, function()
-			C:SetAttribute("ShootingMode", nil)
-			if Gun then Gun:Destroy() end -- the test's own Revolver (Give's clone), never the player's item
-			C:SetAttribute("CombatMode", WasCombat)
-			Root.Anchored = WasAnchored
 		end)
 	end,
 
@@ -267,9 +343,18 @@ return {
 		end)
 	end,
 
-	-- RED today: every hit flinches
+	-- RED today: every hit flinches. Final fix A4 (Ruling 20): the far victim gets no hitstop either (a Play-only wrapper
+	-- on AnimationManager.Hitstop, removed by After, counts its calls per model; DamageManager defers them, so they are
+	-- read after the 0.2 s wait; the near hit's hitstop is the control)
 	FlinchOnlyClose = function(T)
+		local AnimationManager = require(ReplicatedStorage.Modules.Managers.AnimationManager)
+		local Hitstop = AnimationManager.Hitstop
+		local Stops = {}
 		Guard(function()
+			AnimationManager.Hitstop = function(M, ...)
+				Stops[M] = (Stops[M] or 0) + 1
+				return Hitstop(M, ...)
+			end
 			local S = Shooter("Revolver")
 			local Near = Target(10)
 			GunKit.Settle()
@@ -280,6 +365,7 @@ return {
 			T.True(Stunned(Near), "a hit at 10 studs stuns")
 			task.wait(0.2)
 			T.True(not NearTrack.IsPlaying, "a hit at 10 studs stops the target's looped track (control: the hit reaction)")
+			T.True((Stops[Near] or 0) >= 1, "a hit at 10 studs gives the target a hitstop (control)")
 			Aside(Near)
 			local Far = Target(40)
 			GunKit.Settle()
@@ -289,6 +375,10 @@ return {
 			T.True(not Stunned(Far), "a hit at 40 studs doesn't stun")
 			task.wait(0.2)
 			T.True(FarTrack.IsPlaying, "a hit at 40 studs leaves the target's looped track playing (no hit reaction)")
+			T.Eq(Stops[Far], nil, "hitstops on the target hit at 40 studs")
+			T.True((Stops[S] or 0) >= 2, "the shooter's own hitstop still plays on both hits")
+		end, function()
+			AnimationManager.Hitstop = Hitstop
 		end)
 	end,
 
@@ -358,15 +448,9 @@ return {
 	end,
 
 	-- RED today: Traversal isn't watched. Watch hooks players' characters, so this uses the test player's.
+	-- (PlayerGun puts the captured Traversal back; final fix A8)
 	ShootingModeEndsInWater = function(T)
-		local C = Player.Character
-		local WasCombat = C:GetAttribute("CombatMode")
-		local Gun
-		Guard(function()
-			T.Eq(C:FindFirstChildOfClass("Tool"), nil, "no Tool held after Unequip")
-			C:SetAttribute("CombatMode", true)
-			Gun = WeaponManager.Give(C, "Revolver")
-			T.True(Gun ~= nil, "the Revolver given")
+		PlayerGun(function(C)
 			C:SetAttribute("ShootingMode", true)
 			task.wait(0.1)
 			T.Eq(C:GetAttribute("ShootingMode"), true, "shooting mode on dry land")
@@ -377,11 +461,6 @@ return {
 			local T0 = os.clock()
 			while C:GetAttribute("ShootingMode") and os.clock() - T0 < MODE_ENDS_WITHIN do task.wait() end
 			T.Eq(C:GetAttribute("ShootingMode"), nil, "shooting mode " .. MODE_ENDS_WITHIN .. " s after Traversal = Swim")
-		end, function()
-			C:SetAttribute("Traversal", nil)
-			C:SetAttribute("ShootingMode", nil)
-			if Gun then Gun:Destroy() end -- the test's own Revolver (Give's clone), never the player's item
-			C:SetAttribute("CombatMode", WasCombat)
 		end)
 	end,
 
@@ -467,6 +546,207 @@ return {
 		end, function()
 			C.HumanoidRootPart.Anchored = WasAnchored
 			C:SetAttribute("GunSnapCount", Was)
+		end)
+	end,
+
+	-- RED before final fix A1: the shot was rewound from its strike (STARTUP after the request), so a shot aimed where
+	-- the shooter saw the mover at the request missed it. Through the real Shoot request, the test player in shooting
+	-- mode; the numbers are worked in the header. The control (shot 2) is aimed where the strike-time rewind looks.
+	TicketRewindsFromRequest = function(T)
+		PlayerGun(function(C, Root)
+			local Shoot = ShootRequest()
+			local Tg, Go = Mover(Vector3.new(TICKET_FROM, 0, 0), FAST, TICKET_FOR)
+			C:SetAttribute("ShootingMode", true)
+			GunKit.Settle()
+			local Health = Tg.Humanoid.Health
+			local Where, Finish = Go()
+			local Go0 = os.clock()
+			-- one Fire request aimed at the mover's root at server time Look(t), from the root's muzzle; waits for the shot.
+			-- Returns whether it fired, LastShotResult, and the rewind RewindAt gave at the request (for the message only).
+			local function FireAt(StandX, After, Look)
+				PutPlayer(Vector3.new(StandX, 0, OFF_PATH))
+				task.wait(math.max(0, After - (os.clock() - Go0)))
+				local Was = C:GetAttribute("LastShotAt")
+				local Tr = workspace:GetServerTimeNow()
+				local Back = Tr - WeaponManager.RewindAt(C)
+				Shoot(Player, "Fire", (Where(Look(Tr)) - (Root.Position + MUZZLE_UP)).Unit)
+				local T0 = os.clock()
+				while C:GetAttribute("LastShotAt") == Was and os.clock() - T0 < SHOT_WITHIN do task.wait() end
+				return C:GetAttribute("LastShotAt") ~= Was, C:GetAttribute("LastShotResult"), Back
+			end
+			local Fired, Result, Back = FireAt(TICKET_X1, TICKET_FIRST, function(Tr) return Tr - INTERP end)
+			T.True(Fired, "the Fire request aimed where the mover was at the request fired")
+			T.Eq(Result, "Hit", ("LastShotResult, aimed at Where(request - %.2f) (the player's rewind at the request: %.3f s)"):format(INTERP, Back))
+			T.True(Tg.Humanoid.Health < Health, "the mover lost Health")
+			Fired, Result = FireAt(TICKET_X2, TICKET_SECOND, function(Tr) return Tr + STARTUP - INTERP end)
+			T.True(Fired, "control: the second Fire request fired")
+			T.Eq(Result, "Miss", ("control: LastShotResult, aimed at Where(request + %.2f - %.2f), where a strike-time rewind looks"):format(STARTUP, INTERP))
+			Finish()
+		end)
+	end,
+
+	-- RED before final fix A2: a Fan the Hammer pressed with a fresh refused aim spent its Stamina and cooldown and fired
+	-- nothing. Through the real Aim and WeaponSkill requests; the control (a forward aim) spends them and three rounds.
+	FanRefusedCostsNothing = function(T)
+		PlayerGun(function(C)
+			local Aim, Skill = Request("Aim"), Request("WeaponSkill")
+			C:SetAttribute("WeaponSkillReadyAt", nil)
+			local Max = ResourceManager.Max(C, "Stamina")
+			ResourceManager.Set(C, "Stamina", Max)
+			Aim(Player, -AHEAD) -- straight behind: refused
+			task.spawn(Skill, Player)
+			task.wait(FAN_LOOK)
+			T.Near(ResourceManager.Get(C, "Stamina"), Max, STAMINA_EPS, "Stamina after a Fan the Hammer aimed behind")
+			T.Eq(C:GetAttribute("WeaponSkillReadyAt"), nil, "WeaponSkillReadyAt after a Fan the Hammer aimed behind")
+			T.Eq(C:GetAttribute("Ammo"), REVOLVER_MAG, "Ammo after a Fan the Hammer aimed behind")
+			task.wait(FAN_DONE)
+			C:SetAttribute("WeaponSkillReadyAt", nil) -- (RED: the refused press spent these: the control starts afresh)
+			ResourceManager.Set(C, "Stamina", Max)
+			Aim(Player, AHEAD)
+			task.spawn(Skill, Player)
+			task.wait(FAN_LOOK)
+			T.Near(ResourceManager.Get(C, "Stamina"), Max - FAN_STAMINA, STAMINA_EPS, "control: Stamina after a Fan aimed ahead")
+			T.True(C:GetAttribute("WeaponSkillReadyAt") ~= nil, "control: the Fan's cooldown runs")
+			task.wait(FAN_DONE)
+			T.Eq(C:GetAttribute("Ammo"), REVOLVER_MAG - FAN_SHOTS, "control: Ammo after a Fan aimed ahead")
+		end)
+	end,
+
+	-- RED before final fix A3 (Ruling 29): the flick hold re-ran SetAim with its refused aim every Heartbeat, so a valid
+	-- Requests.Aim sent meanwhile was overwritten with a refused one; and a Mode request didn't drop the held Fire (it
+	-- fired once the root turned). BehindIsRefused's control shows the same turn fires a held request.
+	FlickHoldKeepsNewerAim = function(T)
+		PlayerGun(function(C, Root)
+			local Shoot, Aim = ShootRequest(), Request("Aim")
+			C:SetAttribute("ShootingMode", true)
+			Shoot(Player, "Fire", -AHEAD) -- behind: held by the flick grace
+			task.wait(HOLD_PEEK)
+			Aim(Player, AHEAD)
+			task.wait(HOLD_LOOK)
+			T.Eq(WeaponManager.AimRefused(C), false, "a valid Requests.Aim " .. HOLD_LOOK .. " s into a held flick is still the stored aim")
+			task.wait(GRACE_PAST) -- that hold runs out
+			local Was, Ammo = C:GetAttribute("LastShotAt"), C:GetAttribute("Ammo")
+			Shoot(Player, "Fire", -AHEAD)
+			task.wait(HOLD_PEEK)
+			Shoot(Player, "Mode", true) -- (already on: it stays on)
+			T.Eq(C:GetAttribute("ShootingMode"), true, "shooting mode after the Mode request")
+			task.wait(TURN_AT - HOLD_PEEK)
+			C:PivotTo(CFrame.lookAt(Root.Position, Root.Position - AHEAD)) -- the turn the held request waited for
+			task.wait(GRACE_PAST - TURN_AT)
+			T.Eq(C:GetAttribute("LastShotAt"), Was, "LastShotAt: a Mode request drops the held Fire")
+			T.Eq(C:GetAttribute("Ammo"), Ammo, "Ammo: a Mode request drops the held Fire")
+		end)
+	end,
+
+	-- RED before final fix A5: SetAim didn't track the character, and the tables were only emptied on Destroying, so an
+	-- unarmed character that left the world kept its stored aim. The control: the refused aim is there before it leaves.
+	TablesGoWithTheCharacter = function(T)
+		Guard(function()
+			local Rig = GunKit.Dummy(AHEAD * 30, "GunKit_Unarmed") -- faces -Z, holds no gun
+			GunKit.Settle()
+			WeaponManager.SetAim(Rig, -AHEAD) -- straight behind: refused, and remembered
+			T.Eq(WeaponManager.AimRefused(Rig), true, "control: the refused aim is stored")
+			Rig.Parent = nil -- it leaves the world (not destroyed; GunKit.Clean still destroys it)
+			task.wait(0.1)
+			T.Eq(WeaponManager.AimRefused(Rig), false, "the stored aim once the character has left the world")
+		end)
+	end,
+
+	-- RED before final fix A6 (Ruling 33, PROPOSAL): a knocked body took the shot (DamageManager calls it IFramed). Its
+	-- control: the same body standing takes the shot meant for the target behind it.
+	KnockedIsNoShield = function(T)
+		Guard(function()
+			local S = Shooter("Revolver")
+			local Front = Target(10, "GunKit_Front")
+			local Back = Target(20, "GunKit_Back")
+			GunKit.Settle()
+			local R1 = GunKit.Shot(S, AimAt(S, Back))
+			T.Eq(R1[1] and R1[1].Victim, Front, "control: a standing body in front takes the shot")
+			Front:SetAttribute("Knocked", true)
+			local R2 = GunKit.Shot(S, AimAt(S, Back))
+			T.Eq(R2[1] and R2[1].Victim, Back, "the victim with a knocked body in front")
+			T.Eq(R2[1] and R2[1].Result, "Hit", "the result behind a knocked body")
+		end)
+	end,
+
+	-- RED before final fix A7: every Model under World.Live marked the cached candidates dirty, the Models inside a gun's
+	-- Tool too (a Revolver holds 2, a Renetti 3). The control: a new character in Live does mark it.
+	MarkIgnoresTools = function(T)
+		Guard(function()
+			local H = PositionHistory()
+			local S = Shooter("Revolver")
+			GunKit.Settle()
+			local N0 = H.DirtyMarks()
+			assert(WeaponManager.Give(S, "Renetti"), "the Renetti") -- a Tool swap inside a character in Live, while sampling runs
+			task.wait(0.1)
+			T.Eq(H.DirtyMarks() - N0, 0, "dirty marks from a Tool Give inside a character in World.Live")
+			GunKit.Dummy(AHEAD * 20, "GunKit_NewInLive")
+			task.wait(0.1)
+			T.True(H.DirtyMarks() > N0, "control: a new character in World.Live marks the list dirty")
+		end)
+	end,
+
+	-- guard (Task 7): Fan the Hammer with FAN_LEFT rounds fires them and starts the reload; its third strike spends
+	-- nothing. Through the real WeaponSkill request; a Play-only wrapper on WeaponManager.Fire (removed by After) records
+	-- the rounds each strike spent. The control is FanRefusedCostsNothing's three-round Fan.
+	FanUnderThreeRounds = function(T)
+		local Fire = WeaponManager.Fire
+		PlayerGun(function(C)
+			local Aim, Skill = Request("Aim"), Request("WeaponSkill")
+			C:SetAttribute("WeaponSkillReadyAt", nil)
+			ResourceManager.Set(C, "Stamina", ResourceManager.Max(C, "Stamina"))
+			C:SetAttribute("Ammo", FAN_LEFT)
+			local Spent = {}
+			WeaponManager.Fire = function(Character, ...)
+				local Was = Character:GetAttribute("Ammo") or 0
+				local Results = Fire(Character, ...)
+				if Character == C then table.insert(Spent, tostring(Was - (Character:GetAttribute("Ammo") or 0))) end
+				return Results
+			end
+			Aim(Player, AHEAD)
+			Skill(Player) -- (AttackRunner.Run waits for the whole Fan)
+			T.Eq(table.concat(Spent, ","), "1,1,0", "rounds spent by each of the Fan's strikes")
+			T.Eq(C:GetAttribute("Ammo"), 0, "Ammo after the Fan")
+			T.True((C:GetAttribute("ReloadingUntil") or 0) > workspace:GetServerTimeNow(), "the reload is running")
+		end, function()
+			WeaponManager.Fire = Fire
+		end)
+	end,
+
+	-- guard (Task 5 fix): shooting mode can't be turned on in the water; the control turns it on out of the water
+	ModeOnRefusedWhileSwimming = function(T)
+		PlayerGun(function(C)
+			local Shoot = ShootRequest()
+			C:SetAttribute("Traversal", "Swim")
+			Shoot(Player, "Mode", true)
+			T.Eq(C:GetAttribute("ShootingMode"), nil, "shooting mode after a Mode request while Traversal = Swim")
+			C:SetAttribute("Traversal", nil)
+			Shoot(Player, "Mode", true)
+			T.Eq(C:GetAttribute("ShootingMode"), true, "control: shooting mode after a Mode request on dry land")
+		end)
+	end,
+
+	-- guard (Task 5): the Fire request's own limiter is wired into the real handler. Its aims are counted by a Play-only
+	-- wrapper on WeaponManager.SetAim (removed by After): a refused request returns before SetAim. Not in shooting mode,
+	-- so nothing fires. The control: REFILL s later one more gets through.
+	ShootLimiterWired = function(T)
+		local SetAim = WeaponManager.SetAim
+		PlayerGun(function(C)
+			local Shoot = ShootRequest()
+			local Aims = 0
+			WeaponManager.SetAim = function(Character, ...)
+				if Character == C then Aims += 1 end
+				return SetAim(Character, ...)
+			end
+			task.wait(BURST / RATE) -- a full bucket
+			for _ = 1, BURST + 3 do Shoot(Player, "Fire", AHEAD) end
+			T.Eq(Aims, BURST, "aims taken from " .. (BURST + 3) .. " Fire requests at once")
+			task.wait(REFILL)
+			Aims = 0
+			for _ = 1, 3 do Shoot(Player, "Fire", AHEAD) end
+			T.Eq(Aims, 1, "control: aims taken from 3 more requests " .. REFILL .. " s later")
+		end, function()
+			WeaponManager.SetAim = SetAim
 		end)
 	end,
 }

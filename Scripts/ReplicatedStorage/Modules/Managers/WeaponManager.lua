@@ -164,20 +164,29 @@ if IsServer then
 	local ReloadToken = {} -- [Character] = the running reload's token
 	local Restarting = {} -- [Character] = a restart watcher is waiting
 
-	-- per-character entries go when the character does. Every armed character (players and NPCs) is tracked: turning
-	-- shooting mode off tops up a part-used magazine (gun rework Task 7: the top-up lives here, not in Requests.Shoot).
-	local Tracked = {}
+	-- per-character entries go when the character does: it is destroyed, or it leaves the DataModel (gun rework final fix
+	-- A5: a respawned player's old character is unparented, not always destroyed). Every armed or aiming character
+	-- (players and NPCs) is tracked: turning shooting mode off tops up a part-used magazine (gun rework Task 7: the
+	-- top-up lives here, not in Requests.Shoot).
+	local Tracked = {} -- [Character] = its connections
 	local function Track(Character)
 		if Tracked[Character] then return end
-		Tracked[Character] = true
-		Character:GetAttributeChangedSignal("ShootingMode"):Connect(function()
-			if Character:GetAttribute("ShootingMode") ~= nil or not WeaponManager.ItemStats(Character) then return end
-			if (Character:GetAttribute("Ammo") or 0) < (Character:GetAttribute("MaxAmmo") or 0) then WeaponManager.Reload(Character) end
-		end)
-		Character.Destroying:Once(function()
+		local Conns = {}
+		Tracked[Character] = Conns
+		local function Forget()
+			if Tracked[Character] ~= Conns then return end
+			for _, C in ipairs(Conns) do C:Disconnect() end
 			Tracked[Character], DrawToken[Character], AmmoLeft[Character], Aim[Character] = nil, nil, nil, nil
 			ReloadToken[Character], Restarting[Character] = nil, nil
-		end)
+		end
+		table.insert(Conns, Character:GetAttributeChangedSignal("ShootingMode"):Connect(function()
+			if Character:GetAttribute("ShootingMode") ~= nil or not WeaponManager.ItemStats(Character) then return end
+			if (Character:GetAttribute("Ammo") or 0) < (Character:GetAttribute("MaxAmmo") or 0) then WeaponManager.Reload(Character) end
+		end))
+		table.insert(Conns, Character.AncestryChanged:Connect(function()
+			if not Character:IsDescendantOf(game) then Forget() end
+		end))
+		table.insert(Conns, Character.Destroying:Connect(Forget))
 	end
 
 	local function Detach(Character, Tool)
@@ -323,11 +332,19 @@ if IsServer then
 	-- horizon). Returns the unit direction, or nil when refused; a refused aim is remembered too, so the shot it was sent
 	-- for fires nothing (gun rework 2026-10-25; it used to fire straight ahead).
 	function WeaponManager.SetAim(Character, Dir)
+		Track(Character) -- (final fix A5) so its stored aim goes with it, armed or not
 		local Root = Character:FindFirstChild("HumanoidRootPart")
 		local Cfg = Tuning.Weapons.Guns.Aim
 		local Ok = Root and GunAim.Validate(Dir, Root.CFrame.LookVector, Cfg.MaxYaw, Cfg.MaxPitch)
 		Aim[Character] = Ok and {Dir = Ok, At = os.clock()} or {Bad = true, At = os.clock()}
 		return Ok
+	end
+
+	-- true while the character's stored aim is a fresh (< Aim.AimFresh) refused one: a shot now would fire nothing.
+	-- Requests.WeaponSkill checks it before spending anything (gun rework final fix A2).
+	function WeaponManager.AimRefused(Character)
+		local A = Aim[Character]
+		return A ~= nil and A.Bad == true and os.clock() - A.At < Tuning.Weapons.Guns.Aim.AimFresh
 	end
 
 	-- A fresh (< Aim.AimFresh) valid aim gives its direction; a fresh refused aim gives nil (no shot); no fresh aim gives
@@ -343,9 +360,10 @@ if IsServer then
 		return Flat.Magnitude > 1e-3 and Flat.Unit or Look
 	end
 
-	-- The nearest live character -- never the Shooter -- whose box the ray Origin + Dir * t meets before MaxT, each where it stood
-	-- at server time At (PositionHistory, with the live root as its newest sample) or, without a history, where it stands
-	-- now. Returns Model, t or nil.
+	-- The nearest live character -- never the Shooter, never a knocked body (gun rework Ruling 33, PROPOSAL: shots pass
+	-- through the downed; DamageManager would call the hit IFramed) -- whose box the ray Origin + Dir * t meets before
+	-- MaxT, each where it stood at server time At (PositionHistory, with the live root as its newest sample) or, without a
+	-- history, where it stands now. Returns Model, t or nil.
 	function WeaponManager.ShotTarget(Shooter, Origin, Dir, MaxT, At)
 		local Cfg = Tuning.Weapons.Guns.Aim
 		local Live = workspace:FindFirstChild("World") and workspace.World:FindFirstChild("Live")
@@ -353,7 +371,7 @@ if IsServer then
 		local Now = workspace:GetServerTimeNow()
 		local Best, BestT = nil, MaxT
 		for _, M in ipairs(Live and GunAim.Candidates(Live) or {}) do
-			if M ~= Shooter then
+			if M ~= Shooter and M:GetAttribute("Knocked") ~= true then
 				local Humanoid = M:FindFirstChildOfClass("Humanoid")
 				local Root = Humanoid and Humanoid.Health > 0 and M:FindFirstChild("HumanoidRootPart")
 				if Root then
@@ -531,12 +549,24 @@ if IsServer then
 	-- (World.Live excluded from that ray) and hits the nearest character box before it (ShotTarget; Task 6 rewinds them).
 	-- A def with no Range now defaults to 90 (was 80); every Shots def and Fan the Hammer carry their own Range.
 	-- Uses a round; empty -> automatic reload. Returns {Victim, Result} pairs.
-	function WeaponManager.Fire(Character, SkillName, Def)
+	-- Ticket (gun rework final fix A1; Requests.Shoot's shots): {Dir, At} taken when the Fire request was accepted -- its
+	-- validated aim and its rewind time (RewindAt then). The shot uses those, not the stored aim and a rewind from now: a
+	-- strike lands Startup after the request, so rewinding from the strike looked that much past what the shooter saw, and
+	-- a Requests.Aim sent during the Startup re-aimed the shot. At is clamped to at least 2 x Aim.MaxRewind ago. Without a
+	-- ticket (NPCs, weapon skills): the stored aim and RewindAt at the strike, as before.
+	function WeaponManager.Fire(Character, SkillName, Def, Ticket)
 		local Results = {}
 		local Root = Character:FindFirstChild("HumanoidRootPart")
 		if not Root or not WeaponManager.CanFire(Character) then return Results end
 		local Cfg = Tuning.Weapons.Guns.Aim
-		local Dir = AimDirection(Character, Root)
+		local Dir, At
+		if Ticket then
+			Dir = Ticket.Dir
+			At = math.max(Ticket.At, workspace:GetServerTimeNow() - 2 * Cfg.MaxRewind)
+		else
+			Dir = AimDirection(Character, Root)
+			At = WeaponManager.RewindAt(Character)
+		end
 		if not Dir then return Results end
 		Character:SetAttribute("Ammo", Character:GetAttribute("Ammo") - 1)
 		Dir = GunAim.Spread(Dir, Def.Spread, ShotRandom)
@@ -547,7 +577,7 @@ if IsServer then
 		Params.FilterDescendantsInstances = {Character, workspace.World.Visuals, workspace.World.Live}
 		local Wall = workspace:Raycast(Origin, Dir * Range, Params)
 		local WallT = Wall and (Wall.Position - Origin).Magnitude or Range
-		local Victim, T = WeaponManager.ShotTarget(Character, Origin, Dir, WallT, WeaponManager.RewindAt(Character))
+		local Victim, T = WeaponManager.ShotTarget(Character, Origin, Dir, WallT, At)
 		local EndT = T or WallT
 		-- the tracer starts at the gun's barrel
 		local Tool = HeldTool(Character) -- the gun (a held hotbar item may sit beside it)

@@ -38,11 +38,51 @@ local function Guard(Rig, Body)
 	end)
 end
 
+-- Gun rework final fix A11 (Ruling 6): the cases that were flaky with the first live Grunt (whatever it was doing, and
+-- whatever stood around it in its camp) get their own: EnemyService.Spawn from an unparented runtime mark on a Play-only
+-- floor (a TempPart) high above the map, its root anchored there facing -Z, AIPassive and PS.Reset -- Unaware, still,
+-- with nothing near it. It goes the way RoadService's ambushes remove theirs (RemoveEnemy: out of EnemyService.Active,
+-- so no Died / respawn; its WCS character, then the rig).
+local GRUNT_AT = Vector3.new(0, 2500, 0) -- PROPOSAL: the floor's top centre (both maps' tops are under y 430; GunKit's floor is at 2000)
+local GRUNT_FLOOR = Vector3.new(80, 1, 80) -- PROPOSAL
+
+local function RemoveEnemy(Rig)
+	local E = ES.Active[Rig]
+	ES.Active[Rig] = nil -- not a kill: no Died, so no reward and no respawn
+	if E and E.WCS then pcall(function() E.WCS:Destroy() end) end
+	if Rig.Parent then Rig:Destroy() end -- CombatDirector and PerceptionService drop it on removal
+end
+
+-- Body(Rig, S) with the case's own Grunt, inside SmokeKit.Guarded (perception and light stepped by hand, as Guard)
+local function OwnGrunt(Body)
+	local Rig
+	SmokeKit.Guarded(Player, function()
+		Part({Name = "Stealth_Floor", Size = GRUNT_FLOOR, CFrame = CFrame.new(GRUNT_AT - Vector3.new(0, GRUNT_FLOOR.Y / 2, 0))})
+		local Mark = Instance.new("Part") -- a runtime mark, never parented (RoadService's ambushes spawn the same way)
+		Mark.Anchored, Mark.CanCollide, Mark.Transparency = true, false, 1
+		Mark.CFrame = CFrame.new(GRUNT_AT)
+		Mark:SetAttribute("EnemyType", "Grunt")
+		Rig = ES.Spawn(Mark)
+		assert(typeof(Rig) == "Instance", "the case's own Grunt spawned")
+		Rig.HumanoidRootPart.Anchored = true
+		Rig:PivotTo(CFrame.new(GRUNT_AT + Vector3.new(0, 3, 0)))
+		Rig:SetAttribute("AIPassive", true)
+		local S = PS.Npcs[Rig]
+		assert(S ~= nil and S.Type == "Grunt", "the Grunt is a perceiving Grunt")
+		PS.Reset(Rig)
+		Body(Rig, S)
+	end, function()
+		PS.SetAuto(false); LS.SetAuto(false)
+	end, function()
+		if Rig then RemoveEnemy(Rig) end
+		C:SetAttribute("Crouching", nil)
+		PS.SetAuto(true); LS.SetAuto(true)
+	end)
+end
+
 return {
 	WallMuffles = function(T)
-		local Rig = Find("Grunt")
-		T.True(Rig ~= nil, "a Grunt")
-		Guard(Rig, function()
+		OwnGrunt(function(Rig)
 			local Head = Rig.Head.Position
 			local Spot = Head + Vector3.new(10, 0, 0)
 			T.True(PS.Hear(Spot, 12, nil) >= 1 and PS.PhaseOf(Rig) == "Suspicious", "heard in the open at 10 of 12")
@@ -78,8 +118,7 @@ return {
 		end)
 	end,
 	GunshotPullsTheCamp = function(T)
-		local Rig = Find("Grunt")
-		Guard(Rig, function()
+		OwnGrunt(function(Rig)
 			NS.Log = {}
 			local Heard = NS.Emit(Rig.Head.Position + Vector3.new(0, 0, 50), "Gunshot", nil)
 			NS.Log = nil
@@ -88,8 +127,7 @@ return {
 		end)
 	end,
 	CrouchHalvesNoticing = function(T)
-		local Rig = Find("Grunt")
-		Guard(Rig, function()
+		OwnGrunt(function(Rig)
 			C:SetAttribute("Exposure", 1)
 			Put(Rig, Vector3.new(0, 0, -12))
 			Run(0.6)

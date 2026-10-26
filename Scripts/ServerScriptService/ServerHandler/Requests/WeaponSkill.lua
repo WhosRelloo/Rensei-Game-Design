@@ -28,6 +28,9 @@ return function(Player)
 		return
 	end
 	if Weapon.Ranged and not WeaponManager.CanFire(Character) then return end
+	-- a gun skill with a fresh refused aim would fire nothing: it spends nothing either -- no stamina, cooldown or
+	-- animation (gun rework final fix A2, spec 5.1.6)
+	if Weapon.Ranged and WeaponManager.AimRefused(Character) then return end
 
 	local Skill = Weapon.Skill
 	local Now = workspace:GetServerTimeNow()

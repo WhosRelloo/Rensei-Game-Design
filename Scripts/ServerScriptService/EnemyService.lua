@@ -153,20 +153,29 @@ end
 
 local NpcRandom = Random.new() -- enemy gunshots' spread (GunAim.Spread)
 
+-- Root turned flat to face TRoot (a target's root), unless they stand (nearly) on top of each other. Brain's Face and
+-- GunShot share it.
+local function FaceToward(Root, TRoot)
+	local To = Flat(TRoot.Position - Root.Position)
+	if To.Magnitude > 0.1 then
+		Root.CFrame = CFrame.lookAt(Root.Position, Root.Position + To)
+	end
+end
+
 -- one enemy gunshot (gun rework 2026-10-25, PROPOSAL): a 0.35 s windup with the crit telegraph, aimed at the target's centre
 -- (was the root's flat look: it missed anyone higher or lower), 2.5 deg spread. Exported for Play_GunNpc.
--- (Brain's Face is a per-rig closure, so the facing step is taken inline: the root turned flat toward the target, before
--- SetAim, whose check is against the root's facing. The aim is set at the windup's start and fires 0.35 s later, inside
--- Aim.AimFresh: the shot goes where the target stood when the telegraph showed, so it can be dodged.)
+-- (The root is turned to face the target first, before SetAim, whose check is against the root's facing. The aim is set
+-- at the windup's start and fires 0.35 s later, inside Aim.AimFresh: the shot goes where the target stood when the
+-- telegraph showed, so it can be dodged.)
+-- Contract (final fix A10): the caller checks WeaponManager.CanFire first (a shot with no round or mid-reload runs its
+-- windup and fires nothing). When the target's root is within 1 stud of the muzzle (To.Magnitude <= 1) no new aim is
+-- set: the previous one is used while it is fresh, else the root's flat look (WeaponManager.Fire).
 function EnemyService.GunShot(Rig, WC, Target, Shot)
 	local Root = Rig:FindFirstChild("HumanoidRootPart")
 	local TRoot = Target:FindFirstChild("HumanoidRootPart")
 	local Weapon = WeaponManager.Def(Rig)
 	if not (Root and TRoot and Weapon and Weapon.Shots) then return end
-	local Look = Flat(TRoot.Position - Root.Position)
-	if Look.Magnitude > 0.1 then
-		Root.CFrame = CFrame.lookAt(Root.Position, Root.Position + Look)
-	end
+	FaceToward(Root, TRoot)
 	local N = Tuning.Weapons.Guns.NpcShot
 	local To = TRoot.Position - GunAim.Muzzle(Root.Position)
 	if To.Magnitude > 1 then WeaponManager.SetAim(Rig, GunAim.Spread(To.Unit, N.Spread, NpcRandom)) end
@@ -203,10 +212,7 @@ local function Brain(E)
 	end
 
 	local function Face(Target)
-		local To = Flat(Target.HumanoidRootPart.Position - Root.Position)
-		if To.Magnitude > 0.1 then
-			Root.CFrame = CFrame.lookAt(Root.Position, Root.Position + To)
-		end
+		FaceToward(Root, Target.HumanoidRootPart)
 	end
 
 	local function Busy()

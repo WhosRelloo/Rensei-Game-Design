@@ -167,6 +167,57 @@ return {
 		T.Eq(Allow("a", 0.2), true, "forgotten")
 	end,
 
+	-- guards (final fix A9: Task 2's review minors). They pass with today's GunAim; each pairs an accept with a refuse (or
+	-- a hit with a miss) a hair apart, so a moved limit or a dropped branch fails one side.
+	RewindThreeSamples = function(T)
+		local H = {{T = 0, CF = CFrame.new(0, 0, 0)}, {T = 1, CF = CFrame.new(10, 0, 0)}, {T = 2, CF = CFrame.new(30, 0, 0)}}
+		T.Near(GunAim.Rewind(H, 0.5).Position.X, 5, 1e-6, "between the first two")
+		T.Near(GunAim.Rewind(H, 1).Position.X, 10, 1e-6, "on the middle sample")
+		T.Near(GunAim.Rewind(H, 1.5).Position.X, 20, 1e-6, "between the last two (10 + 20 x 0.5)")
+	end,
+
+	ValidateJustInside = function(T)
+		local Look = Vector3.new(0, 0, -1)
+		local function At(YawDeg, PitchDeg)
+			local Y, P = math.rad(YawDeg), math.rad(PitchDeg)
+			return Vector3.new(-math.sin(Y) * math.cos(P), math.sin(P), -math.cos(Y) * math.cos(P))
+		end
+		T.True(GunAim.Validate(At(99.9, 0), Look, MAX_YAW, MAX_PITCH) ~= nil, "yaw 99.9 (MaxYaw 100)")
+		T.Eq(select(2, GunAim.Validate(At(100.1, 0), Look, MAX_YAW, MAX_PITCH)), "behind", "yaw 100.1")
+		T.True(GunAim.Validate(At(0, 69.9), Look, MAX_YAW, MAX_PITCH) ~= nil, "pitch 69.9 up (MaxPitch 70)")
+		T.True(GunAim.Validate(At(0, -69.9), Look, MAX_YAW, MAX_PITCH) ~= nil, "pitch 69.9 down")
+		T.Eq(select(2, GunAim.Validate(At(0, 70.1), Look, MAX_YAW, MAX_PITCH)), "pitch", "pitch 70.1 up")
+		T.True(GunAim.Validate(Look * 0.51, Look, MAX_YAW, MAX_PITCH) ~= nil, "length 0.51")
+		T.True(GunAim.Validate(Look * 1.49, Look, MAX_YAW, MAX_PITCH) ~= nil, "length 1.49")
+		T.Eq(select(2, GunAim.Validate(Look * 0.49, Look, MAX_YAW, MAX_PITCH)), "length", "length 0.49")
+		T.Eq(select(2, GunAim.Validate(Look * 1.51, Look, MAX_YAW, MAX_PITCH)), "length", "length 1.51")
+	end,
+
+	RayBoxBehindAndBeyond = function(T)
+		local D, Size = Vector3.new(0, 0, -1), Vector3.new(2, 2, 2)
+		T.Eq(GunAim.RayBox(Vector3.zero, D, 100, CFrame.new(0, 0, 10), Size), nil, "a box behind the origin")
+		T.Near(GunAim.RayBox(Vector3.zero, D, 100, CFrame.new(0, 0, -10), Size), 9, 1e-6, "control: the same box ahead")
+		T.Eq(GunAim.RayBox(Vector3.zero, D, 8.9, CFrame.new(0, 0, -10), Size), nil, "its face (9 out) beyond MaxDist 8.9")
+		T.Near(GunAim.RayBox(Vector3.zero, D, 9.1, CFrame.new(0, 0, -10), Size), 9, 1e-6, "control: MaxDist 9.1")
+	end,
+
+	AssistNearestListedFirst = function(T)
+		local O, Dir = Vector3.zero, Vector3.new(0, 0, -1)
+		local A, B = Off(2, 30), Off(-1, 30)
+		T.Eq(GunAim.Assist(O, Dir, {B, A}, ASSIST_DEG, ASSIST_DIST), B, "the nearer one, listed first")
+	end,
+
+	DirectionBehindFallsBack = function(T)
+		local M = Vector3.new(0, 6.5, 0)
+		local CamDir = Vector3.new(0, 0, -1)
+		-- an aim point 10 studs behind the muzzle (past MinDist 2): the camera's direction
+		T.Eq(GunAim.Direction(M, M + Vector3.new(3, 0, 10).Unit * 10, CamDir), CamDir, "an aim point behind the muzzle")
+		-- control: the mirror point ahead gives the line to it
+		local Ahead = Vector3.new(3, 0, -10).Unit
+		local Got = GunAim.Direction(M, M + Ahead * 10, CamDir)
+		T.Near((Got - Ahead).Magnitude, 0, 1e-6, "control: an aim point ahead gives the line to it")
+	end,
+
 	CandidatesTwoLevels = function(T)
 		local Live = Instance.new("Folder")
 		local function Rig(Name, Parent, WithHumanoid)

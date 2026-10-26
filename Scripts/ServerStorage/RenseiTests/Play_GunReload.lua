@@ -40,6 +40,11 @@ local KNOCK_WAIT = 0.1 -- seconds the restart watcher is left waiting on Knocked
 local CONTROL_AT = Vector3.new(8, 0, 0) -- the control shooter stands 8 studs along X from the first
 local REEQUIP_WITHIN = 0.5 -- UnequipCancelsReload: the same gun is back within 0.5 s (Ruling 26)
 local NO_REFILL_AT = 2.0 -- seconds after the top-up started: past its 1.8 s, the magazine must still be part-used
+-- Final fix A9's cases (guards: the interrupt rule is Task 7's). A dash, as the server sees one: the IFrame status
+-- (CharacterHandler's StateRemote rule; the client's Roll asks for Dash.IFrames) and Dashing, while the root moves
+-- DASH_DIST studs over DASH_FOR s. The water and the grip land HIT_AT s into the reload and last HOLD_FOR s.
+local DASH_AT, DASH_FOR, DASH_DIST, DASH_IFRAMES = 0.3, 0.3, 8, 0.3 -- PROPOSAL test numbers
+local HIT_AT, HOLD_FOR = 0.5, 0.3
 
 local function Guard(Body, After)
 	SmokeKit.Guarded(Player, Body, function() GunKit.Unequip(Player) end, function()
@@ -100,6 +105,34 @@ local function CountSlotPlays(Rig)
 		return Orig(Character, Name, ...)
 	end
 	return function() return N end, function() AnimationManager.Play = Orig end
+end
+
+-- The interrupt-and-restart check for something done to the shooter: an empty Revolver's reload; HIT_AT s in, Apply(S)
+-- (control first: Harmless(S), which must not cancel it); one frame later the reload is gone and the magazine still
+-- empty; HOLD_FOR s later Clear(S), and a new reload starts within STARTS_WITHIN and fills the magazine.
+local function CancelsAndRestarts(T, What, Harmless, Apply, Clear)
+	Guard(function()
+		local S = Shooter()
+		GunKit.Settle()
+		Shoot(T, S, MAG)
+		local Until0 = S:GetAttribute("ReloadingUntil")
+		T.True(Until0 ~= nil, "the reload started on the last round")
+		task.wait(HIT_AT)
+		Harmless(S)
+		Frame()
+		T.Eq(S:GetAttribute("ReloadingUntil"), Until0, "control: ReloadingUntil one frame after a harmless change")
+		Apply(S)
+		Frame()
+		T.Eq(S:GetAttribute("ReloadingUntil"), nil, "ReloadingUntil one frame after " .. What)
+		T.Eq(S:GetAttribute("Ammo"), 0, "Ammo during " .. What)
+		task.wait(HOLD_FOR)
+		T.Eq(S:GetAttribute("ReloadingUntil"), nil, "no reload while " .. What .. " lasts")
+		Clear(S)
+		local NewUntil = Until(function() return S:GetAttribute("ReloadingUntil") end, STARTS_WITHIN)
+		T.True(NewUntil ~= nil, "a new reload once " .. What .. " ends")
+		task.wait(AFTER)
+		T.Eq(S:GetAttribute("Ammo"), MAG, "Ammo " .. AFTER .. " s after the new reload started")
+	end)
 end
 
 local function NotFoundLines()
@@ -309,5 +342,54 @@ return {
 		end, function()
 			if Old then Old:Destroy() end -- the test's own clone (Give's), never the player's item
 		end)
+	end,
+
+	-- guard (final fix A9; Task 7's rule: your own actions don't cancel a reload): a dash mid-reload -- the IFrame status,
+	-- Dashing, the root carried DASH_DIST studs -- leaves it running to the end. StunCancelsAndRestarts is its control (a
+	-- thing done to you does cancel).
+	DashDoesNotCancel = function(T)
+		Guard(function()
+			local S = Shooter()
+			GunKit.Settle()
+			Shoot(T, S, MAG)
+			local Until0 = S:GetAttribute("ReloadingUntil")
+			local Started = os.clock()
+			T.True(Until0 ~= nil, "the reload started on the last round")
+			task.wait(DASH_AT)
+			local WC = WCS.Character.GetCharacterFromInstance(S)
+			local IFrame = ReplicatedStorage.Modules.Skills.States:FindFirstChild("IFrame", true)
+			T.True(WC ~= nil and IFrame ~= nil, "the shooter's WCS character and the IFrame status")
+			require(IFrame).new(WC):Start(DASH_IFRAMES)
+			S:SetAttribute("Dashing", true)
+			local From = S:GetPivot()
+			local T0 = os.clock()
+			while os.clock() - T0 < DASH_FOR do
+				Frame()
+				S:PivotTo(From + From.LookVector * DASH_DIST * math.min(1, (os.clock() - T0) / DASH_FOR))
+				T.Eq(S:GetAttribute("ReloadingUntil"), Until0, "ReloadingUntil during the dash")
+			end
+			S:SetAttribute("Dashing", nil)
+			T.Eq(S:GetAttribute("ReloadingUntil"), Until0, "ReloadingUntil after the dash")
+			task.wait(math.max(0, AFTER - (os.clock() - Started)))
+			T.Eq(S:GetAttribute("Ammo"), MAG, "Ammo " .. AFTER .. " s after the reload started")
+		end)
+	end,
+
+	-- guard (final fix A9; Task 7): the water (Traversal = "Swim") cancels the reload, which starts again on dry land.
+	-- Control: Traversal = "Climb" doesn't.
+	WaterCancels = function(T)
+		CancelsAndRestarts(T, "the water",
+			function(S) S:SetAttribute("Traversal", "Climb") end,
+			function(S) S:SetAttribute("Traversal", "Swim") end,
+			function(S) S:SetAttribute("Traversal", nil) end)
+	end,
+
+	-- guard (final fix A9; Task 7): a grip (GrippedBy) cancels the reload, which starts again when it's let go. Control:
+	-- Gripping (the shooter holding someone, its own action) doesn't.
+	GripCancels = function(T)
+		CancelsAndRestarts(T, "a grip",
+			function(S) S:SetAttribute("Gripping", "GunKit_Gripped") end,
+			function(S) S:SetAttribute("GrippedBy", "GunKit_Gripper") end,
+			function(S) S:SetAttribute("GrippedBy", nil) S:SetAttribute("Gripping", nil) end)
 	end,
 }

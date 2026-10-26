@@ -38,6 +38,8 @@ local LINE = Vector3.new(0, -1.5, -DIST).Unit -- SpreadStaysInCone: muzzle -> th
 local SPREAD, SPREAD_EPS = 2.5, 1e-3 -- degrees per axis (NpcShot.Spread)
 local SPREAD_SHOTS = 30
 local NOT_ZERO = 0.1 -- degrees: at least one of the shots leaves the line by more than this (a Spread of 0 can't pass)
+local AttackRunner = require(ReplicatedStorage.Modules.Managers.AttackRunner)
+local CritFX = require(ReplicatedStorage.Modules.Effects.Combat.CritTelegraph)
 
 local function Guard(Body, After)
 	SmokeKit.Guarded(Player, Body, function() GunKit.Unequip(Player) end, function()
@@ -126,7 +128,7 @@ return {
 				return SetAim(Character, Dir)
 			end
 			for I = 1, SPREAD_SHOTS do
-				EnemyService.GunShot(S, WC, Target, (I - 1) % 4 + 1)
+				EnemyService.GunShot(S, WC, Target, (I - 1) % #Tuning.Weapons.Guns.Shots + 1)
 			end
 			T.Eq(#Dirs, SPREAD_SHOTS, "aims set by " .. SPREAD_SHOTS .. " shots")
 			local Frame = CFrame.lookAt(Vector3.zero, LINE)
@@ -142,6 +144,43 @@ return {
 			T.True(Widest > NOT_ZERO, ("the widest shot is %.3f degrees off the line (control: the shots spread)"):format(Widest))
 		end, function()
 			WeaponManager.SetAim = SetAim
+		end)
+	end,
+
+	-- guard (final fix A9; Task 11 set Telegraph from NpcShot): an enemy gunshot's windup starts the crit telegraph --
+	-- AttackRunner's CritTelegraph.new(Character, Startup):Start(players), inside a pcall that would hide a failure. A
+	-- Play-only wrapper on CritTelegraph.new (put back by After) records each telegraph, its length and whether its
+	-- Start ran without an error; it hands AttackRunner a stand-in whose Start starts the real effect (a ReFX effect is a
+	-- proxy that refuses a field override). The control: the shot's own def (Weapons.Guns.Shots, no Telegraph) starts none.
+	TelegraphFires = function(T)
+		local New = rawget(CritFX, "new") -- put back as it was (nil when the class inherits it)
+		local Make = CritFX.new
+		local Made = {}
+		Guard(function()
+			local S, WC = Shooter()
+			local Target = GunKit.Dummy(AHEAD * DIST, "GunKit_Target")
+			GunKit.Settle()
+			CritFX.new = function(Character, Duration, ...)
+				local Fx = Make(Character, Duration, ...)
+				local Rec = {Character = Character, Duration = Duration}
+				table.insert(Made, Rec)
+				return {Start = function(_, ...)
+					local Ok, Err = pcall(function(...) return Fx:Start(...) end, ...)
+					Rec.Started, Rec.Err = Ok, Err
+					if not Ok then error(Err, 0) end
+				end}
+			end
+			AttackRunner.Run(WC, WeaponManager.Resolve(S, Tuning.Weapons.Guns.Shots[1]), "Guns_Shot1", {Strike = WeaponManager.Fire})
+			T.Eq(#Made, 0, "control: telegraphs from the shot's own def (no Telegraph)")
+			EnemyService.GunShot(S, WC, Target, 1)
+			T.Eq(#Made, 1, "telegraphs from one enemy gunshot")
+			local Rec = Made[1]
+			if not Rec then return end
+			T.Eq(Rec.Character, S, "the telegraph's character")
+			T.Near(Rec.Duration, WINDUP, 1e-6, "the telegraph's length (NpcShot.Startup)")
+			T.Eq(Rec.Started, true, "the telegraph started without an error: " .. tostring(Rec.Err))
+		end, function()
+			CritFX.new = New
 		end)
 	end,
 }

@@ -425,7 +425,9 @@ return function(Character,Victim,SkillInfo)
 		if SkillInfo.Hitstop then
 			task.defer(function()
 				AnimManager.Hitstop(Character, SkillInfo.Hitstop)
-				AnimManager.Hitstop(Victim, SkillInfo.Hitstop)
+				-- a gunshot past FlinchRange (NoFlinch) doesn't pause the victim either, so a far shot can't stretch their
+				-- windup (gun rework Ruling 20, PROPOSAL)
+				if not SkillInfo.NoFlinch then AnimManager.Hitstop(Victim, SkillInfo.Hitstop) end
 			end)
 		end
 
