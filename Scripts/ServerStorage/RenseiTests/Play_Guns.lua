@@ -26,6 +26,7 @@ local Tuning = require(ReplicatedStorage.Modules.Data.Rensei.TuningConfig)
 local States = ReplicatedStorage.Modules.Skills.States
 local Stun = require(States.Stun)
 local Blocking = require(States.Blocking)
+local ResourceManager = require(ReplicatedStorage.Modules.Managers.ResourceManager)
 local Player = game.Players:GetPlayers()[1]
 
 local MUZZLE_UP = Vector3.new(0, 1.5, 0) -- the shot leaves 1.5 above the root (the muzzle, since 2026-10-17)
@@ -55,6 +56,12 @@ local FLINCH_ANIM = ReplicatedStorage.Assets.Animations.Shared.Combat.Fist.Block
 -- same request, with the root turned to face the aim TURN_AT s later (inside the grace), fires: the Revolver's Startup is
 -- 0.12 s, so LastShotAt has changed and one round is gone by GRACE_PAST.
 local GRACE_PAST, TURN_AT = 0.5, 0.1
+-- A guard broken by a shot (Ruling 11; the shot shows as a Hit, Ruling 9): the shot drains its Posture, Shots[1].Posture
+-- 3 (TuningConfig PROPOSAL; x1: the Guns passive has no BlockedPostureMult and the rig no PostureMult). From the full
+-- 100 (Posture.Max) a blocked shot leaves 97 -- "Blocked" (the control); with the posture set to GUARD_LEFT 2 it leaves
+-- max(0, 2 - 3) = 0, under BlockManager.Check's floor 0.17 -- "GuardBroken". (Posture regen waits RegenDelay 1.5 s after
+-- a change, and both shots are synchronous, so nothing regenerates in between.)
+local POSTURE_FULL, SHOT_POSTURE, GUARD_LEFT, POSTURE_EPS = 100, 3, 2, 0.01
 
 local function Guard(Body, After)
 	SmokeKit.Guarded(Player, Body, function() GunKit.Unequip(Player) end, function()
@@ -324,6 +331,29 @@ return {
 			local RB = ShootAt(S, B)
 			T.Eq(RB[1] and RB[1].Result, "Blocked", "the blocking target's result")
 			T.Eq(S:GetAttribute("LastShotResult"), "Blocked", "LastShotResult after a blocked hit")
+		end)
+	end,
+
+	-- Ruling 11 (a guard: Ruling 9's mapping is in WeaponManager.Fire since Task 5): a shot that breaks a blocking
+	-- target's guard sets LastShotResult "Hit"; its control, the same target at full posture, shows "Blocked"
+	GuardBrokenShowsHit = function(T)
+		Guard(function()
+			local S = Shooter("Revolver")
+			local B = Target(20, "GunKit_TargetGuard")
+			local At = B:GetPivot().Position
+			local From = S:GetPivot().Position
+			B:PivotTo(CFrame.lookAt(At, Vector3.new(From.X, At.Y, From.Z))) -- facing the shooter
+			Blocking.new(WCS.Character.GetCharacterFromInstance(B)):Start()
+			GunKit.Settle()
+			T.Near(ResourceManager.Get(B, "Posture"), POSTURE_FULL, POSTURE_EPS, "the blocking target's posture before the shots")
+			local R1 = ShootAt(S, B)
+			T.Eq(R1[1] and R1[1].Result, "Blocked", "control: the result at full posture")
+			T.Eq(S:GetAttribute("LastShotResult"), "Blocked", "control: LastShotResult at full posture")
+			T.Near(ResourceManager.Get(B, "Posture"), POSTURE_FULL - SHOT_POSTURE, POSTURE_EPS, "the posture after one blocked shot")
+			ResourceManager.Set(B, "Posture", GUARD_LEFT)
+			local R2 = ShootAt(S, B)
+			T.Eq(R2[1] and R2[1].Result, "GuardBroken", "the result with the posture at " .. GUARD_LEFT)
+			T.Eq(S:GetAttribute("LastShotResult"), "Hit", "LastShotResult after a shot that broke the guard")
 		end)
 	end,
 

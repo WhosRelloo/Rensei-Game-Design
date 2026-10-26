@@ -2,7 +2,10 @@
 --   * the aim camera (PROPOSAL): SettingsUI.CameraLock with the shoulder offset (no sprint turn), unless locked on;
 --   * the crosshair is the game's own marker (UIState.Gui.Crosshair), drawn where the shot will go;
 --   * AimDirection(): from the muzzle through what the crosshair covers, or at the lock-on target;
---   * FireInput(Began): hold to fire, buffered, capped at one request every Aim.HoldGap (under ServerHandler's shared limit).
+--   * FireInput(Began): hold to fire, buffered, capped at one request every Aim.HoldGap (under ServerHandler's shared limit);
+--   * feedback on the same marker (Task 9; no new images, fonts or sounds): every shot kicks the camera up (Items.Kick, only
+--     with Settings > Camera Shake on) and blooms the marker; the shot's result (LastShotResult) tints it; it dims while
+--     something blocks the line of fire from the muzzle to the aim point.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -17,6 +20,15 @@ local Camera = workspace.CurrentCamera
 local Cfg = Tuning.Weapons.Guns.Aim
 local RequestRemote = ReplicatedStorage.Remotes.RequestRemote
 local GunAimUI = {Sends = 0, HoldGap = Cfg.HoldGap, ForceAim = nil} -- Sends / HoldGap / ForceAim: client_checks seams
+-- the feedback's numbers (gun rework plan, Task 9) -- PROPOSAL (gun rework 2026-10-25)
+local FX = {
+	KickTime = 0.18, -- s: a kick's pitch (Items[WeaponItem].Kick degrees) falls linearly back to 0 -- PROPOSAL
+	Bloom = 1.25, BloomTime = 0.1, -- every shot: the marker's size x Bloom for BloomTime s -- PROPOSAL
+	HitColor = Color3.fromRGB(255, 90, 70), BlockedColor = Color3.fromRGB(170, 170, 170), -- the result's tint -- PROPOSAL
+	TintTime = 0.15, -- s the tint shows before the marker's own colour comes back -- PROPOSAL (Task 9's implementer)
+	Pulse = 1.35, PulseTime = 0.15, -- a Hit: the size pulses Pulse x -> 1 over PulseTime s -- PROPOSAL
+	DimShort = 1.5, Dim = 0.6, -- the line of fire stops more than DimShort studs short of the aim point: this transparency -- PROPOSAL
+}
 
 local function Char() return Player.Character end
 local function Shooting()
@@ -49,14 +61,25 @@ function GunAimUI.CrosshairRay()
 	return Camera:ScreenPointToRay(P.X, P.Y)
 end
 
-local function Cast(From, Vec)
+-- Also: one more instance (or nil) the ray passes through
+local function Cast(From, Vec, Also)
 	local Params = RaycastParams.new()
 	Params.FilterType = Enum.RaycastFilterType.Exclude
-	Params.FilterDescendantsInstances = {Char(), workspace.World.Visuals}
+	Params.FilterDescendantsInstances = {Char(), workspace.World.Visuals, Also}
 	local R = workspace:Raycast(From, Vec, Params)
 	return R and R.Position or nil
 end
 GunAimUI.Cast = Cast
+
+-- where the shot is aimed from the muzzle: the lock-on target's root, or what the crosshair covers (then also its ray)
+local function AimPoint(C, Muzzle)
+	local Target = GunAimUI.LockedRoot()
+	if Target and (Target.Position - Muzzle).Magnitude > 1 then return Target.Position, nil end
+	local Ray = GunAimUI.CrosshairRay()
+	local Stats = WeaponManager.ItemStats(C)
+	local Point = GunAim.AimPoint(Ray.Origin, Ray.Direction, Muzzle, (Stats and Stats.Range or 90) + 10, Cast)
+	return GunAimUI.Assist(Ray, Point), Ray -- Assist: Task 10 (touch); Point unchanged until then
+end
 
 function GunAimUI.AimDirection()
 	if GunAimUI.ForceAim then return GunAimUI.ForceAim end
@@ -64,19 +87,27 @@ function GunAimUI.AimDirection()
 	local Root = C and C:FindFirstChild("HumanoidRootPart")
 	if not Root then return Camera.CFrame.LookVector end
 	local Muzzle = GunAim.Muzzle(Root.Position)
-	local Target = GunAimUI.LockedRoot()
-	if Target then
-		local To = Target.Position - Muzzle
-		if To.Magnitude > 1 then return To.Unit end
-	end
-	local Ray = GunAimUI.CrosshairRay()
-	local Stats = WeaponManager.ItemStats(C)
-	local Point = GunAim.AimPoint(Ray.Origin, Ray.Direction, Muzzle, (Stats and Stats.Range or 90) + 10, Cast)
-	Point = GunAimUI.Assist(Ray, Point) -- Task 10 (touch); Point unchanged until then
+	local Point, Ray = AimPoint(C, Muzzle)
+	if not Ray then return (Point - Muzzle).Unit end -- locked on
 	return GunAim.Direction(Muzzle, Point, Ray.Direction.Unit, 2)
 end
 function GunAimUI.Assist(_, Point) return Point end
-function GunAimUI.Kick() end -- Task 9
+
+-- Settings > Camera Shake, read as BasicVFX reads it (SettingsUI sets the Player attribute; off only when false). A
+-- function so client_checks can stub the read (never the Settings).
+function GunAimUI.ShakeOn()
+	return Player:GetAttribute("CameraShake") ~= false
+end
+-- a shot left: the bloom always; the kick when the gun has one (applied in Start's render steps, with Camera Shake on)
+local KickLeft, KickAt, KickApplied = 0, -math.huge, 0
+local BloomUntil = -math.huge
+function GunAimUI.Kick()
+	BloomUntil = os.clock() + FX.BloomTime
+	local C = Char()
+	local Item = C and C:GetAttribute("WeaponItem")
+	local Def = Item and Tuning.Weapons.Guns.Items[Item]
+	if Def and Def.Kick then KickLeft, KickAt = Def.Kick, os.clock() end
+end
 
 -- hold to fire (PROPOSAL): Began true = press (false when not shooting, so RMB falls back to Feint); false = release.
 -- FireLoop is true while the loop's thread runs; it is always cleared when the loop ends, even on an error.
@@ -124,6 +155,49 @@ function GunAimUI.FireInput(Began)
 	return true
 end
 
+-- the marker's own look (saved at Start) and which properties carry it (Task 1's survey: Uis.Crosshair is an ImageLabel)
+local HomeSize, HomeColor, HomeTransparency, ColorProp, TransparencyProp = nil, nil, nil, nil, nil
+local TintColor, TintUntil, PulseAt = nil, -math.huge, -math.huge
+local SeenChar, SeenShot = nil, nil -- the character and LastShotAt the hit marker has seen
+local function Scaled(S, K)
+	return UDim2.new(S.X.Scale * K, math.round(S.X.Offset * K), S.Y.Scale * K, math.round(S.Y.Offset * K))
+end
+-- the line of fire from the muzzle to the aim point stops more than DimShort short of it. Characters (World.Live) never
+-- block it, as on the server's wall ray (WeaponManager.Fire): a shot that meets one has hit someone.
+local function LineBlocked(C)
+	local Root = C:FindFirstChild("HumanoidRootPart")
+	if not Root then return false end
+	local Muzzle = GunAim.Muzzle(Root.Position)
+	local Point = AimPoint(C, Muzzle)
+	local To = Point - Muzzle
+	if To.Magnitude <= FX.DimShort then return false end
+	local Hit = Cast(Muzzle, To, workspace.World.Live)
+	return Hit ~= nil and (Point - Hit).Magnitude > FX.DimShort
+end
+-- each frame in shooting mode: the hit marker, the bloom and the blocked line, on the marker
+local function Feedback(Cross, C)
+	if not HomeSize then return end
+	local Now = os.clock()
+	local Shot = C:GetAttribute("LastShotAt")
+	if SeenChar ~= C then
+		SeenChar, SeenShot = C, Shot -- just into shooting mode: an earlier shot doesn't flash
+	elseif Shot ~= SeenShot then
+		SeenShot = Shot
+		local Result = C:GetAttribute("LastShotResult")
+		if Result == "Hit" then
+			TintColor, TintUntil, PulseAt = FX.HitColor, Now + FX.TintTime, Now
+		elseif Result == "Blocked" then
+			TintColor, TintUntil = FX.BlockedColor, Now + FX.TintTime
+		end
+	end
+	local K = Now < BloomUntil and FX.Bloom or 1
+	local P = (Now - PulseAt) / FX.PulseTime
+	if P >= 0 and P < 1 then K = math.max(K, FX.Pulse + (1 - FX.Pulse) * P) end
+	Cross.Size = Scaled(HomeSize, K)
+	Cross[ColorProp] = Now < TintUntil and TintColor or HomeColor
+	Cross[TransparencyProp] = LineBlocked(C) and FX.Dim or HomeTransparency
+end
+
 local Owned = false
 local function Release()
 	if not Owned then return end
@@ -134,12 +208,22 @@ local function Release()
 	if Cross then
 		Cross.Visible = false
 		if HomePosition then Cross.Position = HomePosition end
+		if HomeSize then
+			Cross.Size, Cross[ColorProp], Cross[TransparencyProp] = HomeSize, HomeColor, HomeTransparency
+		end
 	end
+	SeenChar, TintUntil, PulseAt, BloomUntil = nil, -math.huge, -math.huge, -math.huge
 end
 
 function GunAimUI.Start()
 	local Cross = Crosshair()
 	HomePosition = Cross and Cross.Position
+	if Cross then
+		local Image = Cross:IsA("ImageLabel") or Cross:IsA("ImageButton")
+		ColorProp = Image and "ImageColor3" or "BackgroundColor3"
+		TransparencyProp = Image and "ImageTransparency" or "BackgroundTransparency"
+		HomeSize, HomeColor, HomeTransparency = Cross.Size, Cross[ColorProp], Cross[TransparencyProp]
+	end
 	RunService:BindToRenderStep("RenseiGunAim", Enum.RenderPriority.Camera.Value + 1, function()
 		local C = Char()
 		local H = C and C:FindFirstChildOfClass("Humanoid")
@@ -159,10 +243,28 @@ function GunAimUI.Start()
 					CrossNow.Position = UDim2.fromOffset(P.X, P.Y)
 				end
 			end
-			return
+		else
+			if CrossNow and HomePosition then CrossNow.Position = HomePosition end
+			SettingsUI.CameraLock(C, H, Cfg.ShoulderOffset, false)
 		end
-		if CrossNow and HomePosition then CrossNow.Position = HomePosition end
-		SettingsUI.CameraLock(C, H, Cfg.ShoulderOffset, false)
+		if CrossNow then Feedback(CrossNow, C) end
+	end)
+	-- the kick: KickLeft x K degrees of pitch, K = 1 - (time since the shot) / KickTime clamped to 0..1, added after the
+	-- camera (Camera + 2). The camera module builds each frame's look from the last frame's Camera.CFrame
+	-- (PlayerModule BaseCamera:GetCameraLookVector), so the pitch added is taken off again before it runs (Camera - 1);
+	-- otherwise every frame's kick would stay and the view would never come back down.
+	RunService:BindToRenderStep("RenseiGunKickUndo", Enum.RenderPriority.Camera.Value - 1, function()
+		if KickApplied ~= 0 then
+			Camera.CFrame *= CFrame.Angles(math.rad(-KickApplied), 0, 0)
+			KickApplied = 0
+		end
+	end)
+	RunService:BindToRenderStep("RenseiGunKick", Enum.RenderPriority.Camera.Value + 2, function()
+		local K = math.clamp(1 - (os.clock() - KickAt) / FX.KickTime, 0, 1)
+		if K > 0 and GunAimUI.ShakeOn() then
+			KickApplied = KickLeft * K
+			Camera.CFrame *= CFrame.Angles(math.rad(KickApplied), 0, 0)
+		end
 	end)
 end
 

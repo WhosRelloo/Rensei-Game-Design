@@ -25,6 +25,9 @@
 --     RED fails on the request count, not on a dropped Mode request; measured 2026-10-25: 90 and 91 requests);
 --   NO_FLICK_GRACE: Aim.FlickGrace = 0 on the Server for FlickAndFire (no flick grace: Requests.Shoot refuses a shot
 --     whose yaw is past MaxYaw at once, as before gun rework Ruling 28); put back after the case.
+-- Task 9 (feedback: the kick, the bloom, the hit marker, the blocked line) adds HitMarkerFlashes, BlockedLineDims,
+-- KickRecovers, KickRespectsCameraShake and RealShotFlashesAndKicks. Settings > Camera Shake is read, never written: a
+-- check that needs the other value stubs GunAimUI.ShakeOn (the seam) and puts it back.
 -- ONLY: "" runs every check; else a comma list of check names.
 local ONLY = ""
 local HOLD_GAP = 0
@@ -237,12 +240,174 @@ function Checks.ModeOff()
 	return S
 end
 
+-- ===== Task 9: the feedback on the marker and the camera =====
+local LAST = Enum.RenderPriority.Last.Value -- samples are taken after everything else in the frame (camera, marker, kick)
+local HomeShakeOn = GunAimUI and GunAimUI.ShakeOn
+local function Pitch()
+	return math.deg(math.asin(math.clamp(Camera.CFrame.LookVector.Y, -1, 1)))
+end
+local function IsImage(X) return X:IsA("ImageLabel") or X:IsA("ImageButton") end
+local function Tint(X) return IsImage(X) and X.ImageColor3 or X.BackgroundColor3 end
+local function Transp(X) return IsImage(X) and X.ImageTransparency or X.BackgroundTransparency end
+local function SameColor(A, B)
+	return math.abs(A.R - B.R) + math.abs(A.G - B.G) + math.abs(A.B - B.B) < 3 / 255
+end
+-- the marker's size over its size at Home (the scale, or the offset when it has no scale)
+local function SizeRatio(S, Home)
+	if Home.X.Scale ~= 0 then return S.X.Scale / Home.X.Scale end
+	return S.X.Offset / Home.X.Offset
+end
+-- Fn(t) every frame (after everything else in it) for Seconds
+local function Sample(Seconds, Fn)
+	local T0, Done, Err = os.clock(), false, nil
+	RunService:BindToRenderStep("GunChecks_TEMP_Sample", LAST, function()
+		local T = os.clock() - T0
+		local Ok, E = pcall(Fn, T)
+		if not Ok then Err = E end
+		if T >= Seconds or Err then Done = true end
+	end)
+	while not Done do task.wait() end
+	RunService:UnbindFromRenderStep("GunChecks_TEMP_Sample")
+	if Err then error(Err, 0) end
+end
+-- Settings > Camera Shake as the game reads it (BasicVFX: the Player attribute CameraShake, off only when false)
+local function ShakeSetting() return Player:GetAttribute("CameraShake") ~= false end
+-- run Fn with GunAimUI's Camera Shake read giving Want: the real read when the setting already is Want, else the seam
+-- stubbed (never the owner's Settings) and put back
+local function WithShake(Want, Fn)
+	local Real = ShakeSetting()
+	local Seam = GunAimUI ~= nil and type(GunAimUI.ShakeOn) == "function"
+	local Info = {Real = Real, Seam = Seam, Read = Seam and GunAimUI.ShakeOn() or nil, Stubbed = false}
+	if Want ~= nil and Want ~= Real then
+		assert(Seam, "no GunAimUI.ShakeOn seam to stub Camera Shake " .. (Want and "on" or "off"))
+		GunAimUI.ShakeOn = function() return Want end
+		Info.Stubbed = true
+	end
+	local Ok, R = pcall(Fn)
+	if Info.Stubbed then GunAimUI.ShakeOn = HomeShakeOn end
+	if not Ok then error(R, 0) end
+	R.Shake = Info
+	return R
+end
+
+-- Kick() (Args.Shake: true / false = Camera Shake on / off): the pitch and the marker's size over 0.3 s
+function Checks.Kick(Args)
+	assert(GunAimUI, "no GunAimUI")
+	return WithShake(Args.Shake, function()
+		local X = Cross()
+		assert(X, "no marker")
+		local Home = X.Size
+		Frames(3)
+		local P0 = Pitch()
+		local R = {Rise = 0, Late = 0, Bloom = 1, BloomLate = 0}
+		GunAimUI.Kick()
+		Sample(Args.Seconds or 0.3, function(T)
+			local D = Pitch() - P0
+			if T <= Args.KickTime then R.Rise = math.max(R.Rise, D) end
+			if T >= Args.BackAt then R.Late = math.max(R.Late, math.abs(D)) end
+			local K = SizeRatio(X.Size, Home)
+			if T <= Args.BloomWithin then R.Bloom = math.max(R.Bloom, K) end
+			if T >= Args.BloomBackAt then R.BloomLate = math.max(R.BloomLate, math.abs(K - 1)) end
+		end)
+		return R
+	end)
+end
+
+-- the hit marker: WatchFlash notes the marker's colour, then each frame after the character's LastShotAt changes on
+-- this client: the first colour that isn't its own (and when), and the colour Args.BackAt s after the change
+local Flash = nil
+function Checks.WatchFlash(Args)
+	local X = Cross()
+	assert(X, "no marker")
+	local C = Char()
+	local F = {Home = Tint(X), HomeTransparency = Transp(X)}
+	Flash = F
+	local Conn = C:GetAttributeChangedSignal("LastShotAt"):Connect(function()
+		if not F.SeenAt then F.SeenAt, F.Result = os.clock(), C:GetAttribute("LastShotResult") end
+	end)
+	local T0 = os.clock()
+	RunService:BindToRenderStep("GunChecks_TEMP_Flash", LAST, function()
+		local Now = os.clock()
+		if F.SeenAt then
+			local Col = Tint(X)
+			if not F.TintAt and not SameColor(Col, F.Home) then F.TintAt, F.First = Now, Col end
+			if not F.Back and Now - F.SeenAt >= Args.BackAt then F.Back = Col end
+		end
+		if F.Back or Now - T0 > (Args.Timeout or 5) then
+			RunService:UnbindFromRenderStep("GunChecks_TEMP_Flash")
+			Conn:Disconnect()
+			F.Done = true
+		end
+	end)
+	return {Home = F.Home, HomeTransparency = F.HomeTransparency}
+end
+function Checks.FlashResult()
+	local F = Flash
+	assert(F, "WatchFlash first")
+	while not F.Done do Frames(1) end
+	Flash = nil
+	return {Seen = F.SeenAt ~= nil, Result = F.Result, Delay = F.TintAt and F.SeenAt and (F.TintAt - F.SeenAt) or nil,
+		First = F.First, Back = F.Back, Home = F.Home}
+end
+
+-- a real shot: the press (FireInput, as RMB) with the flash watched and the pitch sampled, Camera Shake on
+function Checks.RealShot(Args)
+	assert(GunAimUI, "no GunAimUI")
+	return WithShake(true, function()
+		Checks.WatchFlash(Args)
+		Frames(3)
+		local P0 = Pitch()
+		local Rise = 0
+		RunService:BindToRenderStep("GunChecks_TEMP_Pitch", LAST, function() Rise = math.max(Rise, Pitch() - P0) end)
+		local Pressed = os.clock()
+		local Began = FireInput(true)
+		FireInput(false)
+		local Ok, R = pcall(Checks.FlashResult)
+		RunService:UnbindFromRenderStep("GunChecks_TEMP_Pitch")
+		if not Ok then error(R, 0) end
+		R.Began, R.Rise = Began, Rise
+		return R
+	end)
+end
+
+-- the line of fire: where the muzzle and the aim camera are (computed here, never from the marker)
+function Checks.LineGeometry()
+	Frames(3)
+	return {Muzzle = GunAim.Muzzle(Root().Position), CamPos = Camera.CFrame.Position, Look = Camera.CFrame.LookVector}
+end
+
+-- the marker's transparency once the wall Args.Wall has streamed in (or Args.Gone has left), and which line meets it
+function Checks.Dim(Args)
+	if Args.Wall then assert(workspace:WaitForChild(Args.Wall, 5), "the wall never streamed in") end
+	if Args.Gone then
+		local T0 = os.clock()
+		while workspace:FindFirstChild(Args.Gone) and os.clock() - T0 < 5 do Frames(1) end
+		assert(not workspace:FindFirstChild(Args.Gone), "the wall never left the client")
+	end
+	Frames(5)
+	local X = Cross()
+	assert(X, "no marker")
+	local R = {Transparency = Transp(X)}
+	if Args.CFrame then
+		local Ray = CrosshairRay()
+		local Muzzle = GunAim.Muzzle(Root().Position)
+		R.CameraMeets = GunAim.RayBox(Ray.Origin, Ray.Direction.Unit, 200, Args.CFrame, Args.Size) ~= nil
+		R.MuzzleMeets = GunAim.RayBox(Muzzle, AimDirection(), 200, Args.CFrame, Args.Size) ~= nil
+	end
+	return R
+end
+
 -- put everything the checks touched back
 function Checks.Reset()
+	for _, Name in ipairs({"GunChecks_TEMP_Sample", "GunChecks_TEMP_Flash", "GunChecks_TEMP_Pitch"}) do
+		pcall(function() RunService:UnbindFromRenderStep(Name) end)
+	end
+	Flash = nil
 	if GunAimUI then
 		GunAimUI.FireInput(false)
 		GunAimUI.ForceAim = nil
 		GunAimUI.HoldGap = HomeHoldGap
+		GunAimUI.ShakeOn = HomeShakeOn
 	end
 	if LockOn.Target then LockOn.Release() end
 	if Saved then
@@ -304,6 +469,42 @@ local MODE_NIL_WITHIN = 0.5
 local PIXEL = 1
 local AHEAD = Vector3.new(0, 0, -1)
 local UP = Vector3.new(0, 3, 0) -- an R6 root stands 3 over the floor
+-- Task 9 (the plan's numbers, PROPOSAL; GunAimUI's FX table):
+--   HOME_COLOR (230, 205, 190), HOME_TRANSPARENCY 0.35: the marker's own ImageColor3 / ImageTransparency (Task 1's
+--     survey: Uis.Crosshair is an ImageLabel).
+--   HIT_COLOR (255, 90, 70), BLOCKED_COLOR (170, 170, 170): the tints. TINT_WITHIN 0.05 s after LastShotAt reaches the
+--     client (GunAimUI reads it in its next render step, one frame: 0.017 s at 60 fps), BACK_AT 0.3 s (the tint lasts
+--     0.15). REAL_TINT_WITHIN 0.1 s for a real shot (Ruling: the by-hand flash, measured the same way).
+--   The kick (the Revolver's Items.Kick 1.5 degrees, fading to 0 over 0.18 s): the first frame after Kick() shows
+--     1.5 x (1 - 0.017 / 0.18) = 1.36 degrees at 60 fps (1.08 even at 20 fps), so a rise of KICK_RISE 0.5 within
+--     KICK_TIME 0.18 s; from BACK_AT_KICK 0.25 s (past 0.18) the pitch is back within KICK_BACK 0.1 degrees; with
+--     Camera Shake off the pitch never moves more than KICK_NONE 0.1.
+--   The bloom: the marker's size x BLOOM 1.25 within BLOOM_WITHIN 0.05 s of Kick() (it lasts 0.1), back to x1 (within
+--     BLOOM_EPS) from BLOOM_BACK_AT 0.2 s.
+--   The blocked line: a WALL 10 x 10 x 1, WALL_AHEAD 3 studs in front of the muzzle, its right edge halfway between the
+--     muzzle's line and the aim camera's (the camera sits SHOULDER.X 1.75 right of the muzzle; the muzzle's line to an
+--     aim point 80 studs out is 1.75 x 3 / 80 = 0.07 right at the wall, the camera's 1.75): the muzzle's line meets the
+--     wall 3 studs out, about 77 short of the aim point (> 1.5), and the camera's line passes 0.875 clear of it.
+--     DIM 0.6 with the wall; HOME_TRANSPARENCY without it.
+--   SHOT_AT 15 studs: the real shot's dummy, straight ahead (inside FlinchRange; the shot meets its 4-wide box).
+local HOME_COLOR = Color3.fromRGB(230, 205, 190)
+local HOME_TRANSPARENCY, DIM, TRANSPARENCY_EPS = 0.35, 0.6, 0.01
+local HIT_COLOR, BLOCKED_COLOR = Color3.fromRGB(255, 90, 70), Color3.fromRGB(170, 170, 170)
+local TINT_WITHIN, BACK_AT, REAL_TINT_WITHIN = 0.05, 0.3, 0.1
+local KICK_RISE, KICK_TIME, BACK_AT_KICK, KICK_BACK, KICK_NONE = 0.5, 0.18, 0.25, 0.1, 0.1
+local BLOOM, BLOOM_WITHIN, BLOOM_BACK_AT, BLOOM_EPS = 1.25, 0.05, 0.2, 0.01
+local WALL, WALL_AHEAD = Vector3.new(10, 10, 1), 3
+local SHOT_AT = 15
+local KICK_ARGS = {KickTime = KICK_TIME, BackAt = BACK_AT_KICK, BloomWithin = BLOOM_WITHIN, BloomBackAt = BLOOM_BACK_AT, Seconds = 0.3}
+local function SameColor(A, B)
+	return typeof(A) == "Color3" and math.abs(A.R - B.R) + math.abs(A.G - B.G) + math.abs(A.B - B.B) < 3 / 255
+end
+local function Rgb(C)
+	return typeof(C) == "Color3" and ("(%d, %d, %d)"):format(math.round(C.R * 255), math.round(C.G * 255), math.round(C.B * 255)) or tostring(C)
+end
+local function ShakeNote(S)
+	return S and ((" [Camera Shake %s%s]"):format(S.Real and "on" or "off", S.Stubbed and ", stubbed through the seam" or "")) or ""
+end
 local HOLD_GAP = Remote:GetAttribute("HoldGap") or 0
 local NO_FLICK_GRACE = Remote:GetAttribute("NoFlickGrace") == true
 
@@ -470,6 +671,106 @@ local Suite = {
 			T.Eq(Off.MouseBehavior, "Default", "MouseBehavior after Mode off")
 			T.True(Off.Offset ~= nil and Off.Offset.Magnitude < 1e-3, "CameraOffset after Mode off: " .. tostring(Off.Offset))
 			T.Eq(Off.MarkerVisible, false, "the marker after Mode off")
+		end)
+	end,
+
+	-- Task 9. The Server sets the result and bumps LastShotAt; the marker tints, then shows its own colour again.
+	HitMarkerFlashes = function(T)
+		Armed(function(C)
+			for _, Case in ipairs({{"Hit", HIT_COLOR}, {"Blocked", BLOCKED_COLOR}}) do
+				local W = Ask("WatchFlash", {BackAt = BACK_AT})
+				T.True(SameColor(W.Home, HOME_COLOR), "precondition: the marker shows its own colour " .. Rgb(HOME_COLOR) .. ", not " .. Rgb(W.Home))
+				C:SetAttribute("LastShotResult", Case[1])
+				C:SetAttribute("LastShotAt", workspace:GetServerTimeNow())
+				local R = Ask("FlashResult")
+				print(("[GunChecks] HitMarkerFlashes %s: tint %s after %s s; %.1f s later %s"):format(Case[1], Rgb(R.First),
+					R.Delay and ("%.3f"):format(R.Delay) or "never", BACK_AT, Rgb(R.Back)))
+				T.True(R.Seen and R.Result == Case[1], "the client saw LastShotAt change with LastShotResult " .. Case[1] .. ": " .. tostring(R.Result))
+				T.True(R.Delay ~= nil and R.Delay <= TINT_WITHIN, ("%s: the marker's colour changed %s s after LastShotAt reached the client (max %.2f)")
+					:format(Case[1], R.Delay and ("%.3f"):format(R.Delay) or "never", TINT_WITHIN))
+				T.True(SameColor(R.First, Case[2]), Case[1] .. ": the tint is " .. Rgb(Case[2]) .. ", got " .. Rgb(R.First))
+				T.True(SameColor(R.Back, HOME_COLOR), ("%s: the marker's own colour again %.1f s later, got %s"):format(Case[1], BACK_AT, Rgb(R.Back)))
+				task.wait(0.2)
+			end
+		end)
+	end,
+
+	-- Task 9. A wall on the muzzle's line of fire but not the aim camera's: the marker dims, and clears without it.
+	BlockedLineDims = function(T)
+		Armed(function()
+			local Before = Ask("Dim", {})
+			T.Near(Before.Transparency, HOME_TRANSPARENCY, TRANSPARENCY_EPS, "control: the marker's transparency with nothing in the way")
+			local G = Ask("LineGeometry")
+			local Look = Vector3.new(G.Look.X, 0, G.Look.Z).Unit
+			local Right = Look:Cross(Vector3.yAxis).Unit
+			local CamSide = (G.CamPos - G.Muzzle):Dot(Right)
+			T.True(CamSide > 1, ("precondition: the aim camera sits right of the muzzle (%.2f studs; SHOULDER.X %.2f)"):format(CamSide, SHOULDER.X))
+			local Centre = G.Muzzle + Look * WALL_AHEAD + Right * (CamSide / 2 - WALL.X / 2)
+			local Wall = SmokeKit.TempPart({Name = "GunChecks_Wall", Size = WALL, CFrame = CFrame.lookAt(Centre, Centre + Look)})
+			local With = Ask("Dim", {Wall = Wall.Name, CFrame = Wall.CFrame, Size = Wall.Size})
+			print(("[GunChecks] BlockedLineDims: camera %.2f right of the muzzle; transparency %.3f without the wall, %.3f with it")
+				:format(CamSide, Before.Transparency, With.Transparency))
+			T.True(With.MuzzleMeets, "precondition: the muzzle's line of fire meets the wall")
+			T.True(not With.CameraMeets, "precondition: the aim camera's line passes the wall")
+			T.Near(With.Transparency, DIM, TRANSPARENCY_EPS, "the marker's transparency with the line of fire blocked")
+			Wall:Destroy() -- only the wall (ClearTemp would take the floor too)
+			local After = Ask("Dim", {Gone = "GunChecks_Wall"})
+			T.Near(After.Transparency, HOME_TRANSPARENCY, TRANSPARENCY_EPS, "the marker's own transparency again with the wall gone")
+		end)
+	end,
+
+	-- Task 9. Kick() with Camera Shake on: the pitch rises, then is back.
+	KickRecovers = function(T)
+		Armed(function()
+			local Args = table.clone(KICK_ARGS)
+			Args.Shake = true
+			local R = Ask("Kick", Args)
+			print(("[GunChecks] KickRecovers: rise %.3f, later %.4f off%s"):format(R.Rise, R.Late, ShakeNote(R.Shake)))
+			T.True(R.Rise >= KICK_RISE, ("the pitch rose %.2f degrees within %.2f s of Kick() (min %.1f)%s"):format(R.Rise, KICK_TIME, KICK_RISE, ShakeNote(R.Shake)))
+			T.True(R.Late <= KICK_BACK, ("the pitch %.3f degrees off from %.2f s (max %.1f)"):format(R.Late, BACK_AT_KICK, KICK_BACK))
+		end)
+	end,
+
+	-- Ruling: Camera Shake off means no kick, and the bloom still plays. The seam reads the setting as the game does; the
+	-- path the owner's save doesn't have is stubbed through it (never the Settings themselves).
+	KickRespectsCameraShake = function(T)
+		Armed(function()
+			local On = table.clone(KICK_ARGS) On.Shake = true
+			local Off = table.clone(KICK_ARGS) Off.Shake = false
+			local A = Ask("Kick", On)
+			T.True(A.Shake.Seam, "GunAimUI.ShakeOn exists (the Camera Shake read)")
+			T.Eq(A.Shake.Read, A.Shake.Real, "GunAimUI.ShakeOn() reads Settings > Camera Shake as BasicVFX does (the Player attribute CameraShake ~= false)")
+			T.True(A.Rise >= KICK_RISE, ("control: Camera Shake on, the pitch rose %.2f degrees (min %.1f)%s"):format(A.Rise, KICK_RISE, ShakeNote(A.Shake)))
+			task.wait(0.2)
+			local B = Ask("Kick", Off)
+			print(("[GunChecks] KickRespectsCameraShake: on rise %.3f%s; off rise %.4f, bloom x%.3f, later x%.4f off%s")
+				:format(A.Rise, ShakeNote(A.Shake), B.Rise, B.Bloom, B.BloomLate, ShakeNote(B.Shake)))
+			T.True(B.Rise <= KICK_NONE, ("Camera Shake off: the pitch rose %.3f degrees (max %.1f)%s"):format(B.Rise, KICK_NONE, ShakeNote(B.Shake)))
+			T.True(B.Late <= KICK_NONE, ("Camera Shake off: the pitch %.3f degrees off later (max %.1f)"):format(B.Late, KICK_NONE))
+			T.Near(B.Bloom, BLOOM, BLOOM_EPS, "Camera Shake off: the marker still blooms (size x)")
+			T.True(B.BloomLate <= BLOOM_EPS, ("the marker's own size again from %.1f s (off by x%.3f)"):format(BLOOM_BACK_AT, B.BloomLate))
+		end)
+	end,
+
+	-- Ruling: the by-hand "shoot a dummy, see the flash and the kick", as a real shot (RMB's FireInput) at a GunKit dummy.
+	RealShotFlashesAndKicks = function(T)
+		Armed(function(C)
+			local D = GunKit.Dummy(AHEAD * SHOT_AT, "GunChecks_ShotTarget")
+			GunKit.Settle()
+			local Hum = D:FindFirstChildOfClass("Humanoid")
+			local Hp = Hum.Health
+			local R = Ask("RealShot", {BackAt = BACK_AT}, 15)
+			print(("[GunChecks] RealShotFlashesAndKicks: %s, dummy %.1f -> %.1f; flash %s after %s s; pitch rise %.3f%s")
+				:format(tostring(C:GetAttribute("LastShotResult")), Hp, Hum.Health, Rgb(R.First),
+				R.Delay and ("%.3f"):format(R.Delay) or "never", R.Rise, ShakeNote(R.Shake)))
+			T.Eq(R.Began, true, "FireInput(true) in shooting mode")
+			T.Eq(C:GetAttribute("LastShotResult"), "Hit", "the real shot's LastShotResult")
+			T.True(Hum.Health < Hp, ("the dummy lost health (%.1f -> %.1f)"):format(Hp, Hum.Health))
+			T.True(R.Seen, "the client saw LastShotAt change")
+			T.True(R.Delay ~= nil and R.Delay <= REAL_TINT_WITHIN, ("the marker flashed %s s after LastShotAt reached the client (max %.1f)")
+				:format(R.Delay and ("%.3f"):format(R.Delay) or "never", REAL_TINT_WITHIN))
+			T.True(SameColor(R.First, HIT_COLOR), "the flash is the Hit tint " .. Rgb(HIT_COLOR) .. ", got " .. Rgb(R.First))
+			T.True(R.Rise >= KICK_RISE, ("the camera's pitch rose %.2f degrees after the shot (min %.1f)%s"):format(R.Rise, KICK_RISE, ShakeNote(R.Shake)))
 		end)
 	end,
 }
