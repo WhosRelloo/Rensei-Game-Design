@@ -28,6 +28,10 @@
 -- Task 9 (feedback: the kick, the bloom, the hit marker, the blocked line) adds HitMarkerFlashes, BlockedLineDims,
 -- KickRecovers, KickRespectsCameraShake and RealShotFlashesAndKicks. Settings > Camera Shake is read, never written: a
 -- check that needs the other value stubs GunAimUI.ShakeOn (the seam) and puts it back.
+-- Task 10 (touch screens) adds AssistOnTouchOnly, AssistIgnoresTownsfolk, AssistSkipsHiddenAndDead and TouchHintAndHold,
+-- and (Task 9's review) KickUndoAfterCameraWrite.
+-- The touch screen is MobileControls' own seam, the Player attribute ForceMobileControls, set on the client by each
+-- check and cleared after it (Reset clears it too); nothing else is set.
 -- ONLY: "" runs every check; else a comma list of check names.
 local ONLY = ""
 local HOLD_GAP = 0
@@ -277,7 +281,8 @@ local function ShakeSetting() return Player:GetAttribute("CameraShake") ~= false
 local function WithShake(Want, Fn)
 	local Real = ShakeSetting()
 	local Seam = GunAimUI ~= nil and type(GunAimUI.ShakeOn) == "function"
-	local Info = {Real = Real, Seam = Seam, Read = Seam and GunAimUI.ShakeOn() or nil, Stubbed = false}
+	local Info = {Real = Real, Seam = Seam, Read = nil, Stubbed = false}
+	if Seam then Info.Read = GunAimUI.ShakeOn() end -- (false stays false)
 	if Want ~= nil and Want ~= Real then
 		assert(Seam, "no GunAimUI.ShakeOn seam to stub Camera Shake " .. (Want and "on" or "off"))
 		GunAimUI.ShakeOn = function() return Want end
@@ -309,6 +314,27 @@ function Checks.Kick(Args)
 			if T <= Args.BloomWithin then R.Bloom = math.max(R.Bloom, K) end
 			if T >= Args.BloomBackAt then R.BloomLate = math.max(R.BloomLate, math.abs(K - 1)) end
 		end)
+		return R
+	end)
+end
+
+-- Kick(), then in the kick's first frame an absolute camera write (as MasteryUI's lookAt does) of the camera as it was
+-- before the kick: the kick seen when it was written, and the pitch Args.At s later, both from before the kick
+function Checks.KickThenWrite(Args)
+	assert(GunAimUI, "no GunAimUI")
+	return WithShake(true, function()
+		Frames(3)
+		local Before, P0 = Camera.CFrame, Pitch()
+		local R = {Kicked = nil, Off = nil}
+		GunAimUI.Kick()
+		RunService:BindToRenderStep("GunChecks_TEMP_Write", LAST, function()
+			if R.Kicked then return end
+			R.Kicked = Pitch() - P0
+			Camera.CFrame = Before
+		end)
+		task.wait(Args.At)
+		RunService:UnbindFromRenderStep("GunChecks_TEMP_Write")
+		R.Off = Pitch() - P0
 		return R
 	end)
 end
@@ -397,11 +423,127 @@ function Checks.Dim(Args)
 	return R
 end
 
+-- ===== Task 10: touch screens (MobileControls.Active, the aim assist, the hint, FIRE held) =====
+-- The touch screen is MobileControls' own test seam, the Player attribute ForceMobileControls: set here on this client
+-- (it never reaches the server), only for the length of one check, and cleared after it (and again by Reset).
+local MobileControls = require(ReplicatedStorage.Modules.UI.MobileControls)
+local function SetTouch(On)
+	Player:SetAttribute("ForceMobileControls", On or nil)
+	Frames(2)
+end
+local function TouchActive() -- (nil: not exported; false stays false)
+	if type(MobileControls.Active) ~= "function" then return nil end
+	return MobileControls.Active()
+end
+local function HintText()
+	local F = UIState.Gui.HUD:FindFirstChild("ShootingMode")
+	local L = F and F:FindFirstChild("Hint")
+	return L and L.Text
+end
+local function WaitGone(Name)
+	local T0 = os.clock()
+	while workspace:FindFirstChild(Name) and os.clock() - T0 < 5 do Frames(1) end
+	assert(not workspace:FindFirstChild(Name), Name .. " never left the client")
+end
+-- the dummy Args.Target where the server put it: in Args.In ("Live": a child of World.Live; "Townsfolk": in its townsfolk
+-- folder), its root at Args.At
+local function AssistDummy(Args)
+	local Live = workspace.World.Live
+	local Parent = Args.In == "Townsfolk" and Live:WaitForChild("Townsfolk", 5) or Live
+	assert(Parent, "no World.Live.Townsfolk on the client")
+	local T0 = os.clock()
+	local M = Parent:FindFirstChild(Args.Target)
+	local R = M and M:FindFirstChild("HumanoidRootPart")
+	while not (R and (R.Position - Args.At).Magnitude < 0.05) and os.clock() - T0 < 5 do
+		Frames(1)
+		M = Parent:FindFirstChild(Args.Target)
+		R = M and M:FindFirstChild("HumanoidRootPart")
+	end
+	assert(R and (R.Position - Args.At).Magnitude < 0.05, "the dummy " .. Args.Target .. " never reached " .. Parent:GetFullName()
+		.. " at its spot on the client")
+	return M, R
+end
+
+-- GunAimUI.Assist(the crosshair ray, a point 80 studs along it) with the touch screen on or off (Args.Touch), the dummy
+-- in place; Args.Wall: a part that must have streamed in first; Args.Gone: one that must have left; Args.Health: the
+-- dummy's Health on THIS client only during the call (the server's dummy is untouched), then put back
+function Checks.Assist(Args)
+	assert(GunAimUI, "no GunAimUI")
+	assert(Player:GetAttribute("ForceMobileControls") == nil, "precondition: ForceMobileControls isn't set before the check")
+	local M, R = AssistDummy(Args)
+	if Args.Wall then assert(workspace:WaitForChild(Args.Wall, 5), "the wall never streamed in") end
+	if Args.Gone then WaitGone(Args.Gone) end
+	local H = M:FindFirstChildOfClass("Humanoid")
+	local Health = H.Health
+	SetTouch(Args.Touch)
+	if Args.Health then H.Health = Args.Health end
+	local Active = TouchActive()
+	local Ray = CrosshairRay()
+	local Point = Ray.Origin + Ray.Direction.Unit * 80
+	local Ok, Got = pcall(GunAimUI.Assist, Ray, Point)
+	if Args.Health then H.Health = Health end
+	SetTouch(nil)
+	if not Ok then error(Got, 0) end
+	return {
+		Exported = type(MobileControls.Active) == "function", Active = Active,
+		Deg = Deg(Ray.Direction, R.Position - Ray.Origin), Dist = (R.Position - Ray.Origin).Magnitude,
+		Picked = typeof(Got) == "Vector3" and (Got - R.Position).Magnitude < 1e-3, Unchanged = Got == Point,
+	}
+end
+
+-- MobileControls' button Name (its ImageButton and the label on it)
+local function TouchButton(Name)
+	local Gui = Player.PlayerGui:FindFirstChild("MobileControls")
+	local B = Gui and Gui:FindFirstChild(Name, true)
+	return Gui, B, B and B:FindFirstChild("Text") and B.Text.Text
+end
+-- the touch screen in shooting mode: the hint (touch, then the PC's as the control), the buttons, then FIRE held
+-- Args.Seconds through ClientActions as MobileControls' Press sends it (Began true; Began false on the release)
+function Checks.TouchHold(Args)
+	local Ok, R = pcall(function()
+		local Out = {}
+		SetTouch(true)
+		task.wait(Args.HintWait)
+		Out.Active, Out.TouchHint = TouchActive(), HintText()
+		local Gui, Fire, _ = TouchButton("Fire")
+		local _, _, AimText = TouchButton("Aim")
+		Out.Enabled, Out.FireShown, Out.AimText = Gui ~= nil and Gui.Enabled, Fire ~= nil and Fire.Visible, AimText
+		SetTouch(nil)
+		task.wait(Args.HintWait)
+		Out.DeskHint = HintText()
+		SetTouch(true)
+		ClientActions.Run("Fire", true)
+		task.wait(Args.Seconds)
+		ClientActions.Run("Fire", false)
+		return Out
+	end)
+	ClientActions.Run("Fire", false)
+	SetTouch(nil)
+	if not Ok then error(R, 0) end
+	return R
+end
+-- STOP on the touch screen: the AIM button's action ("Aim", press and release); then shooting mode and the button's label
+function Checks.TouchStop()
+	local Ok, R = pcall(function()
+		SetTouch(true)
+		ClientActions.Run("Aim", true)
+		ClientActions.Run("Aim", false)
+		local Left = WaitMode(false, 3)
+		Frames(3)
+		local _, _, AimText = TouchButton("Aim")
+		return {Left = Left, AimText = AimText}
+	end)
+	SetTouch(nil)
+	if not Ok then error(R, 0) end
+	return R
+end
+
 -- put everything the checks touched back
 function Checks.Reset()
-	for _, Name in ipairs({"GunChecks_TEMP_Sample", "GunChecks_TEMP_Flash", "GunChecks_TEMP_Pitch"}) do
+	for _, Name in ipairs({"GunChecks_TEMP_Sample", "GunChecks_TEMP_Flash", "GunChecks_TEMP_Pitch", "GunChecks_TEMP_Write"}) do
 		pcall(function() RunService:UnbindFromRenderStep(Name) end)
 	end
+	Player:SetAttribute("ForceMobileControls", nil)
 	Flash = nil
 	if GunAimUI then
 		GunAimUI.FireInput(false)
@@ -496,6 +638,29 @@ local BLOOM, BLOOM_WITHIN, BLOOM_BACK_AT, BLOOM_EPS = 1.25, 0.05, 0.2, 0.01
 local WALL, WALL_AHEAD = Vector3.new(10, 10, 1), 3
 local SHOT_AT = 15
 local KICK_ARGS = {KickTime = KICK_TIME, BackAt = BACK_AT_KICK, BloomWithin = BLOOM_WITHIN, BloomBackAt = BLOOM_BACK_AT, Seconds = 0.3}
+-- Task 10 (touch; the plan's numbers):
+--   The assist reaches Aim.TouchAssist 2.5 degrees and the gun's Range + 10 (the Revolver's 70: 80 studs). ASSIST_DEG 2
+--     at ASSIST_AT 30 studs from the camera is inside both (0.5 degrees spare, 1.05 studs off the ray); NEAR_DEG 1 (0.52
+--     studs off) for the cases that must NOT pick. DEG_EPS 0.2: the measured angle's precondition (the camera may settle
+--     a little between the server's placement and the client's call).
+--   The dummy's root is put exactly there: turned about the ray's own up (so the angle is exact), facing the player.
+--   TOWNSFOLK "Townsfolk": the townsfolk folder in World.Live (Task 1's survey: Workspace.World.Live.Townsfolk).
+--   ASSIST_WALL 4 x 4 x 1 at WALL_AT 0.8 of the way from the camera to the dummy (24 studs out, past the player, so the
+--     camera's own occlusion never pulls the camera in front of it).
+--   HINT_TOUCH / HINT_DESK: HUDUI's hint texts (the brief's touch hint; the PC one unchanged since Task 8). HINT_WAIT
+--     0.3 s: HUDUI's UpdateShooting runs every 0.1 s.
+--   The FIRE hold: HOLD_SECONDS 2 -> 3-4 shots (as RmbFiresNotFeints: FIRE runs the same FireInput through
+--     ClientActions), then none from SHOT_LANDS until AFTER_RELEASE 1 s more (the release stops the loop; Aim.Buffer 0.2).
+local ASSIST_DEG, NEAR_DEG, ASSIST_AT, DEG_EPS = 2, 1, 30, 0.2
+local TOWNSFOLK = "Townsfolk"
+local ASSIST_WALL, WALL_AT = Vector3.new(4, 4, 1), 0.8
+local HINT_TOUCH = "SHOOTING MODE · hold FIRE to shoot · STOP to leave"
+local HINT_DESK = "SHOOTING MODE  ·  RMB fire  ·  Y leave  ·  M1 still pistol-whips"
+local HINT_WAIT, AFTER_RELEASE = 0.3, 1
+--   KICK_SETTLE 0.3 s (past KickTime 0.18): KickUndoAfterCameraWrite's look. The camera written back to its pre-kick
+--     CFrame in the kick's first frame: the old undo then took the first frame's kick (1.36 degrees at 60 fps) off that
+--     level camera, and the view stayed 1.36 down; the guarded undo leaves it level (within KICK_BACK 0.1).
+local KICK_SETTLE = 0.3
 local function SameColor(A, B)
 	return typeof(A) == "Color3" and math.abs(A.R - B.R) + math.abs(A.G - B.G) + math.abs(A.B - B.B) < 3 / 255
 end
@@ -572,6 +737,20 @@ local function Armed(Body)
 		GunKit.Clean()
 		if not Ok then error(Err, 0) end
 	end)
+end
+
+-- a GunKit dummy whose root sits Dist studs from the camera along the crosshair ray turned Deg degrees, facing back
+local function AssistTarget(Name, Deg)
+	local R = Ask("Ray")
+	local Right = R.Dir:Cross(Vector3.yAxis).Unit
+	local Up = Right:Cross(R.Dir).Unit
+	local At = R.Origin + CFrame.fromAxisAngle(Up, math.rad(Deg)):VectorToWorldSpace(R.Dir) * ASSIST_AT
+	local D = GunKit.Dummy(AHEAD * ASSIST_AT, Name)
+	local RootFromPivot = D:GetPivot():ToObjectSpace(D.HumanoidRootPart.CFrame)
+	local Flat = Vector3.new(R.Origin.X, At.Y, R.Origin.Z)
+	D:PivotTo(CFrame.lookAt(At, Flat) * RootFromPivot:Inverse())
+	GunKit.Settle()
+	return D, At
 end
 
 local Suite = {
@@ -771,6 +950,106 @@ local Suite = {
 				:format(R.Delay and ("%.3f"):format(R.Delay) or "never", REAL_TINT_WITHIN))
 			T.True(SameColor(R.First, HIT_COLOR), "the flash is the Hit tint " .. Rgb(HIT_COLOR) .. ", got " .. Rgb(R.First))
 			T.True(R.Rise >= KICK_RISE, ("the camera's pitch rose %.2f degrees after the shot (min %.1f)%s"):format(R.Rise, KICK_RISE, ShakeNote(R.Shake)))
+		end)
+	end,
+
+	-- Task 10 (Task 9's review): a camera write between the kick and its undo (an absolute CFrame, as MasteryUI's lookAt)
+	-- has dropped the kick already; the undo must not take it off again (the view would stay that far down).
+	KickUndoAfterCameraWrite = function(T)
+		Armed(function()
+			local R = Ask("KickThenWrite", {At = KICK_SETTLE})
+			print(("[GunChecks] KickUndoAfterCameraWrite: the kick %.3f when the camera was written; %.4f degrees off %.1f s later")
+				:format(R.Kicked or -1, R.Off or -1, KICK_SETTLE))
+			T.True(R.Kicked ~= nil and R.Kicked >= KICK_RISE, ("precondition: the kick was on the camera when it was written (%.2f degrees, min %.1f)")
+				:format(R.Kicked or -1, KICK_RISE))
+			T.True(math.abs(R.Off) <= KICK_BACK, ("the pitch %.3f degrees off %.1f s after a camera write in the kick's first frame (max %.1f)")
+				:format(R.Off, KICK_SETTLE, KICK_BACK))
+		end)
+	end,
+
+	-- Task 10. The touch assist works on a touch screen (ForceMobileControls, MobileControls' own seam) and nowhere else.
+	AssistOnTouchOnly = function(T)
+		Armed(function()
+			local D, At = AssistTarget("GunChecks_AssistTarget", ASSIST_DEG)
+			local On = Ask("Assist", {Target = D.Name, In = "Live", At = At, Touch = true})
+			print(("[GunChecks] AssistOnTouchOnly: the dummy %.3f degrees off at %.1f studs; touch: active %s, picked %s")
+				:format(On.Deg, On.Dist, tostring(On.Active), tostring(On.Picked)))
+			T.True(On.Exported, "MobileControls.Active is exported")
+			T.Near(On.Deg, ASSIST_DEG, DEG_EPS, "precondition: the dummy's root is off the crosshair ray by (degrees)")
+			T.Near(On.Dist, ASSIST_AT, 0.1, "precondition: the dummy's root is this far from the camera (studs)")
+			T.Eq(On.Active, true, "MobileControls.Active() with ForceMobileControls set")
+			T.True(On.Picked, ("touch: Assist picks the dummy %d degrees off the crosshair at %d studs"):format(ASSIST_DEG, ASSIST_AT))
+			local Off = Ask("Assist", {Target = D.Name, In = "Live", At = At, Touch = false})
+			T.Eq(Off.Active, false, "precondition: MobileControls.Active() without ForceMobileControls (Studio on a PC)")
+			T.True(Off.Unchanged and not Off.Picked, "no touch screen: Assist returns Point unchanged")
+		end)
+	end,
+
+	-- Task 10. Townsfolk (World.Live's townsfolk folder) are never picked; the same dummy as a child of World.Live is.
+	AssistIgnoresTownsfolk = function(T)
+		Armed(function()
+			local Folk = workspace.World.Live:FindFirstChild(TOWNSFOLK)
+			assert(Folk, "precondition: World.Live." .. TOWNSFOLK .. " exists (Task 1's survey)")
+			local D, At = AssistTarget("GunChecks_AssistFolk", NEAR_DEG)
+			D.Parent = Folk
+			local In = Ask("Assist", {Target = D.Name, In = "Townsfolk", At = At, Touch = true})
+			print(("[GunChecks] AssistIgnoresTownsfolk: %.3f degrees off; in the townsfolk folder picked %s")
+				:format(In.Deg, tostring(In.Picked)))
+			T.Near(In.Deg, NEAR_DEG, DEG_EPS, "precondition: the dummy's root is off the crosshair ray by (degrees)")
+			T.Eq(In.Active, true, "MobileControls.Active() with ForceMobileControls set")
+			T.True(In.Unchanged and not In.Picked, ("a dummy in World.Live.%s %d degree off the crosshair isn't picked"):format(TOWNSFOLK, NEAR_DEG))
+			D.Parent = workspace.World.Live
+			local Direct = Ask("Assist", {Target = D.Name, In = "Live", At = At, Touch = true})
+			T.True(Direct.Picked, "control: the same dummy as a direct child of World.Live is picked")
+		end)
+	end,
+
+	-- Task 10. Never a target the camera can't see (a wall on the camera's line to it), nor a dead one.
+	AssistSkipsHiddenAndDead = function(T)
+		Armed(function()
+			local D, At = AssistTarget("GunChecks_AssistHidden", NEAR_DEG)
+			local Args = {Target = D.Name, In = "Live", At = At, Touch = true}
+			local Seen = Ask("Assist", Args)
+			T.Near(Seen.Deg, NEAR_DEG, DEG_EPS, "precondition: the dummy's root is off the crosshair ray by (degrees)")
+			T.True(Seen.Picked, "control: the dummy in plain sight is picked")
+			local R = Ask("Ray")
+			local Mid = R.Origin + (At - R.Origin) * WALL_AT
+			local Wall = SmokeKit.TempPart({Name = "GunChecks_AssistWall", Size = ASSIST_WALL, CanCollide = false,
+				CFrame = CFrame.lookAt(Mid, At)})
+			local Hidden = Ask("Assist", {Target = D.Name, In = "Live", At = At, Touch = true, Wall = Wall.Name})
+			T.True(Hidden.Unchanged and not Hidden.Picked, "a dummy behind a wall (on the camera's line to it) isn't picked")
+			Wall:Destroy() -- only the wall (ClearTemp would take the floor too)
+			local Dead = Ask("Assist", {Target = D.Name, In = "Live", At = At, Touch = true, Gone = "GunChecks_AssistWall", Health = 0})
+			T.True(Dead.Unchanged and not Dead.Picked, "a dead dummy (Health 0) isn't picked")
+		end)
+	end,
+
+	-- Task 10. The touch screen in shooting mode: the hint, FIRE and STOP shown; FIRE held fires again and again and
+	-- stops at the release; STOP leaves shooting mode.
+	TouchHintAndHold = function(T)
+		Armed(function(C)
+			local N = 0
+			local Conn = C:GetAttributeChangedSignal("LastShotAt"):Connect(function() N += 1 end)
+			local Ok, R = pcall(Ask, "TouchHold", {Seconds = HOLD_SECONDS, HintWait = HINT_WAIT}, 15)
+			task.wait(SHOT_LANDS)
+			local Held = N
+			task.wait(AFTER_RELEASE)
+			Conn:Disconnect()
+			if not Ok then error(R, 0) end
+			print(("[GunChecks] TouchHintAndHold: touch hint %q; PC hint %q; %d shots in a %d s FIRE hold, %d more after the release")
+				:format(tostring(R.TouchHint), tostring(R.DeskHint), Held, HOLD_SECONDS, N - Held))
+			T.Eq(R.Active, true, "MobileControls.Active() with ForceMobileControls set")
+			T.Eq(R.TouchHint, HINT_TOUCH, "the hint on a touch screen")
+			T.Eq(R.DeskHint, HINT_DESK, "control: the hint on a PC")
+			T.Eq(R.Enabled, true, "the touch buttons show")
+			T.Eq(R.FireShown, true, "FIRE shows in shooting mode")
+			T.Eq(R.AimText, "STOP", "the AIM button reads STOP in shooting mode")
+			T.True(Held >= HOLD_MIN and Held <= HOLD_MAX, ("shots in a %d s FIRE hold: %d (want %d-%d)"):format(HOLD_SECONDS, Held, HOLD_MIN, HOLD_MAX))
+			T.Eq(N - Held, 0, ("shots %.1f-%.1f s after FIRE's release"):format(SHOT_LANDS, SHOT_LANDS + AFTER_RELEASE))
+			local S = Ask("TouchStop")
+			T.True(S.Left, "STOP: ShootingMode off on the client")
+			T.Eq(C:GetAttribute("ShootingMode"), nil, "STOP: ShootingMode on the server")
+			T.Eq(S.AimText, "AIM", "the button reads AIM again")
 		end)
 	end,
 }

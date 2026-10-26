@@ -218,11 +218,16 @@ local function UpdateShooting()
 		Hint.TextColor3 = Color3.fromRGB(240, 220, 160)
 		Hint.TextStrokeTransparency = 0.4
 		Hint.FontFace = HUD.CashFrame.Display.FontFace
-		Hint.Text = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled and "SHOOTING MODE  ·  FIRE to shoot  ·  STOP to leave"
-			or "SHOOTING MODE  ·  RMB fire  ·  Y leave  ·  M1 still pistol-whips"
 		Hint.Parent = ShootHint
 	end
-	if ShootHint then ShootHint.Visible = On end
+	if ShootHint then
+		ShootHint.Visible = On
+		-- the touch buttons' words on a touch screen (MobileControls.Active, the same test as the buttons; Task 10)
+		if On then
+			ShootHint.Hint.Text = require(script.Parent.MobileControls).Active() and "SHOOTING MODE · hold FIRE to shoot · STOP to leave"
+				or "SHOOTING MODE  ·  RMB fire  ·  Y leave  ·  M1 still pistol-whips"
+		end
+	end
 end
 
 -- ===== Class skills on the hotbar (Combat Mode) =====

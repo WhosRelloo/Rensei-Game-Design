@@ -168,6 +168,8 @@ local function Active()
 	return UserInputService.TouchEnabled and (not UserInputService.KeyboardEnabled
 		or UserInputService:GetLastInputType() == Enum.UserInputType.Touch)
 end
+-- the touch test the rest of the game uses (GunAimUI's touch assist, HUDUI's hint; gun rework 2026-10-25)
+MobileControls.Active = Active
 
 local function KnockedNearby(Character)
 	local Root = Character and Character:FindFirstChild("HumanoidRootPart")

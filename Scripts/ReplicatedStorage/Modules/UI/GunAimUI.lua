@@ -5,7 +5,8 @@
 --   * FireInput(Began): hold to fire, buffered, capped at one request every Aim.HoldGap (under ServerHandler's shared limit);
 --   * feedback on the same marker (Task 9; no new images, fonts or sounds): every shot kicks the camera up (Items.Kick, only
 --     with Settings > Camera Shake on) and blooms the marker; the shot's result (LastShotResult) tints it; it dims while
---     something blocks the line of fire from the muzzle to the aim point.
+--     something blocks the line of fire from the muzzle to the aim point;
+--   * touch screens (Task 10): Assist() moves the aim point onto the character nearest the crosshair (Aim.TouchAssist).
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -71,14 +72,19 @@ local function Cast(From, Vec, Also)
 end
 GunAimUI.Cast = Cast
 
+-- how far the crosshair looks (and the touch assist reaches): the held gun's range + 10
+local function AimRange(C)
+	local Stats = C and WeaponManager.ItemStats(C)
+	return (Stats and Stats.Range or 90) + 10
+end
+
 -- where the shot is aimed from the muzzle: the lock-on target's root, or what the crosshair covers (then also its ray)
 local function AimPoint(C, Muzzle)
 	local Target = GunAimUI.LockedRoot()
 	if Target and (Target.Position - Muzzle).Magnitude > 1 then return Target.Position, nil end
 	local Ray = GunAimUI.CrosshairRay()
-	local Stats = WeaponManager.ItemStats(C)
-	local Point = GunAim.AimPoint(Ray.Origin, Ray.Direction, Muzzle, (Stats and Stats.Range or 90) + 10, Cast)
-	return GunAimUI.Assist(Ray, Point), Ray -- Assist: Task 10 (touch); Point unchanged until then
+	local Point = GunAim.AimPoint(Ray.Origin, Ray.Direction, Muzzle, AimRange(C), Cast)
+	return GunAimUI.Assist(Ray, Point), Ray
 end
 
 function GunAimUI.AimDirection()
@@ -91,7 +97,34 @@ function GunAimUI.AimDirection()
 	if not Ray then return (Point - Muzzle).Unit end -- locked on
 	return GunAim.Direction(Muzzle, Point, Ray.Direction.Unit, 2)
 end
-function GunAimUI.Assist(_, Point) return Point end
+-- Touch aim assist (Task 10): only on a touch screen (MobileControls.Active) with Aim.TouchAssist on. The aim point
+-- moves onto the root of the character nearest the crosshair ray, within TouchAssist degrees and the crosshair's reach,
+-- that is alive, not you, and seen from the camera (Cast reaches it). Only World.Live's own children
+-- (GunAim.Candidates' direct-only list): never townsfolk. Else Point. A pure function of (Ray, Point), no state: it
+-- runs every frame (the blocked-line dim) as well as for each shot, and it casts only for the pick (and again only when
+-- that one is hidden).
+function GunAimUI.Assist(Ray, Point)
+	if (Cfg.TouchAssist or 0) <= 0 or not require(script.Parent.MobileControls).Active() then return Point end
+	local C = Char()
+	local Centres, Models = {}, {}
+	for _, M in ipairs(GunAim.Candidates(workspace.World.Live, true)) do
+		local H = M:FindFirstChildOfClass("Humanoid")
+		local Root = M:FindFirstChild("HumanoidRootPart")
+		if M ~= C and Root and H and H.Health > 0 then
+			table.insert(Centres, Root.Position)
+			table.insert(Models, M)
+		end
+	end
+	local Range = AimRange(C)
+	while true do
+		local Pick = GunAim.Assist(Ray.Origin, Ray.Direction, Centres, Cfg.TouchAssist, Range)
+		if not Pick then return Point end
+		local I = table.find(Centres, Pick)
+		if Cast(Ray.Origin, Pick - Ray.Origin, Models[I]) == nil then return Pick end
+		table.remove(Centres, I) -- hidden: the next nearest
+		table.remove(Models, I)
+	end
+end
 
 -- Settings > Camera Shake, read as BasicVFX reads it (SettingsUI sets the Player attribute; off only when false). A
 -- function so client_checks can stub the read (never the Settings).
@@ -99,7 +132,7 @@ function GunAimUI.ShakeOn()
 	return Player:GetAttribute("CameraShake") ~= false
 end
 -- a shot left: the bloom always; the kick when the gun has one (applied in Start's render steps, with Camera Shake on)
-local KickLeft, KickAt, KickApplied = 0, -math.huge, 0
+local KickLeft, KickAt, KickApplied, KickedCF = 0, -math.huge, 0, nil
 local BloomUntil = -math.huge
 function GunAimUI.Kick()
 	BloomUntil = os.clock() + FX.BloomTime
@@ -215,21 +248,24 @@ local function Release()
 	SeenChar, TintUntil, PulseAt, BloomUntil = nil, -math.huge, -math.huge, -math.huge
 end
 
+-- the marker's own look and place, noted once: at Start, or on the first frame it exists (it may load after Start)
+local function NoteHome(Cross)
+	if not Cross or HomeSize then return end
+	local Image = Cross:IsA("ImageLabel") or Cross:IsA("ImageButton")
+	ColorProp = Image and "ImageColor3" or "BackgroundColor3"
+	TransparencyProp = Image and "ImageTransparency" or "BackgroundTransparency"
+	HomePosition, HomeSize, HomeColor, HomeTransparency = Cross.Position, Cross.Size, Cross[ColorProp], Cross[TransparencyProp]
+end
+
 function GunAimUI.Start()
-	local Cross = Crosshair()
-	HomePosition = Cross and Cross.Position
-	if Cross then
-		local Image = Cross:IsA("ImageLabel") or Cross:IsA("ImageButton")
-		ColorProp = Image and "ImageColor3" or "BackgroundColor3"
-		TransparencyProp = Image and "ImageTransparency" or "BackgroundTransparency"
-		HomeSize, HomeColor, HomeTransparency = Cross.Size, Cross[ColorProp], Cross[TransparencyProp]
-	end
+	NoteHome(Crosshair())
 	RunService:BindToRenderStep("RenseiGunAim", Enum.RenderPriority.Camera.Value + 1, function()
 		local C = Char()
 		local H = C and C:FindFirstChildOfClass("Humanoid")
 		if not Shooting() or MenuOpen() or not H then Release() return end
-		Owned = true
 		local CrossNow = Crosshair()
+		if not Owned then NoteHome(CrossNow) end -- (before this frame moves or tints it)
+		Owned = true
 		if CrossNow then CrossNow.Visible = true end
 		local Target = GunAimUI.LockedRoot()
 		if Target then
@@ -253,10 +289,14 @@ function GunAimUI.Start()
 	-- camera (Camera + 2). The camera module builds each frame's look from the last frame's Camera.CFrame
 	-- (PlayerModule BaseCamera:GetCameraLookVector), so the pitch added is taken off again before it runs (Camera - 1);
 	-- otherwise every frame's kick would stay and the view would never come back down.
+	-- The undo only applies while the camera still is the CFrame the kick wrote: a script that set the camera outright
+	-- in between (MasteryUI's lookAt, say) has already dropped the kick, and must not get it taken off again.
 	RunService:BindToRenderStep("RenseiGunKickUndo", Enum.RenderPriority.Camera.Value - 1, function()
 		if KickApplied ~= 0 then
-			Camera.CFrame *= CFrame.Angles(math.rad(-KickApplied), 0, 0)
-			KickApplied = 0
+			if KickedCF and Camera.CFrame:FuzzyEq(KickedCF, 1e-4) then
+				Camera.CFrame *= CFrame.Angles(math.rad(-KickApplied), 0, 0)
+			end
+			KickApplied, KickedCF = 0, nil
 		end
 	end)
 	RunService:BindToRenderStep("RenseiGunKick", Enum.RenderPriority.Camera.Value + 2, function()
@@ -264,6 +304,7 @@ function GunAimUI.Start()
 		if K > 0 and GunAimUI.ShakeOn() then
 			KickApplied = KickLeft * K
 			Camera.CFrame *= CFrame.Angles(math.rad(KickApplied), 0, 0)
+			KickedCF = Camera.CFrame
 		end
 	end)
 end
