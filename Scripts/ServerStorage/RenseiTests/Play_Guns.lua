@@ -40,7 +40,8 @@ local MOVE_FROM = -8 -- its start, studs along X from the spot (it stops at +8, 
 local REWIND_EPS = 0.01 -- seconds: RewindAtIsPingCapped's slack
 local OFF_PATH = 30 -- the shooter's distance from the path on Z
 local BACK = 0.2 -- seconds back for the rewind cases (3.2 studs at SPEED, 4.8 at FAST)
-local HISTORY_EPS = 0.6 -- studs: a frame's slack (0.27) plus the sampling
+local HISTORY_EPS = 0.6 -- studs: a frame's slack (16 studs/s x one ~25 ms Studio server frame = 0.4); the 20 Hz sampling
+-- adds nothing on a straight path (the history interpolates linearly between samples)
 local CAP = 0.25 -- seconds: GunAim.RewindTime(2.0, Aim) = clamp(2.0 + Interp 0.1, 0, MaxRewind 0.25) (TuningConfig PROPOSAL)
 local FAR_BACK = 0.6 -- seconds: past the cap (9.6 studs back)
 local SHOT_REACH = 200 -- ShotTarget's MaxT in these cases

@@ -14,7 +14,10 @@ local PositionHistory = {}
 -- seconds kept: twice the deepest rewind (Aim.MaxRewind), so a capped rewind always lands inside the history with
 -- room to spare for a late or skipped sample
 local KEEP = 2 * Tuning.Weapons.Guns.Aim.MaxRewind
-local STEP = 1 / 30 -- PROPOSAL: seconds between samples (30 a second)
+-- PROPOSAL (Ruling 21): seconds between samples, 20 a second (was 30; 30 cost ~0.28 ms/frame at 58 characters in
+-- Studio). With the live root as the newest sample (At), sample age no longer matters for NPC or near-now shots, and a
+-- player's rewind interpolates across the 50 ms gaps.
+local STEP = 1 / 20
 local REBUILD = 1 -- PROPOSAL: seconds; the cached candidates are rebuilt at least this often
 local Samples = {} -- [Model] = {{T, CF}, ...} oldest first
 local Started = false
@@ -103,7 +106,7 @@ function PositionHistory.Start()
 	RunService.Heartbeat:Connect(function()
 		local Now = workspace:GetServerTimeNow()
 		if Now - Last >= STEP then
-			Last += STEP -- a steady 30 a second, not "a frame after each STEP"
+			Last += STEP -- a steady 20 a second, not "a frame after each STEP"
 			if Now - Last > STEP * 2 then Last = Now end -- catch up after a stall (and at the start)
 			PositionHistory.Sample(Now)
 		end
