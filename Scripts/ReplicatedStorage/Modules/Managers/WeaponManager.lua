@@ -295,9 +295,13 @@ if IsServer then
 		return HistoryModule
 	end
 
-	-- The server time a shot is resolved at (Task 6 rewinds it by the shooter's ping).
+	-- The server time a shot is resolved at: a player's shot is rewound by their ping (GunAim.RewindTime, capped by
+	-- Aim.MaxRewind); NPCs shoot at where things are now.
 	local function RewindAt(Character)
-		return workspace:GetServerTimeNow()
+		local Player = Players:GetPlayerFromCharacter(Character)
+		if not Player then return workspace:GetServerTimeNow() end -- NPCs see the truth
+		local Ok, Ping = pcall(Player.GetNetworkPing, Player)
+		return workspace:GetServerTimeNow() - GunAim.RewindTime(Ok and Ping or 0, Tuning.Weapons.Guns.Aim)
 	end
 
 	-- Store the aim the client sent (GunAim.Validate: finite, unit-ish, within MaxYaw of your facing and MaxPitch of the

@@ -18,6 +18,8 @@ local Requests = {}
 for _,Module in pairs(script.Requests:GetChildren()) do
 	Requests[Module.Name] = require(Module)
 end
+-- lag compensation (gun rework 2026-10-25): PositionHistory samples live characters for WeaponManager.ShotTarget
+task.spawn(function() local M = game:GetService("ServerScriptService"):WaitForChild("PositionHistory", 30) if M then require(M).Start() end end)
 
 -- Only these JumpManager functions are client-callable. Previously the client could name ANY
 -- function in the module.
