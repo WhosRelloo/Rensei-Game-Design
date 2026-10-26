@@ -82,5 +82,6 @@
   {"Label": "RenseiTests.Play_Guns", "Studio": "ServerStorage/RenseiTests/Play_Guns", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Guns.lua", "Places": ["ye", "foundry"], "Create": true},
   {"Label": "RenseiServer.PositionHistory", "Studio": "ServerStorage/RenseiServer/PositionHistory", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/PositionHistory.lua", "Places": ["ye", "foundry"], "Create": true},
   {"Label": "RenseiTests.Play_GunReload", "Studio": "ServerStorage/RenseiTests/Play_GunReload", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_GunReload.lua", "Places": ["ye", "foundry"], "Create": true},
-  {"Label": "UI.GunAimUI", "Studio": "ReplicatedStorage/Modules/UI/GunAimUI", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/UI/GunAimUI.lua", "Places": ["ye", "foundry"], "Create": true}
+  {"Label": "UI.GunAimUI", "Studio": "ReplicatedStorage/Modules/UI/GunAimUI", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/UI/GunAimUI.lua", "Places": ["ye", "foundry"], "Create": true},
+  {"Label": "RenseiTests.Play_GunNpc", "Studio": "ServerStorage/RenseiTests/Play_GunNpc", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_GunNpc.lua", "Places": ["ye", "foundry"], "Create": true}
 ]}

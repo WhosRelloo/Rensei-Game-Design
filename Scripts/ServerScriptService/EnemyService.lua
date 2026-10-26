@@ -50,6 +50,7 @@ local WCS = require(Modules.Framework.WCS)
 local Customization = require(Modules.Data.Rensei.Customization)
 local AppearanceService = require(game:GetService("ServerScriptService").AppearanceService)
 local Tuning = require(Modules.Data.Rensei.TuningConfig)
+local GunAim = require(Modules.Data.Rensei.GunAim)
 local AttackRunner = require(Managers.AttackRunner)
 local BlockManager = require(Managers.BlockManager)
 local WeaponManager = require(Managers.WeaponManager)
@@ -148,6 +149,30 @@ local function BuildRig(Type, Def, Spawn)
 	Rig:PivotTo(Spawn.CFrame * CFrame.new(0, 3, 0))
 	Rig.Parent = workspace.World.Live
 	return Rig
+end
+
+local NpcRandom = Random.new() -- enemy gunshots' spread (GunAim.Spread)
+
+-- one enemy gunshot (gun rework 2026-10-25, PROPOSAL): a 0.35 s windup with the crit telegraph, aimed at the target's centre
+-- (was the root's flat look: it missed anyone higher or lower), 2.5 deg spread. Exported for Play_GunNpc.
+-- (Brain's Face is a per-rig closure, so the facing step is taken inline: the root turned flat toward the target, before
+-- SetAim, whose check is against the root's facing. The aim is set at the windup's start and fires 0.35 s later, inside
+-- Aim.AimFresh: the shot goes where the target stood when the telegraph showed, so it can be dodged.)
+function EnemyService.GunShot(Rig, WC, Target, Shot)
+	local Root = Rig:FindFirstChild("HumanoidRootPart")
+	local TRoot = Target:FindFirstChild("HumanoidRootPart")
+	local Weapon = WeaponManager.Def(Rig)
+	if not (Root and TRoot and Weapon and Weapon.Shots) then return end
+	local Look = Flat(TRoot.Position - Root.Position)
+	if Look.Magnitude > 0.1 then
+		Root.CFrame = CFrame.lookAt(Root.Position, Root.Position + Look)
+	end
+	local N = Tuning.Weapons.Guns.NpcShot
+	local To = TRoot.Position - GunAim.Muzzle(Root.Position)
+	if To.Magnitude > 1 then WeaponManager.SetAim(Rig, GunAim.Spread(To.Unit, N.Spread, NpcRandom)) end
+	local Def = table.clone(WeaponManager.Resolve(Rig, Weapon.Shots[Shot]))
+	Def.Startup, Def.Telegraph = N.Startup, N.Telegraph
+	return AttackRunner.Run(WC, Def, Weapon.Class .. "_Shot" .. Shot, {WalkSpeed = 6, Strike = WeaponManager.Fire})
 end
 
 -- ===== Spawning =====
@@ -257,11 +282,8 @@ local function Brain(E)
 				if not CombatDirector.Holds(Rig, Target) then return end -- the token moved on mid-string
 				if not WeaponManager.CanFire(Rig) then return end
 				if (Target.HumanoidRootPart.Position - Root.Position).Magnitude > Range + 6 then return end
-				Face(Target)
 				-- (a gun's M1 is the pistol whip now; its shots are Weapons.Guns.Shots, as in the players' shooting mode)
-				local Shot = (I - 1) % #Weapon.Shots + 1
-				AttackRunner.Run(WC, WeaponManager.Resolve(Rig, Weapon.Shots[Shot]), Weapon.Class .. "_Shot" .. Shot,
-					{WalkSpeed = 6, Strike = WeaponManager.Fire})
+				EnemyService.GunShot(Rig, WC, Target, (I - 1) % #Weapon.Shots + 1)
 			end
 			return
 		end
