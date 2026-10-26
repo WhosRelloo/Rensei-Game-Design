@@ -136,6 +136,7 @@ local function Step()
 	if Hold then
 		S.LV.MaxForce = 0
 		S.AO.Enabled = false
+		S.Up.Enabled = false
 		if Surf == nil or SwimController.Mode ~= "Under" then S.Humanoid.AutoRotate = true end
 		return
 	end
@@ -156,7 +157,9 @@ local function Step()
 	else
 		V = SwimLogic.Velocity(SwimController.Mode, Move, workspace.CurrentCamera.CFrame, Input, Speed(S.Character), T)
 		if SwimController.Mode == "Surface" then
-			V = Vector3.new(V.X, SwimLogic.SurfaceHold(S.Root.Position.Y, Surf, T), V.Z)
+			-- the hold keeps the HEAD where an upright floater's is (the stroke animation lowers the head about a
+			-- stud; holding the root let it dip under and count as Submerged: Task 9's real-input run)
+			V = Vector3.new(V.X, SwimLogic.SurfaceHold(S.Head.Position.Y - T.HeadOffset, Surf, T), V.Z)
 		end
 	end
 	S.LV.VectorVelocity = V
@@ -171,8 +174,13 @@ local function Step()
 		local Pitch = Steering and SwimLogic.Pitch(V, T) or 0
 		S.AO.CFrame = CFrame.lookAt(Vector3.zero, Yaw) * CFrame.Angles(Pitch, 0, 0)
 		S.AO.Enabled = true
+		S.Up.Enabled = false
 	else
+		-- at the surface the humanoid keeps its own turning (AutoRotate, shift lock), but stays upright: Roblox's
+		-- Swimming state would pitch the body along the camera, and a pitched body sinks the head (a walk into the
+		-- water looking down then counted as "sunk" and went Under: Task 9's real-input run, 2026-10-26)
 		S.AO.Enabled = false
+		S.Up.Enabled = true
 		S.Humanoid.AutoRotate = true
 	end
 end
@@ -203,8 +211,24 @@ function SwimController.Start(Character)
 	AO.MaxTorque = 1e6
 	AO.Enabled = false
 	AO.Parent = Att
+	-- upright at the surface: only the root's up axis is aligned (to world up), so yaw stays free
+	local UpAtt = Instance.new("Attachment")
+	UpAtt.Name = "SwimUpAttachment"
+	UpAtt.CFrame = CFrame.fromMatrix(Vector3.zero, Vector3.yAxis, Vector3.zAxis) -- its primary (X) axis = the root's up
+	UpAtt.Parent = Root
+	local Up = Instance.new("AlignOrientation")
+	Up.Name = "SwimUpright"
+	Up.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	Up.Attachment0 = UpAtt
+	Up.PrimaryAxisOnly = true
+	Up.CFrame = CFrame.fromMatrix(Vector3.zero, Vector3.yAxis, Vector3.zAxis) -- target primary axis = world up
+	Up.Responsiveness = 25
+	Up.MaxTorque = 1e6
+	Up.Enabled = false
+	Up.Parent = UpAtt
 	SwimController.Mode = "Surface"
-	State = {Character = Character, Humanoid = Humanoid, Root = Root, Head = Head, Att = Att, LV = LV, AO = AO}
+	State = {Character = Character, Humanoid = Humanoid, Root = Root, Head = Head, Att = Att, LV = LV, AO = AO,
+		UpAtt = UpAtt, Up = Up}
 	State.Conn = RunService.RenderStepped:Connect(Step)
 end
 
@@ -215,6 +239,7 @@ function SwimController.Stop()
 	if not S then return end
 	if S.Conn then S.Conn:Disconnect() end
 	if S.Att then S.Att:Destroy() end
+	if S.UpAtt then S.UpAtt:Destroy() end
 	if S.Humanoid and S.Humanoid.Parent then S.Humanoid.AutoRotate = true end
 end
 
@@ -260,6 +285,7 @@ function SwimController.ClimbOut()
 	S.PauseUntil = os.clock() + 0.4
 	S.LV.MaxForce = 0
 	S.AO.Enabled = false
+	S.Up.Enabled = false
 	local MoverManager = require(ReplicatedStorage.Modules.Managers.MoverManager)
 	MoverManager.Velocity(S.Character, {D = 0.2, V = F * T.ClimbOutForward + Vector3.new(0, T.ClimbOutUp, 0),
 		Max = Vector3.new(4e4, 4e4, 4e4)})

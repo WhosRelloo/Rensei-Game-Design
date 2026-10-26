@@ -278,6 +278,8 @@ TuningConfig.Swim = {
 	DiveMinDepth = 4.5, -- water at least this deep (surface to bed) to dive: Ye's pools 5.2 yes, its creeks 4.2 no
 	SurfaceBand = 0.6, -- studs: the head counts as at the surface within this (x4 = sunk under by something else)
 	RootBelowSurface = 1.4, -- studs the root floats under the surface (measured in Ye's Mill Pond, 2026-10-26: 1.40)
+	HeadOffset = 1.5, -- studs from the root up to the head of an upright R6 character (measured 1.49); the surface hold
+	-- keeps the head at (surface - RootBelowSurface + HeadOffset) whatever pose the stroke animation takes
 	SurfaceHoldGain = 6, -- vertical speed per stud of error holding a surface swimmer at the surface
 	SurfaceHoldMax = 8, -- the most that hold may push up or down
 	MaxPitch = 80, -- degrees: the most the body (and an underwater W) pitches up or down
