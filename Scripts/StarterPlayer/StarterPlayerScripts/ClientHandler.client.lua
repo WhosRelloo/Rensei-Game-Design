@@ -211,15 +211,18 @@ local function CarryInput(Began)
 	end
 end
 
+local FanPending = 0 -- the delayed Fan send's token: a newer press cancels an older delayed send (gun rework Ruling 37)
 local function WeaponSkillInput()
 	if not InCombatMode() or not Character:GetAttribute("Weapon") then return false end
+	FanPending += 1
 	-- guns: an aim past MaxYaw from your facing would be refused, and the Fan with it. GunAimUI.FaceAim turns you to face
 	-- it first; after such a turn the press waits until the server's copy of your facing has followed (final fix B4).
 	local Wait = Character:GetAttribute("Weapon") == "Guns" and GunAimUI.FaceAim() or 0
 	if Wait > 0 then
-		local Was = Character
+		local Was, Token = Character, FanPending
 		task.delay(Wait, function()
-			if Character ~= Was or Knocked() or not InCombatMode() then return end
+			if Token ~= FanPending or Character ~= Was or Knocked() or not InCombatMode() then return end
+			if Character:GetAttribute("Weapon") ~= "Guns" then return end -- the gun changed during the wait
 			SendAim()
 			RequestRemote:FireServer("WeaponSkill")
 		end)

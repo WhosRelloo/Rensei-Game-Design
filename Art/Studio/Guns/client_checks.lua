@@ -36,6 +36,8 @@
 -- Every case puts back the character's LastShotAt / LastShotResult (and the weapon skill's cooldown attributes) it
 -- found (B5); AssistIgnoresTownsfolk makes World.Live.Townsfolk in the Play copy when the place has none, and removes it
 -- after (B6: Foundry).
+-- Task 12 (Ruling 37) adds FanDelayedSendGuarded: a newer weapon-skill press cancels FaceAim's older delayed send, and
+-- a weapon change during the wait sends nothing (the WeaponSkill requests counted by a second Server listener).
 --   FACE_WAIT: -1 = off; else GunAimUI.FaceWait for FanFacesAim (0 = the turn, but no wait for the server's facing).
 -- ONLY: "" runs every check; else a comma list of check names.
 local ONLY = ""
@@ -605,6 +607,40 @@ function Checks.FanTurn(Args)
 	return {Turned = Deg(Was, Aim), FacingOff = Deg(Vector3.new(L2.X, 0, L2.Z), Aim)}
 end
 
+-- Task 12 (Ruling 37): Args.Presses weapon-skill presses (ClientActions "WeaponSkill"), Args.Gap s apart, the first with
+-- the aim Args.Deg degrees from the root's facing (ForceAim) out of shooting mode, so it takes FaceAim's delayed send.
+-- ForceAim stays Args.Hold s after the last press. Returns the client's FaceWait and the gap it measured.
+function Checks.FanPresses(Args)
+	assert(WaitMode(false, 3), "precondition: ShootingMode off on the client")
+	assert(GunAimUI, "no GunAimUI")
+	local L = Root().CFrame.LookVector
+	local Was = Vector3.new(L.X, 0, L.Z).Unit
+	local Aim = CFrame.Angles(0, math.rad(Args.Deg), 0):VectorToWorldSpace(Was)
+	local Gap, PressedAt = nil, nil
+	local Ok, Err = pcall(function()
+		GunAimUI.ForceAim = Aim
+		local T0 = os.clock()
+		for I = 1, Args.Presses do
+			if I > 1 then task.wait(Args.Gap) Gap = os.clock() - T0 end
+			ClientActions.Run("WeaponSkill", true)
+			ClientActions.Run("WeaponSkill", false)
+		end
+		PressedAt = os.clock()
+		task.wait(Args.Hold)
+	end)
+	GunAimUI.ForceAim = nil
+	if not Ok then error(Err, 0) end
+	return {FaceWait = GunAimUI.FaceWait, Gap = Gap, Turned = Deg(Was, Aim), PressedAt = PressedAt}
+end
+
+-- Task 12: wait (up to 1 s) until the character's Weapon attribute is gone on the client; After = seconds since Args.Since
+-- (the client clock FanPresses returned as PressedAt: its last press)
+function Checks.WeaponGone(Args)
+	local T0 = os.clock()
+	while Char() and Char():GetAttribute("Weapon") ~= nil and os.clock() - T0 < 1 do Frames(1) end
+	return {Gone = Char() ~= nil and Char():GetAttribute("Weapon") == nil, After = os.clock() - Args.Since}
+end
+
 -- put everything the checks touched back
 function Checks.Reset()
 	for _, Name in ipairs({"GunChecks_TEMP_Sample", "GunChecks_TEMP_Flash", "GunChecks_TEMP_Pitch", "GunChecks_TEMP_Write"}) do
@@ -744,6 +780,12 @@ local KICK_SETTLE = 0.3
 local FOLK_ID = "GunChecks_TEMP"
 local LOCK_SECONDS, LOCK_FRAMES = 0.6, 10
 local FAN_HOLD, FAN_WAIT = 0.6, 1.5
+-- Task 12 (Ruling 37): FanDelayedSendGuarded. SECOND_PRESS 0.15 s after the first press, inside its wait (FaceWait =
+--   Aim.FlickGrace 0.4); COUNT_WAIT 1 s more for any delayed send to reach the Server (0.4 + replication, with room).
+--   Before the guard: the control sends 1; the second press sends at once and the first's delayed send still goes (2);
+--   the unequipped gun's delayed send still goes (1). With it: 1, 1, 0.
+local SECOND_PRESS, COUNT_WAIT = 0.15, 1
+local RequestRemote = ReplicatedStorage.Remotes.RequestRemote
 local RESTORE = {"LastShotAt", "LastShotResult", "WeaponSkillReadyAt", "WeaponSkillCooldown", "WeaponSkillName"}
 local function SameColor(A, B)
 	return typeof(A) == "Color3" and math.abs(A.R - B.R) + math.abs(A.G - B.G) + math.abs(A.B - B.B) < 3 / 255
@@ -1157,6 +1199,47 @@ local Suite = {
 			T.True(Fired, ("the Fan aimed %d degrees from the facing fired (the server took the aim)%s"):format(FLICK,
 				FACE_WAIT >= 0 and (" [seam FaceWait " .. FACE_WAIT .. "]") or ""))
 			T.True((C:GetAttribute("Ammo") or Max) < Max, "the Fan spent rounds")
+		end)
+	end,
+
+	-- Task 12 (Ruling 37). FaceAim's delayed Fan send: a newer press cancels the older delayed send, and a weapon change
+	-- during the wait sends nothing. The WeaponSkill requests are counted on the Server (a second listener on the
+	-- RequestRemote: the seam; the game's own handler still runs).
+	FanDelayedSendGuarded = function(T)
+		Armed(function(C)
+			C:SetAttribute("ShootingMode", nil)
+			local Grace = Tuning.Weapons.Guns.Aim.FlickGrace
+			local N = 0
+			local Conn = RequestRemote.OnServerEvent:Connect(function(P, Kind)
+				if P == Player and Kind == "WeaponSkill" then N += 1 end
+			end)
+			local Ok, Err = pcall(function()
+				-- control: one press aimed behind sends its WeaponSkill once, after the wait
+				local R = Ask("FanPresses", {Deg = FLICK, Presses = 1, Hold = FAN_HOLD}, 10)
+				task.wait(COUNT_WAIT)
+				print(("[GunChecks] FanDelayedSendGuarded: control %d request(s); FaceWait %s"):format(N, tostring(R.FaceWait)))
+				T.Near(R.FaceWait, Grace, 1e-6, "precondition: the client's FaceWait is Aim.FlickGrace")
+				T.Eq(N, 1, "control: WeaponSkill requests from one press aimed behind")
+				-- a second press inside the wait (it faces the aim already, so it sends at once): one request in all
+				N = 0
+				R = Ask("FanPresses", {Deg = FLICK, Presses = 2, Gap = SECOND_PRESS, Hold = FAN_HOLD}, 10)
+				task.wait(COUNT_WAIT)
+				print(("[GunChecks] FanDelayedSendGuarded: two presses %.2f s apart -> %d request(s)"):format(R.Gap or -1, N))
+				T.True(R.Gap ~= nil and R.Gap < Grace, ("precondition: the second press came %.2f s after the first, inside the wait %.2f"):format(R.Gap or -1, Grace))
+				T.Eq(N, 1, "WeaponSkill requests from a press aimed behind and a second press during its wait")
+				-- the gun unequipped during the wait (a weapon change): nothing is sent
+				N = 0
+				R = Ask("FanPresses", {Deg = FLICK, Presses = 1, Hold = 0}, 10)
+				GunKit.Unequip(Player)
+				local G = Ask("WeaponGone", {Since = R.PressedAt}, 5)
+				task.wait(COUNT_WAIT)
+				print(("[GunChecks] FanDelayedSendGuarded: the weapon gone on the client %.2f s after the press -> %d request(s)"):format(G.After, N))
+				T.True(G.Gone and G.After < Grace, ("precondition: the weapon change reached the client inside the wait (%.2f s after the press; the wait %.2f)")
+					:format(G.After, Grace))
+				T.Eq(N, 0, "WeaponSkill requests when the weapon changed during the wait")
+			end)
+			Conn:Disconnect()
+			if not Ok then error(Err, 0) end
 		end)
 	end,
 

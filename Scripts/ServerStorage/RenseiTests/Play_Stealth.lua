@@ -38,8 +38,9 @@ local function Guard(Rig, Body)
 	end)
 end
 
--- Gun rework final fix A11 (Ruling 6): the cases that were flaky with the first live Grunt (whatever it was doing, and
--- whatever stood around it in its camp) get their own: EnemyService.Spawn from an unparented runtime mark on a Play-only
+-- Gun rework final fix A11 (Ruling 6) and Task 12 (Ruling 38): every Grunt case gets its own Grunt (the first live one
+-- was flaky: whatever it was doing, and whatever stood around it in its camp, decided the result). Only
+-- AgentsHearAlchemyTwiceAsFar still takes the first live Agent (a camp alchemist). Each Grunt is EnemyService.Spawn from an unparented runtime mark on a Play-only
 -- floor (a TempPart) high above the map, its root anchored there facing -Z, AIPassive and PS.Reset -- Unaware, still,
 -- with nothing near it. It goes the way RoadService's ambushes remove theirs (RemoveEnemy: out of EnemyService.Active,
 -- so no Died / respawn; its WCS character, then the rig).
@@ -105,8 +106,7 @@ return {
 		end)
 	end,
 	RunningOnMetalCarriesFurther = function(T)
-		local Rig = Find("Grunt")
-		Guard(Rig, function()
+		OwnGrunt(function(Rig)
 			local Spot = Rig.Head.Position + Vector3.new(0, 0, 14)
 			PS.Hear(Spot, P.StepNoise("Grass", 1, false), nil)
 			T.Eq(PS.PhaseOf(Rig), "Unaware", "walking on grass at 14: unheard")
@@ -150,8 +150,7 @@ return {
 		end)
 	end,
 	ShadowHidesYou = function(T)
-		local Rig = Find("Grunt")
-		Guard(Rig, function()
+		OwnGrunt(function(Rig)
 			Put(Rig, Vector3.new(0, 0, -12))
 			C:SetAttribute("Exposure", 1)
 			Run(0.6)
@@ -188,8 +187,7 @@ return {
 		if WasHeld then WorldClock.Hold(WasHeld) else WorldClock.Release() end
 	end,
 	LeashStopsTheChurn = function(T)
-		local Rig = Find("Grunt")
-		Guard(Rig, function()
+		OwnGrunt(function(Rig)
 			Put(Rig, Vector3.new(0, 0, -12))
 			PS.Lose(Rig, Rig.HumanoidRootPart.Position, 5) -- a 5-stud leash: the player stands beyond it
 			Run(2)
@@ -200,8 +198,7 @@ return {
 		end)
 	end,
 	CallWithoutFocusIsSafe = function(T)
-		local Rig, S = Find("Grunt")
-		Guard(Rig, function()
+		OwnGrunt(function(Rig, S)
 			S.Phase = "Alert"; S.Focus = nil; S.SearchUntil = nil; S.LastKnown = Rig.HumanoidRootPart.Position
 			local Ok, Err = pcall(PS.Step, 0.2)
 			T.True(Ok, "no error with the focus gone: " .. tostring(Err))
