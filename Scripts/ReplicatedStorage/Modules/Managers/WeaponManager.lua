@@ -189,6 +189,9 @@ if IsServer then
 		ToolConns[Tool] = nil
 		if Character:GetAttribute("WeaponItem") == Tool.Name then ApplyWeight(Character, 1) end
 		if Character:GetAttribute("WeaponItem") == Tool.Name then
+			-- a reload in progress stops with the gun (its token and animation; gun rework Ruling 26): re-equipping the
+			-- same gun used to get the full magazine when the old reload's timer ran out
+			WeaponManager.CancelReload(Character)
 			local Ammo = Character:GetAttribute("Ammo")
 			if Ammo then
 				AmmoLeft[Character] = AmmoLeft[Character] or {}
@@ -393,21 +396,32 @@ if IsServer then
 			or Character:GetAttribute("Traversal") == "Swim"
 	end
 
+	-- no reload on a corpse (gun rework Ruling 25): DownedManager clears GrippedBy and Knocked and then sets Health 0 in
+	-- one go, and Requests.Shoot turns shooting mode off on Died (the top-up)
+	local function Alive(Character)
+		local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+		return Humanoid ~= nil and Humanoid.Health > 0
+	end
+
 	-- The restart watcher (one per character): waits, each Heartbeat, until nothing blocks a reload, then reloads if the
-	-- magazine isn't full. It gives up when the character goes or its WeaponItem changes.
+	-- magazine isn't full. It gives up when the character goes or dies, or its WeaponItem changes.
 	local function WatchRestart(Character)
 		if Restarting[Character] then return end
 		Restarting[Character] = true
 		local Item = Character:GetAttribute("WeaponItem")
 		task.spawn(function()
+			local function Gone()
+				return not Character.Parent or not Alive(Character) or Character:GetAttribute("WeaponItem") ~= Item
+			end
 			while ReloadBlocked(Character) do
 				RunService.Heartbeat:Wait()
-				if not Character.Parent or Character:GetAttribute("WeaponItem") ~= Item then
+				if Gone() then
 					Restarting[Character] = nil
 					return
 				end
 			end
 			Restarting[Character] = nil
+			if Gone() then return end
 			if (Character:GetAttribute("Ammo") or 0) < (Character:GetAttribute("MaxAmmo") or 0) then WeaponManager.Reload(Character) end
 		end)
 	end
@@ -418,6 +432,7 @@ if IsServer then
 	function WeaponManager.Reload(Character)
 		local Stats = WeaponManager.ItemStats(Character)
 		if not Stats or not Stats.Magazine then return end
+		if not Alive(Character) then return end
 		if (Character:GetAttribute("ReloadingUntil") or 0) > workspace:GetServerTimeNow() then return end
 		if (Character:GetAttribute("Ammo") or 0) >= Stats.Magazine then return end
 		if ReloadBlocked(Character) then
@@ -442,6 +457,10 @@ if IsServer then
 			while workspace:GetServerTimeNow() < Until do
 				RunService.Heartbeat:Wait()
 				if ReloadToken[Character] ~= Token then return end
+				if not Alive(Character) then -- died mid-reload: it stops, and nothing restarts it
+					WeaponManager.CancelReload(Character)
+					return
+				end
 				if ReloadBlocked(Character) then
 					WeaponManager.CancelReload(Character)
 					WatchRestart(Character)

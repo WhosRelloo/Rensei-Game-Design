@@ -35,6 +35,11 @@ local SLOT = "Guns_Reload" -- TuningConfig Weapons.Guns.Reload.Anim (the slot's 
 local OWNER_ID = "rbxassetid://97563934064498" -- the owner's reload animation
 local PLAYS_WITHIN = 0.3 -- seconds for the reload's track to be playing
 local NOT_FOUND = "Animation not found"
+local CORPSE_WITHIN = 0.3 -- NoReloadOnACorpse: seconds a corpse is watched for a reload (Ruling 25)
+local KNOCK_WAIT = 0.1 -- seconds the restart watcher is left waiting on Knocked first
+local CONTROL_AT = Vector3.new(8, 0, 0) -- the control shooter stands 8 studs along X from the first
+local REEQUIP_WITHIN = 0.5 -- UnequipCancelsReload: the same gun is back within 0.5 s (Ruling 26)
+local NO_REFILL_AT = 2.0 -- seconds after the top-up started: past its 1.8 s, the magazine must still be part-used
 
 local function Guard(Body, After)
 	SmokeKit.Guarded(Player, Body, function() GunKit.Unequip(Player) end, function()
@@ -45,9 +50,10 @@ local function Guard(Body, After)
 	end)
 end
 
--- a Revolver shooter at the spot facing -Z
-local function Shooter()
-	return GunKit.Shooter(Vector3.zero, GunKit.Spot() + AHEAD * 10, "Revolver")
+-- a Revolver shooter at the spot (or Offset from it) facing -Z
+local function Shooter(Offset)
+	Offset = Offset or Vector3.zero
+	return GunKit.Shooter(Offset, GunKit.Spot() + Offset + AHEAD * 10, "Revolver")
 end
 
 -- N shots straight ahead (at nothing); each must spend a round
@@ -220,9 +226,13 @@ return {
 
 	-- the control for FilledSlotPlays (it can't fail alone: today's code also plays nothing): an empty slot plays nothing
 	-- and logs no "Animation not found"
+	-- (The "no Animation not found log" assertion can't fail on this path: the warning comes only from the client's
+	-- AnimationManager.Play, and an NPC shooter's Play runs on the server, which returns silently. The real control is
+	-- Count() == 0 here, paired with FilledSlotPlays' Count() == 1 through the same wrapper.)
 	EmptySlotPlaysNothing = function(T)
 		local Remove
 		local A = Slot()
+		local Was = A and A.AnimationId -- put back exactly as it was
 		Guard(function()
 			T.True(A ~= nil, "the slot " .. SLOT .. " exists (reload_slot.lua applied)")
 			A.AnimationId = "" -- the Play world is a copy; After puts it back
@@ -240,7 +250,64 @@ return {
 			T.Eq(S:GetAttribute("Ammo"), MAG, "Ammo after the reload (the reload still works)")
 		end, function()
 			if Remove then Remove() end
-			if A then A.AnimationId = OWNER_ID end
+			if A then A.AnimationId = Was end
+		end)
+	end,
+
+	-- RED today (Ruling 25): a restart watcher waiting on Knocked fires on the corpse when Knocked and Health go together
+	-- (DownedManager clears Knocked and GrippedBy, then sets Health 0, in one go). Control: the same with Health left > 0
+	-- does start a reload.
+	NoReloadOnACorpse = function(T)
+		Guard(function()
+			local Dead = Shooter()
+			local Live = Shooter(CONTROL_AT)
+			GunKit.Settle()
+			for _, S in ipairs({Dead, Live}) do
+				Shoot(T, S, TOPUP_SHOTS)
+				S:SetAttribute("Knocked", true)
+				S:SetAttribute("ShootingMode", true)
+				S:SetAttribute("ShootingMode", nil) -- the top-up asks for a reload: Knocked blocks it, the watcher waits
+			end
+			task.wait(KNOCK_WAIT)
+			T.Eq(Dead:GetAttribute("ReloadingUntil"), nil, "no reload while Knocked")
+			T.Eq(Live:GetAttribute("ReloadingUntil"), nil, "no reload while Knocked (control shooter)")
+			Dead:SetAttribute("Knocked", nil) -- together, no yield between them
+			Dead.Humanoid.Health = 0
+			Live:SetAttribute("Knocked", nil) -- the control: up again, alive
+			local DeadReload = Until(function() return Dead:GetAttribute("ReloadingUntil") end, CORPSE_WITHIN)
+			T.Eq(DeadReload, nil, "a reload on the corpse within " .. CORPSE_WITHIN .. " s")
+			T.True(Live:GetAttribute("ReloadingUntil") ~= nil, "the control (Health > 0) reloads once Knocked clears")
+		end)
+	end,
+
+	-- RED today (Ruling 26): unequipping mid-reload left the reload running, so re-equipping the same gun refilled it for
+	-- free. Driven through the real Attach / Detach path: the Tool leaves the character (Tool.Parent = nil; its
+	-- AncestryChanged detaches it, as an unequip does), then WeaponManager.Give puts the same gun back (Attach restores the
+	-- saved rounds).
+	UnequipCancelsReload = function(T)
+		local Old
+		Guard(function()
+			local S = Shooter()
+			GunKit.Settle()
+			Shoot(T, S, TOPUP_SHOTS)
+			S:SetAttribute("ShootingMode", true)
+			S:SetAttribute("ShootingMode", nil)
+			local Started = os.clock()
+			T.True(Until(function() return S:GetAttribute("ReloadingUntil") end, STARTS_WITHIN) ~= nil, "the top-up started")
+			Old = S:FindFirstChildOfClass("Tool")
+			T.True(Old ~= nil, "the shooter holds its Revolver")
+			local UnequipAt = os.clock()
+			Old.Parent = nil -- unequip
+			Until(function() return S:GetAttribute("WeaponItem") == nil end, REEQUIP_WITHIN / 2)
+			T.Eq(S:GetAttribute("WeaponItem"), nil, "the gun is unequipped")
+			T.Eq(S:GetAttribute("ReloadingUntil"), nil, "ReloadingUntil after the unequip")
+			T.True(WeaponManager.Give(S, "Revolver") ~= nil, "the same gun back")
+			T.True(os.clock() - UnequipAt < REEQUIP_WITHIN, "re-equipped within " .. REEQUIP_WITHIN .. " s of the unequip")
+			T.Eq(S:GetAttribute("Ammo"), MAG - TOPUP_SHOTS, "Ammo on re-equip (the saved rounds)")
+			task.wait(math.max(0, NO_REFILL_AT - (os.clock() - Started)))
+			T.Eq(S:GetAttribute("Ammo"), MAG - TOPUP_SHOTS, "Ammo " .. NO_REFILL_AT .. " s after the top-up started (no free refill)")
+		end, function()
+			if Old then Old:Destroy() end -- the test's own clone (Give's), never the player's item
 		end)
 	end,
 }
