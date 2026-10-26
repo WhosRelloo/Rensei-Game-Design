@@ -406,6 +406,9 @@ return function(Character,Victim,SkillInfo)
 		
 		if Armored then
 			-- no flinch through hyper armour
+		elseif SkillInfo.NoFlinch then
+			-- a gunshot past FlinchRange (WeaponManager.Fire, gun rework Ruling 12): no stun and no hit reaction either, so
+			-- the victim's own animations keep playing. (Not keyed on a 0 StunTime: ChainedStun gives melee hits 0 too.)
 		elseif VelocityType == "Knockback" then
 			VictimHumanoid.Animator:LoadAnimation(ReplicatedStorage.Assets.Animations.Shared.Combat.HitReaction["Knockback"]):Play()
 		else

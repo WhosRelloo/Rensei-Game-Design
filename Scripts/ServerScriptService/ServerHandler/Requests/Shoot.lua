@@ -10,9 +10,9 @@
 -- reload button). The mode ends by itself when Combat Mode ends, the gun is put away or changed, or the
 -- character is knocked, gripped, carried, swims or dies.
 -- Gun rework 2026-10-25 (Task 5): Fire has its own per-player limiter (GunAim.Limiter, Aim.FireRate / FireBurst); its aim is
--- validated first (WeaponManager.SetAim) and an invalid aim returns before AttackRunner: no animation, no round. A Fire whose
--- aim turned more than Aim.SnapDeg from the previous Fire's within Aim.SnapWindow adds 1 to the character's GunSnapCount
--- attribute (a log only).
+-- validated first (WeaponManager.SetAim) and an invalid aim returns before AttackRunner: no animation, no round. An aimed
+-- Fire request whose aim turned more than Aim.SnapDeg from the previous one's within Aim.SnapWindow adds 1 to the
+-- character's GunSnapCount attribute (a log only; checked before the mode gates). Shooting mode can't be turned on in water.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
@@ -72,12 +72,23 @@ return function(Player, Action, Arg)
 
 	if Action == "Mode" then
 		local On = Arg == true
-		if On and (not GunReady(Character) or MovementState.Blocked(Character)) then return end
+		if On and (not GunReady(Character) or MovementState.Blocked(Character) or Character:GetAttribute("Traversal") == "Swim") then return end
 		Character:SetAttribute("ShootingMode", On or nil)
 		return
 	end
 	if Action ~= "Fire" then return end
 	if not AllowFire(Player, os.clock()) then return end
+	local Dir = WeaponManager.SetAim(Character, Arg) -- validated there (GunAim.Validate); refused: no shot, no round
+	if not Dir then return end
+	-- the snap log (Ruling 13: before the mode / AttackRunner gates, so every aimed Fire request is compared with the
+	-- previous one): a turn over SnapDeg within SnapWindow of the previous aimed Fire. A log only.
+	local Now = os.clock()
+	local Last = LastFire[Character]
+	if Last and Now - Last.At < Cfg.SnapWindow
+		and math.deg(math.acos(math.clamp(Last.Dir:Dot(Dir), -1, 1))) > Cfg.SnapDeg then
+		Character:SetAttribute("GunSnapCount", (Character:GetAttribute("GunSnapCount") or 0) + 1)
+	end
+	LastFire[Character] = {Dir = Dir, At = Now}
 	if not Character:GetAttribute("ShootingMode") or not GunReady(Character) then return end
 	if MovementState.Blocked(Character) or MovementState.Get(Character) then return end
 	local WCSCharacter = WCS.Character.GetCharacterFromInstance(Character)
@@ -86,16 +97,6 @@ return function(Player, Action, Arg)
 		return
 	end
 	if not WeaponManager.CanFire(Character) then return end
-	local Dir = WeaponManager.SetAim(Character, Arg) -- validated there (GunAim.Validate); refused: no shot, no round
-	if not Dir then return end
-	-- the snap log: a turn over SnapDeg within SnapWindow of the previous Fire
-	local Now = os.clock()
-	local Last = LastFire[Character]
-	if Last and Now - Last.At < Cfg.SnapWindow
-		and math.deg(math.acos(math.clamp(Last.Dir:Dot(Dir), -1, 1))) > Cfg.SnapDeg then
-		Character:SetAttribute("GunSnapCount", (Character:GetAttribute("GunSnapCount") or 0) + 1)
-	end
-	LastFire[Character] = {Dir = Dir, At = Now}
 	local Weapon = WeaponManager.Def(Character)
 	local Index = (NextShot[Character] or 0) % #Weapon.Shots + 1
 	NextShot[Character] = Index

@@ -448,7 +448,11 @@ if IsServer then
 			Info.ShotDistance = T
 			Info.Falloff = Def.Falloff
 			Info.Meter = Tuning.Meter.OnShotHit
-			if not GunAim.Flinches(T, Cfg) then Info.StunTime = 0 end -- no flinch past FlinchRange (DamageManager skips a 0 stun)
+			if not GunAim.Flinches(T, Cfg) then
+				-- no flinch past FlinchRange: no stun (DamageManager skips a 0 stun) and no hit reaction (NoFlinch; Ruling 12)
+				Info.StunTime = 0
+				Info.NoFlinch = true
+			end
 			local Result = DamageManager(Character, Victim, Info)
 			table.insert(Results, {Victim = Victim, Result = Result})
 			-- a GuardBroken shot shows as a Hit (gun rework Ruling 9 -- PROPOSAL: the guard broke, so the shot landed)

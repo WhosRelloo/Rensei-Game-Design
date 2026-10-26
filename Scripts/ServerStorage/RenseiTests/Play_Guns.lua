@@ -5,7 +5,8 @@
 --   Revolver (TuningConfig PROPOSAL, 2026-10-25): Damage 20, Range 70, Falloff {Start 20, End 70, Min 0.5}, Magazine 6.
 --   A target 45 studs ahead: the shot meets its box face 44 studs out (the box is 2 deep), so the falloff is
 --   1 - 0.5 * (44 - 20) / (70 - 20) = 0.76 and the damage 20 * 0.76 = 15.2 -- 15 +- 0.5 (20 x 0.75 at the root's 45).
---   Today's class falloff {25, 90, 0.5} would give 1 - 0.5 * (44 - 25) / 65 = 0.854 -> 17.1 (outside the band).
+--   The old path (the class falloff {25, 90, 0.5}, the ray stopping on the root part 44.5 out) gave
+--   1 - 0.5 * (44.5 - 25) / 65 = 0.85 -> about 17.0 (outside the band; RED measured 16.996).
 --   Weapon Mastery (SkillTree AR_Mastery): 2 ranks x 0.25 = Mod_WeaponPassive 0.5 at most; no ranks = no attribute.
 -- Lag compensation (Task 6): a target the test moves along +X at 16 studs/s for 1 s (PivotTo every Heartbeat, its path
 -- worked from x0 by the test's own clock, workspace:GetServerTimeNow()), with the shooter 30 studs off the path on Z.
@@ -39,11 +40,18 @@ local HISTORY_EPS = 0.6 -- studs: a frame's slack (0.27) plus the sampling
 local CAP = 0.25 -- seconds: GunAim.RewindTime(2.0, Aim) = clamp(2.0 + Interp 0.1, 0, MaxRewind 0.25) (TuningConfig PROPOSAL)
 local FAR_BACK = 0.6 -- seconds: past the cap (9.6 studs back)
 local SHOT_REACH = 200 -- ShotTarget's MaxT in these cases
+-- The snap log (Ruling 13; TuningConfig Aim.SnapDeg 120, SnapWindow 0.1, PROPOSAL): two aimed Fire requests SNAP_GAP s
+-- apart, SNAP_WIDE degrees apart (+-65 from the facing: inside MaxYaw 100, and 130 > 120) count once; SNAP_NARROW apart
+-- (+-5) don't. The pairs are SNAP_PAUSE s apart, past the window.
+local SNAP_GAP, SNAP_WIDE, SNAP_NARROW, SNAP_PAUSE = 0.05, 130, 10, 0.3
+local FLINCH_ANIM = ReplicatedStorage.Assets.Animations.Shared.Combat.Fist.BlockIdle -- any looped, non-Core track will do
 
 local function Guard(Body, After)
 	SmokeKit.Guarded(Player, Body, function() GunKit.Unequip(Player) end, function()
-		if After then pcall(After) end
+		local Ok, Err = true, nil
+		if After then Ok, Err = pcall(After) end
 		GunKit.Clean()
+		if not Ok then error(Err, 0) end
 	end)
 end
 
@@ -70,6 +78,23 @@ end
 local function Stunned(M)
 	local WC = WCS.Character.GetCharacterFromInstance(M)
 	return WC ~= nil and WC:HasStatusEffects({Stun})
+end
+
+-- a looped, non-Core animation playing on M (a hit reaction stops it; Ruling 12)
+local function Looping(M)
+	local Track = M:FindFirstChildOfClass("Humanoid").Animator:LoadAnimation(FLINCH_ANIM)
+	Track.Looped = true
+	Track.Priority = Enum.AnimationPriority.Action
+	Track:Play()
+	return Track
+end
+
+-- the Shoot request handler the server runs (ServerHandler.Requests.Shoot, the same module instance and state)
+local function ShootRequest()
+	local SH = game:GetService("ServerScriptService"):FindFirstChild("ServerHandler")
+	local M = SH and SH:FindFirstChild("Requests") and SH.Requests:FindFirstChild("Shoot")
+	assert(M, "no ServerScriptService.ServerHandler.Requests.Shoot")
+	return require(M)
 end
 
 -- one shot at Target: the results, and the Health it lost
@@ -193,14 +218,22 @@ return {
 			local S = Shooter("Revolver")
 			local Near = Target(10)
 			GunKit.Settle()
+			local NearTrack = Looping(Near)
 			T.True(not Stunned(Near), "the near target isn't stunned before the shot")
+			T.True(NearTrack.IsPlaying, "the near target's looped track plays before the shot")
 			T.Eq(#ShootAt(S, Near), 1, "a hit at 10")
 			T.True(Stunned(Near), "a hit at 10 studs stuns")
+			task.wait(0.2)
+			T.True(not NearTrack.IsPlaying, "a hit at 10 studs stops the target's looped track (control: the hit reaction)")
 			Aside(Near)
 			local Far = Target(40)
 			GunKit.Settle()
+			local FarTrack = Looping(Far)
+			T.True(FarTrack.IsPlaying, "the far target's looped track plays before the shot")
 			T.Eq(#ShootAt(S, Far), 1, "a hit at 40")
 			T.True(not Stunned(Far), "a hit at 40 studs doesn't stun")
+			task.wait(0.2)
+			T.True(FarTrack.IsPlaying, "a hit at 40 studs leaves the target's looped track playing (no hit reaction)")
 		end)
 	end,
 
@@ -209,7 +242,7 @@ return {
 		Guard(function()
 			local S = Shooter("Revolver")
 			local Tg = Target(15)
-			SmokeKit.TempPart({ -- 10 x 10 x 1, halfway, from the floor up past the muzzle
+			local Wall = SmokeKit.TempPart({ -- 10 x 10 x 1, halfway, from the floor up past the muzzle
 				Name = "GunKit_Wall",
 				Size = Vector3.new(10, 10, 1),
 				CFrame = CFrame.new(GunKit.Spot() + AHEAD * 7.5 + Vector3.new(0, 5, 0)),
@@ -217,6 +250,10 @@ return {
 			GunKit.Settle()
 			T.Eq(#ShootAt(S, Tg), 0, "results through a wall")
 			T.Eq(S:GetAttribute("LastShotResult"), "Miss", "LastShotResult through a wall")
+			Wall:Destroy() -- only the wall (ClearTemp would take the floor too)
+			local Results = ShootAt(S, Tg)
+			T.Eq(Results[1] and Results[1].Result, "Hit", "the same shot with the wall gone (control)")
+			T.Eq(S:GetAttribute("LastShotResult"), "Hit", "LastShotResult with the wall gone")
 		end)
 	end,
 
@@ -255,6 +292,9 @@ return {
 			C:SetAttribute("ShootingMode", true)
 			task.wait(0.1)
 			T.Eq(C:GetAttribute("ShootingMode"), true, "shooting mode on dry land")
+			C:SetAttribute("Traversal", "Climb") -- control: a Traversal change that isn't the water
+			task.wait(MODE_ENDS_WITHIN)
+			T.Eq(C:GetAttribute("ShootingMode"), true, "shooting mode " .. MODE_ENDS_WITHIN .. " s after Traversal = Climb (control)")
 			C:SetAttribute("Traversal", "Swim") -- as MovementState publishes it
 			local T0 = os.clock()
 			while C:GetAttribute("ShootingMode") and os.clock() - T0 < MODE_ENDS_WITHIN do task.wait() end
@@ -300,6 +340,37 @@ return {
 			local At = Now - Back
 			T.Eq(WeaponManager.ShotTarget(S, Origin, (Where(Now - CAP) - Origin).Unit, SHOT_REACH, At), Tg, "a ray at where it was " .. CAP .. " s back, rewound by the cap (positive control)")
 			T.Eq(WeaponManager.ShotTarget(S, Origin, (Where(Now - FAR_BACK) - Origin).Unit, SHOT_REACH, At), nil, "a ray at where it was " .. FAR_BACK .. " s back, rewound by the cap")
+		end)
+	end,
+
+	-- Ruling 13: every aimed Fire request is compared with the previous one, before the mode gates (the test player is in
+	-- no shooting mode, so these requests fire nothing). Driven through the server's own Shoot request handler.
+	SnapLogCountsTurns = function(T)
+		local C = Player.Character
+		local Was = C:GetAttribute("GunSnapCount")
+		local WasAnchored = C.HumanoidRootPart.Anchored
+		Guard(function()
+			local Shoot = ShootRequest()
+			T.Eq(C:GetAttribute("ShootingMode"), nil, "the test player isn't in shooting mode")
+			local Root = C.HumanoidRootPart
+			Root.Anchored = true -- its facing holds still for the pairs (Guarded puts the character back)
+			local L = Root.CFrame.LookVector
+			L = Vector3.new(L.X, 0, L.Z).Unit
+			local function Turned(Deg) return CFrame.Angles(0, math.rad(Deg), 0):VectorToWorldSpace(L) end
+			C:SetAttribute("GunSnapCount", nil)
+			task.wait(SNAP_PAUSE) -- past the window of any earlier request
+			Shoot(Player, "Fire", Turned(-SNAP_WIDE / 2))
+			task.wait(SNAP_GAP)
+			Shoot(Player, "Fire", Turned(SNAP_WIDE / 2))
+			T.Eq(C:GetAttribute("GunSnapCount"), 1, SNAP_WIDE .. " degrees in " .. SNAP_GAP .. " s")
+			task.wait(SNAP_PAUSE)
+			Shoot(Player, "Fire", Turned(-SNAP_NARROW / 2))
+			task.wait(SNAP_GAP)
+			Shoot(Player, "Fire", Turned(SNAP_NARROW / 2))
+			T.Eq(C:GetAttribute("GunSnapCount"), 1, SNAP_NARROW .. " degrees in " .. SNAP_GAP .. " s (control: no count)")
+		end, function()
+			C.HumanoidRootPart.Anchored = WasAnchored
+			C:SetAttribute("GunSnapCount", Was)
 		end)
 	end,
 }
