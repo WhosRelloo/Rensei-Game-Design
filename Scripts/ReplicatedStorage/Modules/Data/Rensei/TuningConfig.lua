@@ -238,7 +238,8 @@ TuningConfig.Traversal = {
 }
 
 -- Basic swimming (owner decision 6, 2026-10-18: "allow deep water with a swim state (no combat or alchemy while
--- swimming)"). Roblox's own terrain-water swimming moves the character; the SERVER (SwimService) decides the
+-- swimming)"). Since the swimming revamp (2026-10-26) the client's swim controller moves the swimmer (level at the
+-- surface, camera-relative in 3D after a dive: see the revamp keys at the end of this block); the SERVER (SwimService) decides the
 -- Traversal = "Swim" state, which carries the Climbing status (no attacks, alchemy, skills, sprint, roll or crouch)
 -- and puts the weapon away (Combat Mode off; it can't be turned on while swimming). Numbers are PROPOSAL.
 TuningConfig.Swim = {
@@ -264,6 +265,34 @@ TuningConfig.Swim = {
 	DrownFraction = 0.06, -- 6% of max health per second: about 17 s from full health to knocked out
 	DrownTick = 1,
 	HeadAbove = 0.4, -- studs: the head counts as underwater when its centre is this far below the surface
+	-- Swimming revamp (2026-10-26; Documents/specs/2026-10-25-swimming-revamp-design.md), all PROPOSAL:
+	-- the client's swim controller (Managers.SwimController, maths in Rensei.SwimLogic) moves a swimmer; the server
+	-- keeps every rule (the Swim state, Submerged, breath, drowning, SwimSprint and its stamina). Owner decision 6 is
+	-- unchanged: no combat or alchemy in the water, at the surface or underwater.
+	UnderSpeedMult = 0.85, -- underwater speed x the surface speed
+	AscendSpeed = 10, -- studs/s up while Space is held underwater
+	DescendSpeed = 10, -- studs/s down while Ctrl is held underwater
+	Drift = 1.5, -- studs/s up underwater with no input (a gentle buoyancy that never fights you)
+	DiveSpeed = 16, -- studs/s of the dive's push down
+	DiveTime = 0.35, -- seconds the dive pushes
+	DiveMinDepth = 4.5, -- water at least this deep (surface to bed) to dive: Ye's pools 5.2 yes, its creeks 4.2 no
+	SurfaceBand = 0.6, -- studs: the head counts as at the surface within this (x4 = sunk under by something else)
+	RootBelowSurface = 1.5, -- studs the root floats under the surface (Task 5 re-measures it)
+	SurfaceHoldGain = 6, -- vertical speed per stud of error holding a surface swimmer at the surface
+	SurfaceHoldMax = 8, -- the most that hold may push up or down
+	MaxPitch = 80, -- degrees: the most the body (and an underwater W) pitches up or down
+	TurnResponsiveness = 12, -- the underwater AlignOrientation's responsiveness
+	MaxForce = 30000, -- the controller's LinearVelocity force (finite: walls, beds and knockbacks still push; Task 5 tunes)
+	ClimbOutHeight = 4.5, -- a ledge at most this far above the water can be climbed onto with Space
+	ClimbOutReach = 3, -- ... and at most this far away
+	ClimbOutForward = 30, ClimbOutUp = 30, -- the climb-out push (like JumpManager's ledge vault)
+	UnderSprintBreathMult = 1.5, -- sprinting underwater uses air this much faster
+	SubmergedExitChecks = 2, -- server checks with the head out before the Submerged attribute clears
+	SpeedSlackMult = 1.5, SpeedSlackFlat = 8, -- the server's speed check allows max speed x this + this studs per step
+	SpeedStrikes = 3, -- steps over the limit in a row before the server stops the sprint (it never moves anyone)
+	AnimDive = "Swim_Dive", AnimSurface = "Swim_Surface", -- placeholder slots (Task 4; the owner swaps in real ones)
+	AnimUnderIdle = "Swim_Idle", -- owner 2026-10-25: underwater idle uses the surface idle
+	AnimClimbOut = "Vault1", -- owner 2026-10-25: climbing out uses the ledge climb (JumpManager's Vault1 / Vault2)
 }
 
 -- Coordinated enemy squads (owner prompt "Advanced Swarm NPC Combat AI", 2026-10-18; VV Ultimatum / Archived as a
