@@ -46,6 +46,10 @@ In the owner's order:
    - Key: **N is shared with takedowns, and the target decides** (an enemy means a takedown, a player means a hostage). This is a controller ruling (PROPOSAL); the owner raised no objection.
    - Brask's desk stays in Ye's Foundry Yard model. Turn-ins use State desks there or later.
 3. [ ] **Stealth missions.**
+3b. [ ] **Bring the Tutorial completely up to date** (owner, 2026-10-27: "Yes I want the tutorial completely up to date, but do that after stealth missions").
+   - The Tutorial place (74257385894576) doesn't use the Modules or Assets packages, so it has fallen behind Ye.
+   - Found 2026-10-27: an older `ClientHandler.Crouch` (no slide-into-sprint) and an older `TuningConfig`. Only the Downed section is synced.
+   - The task: put it on the shared packages, or into the sync manifest, so it stays current; bring every shared script and asset up to Ye's; check its own Tutorial scripts still work; run its tests.
 4. [ ] **The main game quest system, with the lore** (owner, 2026-10-27: "After assassinations and hostages, and stealth missions, let's start the main game quest system w/ the lore, etc."). Starts from the main story concept draft `Documents/specs/2026-10-25-main-story-concept.md` (needs the owner's approval first) and the lore in `Documents/Lore Bible.md`.
    - **Owner direction (2026-10-27):**
      - players know what to do when they spawn into the main world;
