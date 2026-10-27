@@ -23,13 +23,21 @@
 --     and the put-back. Re-raises Body's error.
 --   * Kit.Clean(): Guard's clean-up (Guard calls it; SmokeKit.Guarded then removes the parts and puts the character
 --     back): a carry the case left dropped and any carry weld off the player's root (Task 6), every rig the kit made removed (and any other enemy left on the floor), TakingDown, TakedownReadyAt and
---     LastTakedownResult cleared on the character, the saved attributes restored, both loops SetAuto(true).
+--     LastTakedownResult cleared on the character, the saved attributes restored, both loops SetAuto(true). (Task 7) A
+--     crouch Kit.Crouch started is stopped; a takedown left running is waited out (its victim is gone, so it ends as an
+--     interrupt), and TakedownService forgets the player's cooldown (Forget), so no case starts on the last one's.
+--   * Kit.Crouch(On) (Task 7): the player crouches as CharacterHandler's crouch does (a WCS Stun stored in
+--     AttackRunner.CrouchStuns, Crouching = true), or stands up again (only a crouch the kit started is stopped).
 local Players = game:GetService("Players")
 local SSS = game:GetService("ServerScriptService")
 local PS = require(SSS.PerceptionService)
 local LS = require(SSS.LightService)
 local SmokeKit = require(script.Parent.SmokeKit)
 local DownedManager = require(game:GetService("ReplicatedStorage").Modules.Managers.DownedManager)
+local Modules = game:GetService("ReplicatedStorage").Modules
+local WCS = require(Modules.Framework.WCS)
+local Stun = require(Modules.Skills.States.Stun)
+local CrouchStuns = require(Modules.Managers.AttackRunner).CrouchStuns
 
 local Kit = {}
 
@@ -107,7 +115,29 @@ end
 
 Kit.Run = SmokeKit.Run
 
+local KitCrouch = nil -- the crouch Stun Kit.Crouch started, until it stops it
+function Kit.Crouch(On)
+	local C = Kit.Player().Character
+	local WC = WCS.Character.GetCharacterFromInstance(C)
+	assert(WC, "the player has a WCS character")
+	if On then
+		if not CrouchStuns[WC] then
+			local S = Stun.new(WC)
+			S:Start()
+			CrouchStuns[WC] = S
+			KitCrouch = S
+		end
+		C:SetAttribute("Crouching", true)
+	elseif KitCrouch then
+		if CrouchStuns[WC] == KitCrouch then CrouchStuns[WC] = nil end
+		pcall(function() KitCrouch:Stop() end)
+		KitCrouch = nil
+		C:SetAttribute("Crouching", nil)
+	end
+end
+
 function Kit.Clean()
+	Kit.Crouch(false)
 	-- (Task 6) a case that failed mid-carry: set the body down first (the carrier's walk back), and no carry weld stays
 	-- on the player's root
 	local Char = Kit.Player().Character
@@ -118,6 +148,12 @@ function Kit.Clean()
 	for _, Rig in ipairs(Made) do SmokeKit.RemoveEnemy(Rig) end
 	table.clear(Made)
 	SmokeKit.SweepEnemies(Kit.Spot(), SWEEP)
+	-- (Task 7) a takedown a failed case left running ends once its victim is gone (an interrupt): wait for its release, so
+	-- what it writes on the character is cleared below; then the next case starts off cooldown
+	local T0 = os.clock()
+	while Char:GetAttribute("TakingDown") and os.clock() - T0 < 2 do task.wait(0.05) end
+	local TDS = SSS:FindFirstChild("TakedownService")
+	if TDS then pcall(function() require(TDS).Forget(Kit.Player()) end) end
 	local C = Kit.Player().Character
 	for _, K in ipairs(CLEARED) do C:SetAttribute(K, nil) end
 	if Saved then

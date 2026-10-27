@@ -32,6 +32,11 @@
 -- normal sight rate, scaled by the light on the body (dark is slower) and x SubmergedMult when the body is under water
 -- (pre-flight R7, as a diver). At 1 it finds it: Raise at the body, and the BodyFound listeners run. One finder per
 -- body. Takedown.IsHidden bodies are never found (a stealth-missions hook; nothing is hidden yet).
+-- Assassinations Task 7 (2026-10-27, the Task 4 / 5 reviews): Glimpse's rays look past the victim (Except), so a rear
+-- takedown's own victim never hides the player from a witness; Call brings in the living only; a body outside workspace
+-- (taken out of the world) is never looked for, and a body's per-finder fill forgets finders that are gone (weak keys).
+-- Bodies come from TakedownService's kills and from every finished grip on an NPC (owner 2026-10-27: "Gripped bodies
+-- can be used as clues too"; DownedManager.Finish registers both).
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -101,9 +106,10 @@ local function Points(Character)
 end
 
 -- how many of the first N points (Pts, from Points) Rig has a clear line to from Eye: one ray each. Visible and
--- Glimpse share it, so both judge sight the same way (the same Rays params and filter).
-local function ClearLines(Rig, Eye, Character, Pts, N)
-	Rays.FilterDescendantsInstances = {Rig, Character}
+-- Glimpse share it, so both judge sight the same way (the same Rays params and filter). Except (Glimpse: the victim)
+-- is looked through too.
+local function ClearLines(Rig, Eye, Character, Pts, N, Except)
+	Rays.FilterDescendantsInstances = Except and {Rig, Character, Except} or {Rig, Character}
 	local Clear = 0
 	for I = 1, N do
 		if not workspace:Raycast(Eye, Pts[I] - Eye, Rays) then Clear += 1 end
@@ -128,7 +134,7 @@ local function Call(S, Player, Where)
 	local Root = S.Rig:FindFirstChild("HumanoidRootPart")
 	if not Root or not Where then return end
 	for Rig, O in pairs(Npcs) do
-		local R = O ~= S and Rig:FindFirstChild("HumanoidRootPart")
+		local R = O ~= S and Alive(Rig) and Rig:FindFirstChild("HumanoidRootPart") -- (Task 7: the dead aren't called)
 		-- enemies call enemies, watchers call watchers (spec §17.1: guards are called in, not bandits)
 		if R and O.Combat == S.Combat and (R.Position - Root.Position).Magnitude <= P.CallRadius and O.Phase ~= "Alert" then
 			if Player then O.Aware[Player] = math.max(O.Aware[Player] or 0, P.Suspicious) end
@@ -254,7 +260,7 @@ PerceptionService.BodyFound = {} -- listeners (Body, Finder, Info), each run in 
 -- Info = {Kind = "Dead" | "Out", By = Player}. Registering a model again starts its finding over.
 function PerceptionService.AddBody(Model, Info)
 	local Again = Bodies[Model] ~= nil
-	Info.Found, Info.Fill = false, {}
+	Info.Found, Info.Fill = false, setmetatable({}, {__mode = "k"}) -- (Task 7) a finder that is gone drops out
 	Bodies[Model] = Info
 	if not Again then Model.Destroying:Once(function() Bodies[Model] = nil end) end
 	return Info
@@ -287,7 +293,8 @@ end
 local function FindBodies(Dt)
 	for Body, Info in pairs(Bodies) do
 		local Torso = Body:FindFirstChild("Torso") or Body:FindFirstChild("UpperTorso") or Body:FindFirstChild("HumanoidRootPart")
-		if not Info.Found and Torso and not Takedown.IsHidden(Body) then
+		-- (Task 7) only a body in the world: one taken out of workspace is never looked for
+		if not Info.Found and Torso and Body:IsDescendantOf(workspace) and not Takedown.IsHidden(Body) then
 			local Light, Water -- worked out once per body per tick, when an NPC first has a clear line to it
 			for Rig, S in pairs(Npcs) do
 				local Head, Root = Rig:FindFirstChild("Head"), Rig:FindFirstChild("HumanoidRootPart")
@@ -496,7 +503,7 @@ function PerceptionService.Glimpse(Player, Except)
 			local To = CR.Position - Head.Position
 			local Type = P.Types[S.Type] or P.Types.Grunt
 			if To.Magnitude <= Type.Range and P.ConeMult(Root.CFrame.LookVector, To) > 0
-				and ClearLines(Rig, Head.Position, C, Pts, #Pts) > 0 then
+				and ClearLines(Rig, Head.Position, C, Pts, #Pts, Except) > 0 then
 				S.Seen[Player], S.Spot[Player] = T, CR.Position
 				if S.Combat then PerceptionService.Alarm(Rig, Player) end
 				table.insert(Out, Rig)

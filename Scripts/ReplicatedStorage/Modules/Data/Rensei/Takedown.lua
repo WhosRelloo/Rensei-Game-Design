@@ -41,7 +41,9 @@ Takedown.ChunkStun = 1.2
 Takedown.AnimLength = {Assassinate = 1.133, Knockout = 1.25} -- the player animations' lengths (measured)
 Takedown.SnapKeyframe = "Snap" -- the Keyframe name in Misc_Assassinate (KeyframeReached, not a marker)
 Takedown.SnapAt = 0.683 -- seconds into Misc_Assassinate (measured)
-Takedown.KillAt = 0.683 / 1.133 -- share of LethalTime: the Snap's share of the animation (about 0.603)
+Takedown.KillAt = Takedown.SnapAt / Takedown.AnimLength.Assassinate -- share of LethalTime: the Snap's share of the
+-- animation (about 0.603). TakedownService kills at LethalTime x KillAt on its own clock: the player's track plays on the
+-- client, so the server can't hear its KeyframeReached("Snap"); the two land together at the retimed speed.
 -- the victim's root in the player's root space. PROPOSAL: the animations carry no root offset (in place), and Task 1's
 -- 1.6 studs overlapped the bodies, so it starts at 2.0 studs in front; Tasks 3 / 5 tune it by screenshot.
 Takedown.Offset = CFrame.new(0, 0, -2.0)
@@ -87,7 +89,9 @@ function Takedown.PerceptionTypeOf(EnemyType)
 end
 
 -- "Full" | "Chunk" | "Immune". PerceptionType: the type PerceptionService tracks the rig as, or nil when it doesn't
--- track it (arena / trial foes). Attrs = {Boss, TrialFoe, TakedownClass}, read from the rig by the caller.
+-- track it (arena / trial foes). Attrs = {Boss, TrialFoe, TakedownClass} gathered by the caller: Boss and TakedownClass
+-- from the rig's attributes, TrialFoe from the enemy type's TuningConfig definition (no rig carries a TrialFoe
+-- attribute; Task 2 review minor 4).
 function Takedown.ClassOf(PerceptionType, Attrs)
 	Attrs = Attrs or {}
 	local Forced = Attrs.TakedownClass
@@ -104,6 +108,9 @@ function Takedown.IsLawFaction(Faction)
 end
 
 -- Ctx: plain values the caller gathered. Returns true, or false and the first failing reason. The PvE rule is first.
+-- Fails closed (Task 7, the Task 2 review's minor 1): a Class other than Full or Chunk (missing too) is "immune", a
+-- missing Phase or a NaN AwareOfYou is "alert", a NaN Dist or Height is "far". (A missing AwareOfYou reads 0: the client
+-- never knows it.)
 --   IsPlayer, IsTownsfolk, IsEnemy, Alive, Kind, Class, Ready, PlayerFree, PlayerCalm, TargetFree,
 --   Phase, AwareOfYou (0..1), Dist, Height, Range (Range, or Range + RangeSlack on the server; nil: Range), Behind, Clear
 function Takedown.Check(Ctx)
@@ -112,15 +119,17 @@ function Takedown.Check(Ctx)
 	if not Ctx.IsEnemy then return false, "not_enemy" end
 	if not Ctx.Alive then return false, "dead" end
 	if not Takedown.Kinds[Ctx.Kind] then return false, "kind" end
-	if Ctx.Class == "Immune" then return false, "immune" end
+	if Ctx.Class ~= "Full" and Ctx.Class ~= "Chunk" then return false, "immune" end
 	if Ctx.Class == "Chunk" and Ctx.Kind ~= "Assassinate" then return false, "kind" end
 	if not Ctx.Ready then return false, "cooldown" end
 	if not Ctx.PlayerFree then return false, "busy" end
 	if not Ctx.PlayerCalm then return false, "combat" end
 	if not Ctx.TargetFree then return false, "target_busy" end
-	if not Takedown.Phases[Ctx.Phase] or (tonumber(Ctx.AwareOfYou) or 0) >= 1 then return false, "alert" end
-	if (tonumber(Ctx.Dist) or math.huge) > (tonumber(Ctx.Range) or Takedown.Range) then return false, "far" end
-	if math.abs(tonumber(Ctx.Height) or math.huge) > Takedown.Height then return false, "far" end
+	local Aware = tonumber(Ctx.AwareOfYou) or 0
+	if not Takedown.Phases[Ctx.Phase] or Aware ~= Aware or Aware >= 1 then return false, "alert" end
+	local Dist, Height = tonumber(Ctx.Dist) or math.huge, tonumber(Ctx.Height) or math.huge
+	if Dist ~= Dist or Dist > (tonumber(Ctx.Range) or Takedown.Range) then return false, "far" end
+	if Height ~= Height or math.abs(Height) > Takedown.Height then return false, "far" end
 	if not Ctx.Behind then return false, "front" end
 	if not Ctx.Clear then return false, "blocked" end
 	return true

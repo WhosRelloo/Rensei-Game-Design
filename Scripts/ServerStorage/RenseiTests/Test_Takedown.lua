@@ -1,7 +1,8 @@
 -- Test_Takedown (assassinations Task 2, 2026-10-27): Rensei.Takedown's numbers and pure rules. Every expected value
 -- is written by hand here, never read from the module. The module is loaded inside each test, so with it missing
 -- every test fails on its own (RED) instead of the whole suite erroring once. Task 6 adds Deed: the takedown deeds in
--- Rensei.Deeds.
+-- Rensei.Deeds. Task 7 adds FailClosed: Check refuses a NaN distance, height or awareness, a missing phase and a class
+-- that isn't Full or Chunk.
 local function Load()
 	local M = game.ReplicatedStorage.Modules.Data.Rensei:FindFirstChild("Takedown")
 	assert(M, "Rensei.Takedown is missing")
@@ -141,6 +142,30 @@ return {
 		local Pass = Good()
 		Pass.IsPlayer = true
 		T.Eq(select(2, K.Check(Pass)), "player", "a player is refused even when everything else passes")
+	end,
+
+	-- (Task 7, the Task 2 review's minor 1) Check fails closed: a NaN distance, height or awareness, a missing phase (an
+	-- untracked rig) and a class that isn't Full or Chunk (missing or bogus) are refused, never waved through. (A missing
+	-- AwareOfYou still reads 0: the client never knows it.)
+	FailClosed = function(T)
+		local K = Load()
+		local NaN = 0 / 0
+		local Cases = {
+			{"Dist", NaN, "far"},
+			{"Height", NaN, "far"},
+			{"AwareOfYou", NaN, "alert"},
+			{"Phase", nil, "alert"}, -- (a regression guard: already refused)
+			{"Class", nil, "immune"},
+			{"Class", "Bogus", "immune"},
+		}
+		for _, Case in ipairs(Cases) do
+			local C = Good()
+			C[Case[1]] = Case[2]
+			local O, W = K.Check(C)
+			T.Eq(O, false, Case[1] .. " = " .. tostring(Case[2]) .. ": refused")
+			T.Eq(W, Case[3], Case[1] .. " = " .. tostring(Case[2]) .. ": reason")
+		end
+		T.Eq(K.Check(Good()), true, "control: the good context still passes")
 	end,
 
 	ChunkNoKnockout = function(T)

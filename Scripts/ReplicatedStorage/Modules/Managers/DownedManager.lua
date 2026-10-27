@@ -31,6 +31,13 @@
 -- * RAGDOLL (assassinations Task 6b, owner 2026-10-27): a finished grip makes the body a ragdoll (Modules.Managers.Ragdoll,
 --   Apply, just before Health 0) -- enemies, townsfolk and players gripped by players. Carry lets a ragdolled body go
 --   (Ragdoll.Hold: unanchored, held by the carrier; its limbs hang from it) and Drop sets it down limp to settle again.
+-- * FINISH (assassinations Task 7, owner 2026-10-27: "gripped bandit bodies should stay 120 seconds like takedown
+--   bodies", "Gripped bodies can be used as clues too"): Finish(Target, Killer, Info) is the one way a finisher kills --
+--   a finished grip and TakedownService's assassination. An NPC's body is marked FinishedBy (the killer's name) BEFORE
+--   its health hits 0, so EnemyService's Died handler keeps it Takedown.BodySeconds (120 s) instead of 4; it ragdolls
+--   (Ragdoll.Apply, before the death); and it is registered with PerceptionService as a "Dead" body (By = the killer's
+--   Player, nil for an NPC killer; Info's fields added), so a patrol that finds it searches there. A player's body is
+--   neither marked nor registered. (Townsfolk keep TownsfolkService.BodySeconds, 60 s.)
 -- Attributes (server-written): Knocked, KnockedUntil, GrippedBy, Gripping, CarriedBy, Carrying.
 -- * CRAWL (owner 2026-10-27: "Yes, slow crawl"): a knocked PLAYER crawls at TuningConfig.Downed.CrawlSpeed (PROPOSAL
 --   3) instead of lying still; knocked enemies and townsfolk (the assassinations' knockout too) keep WalkSpeed 0, and
@@ -327,15 +334,38 @@ DownedManager.Attach = Attach
 DownedManager.Detach = Detach
 
 -- (Task 6b) the shared ragdoll (Modules.Managers.Ragdoll), required on first use. Without it (a place it hasn't reached)
--- the call warns once and the body lies whole as before.
-local RagdollWarned = false
+-- the body lies whole as before, with one warning; (Task 6b review, Task 7) an error inside it always warns.
+local RagdollMissingWarned = false
 local function RagdollDo(Fn, ...)
 	local M = ReplicatedStorage.Modules.Managers:FindFirstChild("Ragdoll")
-	local Ok, Err = pcall(function(...) return require(M)[Fn](...) end, ...)
-	if not Ok and not RagdollWarned then
-		RagdollWarned = true
-		warn("DownedManager: Ragdoll." .. Fn .. " failed:", Err)
+	if not M then
+		if not RagdollMissingWarned then
+			RagdollMissingWarned = true
+			warn("DownedManager: no Modules.Managers.Ragdoll here; bodies lie whole")
+		end
+		return
 	end
+	local Ok, Err = pcall(function(...) return require(M)[Fn](...) end, ...)
+	if not Ok then warn("DownedManager: Ragdoll." .. Fn .. " failed:", Err) end
+end
+
+-- (Task 7) a finisher's kill: see FINISH in the header. Killer: the character that finished it (or nil). Info (optional):
+-- extra fields for the body's PerceptionService entry (TakedownService: the deed, its witness strength, the faction).
+function DownedManager.Finish(Target, Killer, Info)
+	local H = Hum(Target)
+	if not H then return end
+	local IsNpc = OwnerOf(Target) == nil
+	if IsNpc then Target:SetAttribute("FinishedBy", Killer and Killer.Name or "?") end -- (before the death: Died reads it)
+	-- before the death, so a player's joints don't break apart (BreakJointsOnDeath) and an NPC never stands dead a frame
+	RagdollDo("Apply", Target)
+	H.Health = 0
+	if not IsNpc then return end
+	local PS = game:GetService("ServerScriptService"):FindFirstChild("PerceptionService")
+	if not PS then return end
+	local Body = {Kind = "Dead", By = Killer and OwnerOf(Killer) or nil}
+	for K, V in pairs(Info or {}) do if Body[K] == nil then Body[K] = V end end
+	local Ok, Err = pcall(function() require(PS).AddBody(Target, Body) end)
+	if not Ok then warn("DownedManager: couldn't register the body:", Err) end
 end
 
 -- ===== Knock / recover =====
@@ -618,10 +648,8 @@ function DownedManager.Grip(Gripper, Target)
 		Target:SetAttribute("Knocked", nil)
 		Target:SetAttribute("KnockedStill", nil)
 		KnockStun[Target] = nil
-		-- (Task 6b, owner 2026-10-27) a gripped body ragdolls: joints to ball sockets, before the death so a player's
-		-- joints don't break apart (BreakJointsOnDeath) and an NPC never stands dead for a frame
-		RagdollDo("Apply", Target)
-		Hum(Target).Health = 0
+		-- (Task 6b, owner 2026-10-27) a gripped body ragdolls; (Task 7, owner) an NPC's stays 120 s and is a body (a clue)
+		DownedManager.Finish(Target, Gripper)
 		for _, Listener in ipairs(DownedManager.Listeners) do
 			local Ok, Err = pcall(Listener, "Grip", Gripper, Target)
 			if not Ok then warn("DownedManager grip listener failed:", Err) end

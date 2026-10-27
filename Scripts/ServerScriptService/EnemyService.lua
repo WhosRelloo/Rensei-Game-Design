@@ -67,7 +67,8 @@ local SPAWN_TAG = "RenseiEnemySpawn"
 local function Alchemy() return require(game:GetService("ServerScriptService").AlchemyService) end -- (lazy: it requires us)
 local SightParams = RaycastParams.new()
 SightParams.FilterType = Enum.RaycastFilterType.Include
-local CORPSE_SECONDS = 4 -- a takedown's body (attribute TakenDownBy) stays Takedown.BodySeconds instead (assassinations Task 5)
+local CORPSE_SECONDS = 4 -- a takedown's body (attribute TakenDownBy) stays Takedown.BodySeconds instead (assassinations Task 5),
+-- and so does any finisher's (FinishedBy: a finished grip, DownedManager.Finish; owner 2026-10-27, Task 7)
 
 local EnemyService = {}
 EnemyService.Active = {} -- [Rig] = enemy record
@@ -141,6 +142,8 @@ local function BuildRig(Type, Def, Spawn)
 	Rig:SetAttribute("Level", Def.Level)
 	Rig:SetAttribute("PhysicalMultiplier", Def.DamageMult)
 	Rig:SetAttribute("CombatMode", true) -- weapon drawn, same as a player in Combat Mode
+	-- (assassinations Task 7, pre-flight R8) a faction enemy carries it on the rig: a law faction's is a guard's (TakedownService)
+	if Def.Faction then Rig:SetAttribute("Faction", Def.Faction) end
 	if Def.Knockable ~= false then Rig:SetAttribute("Knockable", true) end -- every enemy is knocked at 0 HP, grip (B) to finish (owner 2026-10-20); Knockable = false opts out
 	if Def.Boss then -- the top-of-screen boss bar (HUDUI): name, title, health
 		Rig:SetAttribute("Boss", true)
@@ -217,7 +220,9 @@ local function Brain(E)
 	end
 
 	local function Busy()
+		-- (assassinations Task 7) being taken down (TakenDownBy): it neither moves nor fights while TakedownService holds it
 		return Rig:GetAttribute("Knocked") or Rig:GetAttribute("Gripping") or Rig:GetAttribute("Carrying")
+			or Rig:GetAttribute("TakenDownBy")
 			or AttackRunner.IsRunning(Rig) or WC:HasStatusEffects({Stun, Attacking, Blocking})
 	end
 
@@ -518,7 +523,8 @@ function Spawn(Part)
 	Rig.Humanoid.Died:Once(function()
 		EnemyService.Active[Rig] = nil
 		CombatDirector.Unregister(Rig, "Died") -- its token (if any) passes on now
-		task.delay(Rig:GetAttribute("TakenDownBy") and Takedown.BodySeconds or CORPSE_SECONDS, function()
+		local Kept = Rig:GetAttribute("TakenDownBy") or Rig:GetAttribute("FinishedBy") -- (both set before the death)
+		task.delay(Kept and Takedown.BodySeconds or CORPSE_SECONDS, function()
 			pcall(function() WC:Destroy() end)
 			if Rig.Parent then Rig:Destroy() end
 		end)

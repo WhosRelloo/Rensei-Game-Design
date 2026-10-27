@@ -223,7 +223,8 @@ local function Captors()
 	return Out
 end
 
--- A player carrying a knocked enemy into range of a TakesPrisoners NPC hands them over.
+-- A player carrying a knocked enemy into range of a TakesPrisoners NPC hands them over. Only a knocked, living one
+-- (assassinations Task 7, the Task 6 finding): a carried corpse (V carries a takedown's body) is no prisoner.
 local function CheckDeliveries()
 	local DownedManager = require(ReplicatedStorage.Modules.Managers.DownedManager)
 	local Takers = Captors()
@@ -232,6 +233,7 @@ local function CheckDeliveries()
 		local Character = Player.Character
 		local Root = Character and Character:FindFirstChild("HumanoidRootPart")
 		local Target = Character and DownedManager.Carried(Character)
+		if Target and not DownedManager.IsKnocked(Target) then Target = nil end -- (a body is never a prisoner)
 		local F = Target and FinisherOf(Target)
 		if Root and F and F.Deliver then
 			for _, T in ipairs(Takers) do
