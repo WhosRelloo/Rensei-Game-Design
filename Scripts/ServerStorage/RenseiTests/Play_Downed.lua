@@ -113,12 +113,84 @@ return {
 			task.wait(0.2)
 			T.Eq(C:GetAttribute("CrawlClamped") or 0, Clamped, "a crawl-speed move isn't clamped")
 			T.True(math.abs(Flat(Root.Position - Start) - 3) < 0.6, "the crawl kept its 3 studs (" .. Flat(Root.Position - Start) .. ")")
-			-- a 10-stud jump in one tick
+			-- a 10-stud jump in one tick (2 studs up too): put back at the last allowed point, height included (fix round 2)
 			local Before = Root.Position
-			Root.CFrame += Back * 10
+			Root.CFrame += Back * 10 + Vector3.new(0, 2, 0)
 			task.wait(0.35)
 			T.True(Flat(Root.Position - Before) < 1, "a 10-stud jump is undone (" .. Flat(Root.Position - Before) .. " studs off)")
+			T.True(math.abs(Root.Position.Y - Before.Y) < 1, "and its height too (" .. (Root.Position.Y - Before.Y) .. ")")
 			T.True((C:GetAttribute("CrawlClamped") or 0) > Clamped, "counted as clamped")
+		end)
+	end,
+
+	-- fix round 2: a deliberate server move (StationService's watchdog, a road's arrival, an admin bring...) calls
+	-- DownedManager.RebaseCrawl, and the knocked player stays where it was put
+	RebasedMoveStays = function(T)
+		Knocked(function(C)
+			local Root = C.HumanoidRootPart
+			local function Flat(V) return Vector3.new(V.X, 0, V.Z).Magnitude end
+			task.wait((Cfg.CrawlClampGrace or 0.5) + 0.2)
+			local Clamped = C:GetAttribute("CrawlClamped") or 0
+			local Back = -Root.CFrame.LookVector * Vector3.new(1, 0, 1)
+			Back = Back.Magnitude > 1e-3 and Back.Unit or Vector3.new(1, 0, 0)
+			local To = Root.Position + Back * 10
+			C:PivotTo(C:GetPivot() + Back * 10)
+			DownedManager.RebaseCrawl(C)
+			task.wait((Cfg.CrawlClampGrace or 0.5) + 0.4) -- (past the rebase's own grace: the clamp is on again)
+			T.True(Flat(Root.Position - To) < 1, "stays where the server put it (" .. Flat(Root.Position - To) .. " off)")
+			T.Eq(C:GetAttribute("CrawlClamped") or 0, Clamped, "not clamped")
+		end)
+	end,
+
+	-- fix round 2: a knocked player in a seat, or welded into another assembly (a latch), is moved by that, not clamped
+	SeatedOrWeldedNotClamped = function(T)
+		Knocked(function(C, H)
+			local Root = C.HumanoidRootPart
+			local function Flat(V) return Vector3.new(V.X, 0, V.Z).Magnitude end
+			task.wait((Cfg.CrawlClampGrace or 0.5) + 0.2)
+			local Clamped = C:GetAttribute("CrawlClamped") or 0
+			local Back = -Root.CFrame.LookVector * Vector3.new(1, 0, 1)
+			Back = Back.Magnitude > 1e-3 and Back.Unit or Vector3.new(1, 0, 0)
+			-- welded into a heavier assembly whose root is another part, which then moves 10 studs
+			local Body = Instance.new("Part")
+			Body.Name = "Downed_TestLatch"
+			Body.Size = Vector3.new(4, 1, 4)
+			Body.CanCollide = false
+			Body.RootPriority = 127
+			Body.CFrame = Root.CFrame
+			Body.Parent = workspace
+			local W = Instance.new("WeldConstraint")
+			W.Part0, W.Part1 = Body, Root
+			W.Parent = Body
+			local Ok, Err = pcall(function()
+				task.wait(0.15)
+				T.True(Root.AssemblyRootPart ~= Root, "welded: the assembly's root is the latch")
+				local To = Root.Position + Back * 10
+				Body.CFrame += Back * 10
+				task.wait(0.35)
+				T.True(Flat(Root.Position - To) < 1.5, "the latch moved it (" .. Flat(Root.Position - To) .. " off)")
+			end)
+			Body:Destroy()
+			if not Ok then error(Err, 0) end
+			task.wait(0.35)
+			T.Eq(C:GetAttribute("CrawlClamped") or 0, Clamped, "welded: not clamped, nor after the release")
+			-- seated: an anchored seat 8 studs away
+			local Seat = Instance.new("Seat")
+			Seat.Name = "Downed_TestSeat"
+			Seat.Anchored = true
+			Seat.Size = Vector3.new(2, 1, 2)
+			Seat.CFrame = CFrame.new(Root.Position + Back * 8 - Vector3.new(0, 2, 0))
+			Seat.Parent = workspace
+			local Ok2, Err2 = pcall(function()
+				Seat:Sit(H)
+				task.wait(0.4)
+				T.True(H.SeatPart == Seat, "seated")
+				T.Eq(C:GetAttribute("CrawlClamped") or 0, Clamped, "seated: not clamped")
+			end)
+			Seat:Destroy()
+			if not Ok2 then error(Err2, 0) end
+			task.wait(0.35)
+			T.Eq(C:GetAttribute("CrawlClamped") or 0, Clamped, "off the seat: not clamped")
 		end)
 	end,
 
@@ -214,6 +286,7 @@ return {
 		local SwimKit = require(Kit)
 		Knocked(function(C, H)
 			local Was = C.HumanoidRootPart.Position
+			DownedManager.RebaseCrawl(C) -- (fix round 2: the kit is about to move the knocked player on purpose)
 			SwimKit.WithPlayerAt(Player, CFrame.new(Spot.At - Vector3.new(0, 2, 0)), function()
 				task.wait(0.4)
 				T.Eq(H.WalkSpeed, 0, "knocked in deep water: still")

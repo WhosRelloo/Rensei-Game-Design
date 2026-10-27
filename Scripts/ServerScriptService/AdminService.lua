@@ -93,10 +93,17 @@ Commands.Respawn = {Target = true, Run = function(_, T)
 	return true, "Respawned " .. T.DisplayName
 end}
 
+-- (downed crawl fix round 2, 2026-10-27) a deliberate move of a player's character: DownedManager's crawl clamp starts
+-- again from the new spot, else it would put a knocked player back where they were
+local function Rebased(C)
+	if C then pcall(function() require(game:GetService("ReplicatedStorage").Modules.Managers.DownedManager).RebaseCrawl(C) end) end
+end
+
 Commands.Bring = {Target = true, Run = function(A, T)
 	local From, To = Root(A), Root(T)
 	if not (From and To) then return false, "No character" end
 	T.Character:PivotTo(From.CFrame * CFrame.new(0, 0, -4) * CFrame.Angles(0, math.pi, 0))
+	Rebased(T.Character)
 	return true, "Brought " .. T.DisplayName
 end}
 
@@ -104,6 +111,7 @@ Commands.Goto = {Target = true, Run = function(A, T)
 	local From, To = Root(A), Root(T)
 	if not (From and To) then return false, "No character" end
 	A.Character:PivotTo(To.CFrame * CFrame.new(0, 0, 4))
+	Rebased(A.Character)
 	return true, "Went to " .. T.DisplayName
 end}
 
@@ -322,6 +330,7 @@ Commands.TeleportArea = {Run = function(A, _, Arg)
 	local Top = Part.Position + Vector3.new(0, Part.Size.Y / 2, 0)
 	local Hit = workspace:Raycast(Top, Vector3.new(0, -(Part.Size.Y + 300), 0), Params)
 	A.Character:PivotTo(CFrame.new((Hit and Hit.Position or Part.Position) + Vector3.new(0, 4, 0)))
+	Rebased(A.Character)
 	return true, "Teleported to " .. Name
 end}
 

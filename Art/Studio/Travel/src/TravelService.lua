@@ -86,6 +86,12 @@ function TravelService.UseTicket(Player, RouteId, ClassId)
 	return C
 end
 
+-- (downed crawl fix round 2, 2026-10-27) a deliberate move of a player's character: DownedManager's crawl clamp starts
+-- again from the new spot, else it would put a knocked player back where they were
+local function Rebased(C)
+	if C then pcall(function() require(game:GetService("ReplicatedStorage").Modules.Managers.DownedManager).RebaseCrawl(C) end) end
+end
+
 local function Spawn(Player, Point)
 	-- (final fix wave, review minor 4: bounded; CharacterAdded:Wait() never returned for a player who left first)
 	while not Player.Character and Player.Parent do task.wait(0.1) end
@@ -93,7 +99,7 @@ local function Spawn(Player, Point)
 	if not Character then return end
 	local Root = Character:WaitForChild("HumanoidRootPart", 10)
 	local At = TravelService.ArrivalPoint(Point) or TravelService.ArrivalPoint("Platform")
-	if Root and At then Character:PivotTo(At.CFrame + Vector3.new(0, TravelService.SpawnLift, 0)) end
+	if Root and At then Character:PivotTo(At.CFrame + Vector3.new(0, TravelService.SpawnLift, 0)) Rebased(Character) end
 end
 
 -- Info = a saved Trip {Route = RouteId, To = RegionId, Arrive = Point, Class = ClassId?}. The caller has checked it.

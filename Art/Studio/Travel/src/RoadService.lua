@@ -118,6 +118,12 @@ local function Wanted(P)
 	return Ok and tonumber(W) or 0
 end
 
+-- (downed crawl fix round 2, 2026-10-27) a deliberate move of a player's character: DownedManager's crawl clamp starts
+-- again from the new spot, else it would put a knocked player back where they were
+local function Rebased(C)
+	if C then pcall(function() require(game:GetService("ReplicatedStorage").Modules.Managers.DownedManager).RebaseCrawl(C) end) end
+end
+
 local function Held(C)
 	for _, Name in ipairs(HELD) do
 		local V = C:GetAttribute(Name)
@@ -681,7 +687,7 @@ function RoadService.Start()
 			Arrivals[RouteId] = A
 			local K = A.N - 1 -- 0, then +1, -1, +2, -2: side by side across the road
 			local Off = (K % 2 == 1 and 1 or -1) * math.ceil(K / 2) * RoadService.ArriveSpread
-			if Off ~= 0 then C:PivotTo(C:GetPivot() + At.CFrame.RightVector * Off) end
+			if Off ~= 0 then C:PivotTo(C:GetPivot() + At.CFrame.RightVector * Off) Rebased(C) end
 			local Dir = RoadDir(Root.Position, RouteId)
 			if Dir then In = -Dir end
 			-- arriving counts as having walked in: the track starts at the furthest leg RoadStart is in

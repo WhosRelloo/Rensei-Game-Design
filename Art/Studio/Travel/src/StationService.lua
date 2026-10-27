@@ -117,6 +117,12 @@ local SeatTrains = setmetatable({}, {__mode = "k"}) -- [train Model or Seat] = t
 local SEAT_TEXT = {ThirdClass = "3rd class", DiningCar = "Dining car", SecondClass = "2nd class", CabinCar = "Private cabin"}
 local DOWN = {"Knocked", "GrippedBy", "CarriedBy", "Gripping", "Carrying"} -- character attributes: can't sit down
 
+-- (downed crawl fix round 2, 2026-10-27) a deliberate move of a player's character: DownedManager's crawl clamp starts
+-- again from the new spot, else it would put a knocked player back where they were
+local function Rebased(C)
+	if C then pcall(function() require(game:GetService("ReplicatedStorage").Modules.Managers.DownedManager).RebaseCrawl(C) end) end
+end
+
 local function Notify(P, Text) UIService.Notify(P, "Toast", {Text = Text}) end
 
 -- (final fix wave, I2) down, gripped, carried, gripping or carrying (DownedManager's attributes, read as RoadService
@@ -402,6 +408,7 @@ function StationService.GateTouch(P, Gate)
 	-- back to the hall side, GatePush clear of the gate
 	local Side = (Root.Position - Gate.Position):Dot(N)
 	Root.CFrame += N * -(Side + Gate.Size.Z / 2 + StationService.GatePush)
+	Rebased(P.Character)
 	Root.AssemblyLinearVelocity = Vector3.zero
 	local Now = os.clock()
 	if LastGate[P] and Now - LastGate[P] < StationService.GateAskGap then return Verdict end
@@ -536,6 +543,7 @@ local function Guard(Door)
 		local V = Root.AssemblyLinearVelocity:Dot(N)
 		local Dir = math.abs(V) > 1 and -math.sign(V) or ((Root.Position - Door.Position):Dot(N) >= 0 and 1 or -1)
 		Root.CFrame += N * Dir * StationService.DoorPush
+		Rebased(Char)
 		if not P:GetAttribute("ConductorWarned") then
 			P:SetAttribute("ConductorWarned", true)
 			local Has = TravelService.HasTicket(P, RouteId)
@@ -688,7 +696,10 @@ end
 
 local function ToPlatform(P)
 	local At = TravelService.ArrivalPoint("Platform")
-	if At and P.Character then P.Character:PivotTo(At.CFrame + Vector3.new(0, TravelService.SpawnLift or 3, 0)) end
+	if At and P.Character then
+		P.Character:PivotTo(At.CFrame + Vector3.new(0, TravelService.SpawnLift or 3, 0))
+		Rebased(P.Character)
+	end
 end
 
 -- (final fix wave, I2) at a ride's end: anyone in the ride train who isn't riding it (a carried non-rider, someone who
@@ -793,6 +804,7 @@ local function Depart(RouteId, RideSeconds)
 			local To = not Zone and Seat and Seat:IsDescendantOf(Car) and RideSeat(Ride, Offset, Seat)
 			Spot[P] = Offset * (Zone and Zone.CFrame or C:GetPivot())
 			C:PivotTo(Spot[P])
+			Rebased(C)
 			Body[P] = C
 			if To then task.defer(function() if not To.Occupant and H.Parent then To:Sit(H) end end) end
 			table.insert(Moved, P)
@@ -839,11 +851,13 @@ local function Depart(RouteId, RideSeconds)
 			if Root and Root.Position.Y < Floor then -- got out of the ride train: back to their spot
 				Unseat(P)
 				C:PivotTo(Spot[P])
+				Rebased(C)
 			elseif Root and Stow[P] then -- a stowaway stays with the baggage: out in the coaches they'd be seen
 				local Car = InTrain(Ride, Root.Position)
 				if Car and CarKind(Car) ~= "BaggageCar" then
 					Unseat(P)
 					C:PivotTo(Spot[P])
+					Rebased(C)
 					if not Nag[P] or os.clock() - Nag[P] >= StationService.StowNagGap then
 						Nag[P] = os.clock()
 						Notify(P, "You'd be seen out there. Better stay with the baggage.")
@@ -856,6 +870,7 @@ local function Depart(RouteId, RideSeconds)
 					Unseat(P)
 					Spot[P] = Zone.CFrame
 					C:PivotTo(Spot[P])
+					Rebased(C)
 					Notify(P, "Conductor: \"Your ticket isn't for this car.\"")
 				end
 			end

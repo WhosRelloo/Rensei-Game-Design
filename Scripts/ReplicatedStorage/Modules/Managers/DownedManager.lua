@@ -2,14 +2,15 @@
 --
 -- * All combat damage goes through DownedManager.Damage. A hit that would bring a knockable
 --   character (any player; an enemy with attribute Knockable) to 0 leaves them at 1 HP and
---   KNOCKED instead: slumped, stunned, can't move, immune to further damage.
+--   KNOCKED instead: slumped, stunned, immune to further damage; a knocked PLAYER can only crawl (see CRAWL), anyone
+--   else can't move.
 -- * After KnockedTime they recover with RecoverHealth of max health.
 -- * GRIP (B): finish a knocked target in range over GripTime. Getting stunned cancels it; completing it
 --   kills the target (an ordinary death -- PvP / permadeath consequences are not decided yet).
 --   Grip styles (owner 2026-10-15: "add different grips"; PROPOSAL): with a weapon drawn, an
---   EXECUTION with that weapon's heavy; unarmed, the paired CLASSIC grip (both share a root, as
---   the animations were authored) or a STOMP (down-slam), at random. Attribute GripStyle on the
---   gripper forces one (tests).
+--   EXECUTION with that weapon's heavy (or the weapon's own grip pair, TuningConfig.Downed.Grips); unarmed, always
+--   the paired CLASSIC grip (both share a root, as the animations were authored; hotfix 2026-10-23). The STOMP
+--   (down-slam) is only reached through the attribute GripStyle on the gripper, which forces a style (tests).
 --   After a grip the gripper gets back exactly what it had: walk speed / jump, which parts were
 --   massless (hair, accessories, the weapon), and it steps clear of the body instead of being
 --   released inside it.
@@ -27,8 +28,8 @@
 --   Fix round 1 (2026-10-27): attribute KnockedStill (server-written) = the server holds this knocked player at 0
 --   (gripped, carried, deep water), so KnockedSpeed reads 0 on the client too (MoverManager, Crouch). And the watch
 --   clamps the crawl's distance (ClampCrawl): a knocked player's root that moved further across the ground than a
---   crawl could is put back at the last allowed point. A script that moves a knocked player on purpose calls
---   RebaseCrawl(Model) afterwards (Drop does).
+--   crawl could is put back at the last allowed point. A script that moves a player's character on purpose calls
+--   RebaseCrawl(Model) afterwards (fix round 2: Drop, StationService, RoadService, TravelService, AdminService).
 -- Per-character knock (Region Foundation Task 6b; townsfolk set them): attributes KnockedTime (s) and
 -- RecoverHealth (share of max health) replace TuningConfig.Downed's KnockedTime / RecoverHealth for that one.
 -- Listeners (server): functions called ("Grip", Gripper, Target) after a grip finishes someone
@@ -173,29 +174,39 @@ local function SetKnockedSpeed(Model)
 end
 DownedManager.SetKnockedSpeed = SetKnockedSpeed
 
--- Fix round 1 (2026-10-27): the crawl's distance clamp, run by the knock's watch. The root's flat (x / z) travel since the
--- last allowed point may be at most CrawlSpeed x the time since then (capped at CrawlClampWindow) x CrawlClampMult +
--- CrawlClampSlack (all PROPOSAL); further, it is put back there (height kept, so falling off a ledge is fine). Not while
--- the root is anchored (a script holds it), gripped or carried (the weld moves it), or in the first CrawlClampGrace
--- seconds of the knock (momentum).
+-- The crawl's distance clamp (fix rounds 1 and 2, 2026-10-27), run by the knock's watch. A knocked player's root may
+-- travel across the ground (x / z) at most (CrawlSpeed x CrawlClampMult + CrawlClampSlack) studs per second since the
+-- last allowed point, the time capped at CrawlClampWindow: with the PROPOSAL numbers 3 x 1.5 + 2.5 = 7 studs/s over at
+-- most 1 s (a hitch). Further, the root is put back AT the last allowed point (its full position, so it never ends up
+-- inside geometry or mid-air). Not clamped (the point just follows): a grounded / anchored assembly (a script holds
+-- it), a root welded into another assembly (a latch, a grip or carry weld), PlatformStand, a seat, GrippedBy /
+-- CarriedBy, or the first CrawlClampGrace seconds of the knock (momentum) or after a RebaseCrawl (the owning client can
+-- still echo its old position once after a server move: seen when a carry is set down). Every deliberate server move of
+-- a player's character calls RebaseCrawl (StationService, RoadService, TravelService, AdminService, Drop).
 local ClampFrom = {} -- [Model] = {Pos = Vector3, T = os.clock()}: the last allowed point
+local RebasedAt = {} -- [Model] = os.clock() of the last RebaseCrawl
+local function Unclamped(Victim, R, KnockedAt, Now)
+	local H = Hum(Victim)
+	local Grace = Cfg.CrawlClampGrace or 0.5
+	return R:IsGrounded() or R.AssemblyRootPart ~= R or (H ~= nil and (H.PlatformStand or H.SeatPart ~= nil))
+		or Victim:GetAttribute("GrippedBy") ~= nil or Victim:GetAttribute("CarriedBy") ~= nil
+		or Now - KnockedAt < Grace or Now - (RebasedAt[Victim] or -math.huge) < Grace
+end
 local function ClampCrawl(Victim, KnockedAt)
 	local R = Root(Victim)
 	if not R then return end
 	local Now = os.clock()
 	local C = ClampFrom[Victim]
-	if not C or R.Anchored or Victim:GetAttribute("GrippedBy") or Victim:GetAttribute("CarriedBy")
-		or Now - KnockedAt < (Cfg.CrawlClampGrace or 0.5) then
+	if not C or Unclamped(Victim, R, KnockedAt, Now) then
 		ClampFrom[Victim] = {Pos = R.Position, T = Now}
 		return
 	end
-	local Flat = Vector3.new(R.Position.X - C.Pos.X, 0, R.Position.Z - C.Pos.Z)
-	local D = Flat.Magnitude
+	local D = Vector3.new(R.Position.X - C.Pos.X, 0, R.Position.Z - C.Pos.Z).Magnitude
 	if D < 0.05 then return end -- (still: the window keeps growing, up to its cap)
-	local Dt = math.min(Now - C.T, Cfg.CrawlClampWindow or 0.5)
-	local Max = (Cfg.CrawlSpeed or 0) * Dt * (Cfg.CrawlClampMult or 1.5) + (Cfg.CrawlClampSlack or 0.25)
+	local Dt = math.min(Now - C.T, Cfg.CrawlClampWindow or 1)
+	local Max = ((Cfg.CrawlSpeed or 0) * (Cfg.CrawlClampMult or 1.5) + (Cfg.CrawlClampSlack or 2.5)) * Dt
 	if D > Max then
-		R.CFrame = R.CFrame - Flat
+		R.CFrame += C.Pos - R.Position
 		R.AssemblyLinearVelocity = Vector3.zero
 		C.T = Now
 		Victim:SetAttribute("CrawlClamped", (Victim:GetAttribute("CrawlClamped") or 0) + 1) -- (a counter for tests)
@@ -206,6 +217,8 @@ end
 -- a script moved a knocked player on purpose: the clamp starts again from where they are now
 function DownedManager.RebaseCrawl(Model)
 	ClampFrom[Model] = nil
+	-- (only while that player is knocked: the watch's end forgets it, so the table never grows)
+	if DownedManager.IsKnocked(Model) then RebasedAt[Model] = os.clock() end
 end
 
 -- weld Target's root onto Holder's root (shared root, as the grip animations expect). Offset (a carry only:
@@ -304,6 +317,7 @@ function DownedManager.Knock(Victim)
 				task.wait(Cfg.CrawlCheck or 0.1)
 			end
 			ClampFrom[Victim] = nil
+			RebasedAt[Victim] = nil
 			Victim:SetAttribute("CrawlClamped", nil)
 			if not DownedManager.IsKnocked(Victim) then Victim:SetAttribute("KnockedStill", nil) end
 		end)

@@ -27,6 +27,8 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Fix round 1 (review minors, same day):** the server clamps a knocked player's crawl distance (a 10-stud jump in one tick is put back; a real crawl isn't touched); attribute `KnockedStill` makes the client's `KnockedSpeed` read 0 in deep water, gripped or carried; repo copies of the Tutorial's TuningConfig and Crouch (`Scripts/Tutorial/...`) and the live Crouch in `Art/Studio/Movement`. Play_Downed 8/0 in Ye, Foundry Yard and the Tutorial; Ye Play_Boot 2/0, Play_Road 11/0; real input: no clamp on a 3 s crawl.
 
+**Fix round 2 (re-review, same day):** the clamp puts a body back at its full last position (no more old x / z with a new height), its slack is per second (7 studs/s in all, over at most 1 s), and it leaves alone a grounded or welded assembly, a seat, PlatformStand and the 0.5 s after a rebase. Every deliberate server move of a player calls `RebaseCrawl`: StationService (gate and car-door pushes, platform, ride watchdog, departure), RoadService (arrival spread), TravelService (arrival), AdminService (bring, goto, teleport); these four services are now sync pairs. Play_Downed 10/0 in Ye (x2), Foundry Yard and the Tutorial; Ye Play_Station 20/0, Play_Road 11/0, Play_Boot 2/0. **RenseiServer** (StationService, RoadService, TravelService, AdminService) now also needs publishing.
+
 **Packages to publish:** Modules (93881868321364: DownedManager, MoverManager, AnimationManager, TuningConfig) and Assets (91921092226558: the four slots); RenseiServer is unchanged (only the `RenseiTests` suite, which is not in a package). StarterPlayerScripts (Crouch) is saved with each place. The Tutorial is saved with its place.
 
 ### Discord announcement
