@@ -49,8 +49,12 @@ function MoverManager.Movement(Character,Info)
 		Character:SetAttribute("Movement",(Character:GetAttribute("Movement") or 1) - 1)
 		if Character:GetAttribute("Movement") == 0 then
 			-- knocked / gripping / carrying own the walk speed (DownedManager); don't hand it back
-			if Character:GetAttribute("Knocked") or Character:GetAttribute("Gripping") or Frozen(Character) then
+			if Character:GetAttribute("Gripping") or Frozen(Character) then
 				Character.Humanoid.WalkSpeed = 0
+				Character.Humanoid.JumpHeight = 0
+			elseif Character:GetAttribute("Knocked") then
+				-- a knocked player crawls (DownedManager.KnockedSpeed, owner 2026-10-27); anyone else stays still
+				Character.Humanoid.WalkSpeed = require(ReplicatedStorage.Modules.Managers.DownedManager).KnockedSpeed(Character)
 				Character.Humanoid.JumpHeight = 0
 			elseif Character:GetAttribute("Carrying") then
 				local Tuning = require(ReplicatedStorage.Modules.Data.Rensei.TuningConfig)
@@ -358,3 +362,4 @@ function MoverManager.CreateMover(Character,Type,Info:{V:'Velocity/Target (Vecto
 end
 
 return MoverManager
+

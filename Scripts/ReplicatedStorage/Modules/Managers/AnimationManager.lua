@@ -104,6 +104,58 @@ local function Retime(Track, Data)
 	end)
 end
 
+-- DOWNED IDLE / DOWNED CRAWL (owner 2026-10-27, "Yes, slow crawl"; client only). While this client's character is
+-- knocked and may crawl (DownedManager.CanCrawl: a player, neither gripped nor carried) it shows Downed Idle (the
+-- "Knocked" slot, which DownedManager plays and stops) standing still and Downed Crawl (the "DownedCrawl" slot) while
+-- MoveDirection is non-zero: the crawl track fades in over TuningConfig.Downed.CrawlFade while the idle track's WEIGHT
+-- fades out (it keeps playing, so DownedManager's own Stop / Play of Knocked works as before), and back. The crawl
+-- only settles into the idle after CrawlStill seconds without input, so a tap doesn't flicker (both PROPOSAL).
+-- Gripped or carried: the crawl stops at once and the idle's weight is back to full (an execution or stomp keeps the
+-- slumped pose; a paired grip or a carry swaps Knocked for its own animation, server-side). Up again: the crawl fades
+-- out. The server owns the speed (DownedManager.KnockedSpeed); this never writes WalkSpeed (a client-side write would
+-- outlive the knock: the server's value doesn't re-replicate unless it changes). Ends with the character.
+local function CrawlAnims(Character, Humanoid)
+	local Downed = require(ReplicatedStorage.Modules.Managers.DownedManager)
+	local Cfg = require(ReplicatedStorage.Modules.Data.Rensei.TuningConfig).Downed
+	local Fade, Still = Cfg.CrawlFade or 0.25, Cfg.CrawlStill or 0.12
+	local Crawling, StillSince = false, nil
+	local function Settle(Idle, Crawl, Time)
+		if Crawl and Crawl.IsPlaying then Crawl:Stop(Time) end
+		if Idle and Idle.IsPlaying then Idle:AdjustWeight(1, Time) end
+		Crawling, StillSince = false, nil
+	end
+	local Conn
+	Conn = RunService.Heartbeat:Connect(function()
+		local Tracks = LoadedAnims[Character]
+		if not Tracks or not Character.Parent or Humanoid.Health <= 0 then
+			if Tracks and Tracks.DownedCrawl and Tracks.DownedCrawl.IsPlaying then Tracks.DownedCrawl:Stop(0.1) end
+			Conn:Disconnect()
+			return
+		end
+		local Crawl, Idle = Tracks.DownedCrawl, Tracks.Knocked
+		if not Crawl then return end -- (no slot in this place: the server's pose alone, as before)
+		if not Downed.CanCrawl(Character) then
+			-- gripped / carried: at once; up again: a normal fade
+			if Crawling then Settle(Idle, Crawl, Downed.IsKnocked(Character) and 0.05 or Fade) end
+			return
+		end
+		local Move = Humanoid.MoveDirection.Magnitude > 0.05 and Humanoid.WalkSpeed > 0
+		if Move then
+			StillSince = nil
+			if not Crawling or not Crawl.IsPlaying then
+				Crawling = true
+				Crawl.Priority = Enum.AnimationPriority.Action4
+				Crawl.Looped = true
+				if not Crawl.IsPlaying then Crawl:Play(Fade) Unfreeze(Crawl) end
+				if Idle and Idle.IsPlaying then Idle:AdjustWeight(0.001, Fade) end
+			end
+		elseif Crawling then
+			StillSince = StillSince or os.clock()
+			if os.clock() - StillSince >= Still then Settle(Idle, Crawl, Fade) end
+		end
+	end)
+end
+
 if RunService:IsClient() then
 	function AnimManager.Initiate()
 		local Player = Players.LocalPlayer
@@ -127,6 +179,8 @@ if RunService:IsClient() then
 				end
 			end
 			
+			task.spawn(CrawlAnims, Character, Humanoid) -- Downed Idle / Downed Crawl (owner 2026-10-27)
+
 			local AnimateScript = Character:WaitForChild("Animate", 10)
 			if not AnimateScript then return end
 			AnimateScript.idle.Animation1.AnimationId = Animations.Shared.Movement.Default.Idle.AnimationId

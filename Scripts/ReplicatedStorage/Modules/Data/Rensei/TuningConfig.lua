@@ -993,6 +993,17 @@ TuningConfig.Downed = {
 	GripTime = 2.0, -- length of the grip animations
 	CarryRange = 6,
 	CarryWalkSpeed = 11,
+	-- Downed crawl (owner 2026-10-27: "Yes, slow crawl"; DownedManager.KnockedSpeed): a knocked PLAYER crawls this fast
+	-- with Downed Idle / Downed Crawl; knocked enemies and townsfolk stay still, and so does anyone gripped, carried or
+	-- in deep water. All PROPOSAL.
+	CrawlSpeed = 3, -- PROPOSAL: studs/s (walk 16)
+	CrawlFade = 0.25, -- PROPOSAL: seconds the idle <-> crawl crossfade takes
+	CrawlStill = 0.12, -- PROPOSAL: seconds of no input before the crawl settles back into the idle (no flicker on a tap)
+	CrawlCheck = 0.1, -- PROPOSAL: seconds between the server's speed checks while knocked
+	-- the carried body's root in the carrier's root space (DownedManager.Attach, carries only; grips keep the shared root).
+	-- PROPOSAL, from the Play check of the owner's Carry / Carried animations (2026-10-27): over the carrier's left
+	-- shoulder (R6: left = -X), lifted 0.1 so it rests on the shoulder instead of in it.
+	CarryOffset = CFrame.new(-1.5, 0.1, 0),
 }
 
 -- ===== PvE enemies (controls doc: Dummy, Grunt, Elite with block/parry AI; same combat rules as

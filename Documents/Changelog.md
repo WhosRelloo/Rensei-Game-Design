@@ -4,6 +4,43 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-27 — Downed crawl, Downed Idle, Carry and Carried animations (not live)
+
+**Owner:** "Here's the downed idle and downed crawl anim IDs: 140397797689506, 140556271258345", "Yes, slow crawl", and the Carry (70888533900445) / Carried (124248460861263) ids; then "Throw those anims in all places we've worked on so far and make sure everything is synced up". Side task before the assassinations' DownedManager tasks (brief: `.superpowers/sdd/2026-10-25-assassinations/downed-crawl-brief.md`; report: `downed-crawl-report.md` there). Studio Edit sessions of **Ye**, **Foundry Yard** and the **Tutorial**; nothing saved or published. Every number is a **PROPOSAL**.
+
+**Animations** (all four load in Play in the three places: Downed Idle 4.17 s, Downed Crawl 0.93 s, Carry 0.5 s, Carried 0.5 s):
+- `Knocked` now plays **Downed Idle**; the questionable Greatsword grip-victim stand-in is kept as `PreviousSheetId`.
+- New slot `DownedCrawl` (**Downed Crawl**); `Carrying` = **Carry**, `Carried` = **Carried** (were unpublished Studio saves).
+- Tool: `Art/Studio/Downed/downed_slots.lua`. The Main Menu has no `Assets.Animations`, so it needed nothing.
+
+**The crawl** (players only):
+- `DownedManager`: a knocked player's WalkSpeed is `Downed.CrawlSpeed` (3) instead of 0 (`KnockedSpeed`, `CanCrawl`, `SetKnockedSpeed`; a watch keeps it while the knock lasts). Enemies, townsfolk, a gripped or carried body and a body in deep water stay at 0. JumpHeight stays 0 and everything else a knock blocks stays blocked.
+- `MoverManager`: a movement change that ends mid-knock hands back the knocked speed (it set 0 before).
+- `AnimationManager` (client): Downed Idle when still, Downed Crawl when moving, crossfaded by weight (no flicker on a tap); gripped or carried, the crawl stops at once.
+- **Fixed (an old hole the crawl made visible):** letting go of crouch while knocked set the client back to full walk speed and jump, so a knocked player could walk off at 16. `ClientHandler.Crouch` now leaves a knocked player at the knocked speed with no jump.
+- Road thresholds and the train refuse a knocked player (checked: RoadService's `Unfit`, StationService's `Held` at boarding and departure).
+- **Carry pose:** the owner's Carried animation buried the carrier's head in the body on the old root-to-root weld, so a carry's weld now puts the body over the left shoulder (`Downed.CarryOffset`). Grips are unchanged.
+
+**Tests:** new `Play_Downed` (7: crawl speed, enemy still, carried, gripped, recover, deep water, travel refused): 7/0 in Ye, Foundry Yard and the Tutorial (temporary test folder there, removed after). Real input (hold W, sampled every frame): 3 studs/s, crossfades with no flicker, grip stops the crawl at once, recover restores 16.29 on both server and client. Regressions in Ye: Play_Boot 2/0, Play_Road 11/0, Play_Stealth 9/0, Play_Perception 6/0, Play_Swim 9/0, Play_Guns 25/0, Play_TownsfolkHurt 11/0 (10/1 once: a grip timing flake, 11/0 on rerun), Play_Station 19/1 (DeathAboardDropsYouFromTheRide's respawn timing check; it fails the same way in Foundry Yard with the old code, and passed 20/0 in Foundry Yard after the sync). Foundry Yard: Play_Downed 7/0, Boot 2/0, Station 20/0, Road 11/0, Swim 9/0, FoundrySmoke 15/0. Save dumps equal in every session.
+
+**Sync:** `sync.py` covers the new pairs (DownedManager, MoverManager, ClientHandler.Crouch, Play_Downed): Ye 92/0/0, Foundry Yard 95/0/0. The Tutorial (no Modules package) got the same DownedManager, MoverManager and AnimationManager, the Downed section of TuningConfig, the crouch guard and the slots. FlowTeleport, Places, DownedManager, AnimationManager, MoverManager, the Downed tuning and the downed / grip slots hash equal across every place that has them (the Menu has only FlowTeleport and Places, both equal).
+
+**Packages to publish:** Modules (93881868321364: DownedManager, MoverManager, AnimationManager, TuningConfig) and Assets (91921092226558: the four slots); RenseiServer is unchanged (only the `RenseiTests` suite, which is not in a package). StarterPlayerScripts (Crouch) is saved with each place. The Tutorial is saved with its place.
+
+### Discord announcement
+
+Hold: not live yet. Post this when the owner publishes the update.
+
+```md
+**Update: Knocked Down, Not Out**
+
+- When you're knocked down you can now **crawl slowly** to safer ground. You still can't fight, jump, sprint or use alchemy until you get up.
+- New animations for lying knocked down and for crawling.
+- **Carrying** someone now has proper animations: they're slung over your left shoulder.
+- Being gripped or picked up stops your crawl, and you can't crawl through deep water.
+- Fixed: letting go of crouch while knocked down no longer lets you walk away at full speed.
+```
+
 ## 2026-10-27 — Backlog order: the main game quest system after stealth missions
 
 **Owner:** "I published them. After assassinations and hostages, and stealth missions, let's start the main game quest system w/ the lore, etc."

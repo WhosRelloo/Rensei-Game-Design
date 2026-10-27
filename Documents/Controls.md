@@ -44,6 +44,8 @@ Press to clap and hold to keep the clap ready. Release to cast where the camera 
 | V | Carry a knocked target |
 | B | Grip (finisher on a knocked target) |
 
+**Knocked yourself (2026-10-27, not live yet):** a knocked player can **crawl slowly** with the normal movement keys (WASD / the thumbstick) at 3 studs/s (PROPOSAL), playing Downed Crawl, and lies in Downed Idle when still. Nothing else works while you're down: no jump, attack, skill, alchemy, sprint, dash, crouch, climb or swim, and no grip or carry of your own. Being gripped or carried stops the crawl at once, and so does deep water (you float still). Knocked enemies and townsfolk don't crawl.
+
 ## Swimming
 Swimming revamp (2026-10-27, not live yet; the keys and numbers are PROPOSAL):
 

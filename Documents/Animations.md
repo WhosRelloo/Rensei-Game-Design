@@ -32,7 +32,7 @@ In Studio every animation is an `Animation` object under `ReplicatedStorage.Asse
 | Greatsword WEAPON SKILL | `Greatsword_Skill` | ✅ | Whirlwind (T) |
 | Greatsword Run | `Greatsword_Run` | ✅ | Greatsword `RunAnim` |
 | Greatsword Idle, Sheathe, Unsheathe, Walk, GRIP | `Greatsword_Idle`, `_Unequip`, `_Equip`, `_Walk`, `_Grip` | ⏳ | Studio saves kept / empty. Idle got a new sheet id 2026-10-18 (the sheet recheck) |
-| Greatsword GRIP VICTIM ("Greatsword KO", 136479651286488) | stored as `SheetId` on `Knocked` | ⏳ | **Questionable mapping:** this is the greatsword grip-victim column, not a generic knocked pose |
+| Greatsword GRIP VICTIM ("Greatsword KO", 136479651286488) | was stored as `SheetId` on `Knocked`; now `PreviousSheetId` there | ⏳ | **Fixed 2026-10-27:** `Knocked` now plays the owner's Downed Idle (see "Downed: knocked, crawl, carry" below). This was the greatsword grip-victim column, not a generic knocked pose |
 | Greatsword grip victim, row 17 | `Greatsword_Gripped` | 📦 | |
 | Dagger M1 1–4 ("Hell Dagger") | `Daggers_Light1`–`4` | ✅ (pass 3; were Studio-only). M1 3 got a new id 2026-10-19: 130478011394399 (0.42 s; was 80421062677398) | Daggers lights, dash attack (light 2) |
 | Dagger CRIT (Roblox asset name "Sword Crit"; owner confirmed) | `Daggers_Heavy` | ✅ (pass 3) | Daggers heavy, `AnimPeak` 0.54 (measured, no marker) |
@@ -100,6 +100,19 @@ The current weapon skills (Dragonflash, Flurry, Barrage, Scissor Rush, Fan the H
 | Build, Meditate, Pushups, Bow, Drag, Mask, Bandage, Arm Blast, Evil Cinematic, Cloak/Armor | `Misc_*`, `Drag` | ✅ | as before |
 | Jump, Take The L, Trainings | — | ➖ | no id |
 | Climb Right / Left / Down | `Climb.ClimbSideRight` (130050644596516), `ClimbSideLeft` (106220254643862), `ClimbDown` (107192077286134) | ✅ 2026-10-18 | directional climbing (`JumpManager`), looped at a stride matched to the climb speed. Rensei and Tutorial |
+
+## Downed: knocked, crawl, carry (owner, 2026-10-27)
+
+The owner gave these four ids in chat on 2026-10-27; they aren't in the Animation ID's sheet yet. All four load in Play in Ye, Foundry Yard and the Tutorial (Rensei group). They live in `Assets.Animations.Shared.Combat.Downed`, in Ye, Foundry Yard and the Tutorial (the Main Menu has no `Assets.Animations`). Each slot carries `SheetId`, `DownedSlots = "2026-10-27"` and its old values (`PreviousSheetId` / `PreviousAnimationId` / `PreviousUnpublished`). The tool is `Art/Studio/Downed/downed_slots.lua` (apply / check / undo, with a backup in `RenseiBackups["Pre-DownedCrawl_2026-10-27"].Assets_Downed`).
+
+| Owner's name | Game name | Id | Length | Plays |
+|---|---|---|---|---|
+| Downed Idle | `Knocked` | 140397797689506 | 4.17 s loop | a knocked character lying still (replaces the questionable Greatsword grip-victim stand-in) |
+| Downed Crawl | `DownedCrawl` (new slot) | 140556271258345 | 0.93 s loop | a knocked **player** crawling (client, `AnimationManager`: crossfaded with the idle from `MoveDirection`) |
+| Carry | `Carrying` | 70888533900445 | 0.5 s (a held pose: raised left arm) | the carrier (V) |
+| Carried | `Carried` | 124248460861263 | 0.5 s (a held pose) | the one carried, over the carrier's left shoulder (`TuningConfig.Downed.CarryOffset`) |
+
+`Carrying` and `Carried` were unpublished Studio saves before (their `Save` children stay, unused while an id is set). The assassinations plan (section 18) carries a dead takedown body with these same two slots.
 
 ## Emotes and NPC idles
 

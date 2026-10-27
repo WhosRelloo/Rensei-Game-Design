@@ -16,6 +16,12 @@
 -- * CARRY (V): pick up a knocked target (welded root-to-root, piggyback). The carrier walks at
 --   CarryWalkSpeed; V again, attacking, getting stunned or the target recovering drops them.
 -- Attributes (server-written): Knocked, KnockedUntil, GrippedBy, Gripping, CarriedBy, Carrying.
+-- * CRAWL (owner 2026-10-27: "Yes, slow crawl"): a knocked PLAYER crawls at TuningConfig.Downed.CrawlSpeed (PROPOSAL
+--   3) instead of lying still; knocked enemies and townsfolk (the assassinations' knockout too) keep WalkSpeed 0, and
+--   nobody crawls while gripped, carried or in deep water. KnockedSpeed(Model) is the rule (shared, so MoverManager
+--   hands it back after a movement change); the server keeps it with a watch while the knock lasts. Everything else
+--   a knock blocks stays blocked (no jump, attack, skill, alchemy, sprint, dash, climb, swim, grip or carry). The
+--   client shows Downed Idle (the Knocked slot) still and Downed Crawl (the DownedCrawl slot) moving: AnimationManager.
 -- Per-character knock (Region Foundation Task 6b; townsfolk set them): attributes KnockedTime (s) and
 -- RecoverHealth (share of max health) replace TuningConfig.Downed's KnockedTime / RecoverHealth for that one.
 -- Listeners (server): functions called ("Grip", Gripper, Target) after a grip finishes someone
@@ -42,6 +48,18 @@ end
 
 function DownedManager.Knockable(Model)
 	return Players:GetPlayerFromCharacter(Model) ~= nil or Model:GetAttribute("Knockable") == true
+end
+
+-- the downed crawl (owner 2026-10-27): only a knocked player who is neither gripped nor carried may crawl
+function DownedManager.CanCrawl(Model)
+	return Model ~= nil and DownedManager.IsKnocked(Model) and Players:GetPlayerFromCharacter(Model) ~= nil
+		and not Model:GetAttribute("GrippedBy") and not Model:GetAttribute("CarriedBy")
+end
+
+-- the walk speed a knocked character has: CrawlSpeed (PROPOSAL) for a player who may crawl, else 0. (The server's
+-- watch also holds a crawler still in deep water: SetKnockedSpeed.)
+function DownedManager.KnockedSpeed(Model)
+	return DownedManager.CanCrawl(Model) and (Cfg.CrawlSpeed or 0) or 0
 end
 
 local function LiveFolder()
@@ -121,13 +139,41 @@ local function OwnerOf(Model)
 	return Players:GetPlayerFromCharacter(Model)
 end
 
--- weld Target's root onto Holder's root (shared root, as the grip / carry animations expect)
-local function Attach(Holder, Target)
+-- deep water (SwimService's own test, and the Humanoid's Swimming state): a knocked body there is not swimming
+-- (MovementState refuses Swim while knocked) and must not paddle across at crawl speed, so it floats still as before
+local function InDeepWater(Model)
+	local H = Hum(Model)
+	if H and H:GetState() == Enum.HumanoidStateType.Swimming then return true end
+	local S = game:GetService("ServerScriptService"):FindFirstChild("SwimService")
+	if not S then return false end
+	local Ok, Deep = pcall(function() return require(S).InDeepWater(Model) end)
+	return Ok and Deep == true
+end
+
+-- the knocked character's walk speed now (KnockedSpeed, 0 in deep water) with no jump. Called at the knock, when a
+-- grip or carry starts or ends, and by the knock's watch every CrawlCheck seconds (it also undoes any other writer).
+local function SetKnockedSpeed(Model)
+	local H = Hum(Model)
+	if not H or not DownedManager.IsKnocked(Model) then return end
+	local Want = DownedManager.KnockedSpeed(Model)
+	if Want > 0 and InDeepWater(Model) then Want = 0 end
+	if H.WalkSpeed ~= Want then H.WalkSpeed = Want end
+	if H.JumpHeight ~= 0 then H.JumpHeight = 0 end
+end
+DownedManager.SetKnockedSpeed = SetKnockedSpeed
+
+-- weld Target's root onto Holder's root (shared root, as the grip animations expect). Offset (a carry only:
+-- TuningConfig.Downed.CarryOffset) moves the Target's root in the Holder's root space: the Carried animation (owner's id,
+-- 2026-10-27) lays the body across a shoulder line through the shared root, which buried the carrier's head in it; the
+-- offset puts it over the carrier's LEFT shoulder, where the Carry animation's raised left arm holds the legs.
+local function Attach(Holder, Target, Offset)
 	local HR, TR = Root(Holder), Root(Target)
 	if not HR or not TR then return false end
-	TR.CFrame = HR.CFrame
+	Offset = typeof(Offset) == "CFrame" and Offset or CFrame.identity
+	TR.CFrame = HR.CFrame * Offset
 	local W = Instance.new("Weld")
 	W.Name = "DownedWeld"
+	W.C0 = Offset
 	W.Part0 = HR
 	W.Part1 = TR
 	W.Parent = HR
@@ -194,12 +240,22 @@ function DownedManager.Knock(Victim)
 		KnockStun[Victim] = S
 	end
 	Lock(Victim, true)
+	SetKnockedSpeed(Victim) -- a player crawls (CrawlSpeed); anyone else stays at 0
 	AnimationManager.StopAllAnims(Victim)
 	AnimationManager.Play(Victim, "Knocked", {Looped = true, Priority = Enum.AnimationPriority.Action4})
 	local Until = Victim:GetAttribute("KnockedUntil")
 	task.delay(KnockedTime, function()
 		if Victim:GetAttribute("KnockedUntil") == Until then Recover(Victim) end
 	end)
+	-- the crawl's watch (players only): keeps the speed rule for as long as this knock lasts
+	if OwnerOf(Victim) then
+		task.spawn(function()
+			while Victim.Parent and DownedManager.IsKnocked(Victim) and Victim:GetAttribute("KnockedUntil") == Until do
+				SetKnockedSpeed(Victim)
+				task.wait(Cfg.CrawlCheck or 0.1)
+			end
+		end)
+	end
 end
 
 function Recover(Victim)
@@ -319,6 +375,7 @@ function DownedManager.Grip(Gripper, Target)
 	local WC = WCS.Character.GetCharacterFromInstance(Gripper)
 	local Style = GripStyle(Gripper)
 	Target:SetAttribute("GrippedBy", Gripper.Name)
+	SetKnockedSpeed(Target) -- gripped: the crawl stops at once
 	Gripper:SetAttribute("Gripping", Target.Name)
 	Gripper:SetAttribute("GripStyleUsed", Style)
 	-- the animation pair: bare-handed Classic = the Caestus (Fists) pair, Weapon = the weapon's (sheet, 2026-10-18)
@@ -330,6 +387,7 @@ function DownedManager.Grip(Gripper, Target)
 		-- the gripper takes the target's root position (the grip animations were authored that way)
 		if not Attach(Target, Gripper) then
 			Target:SetAttribute("GrippedBy", nil)
+			SetKnockedSpeed(Target)
 			Gripper:SetAttribute("Gripping", nil)
 			return false
 		end
@@ -375,6 +433,7 @@ function DownedManager.Grip(Gripper, Target)
 	end
 	Gripper:SetAttribute("Gripping", nil)
 	Target:SetAttribute("GrippedBy", nil)
+	if not Done then SetKnockedSpeed(Target) end -- (a finished grip leaves the body at 0)
 	if Gripper.Parent then
 		Lock(Gripper, false)
 		AnimationManager.Stop(Gripper, "Gripping")
@@ -414,6 +473,7 @@ function DownedManager.Drop(Carrier)
 	if Target then
 		Target:SetAttribute("CarriedBy", nil)
 		Detach(Target)
+		SetKnockedSpeed(Target) -- set down: a knocked player may crawl again
 		local CR, TR = Root(Carrier), Root(Target)
 		if CR and TR then TR.CFrame = CR.CFrame * CFrame.new(0, 0, -2.5) end -- set down in front
 		if Alive(Target) and DownedManager.IsKnocked(Target) then
@@ -428,8 +488,9 @@ function DownedManager.Carry(Carrier, Target)
 	Target = Target or DownedManager.Nearest(Carrier, Cfg.CarryRange)
 	if not Target or not Free(Carrier) then return false end
 	local WCS, AnimationManager, Stun = Mods()
-	if not Attach(Carrier, Target) then return false end
+	if not Attach(Carrier, Target, Cfg.CarryOffset) then return false end
 	Target:SetAttribute("CarriedBy", Carrier.Name)
+	SetKnockedSpeed(Target) -- carried: no crawl
 	Carrier:SetAttribute("Carrying", Target.Name)
 	Lock(Carrier, true, Cfg.CarryWalkSpeed)
 	AnimationManager.Stop(Target, "Knocked")
