@@ -233,7 +233,9 @@ local function CheckDeliveries()
 		local Character = Player.Character
 		local Root = Character and Character:FindFirstChild("HumanoidRootPart")
 		local Target = Character and DownedManager.Carried(Character)
-		if Target and not DownedManager.IsKnocked(Target) then Target = nil end -- (a body is never a prisoner)
+		-- (a body is never a prisoner; Task 7 review, assassinations Task 8: nor a dead one still marked Knocked)
+		local H = Target and Target:FindFirstChildOfClass("Humanoid")
+		if Target and not (DownedManager.IsKnocked(Target) and H and H.Health > 0) then Target = nil end
 		local F = Target and FinisherOf(Target)
 		if Root and F and F.Deliver then
 			for _, T in ipairs(Takers) do

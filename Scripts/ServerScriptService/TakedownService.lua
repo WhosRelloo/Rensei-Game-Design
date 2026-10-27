@@ -15,7 +15,7 @@
 -- * Request(Player, Kind, Target) -> ok, reason: refused -> the next allowed time is at least now + RefusedCooldown and
 --   LastTakedownResult = "<Kind>:<reason>". Accepted -> in the same step, with no yield, the target is marked
 --   TakenDownBy and the player TakingDown (one takedown per target, spec §11), then the takedown runs on its own thread.
---   "Knockout" and Chunk (Elite) targets are refused "todo" until Tasks 8-9, before anything is marked.
+--   Chunk (Elite) targets are refused "todo" until Task 9, before anything is marked.
 -- * The ASSASSINATION of a Full target (spec §4-§7):
 --     1. PerceptionService.Glimpse(Player, Target): every NPC but the victim takes one quick look (spec §6);
 --     2. the player is locked (DownedManager.Lock); the victim takes no damage (DamageTakenMult 0), is stunned (WCS Stun
@@ -40,22 +40,41 @@
 --        Takedown.BodySeconds, EnemyService);
 --     8. the cooldown: the next allowed time = now + Cooldown, TakedownReadyAt, LastTakedownResult "Assassinate:ok",
 --        then the Done listeners.
--- * INTERRUPTED (any kind): released as in 7, and TakenDownBy cleared, DamageTakenMult and the root's anchoring put
---   back, the victim's Stun stopped, the victim Alert on the player (PerceptionService.Alarm), the cooldown as in 8,
---   LastTakedownResult "<Kind>:interrupted", then Failed(Player, Rig, "interrupted").
--- * Heat when a guard's body is found (pre-flight R9, spec §18.3): a "Dead" body whose assassinated_guard deed was
---   recorded with witness strength 0 (nobody saw it) raises its law's Heat once when an NPC finds it, through the same
---   rule the witness path uses (Heat.Raised for the body's region, heard by the victim's own faction -> HeatService.Add).
---   A witnessed guard killing already raised Heat when it was recorded (HeatService), so it never raises it twice. A
---   gripped body carries no deed, so finding one raises nothing.
--- * Start(): the Recorded and BodyFound listeners; PlayerRemoving forgets the player's cooldown and releases any
---   takedown they're in (as an interrupt, without the Alarm). Forget(Player) clears the cooldown (tests use it too).
+-- * The KNOCKOUT of a Full target (Task 8, spec §4-§5): steps 1-2 as above, then a "Choke" sound (6 studs) at the victim;
+--   placed, welded and Anims.Knockout played (Takedown.Speed("Knockout")) for the whole KnockoutTime, with the same
+--   interrupts. At the end the victim is released (DamageTakenMult, the Stun, TakenDownBy and the root's anchoring given
+--   back), knocked out (DownedManager.Knock for Takedown.KnockoutSeconds: a knocked enemy lies still), marked
+--   KnockedOutBy (the player's UserId) and registered as an "Out" body (By = the player); then the cooldown,
+--   "Knockout:ok" and Done. No credit, no deed (Deeds.Finishers has no Knockout).
+--   WAKING UP (watched from the knockout until it wakes or dies): when Knocked clears and the rig is alive (not
+--   finished: a grip clears Knocked a moment before it kills), it is no longer a body, KnockedOutBy is cleared and,
+--   unless Takedown.IsHidden, PerceptionService.Raise puts it Alert searching where it woke (and calls others in). When it
+--   dies instead (a grip, a delivery) its "Out" body is dropped and KnockedOutBy cleared; a grip stays the loud
+--   finisher it was, with its own deed and its own "Dead" body (spec §4).
+-- * INTERRUPTED (any kind): released as in 7, and (the victim living) TakenDownBy cleared and the root's anchoring put
+--   back, DamageTakenMult (when it was saved) and the victim's Stun, the victim Alert on the player
+--   (PerceptionService.Alarm), the cooldown as in 8, LastTakedownResult "<Kind>:interrupted", then Failed(Player, Rig,
+--   "interrupted"). Broken also when the victim is knocked or gripped by something else (Task 7 review).
+-- * ERROR (Task 7 review): a takedown whose kill fails part-way (after the credit, the deed or the death) is no
+--   interrupt: released as in 7, a victim still alive given back, no Alarm, the cooldown, "<Kind>:error", and neither Done
+--   nor Failed. A corpse keeps TakenDownBy and its root as it lies.
+-- * Heat when a guard's body is found (pre-flight R9, spec §18.3; Task 8: keyed on the body, not the deed): a "Dead"
+--   body of a law-faction NPC (Takedown.IsLawFaction: its Faction attribute, else its perception faction) that a player
+--   killed -- assassinated or gripped -- raises its law's Heat once when an NPC finds it, through the same rule the
+--   witness path uses (Heat.Raised for the body's region, heard by the victim's own faction, Deeds.assassinated_guard's
+--   Crime -> HeatService.Add). Unless the kill's own deed was a crime recorded with a witness strength other than 0: that
+--   raised Heat already (HeatService), so it never rises twice. A grip's deed (executed_bandit) is no crime, so a gripped
+--   guard's Heat comes from here.
+-- * Start(): the Recorded and BodyFound listeners, and PlayerRemoving -> PlayerLeft(Player): any takedown they're in is
+--   released (an interrupt, without the Alarm), THEN their cooldown is forgotten (Task 7 review: the release writes it).
+--   Forget(Player) clears the cooldown (tests use it too).
 -- Listeners (each in a pcall): Done(Kind, Player, Rig) after a finished takedown; Failed(Player, Rig, Reason).
 --
 -- Attributes. Victim: TakenDownBy (the player's name; kept on an assassinated corpse), DamageTakenMult (0 while held),
--- FinishedBy (DownedManager.Finish), read: Faction, TakedownClass, Boss, EnemyType, TownsfolkId, Knocked, GrippedBy,
--- CarriedBy, Traversal. Player's character: TakingDown (the victim's name), TakedownReadyAt (server time), and
--- LastTakedownResult (for tests and logs); read: CombatMode, Knocked, Gripping, Carrying, Traversal.
+-- KnockedOutBy (the player's UserId while knocked out), FinishedBy (DownedManager.Finish), read: Faction, TakedownClass,
+-- Boss, EnemyType, TownsfolkId, Knocked, GrippedBy, CarriedBy, Traversal. Player's character: TakingDown (the victim's
+-- name), TakedownReadyAt (server time), and LastTakedownResult (for tests and logs); read: CombatMode, Knocked,
+-- Gripping, Carrying, Traversal.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -160,16 +179,58 @@ function TakedownService.Check(Player, Target, Kind)
 	return Takedown.Check(TakedownService.Context(Player, Target, Kind))
 end
 
+-- a rig's faction (pre-flight R8): its Faction attribute (EnemyService writes it), else its perception faction
+local function FactionOf(Target)
+	local S = PerceptionService.Npcs[Target]
+	return Target:GetAttribute("Faction") or (S and S.Faction) or nil
+end
+
 -- the deed for killing this rig (pre-flight R8): a guard's when its faction is a law, else its type's finisher deed
 local function DeedFor(Target)
-	local S = PerceptionService.Npcs[Target]
-	local Faction = Target:GetAttribute("Faction") or (S and S.Faction) or nil
+	local Faction = FactionOf(Target)
 	if Takedown.IsLawFaction(Faction) then return "assassinated_guard", Faction end
 	local F = Deeds.Finishers[Target:GetAttribute("EnemyType") or ""]
 	return F and F.Assassinate or nil, Faction
 end
 
--- the end of a takedown, once: "ok" (after the kill) or "interrupted" (Quiet: no Alarm, the player left)
+-- (Task 8) a knocked-out rig, watched until it wakes or dies: see WAKING UP in the header
+local function WatchWake(T)
+	local Conns = {}
+	local function Over()
+		for _, X in ipairs(Conns) do X:Disconnect() end
+		table.clear(Conns)
+		local Info = PerceptionService.Bodies[T]
+		if Info and Info.Kind == "Out" then PerceptionService.RemoveBody(T) end -- (a grip's "Dead" body stays)
+		T:SetAttribute("KnockedOutBy", nil)
+	end
+	table.insert(Conns, T:GetAttributeChangedSignal("Knocked"):Connect(function()
+		if T:GetAttribute("Knocked") then return end
+		-- decided once the step that cleared it is over: a finished grip clears Knocked just before it kills
+		task.defer(function()
+			if T:GetAttribute("KnockedOutBy") == nil or T:GetAttribute("Knocked") then return end
+			local Woke = Alive(T) and T:GetAttribute("FinishedBy") == nil
+			Over()
+			local R = Root(T)
+			if Woke and R and not Takedown.IsHidden(T) then PerceptionService.Raise(T, R.Position) end
+		end)
+	end))
+	local H = Hum(T)
+	if H then table.insert(Conns, H.Died:Connect(Over)) end
+	table.insert(Conns, T.Destroying:Connect(Over))
+end
+
+-- (Task 8) the knockout's end, once the victim is given back: knocked out, marked, a body, watched until it wakes
+local function KnockOut(S)
+	local Player, T = S.Player, S.Target
+	DownedManager.Knock(T, Takedown.KnockoutSeconds)
+	if not DownedManager.IsKnocked(T) then return end
+	T:SetAttribute("KnockedOutBy", Player.UserId)
+	PerceptionService.AddBody(T, {Kind = "Out", By = Player})
+	WatchWake(T)
+end
+
+-- the end of a takedown, once. Outcome: "ok" (after the kill, or the knockout's whole hold), "interrupted" (Quiet: no
+-- Alarm, the player left), or "error" (the kill failed part-way: no Alarm, neither Done nor Failed)
 local function Release(S, Outcome, Quiet)
 	if S.Over then return end
 	S.Over = true
@@ -181,14 +242,19 @@ local function Release(S, Outcome, Quiet)
 		S.Detached = true
 		DownedManager.Detach(T)
 	end
+	-- a victim that lives on (an interrupt, an error before the death, a knockout) is given back as it was; a corpse
+	-- keeps TakenDownBy (its body mark) and its root as it lies
+	local Lives = Alive(T) and (Outcome ~= "ok" or Kind == "Knockout")
 	pcall(function()
-		T:SetAttribute("DamageTakenMult", S.Mult)
-		if Outcome ~= "ok" then
+		if S.MultSaved then T:SetAttribute("DamageTakenMult", S.Mult) end
+		if Lives then
 			T:SetAttribute("TakenDownBy", nil)
 			local TR = Root(T)
 			if TR and S.Anchored ~= nil then TR.Anchored = S.Anchored end
 			if A.Victim then AnimationManager.Stop(T, A.Victim) AnimationManager.Stop(T, A.VictimFallback) end
-			if Alive(T) then AnimationManager.Play(T, "Idle", {Looped = true, Priority = Enum.AnimationPriority.Core}) end
+			if Outcome ~= "ok" and not DownedManager.IsKnocked(T) then
+				AnimationManager.Play(T, "Idle", {Looped = true, Priority = Enum.AnimationPriority.Core})
+			end
 		end
 	end)
 	if S.Stun then pcall(function() S.Stun:Stop() end) end
@@ -198,22 +264,31 @@ local function Release(S, Outcome, Quiet)
 		if A.Player then AnimationManager.Stop(C, A.Player) AnimationManager.Stop(C, A.PlayerFallback) end
 		C:SetAttribute("TakingDown", nil)
 	end)
-	if Outcome ~= "ok" and not Quiet and Alive(T) then PerceptionService.Alarm(T, S.Player) end
+	if Outcome == "ok" and Kind == "Knockout" and Lives then
+		local Ok, Err = pcall(KnockOut, S)
+		if not Ok then warn("TakedownService: the knockout failed:", Err) end
+	end
+	if Outcome == "interrupted" and not Quiet and Alive(T) then PerceptionService.Alarm(T, S.Player) end
 	NextAt[S.Player] = os.clock() + Takedown.Cooldown
 	pcall(function()
 		C:SetAttribute("TakedownReadyAt", workspace:GetServerTimeNow() + Takedown.Cooldown)
-		C:SetAttribute("LastTakedownResult", Kind .. ":" .. (Outcome == "ok" and "ok" or "interrupted"))
+		C:SetAttribute("LastTakedownResult", Kind .. ":" .. Outcome)
 	end)
-	if Outcome == "ok" then Fire(TakedownService.Done, Kind, S.Player, T) else Fire(TakedownService.Failed, S.Player, T, "interrupted") end
+	if Outcome == "ok" then
+		Fire(TakedownService.Done, Kind, S.Player, T)
+	elseif Outcome == "interrupted" then
+		Fire(TakedownService.Failed, S.Player, T, "interrupted")
+	end
 end
 
--- steps 1-4: the look, the lock and the protection, the placement and the weld, the animations
+-- steps 1-4: the look, the lock and the protection, the placement and the weld, the animations (the knockout: a Choke)
 local function Hold(S)
 	local Player, C, T, Kind = S.Player, S.Character, S.Target, S.Kind
+	-- (Task 7 review) saved first, so a takedown that can't start never writes over what the victim had
+	S.Mult, S.MultSaved = T:GetAttribute("DamageTakenMult"), true
 	PerceptionService.Glimpse(Player, T)
 	DownedManager.Lock(C, true)
 	S.Locked = true
-	S.Mult = T:GetAttribute("DamageTakenMult")
 	T:SetAttribute("DamageTakenMult", 0)
 	local VWC = WCS.Character.GetCharacterFromInstance(T)
 	if VWC then
@@ -221,6 +296,7 @@ local function Hold(S)
 		S.Stun:Start(Takedown[Kind == "Knockout" and "KnockoutTime" or "LethalTime"])
 	end
 	AnimationManager.StopAllAnims(T)
+	if Kind == "Knockout" then require(ServerScriptService.NoiseService).Emit(Root(T).Position, "Choke", C) end
 	local PR, TR = Root(C), Root(T)
 	S.Anchored = TR.Anchored
 	TR.Anchored = false -- (a test rig's anchored root would hold the player in place through the weld)
@@ -237,6 +313,7 @@ local function Broken(S)
 	local C, T = S.Character, S.Target
 	if S.Player.Parent ~= Players or not Alive(C) or not Alive(T) then return true end
 	if DownedManager.IsKnocked(C) or Stunned(C) then return true end
+	if DownedManager.IsKnocked(T) or T:GetAttribute("GrippedBy") then return true end -- (Task 7 review: taken by something else)
 	local A, B = Root(C), Root(T)
 	return not (A and B) or (A.Position - B.Position).Magnitude > Takedown.BreakDistance
 end
@@ -272,18 +349,24 @@ local function Run(Player, Target, Kind)
 		Release(S, "interrupted")
 		return
 	end
-	local KillAt = Takedown[Kind == "Knockout" and "KnockoutTime" or "LethalTime"] * Takedown.KillAt
+	-- the knockout holds for its whole KnockoutTime; the assassination kills at the Snap (LethalTime x KillAt)
+	local EndAt = Kind == "Knockout" and Takedown.KnockoutTime or Takedown.LethalTime * Takedown.KillAt
 	local T0 = os.clock()
 	while true do
 		RunService.Heartbeat:Wait()
 		if S.Over then return end
 		if Broken(S) then Release(S, "interrupted") return end
-		if os.clock() - T0 >= KillAt then break end
+		if os.clock() - T0 >= EndAt then break end
+	end
+	if Kind == "Knockout" then
+		Release(S, "ok")
+		return
 	end
 	local KillOk, KillErr = pcall(Kill, S)
 	if not KillOk then
+		-- (Task 7 review) past the point of no return (the credit, the deed, the death may be done): no interrupt
 		warn("TakedownService: the kill failed:", KillErr)
-		Release(S, "interrupted")
+		Release(S, "error")
 	end
 end
 
@@ -292,8 +375,8 @@ function TakedownService.Request(Player, Kind, Target)
 	if not (Root(Character) and typeof(Target) == "Instance" and Target:IsA("Model") and Root(Target)) then return false, "missing" end
 	local Ctx = TakedownService.Context(Player, Target, Kind)
 	local Ok, Reason = Takedown.Check(Ctx)
-	-- the knockout (Task 8) and an Elite's backstab (Task 9) don't exist yet: refused before anything is marked
-	if Ok and (Kind == "Knockout" or Ctx.Class == "Chunk") then Ok, Reason = false, "todo" end
+	-- an Elite's backstab (Task 9) doesn't exist yet: refused before anything is marked
+	if Ok and Ctx.Class == "Chunk" then Ok, Reason = false, "todo" end
 	if not Ok then
 		NextAt[Player] = math.max(NextAt[Player] or 0, os.clock() + Takedown.RefusedCooldown) -- (never shortens a cooldown)
 		Character:SetAttribute("LastTakedownResult", Label(Kind) .. ":" .. tostring(Reason))
@@ -310,18 +393,32 @@ function TakedownService.Forget(Player)
 	NextAt[Player] = nil
 end
 
--- (pre-flight R9) a found guard's body that nobody saw killed raises its law's Heat once
+-- (pre-flight R9; Task 8: keyed on the body) a found law-faction body a player killed raises its law's Heat once, unless
+-- its kill's own deed was a crime someone saw (that raised the Heat already)
 local function OnBodyFound(Body, _, Info)
-	if Info.Kind ~= "Dead" or Info.Deed ~= "assassinated_guard" or Info.Strength ~= 0 or Info.Heated then return end
+	if Info.Kind ~= "Dead" or Info.Heated then return end
 	local Player = Info.By
 	if typeof(Player) ~= "Instance" or Player.Parent ~= Players then return end
+	local Faction = Info.Faction or FactionOf(Body)
+	if not Takedown.IsLawFaction(Faction) then return end
+	local Own = Info.Deed and Deeds[Info.Deed]
+	if Own and (Own.Crime or 0) > 0 and Info.Strength ~= 0 then return end
 	Info.Heated = true
-	local Def = Deeds.assassinated_guard
+	local Def = Deeds.assassinated_guard -- (a gripped guard weighs the same: its Crime 60, PROPOSAL)
 	local Region = require(ServerScriptService.MoralityService).RegionOf(Body)
 	local HeatService = require(ServerScriptService.HeatService)
-	for _, X in ipairs(Heat.Raised(Regions.Regions[Region], {Info.Faction}, Def)) do
+	for _, X in ipairs(Heat.Raised(Regions.Regions[Region], {Faction}, Def)) do
 		HeatService.Add(Player, X.J, X.Amount, Region, Def.HeatCap)
 	end
+end
+
+-- the player left: any takedown they're in is released (an interrupt, without the Alarm), THEN their cooldown is
+-- forgotten (Task 7 review: the release writes the cooldown, so forgetting it first left it behind)
+function TakedownService.PlayerLeft(Player)
+	Recorded[Player] = nil
+	local S = Running[Player]
+	if S then Release(S, "interrupted", true) end
+	TakedownService.Forget(Player)
 end
 
 local Started = false
@@ -332,12 +429,7 @@ function TakedownService.Start()
 		Recorded[Player] = {Deed = DeedId, Strength = Info and Info.Strength}
 	end)
 	table.insert(PerceptionService.BodyFound, OnBodyFound)
-	Players.PlayerRemoving:Connect(function(Player)
-		TakedownService.Forget(Player)
-		Recorded[Player] = nil
-		local S = Running[Player]
-		if S then Release(S, "interrupted", true) end
-	end)
+	Players.PlayerRemoving:Connect(TakedownService.PlayerLeft)
 end
 
 return TakedownService
