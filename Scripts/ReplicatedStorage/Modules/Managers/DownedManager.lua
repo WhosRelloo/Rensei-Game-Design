@@ -4,7 +4,10 @@
 --   character (any player; an enemy with attribute Knockable) to 0 leaves them at 1 HP and
 --   KNOCKED instead: slumped, stunned, immune to further damage; a knocked PLAYER can only crawl (see CRAWL), anyone
 --   else can't move.
--- * After KnockedTime they recover with RecoverHealth of max health.
+-- * After KnockedTime they recover with RecoverHealth of max health. Knock(Victim, Seconds) (assassinations Task 6):
+--   Seconds, when it is a positive number, is this knock's length and wins over the KnockedTime attribute and
+--   TuningConfig.Downed.KnockedTime (the takedown's knockout passes Rensei.Takedown.KnockoutSeconds); every other call
+--   passes none. Second Wind (a player's keystone) still shortens it to 12 s.
 -- * GRIP (B): finish a knocked target in range over GripTime. Getting stunned cancels it; completing it
 --   kills the target (an ordinary death -- PvP / permadeath consequences are not decided yet).
 --   Grip styles (owner 2026-10-15: "add different grips"; PROPOSAL): with a weapon drawn, an
@@ -18,6 +21,12 @@
 --   TuningConfig.Downed.CarryOffset in the carrier's root space, 2026-10-27, for the owner's Carry / Carried
 --   animations; grips keep the shared root). The carrier walks at CarryWalkSpeed; V again, attacking, getting
 --   stunned or the target recovering drops them.
+--   Assassinations Task 6 (owner 2026-10-27, "Yes, carry bodies"; pre-flight R6): V also picks up a takedown's dead
+--   body (IsTakedownBody: dead, TakenDownBy set, still in the world), carried and set down like a knocked one; its
+--   despawn timer keeps running and it stays a body to PerceptionService. Only Carry's lookup takes bodies
+--   (Nearest's Opts.Bodies); Grip never does. A carry holds its exact body: removed while held (a corpse's 120 s, a
+--   despawn), it is dropped at once and its weld goes with it; nothing is ever looked up by name in its place.
+--   Lock, Attach (with the caller's own offset) and Detach are shared with TakedownService (pre-flight R16 / D3).
 -- Attributes (server-written): Knocked, KnockedUntil, GrippedBy, Gripping, CarriedBy, Carrying.
 -- * CRAWL (owner 2026-10-27: "Yes, slow crawl"): a knocked PLAYER crawls at TuningConfig.Downed.CrawlSpeed (PROPOSAL
 --   3) instead of lying still; knocked enemies and townsfolk (the assassinations' knockout too) keep WalkSpeed 0, and
@@ -30,7 +39,8 @@
 --   clamps the crawl's distance (ClampCrawl): a knocked player's root that moved further across the ground than a
 --   crawl could is put back at the last allowed point. A script that moves a player's character on purpose calls
 --   RebaseCrawl(Model) afterwards (fix round 2: Drop, StationService, RoadService, TravelService, AdminService), which
---   pins that point to the server's spot (fix round 3).
+--   pins that point to the server's spot (fix round 3). The knock's own first CrawlClampGrace seconds are pinned at
+--   the knock point too, with a momentum allowance (assassinations Task 6).
 -- Per-character knock (Region Foundation Task 6b; townsfolk set them): attributes KnockedTime (s) and
 -- RecoverHealth (share of max health) replace TuningConfig.Downed's KnockedTime / RecoverHealth for that one.
 -- Listeners (server): functions called ("Grip", Gripper, Target) after a grip finishes someone
@@ -181,31 +191,54 @@ DownedManager.SetKnockedSpeed = SetKnockedSpeed
 -- most 1 s (a hitch). Further, the root is put back AT the last allowed point (its full position, so it never ends up
 -- inside geometry or mid-air). Not clamped (the point just follows): a grounded / anchored assembly (a script holds
 -- it), a root welded into another assembly (a latch, a grip or carry weld), PlatformStand, a seat, GrippedBy /
--- CarriedBy, or the first CrawlClampGrace seconds of the knock (momentum). Every deliberate server move of a player's
--- character calls RebaseCrawl (StationService, RoadService, TravelService, AdminService, Drop), which pins the last
--- allowed point to the server's own spot right after the move (fix round 3: it used to follow the client for a grace,
--- so a rebase could be ridden anywhere). For CrawlClampGrace seconds after a rebase a snap back to that spot is not
--- counted in CrawlClamped: it is the owning client's stale echo of where it was before the move (seen when a carry is
--- set down).
-local ClampFrom = {} -- [Model] = {Pos = Vector3, T = os.clock()}: the last allowed point (knocked players only)
-local RebasedAt = {} -- [Model] = os.clock() of the last RebaseCrawl (knocked players only; the watch's end forgets it)
+-- CarriedBy. Every deliberate server move of a player's character calls RebaseCrawl (StationService, RoadService,
+-- TravelService, AdminService, Drop), which pins the last allowed point to the server's own spot right after the move
+-- (fix round 3: it used to follow the client for a grace, so a rebase could be ridden anywhere). For CrawlClampGrace
+-- seconds after a rebase a snap back to that spot is not counted in CrawlClamped: it is the owning client's stale echo
+-- of where it was before the move (seen when a carry is set down).
+-- The knock's own grace (assassinations Task 6; it used to follow the client, one free reposition per knock): for the
+-- first CrawlClampGrace seconds the point is PINNED at the knock point. The body may still be carried by what it was
+-- doing (a sprint, a dash, the hit's knockback), so the whole way since the knock may be KnockMomentum x the time since
+-- it; farther, it is put back at the knock point (counted). Once the grace is over, the crawl's clamp goes on from
+-- wherever the momentum left it.
+-- Weak-keyed (Task 6): a test that sets Knocked directly (no Knock, so no watch to forget them) and calls RebaseCrawl
+-- leaves nothing behind. While a knock lasts, its watch holds the character (an upvalue), so the entry stays.
+local ClampFrom = setmetatable({}, {__mode = "k"}) -- [Model] = {Pos = Vector3, T = os.clock(), Pin = the knock's grace}
+local RebasedAt = setmetatable({}, {__mode = "k"}) -- [Model] = os.clock() of the last RebaseCrawl (knocked players only)
 local WatchToken = {} -- [Model] = the running knock watch's token (a re-knock's old watch clears nothing of the new one)
-local function Unclamped(Victim, R, KnockedAt, Now)
+-- the knock's momentum allowance (Task 6, PROPOSAL): the game's fastest legitimate speed, the dash's peak
+-- (TuningConfig.Dash.MaxSpeed 110 studs/s), above the dash attack's lunge (DashAttack.Lunge 65) and the speedy sprint
+-- (Locomotion.Design.SpeedyRun 30; ClientHandler.Run sprints at 24 / 30). DamageManager's default hit knockback (75) is
+-- below it too.
+local KnockMomentum = math.max((Tuning.Dash or {}).MaxSpeed or 0, (Tuning.DashAttack or {}).Lunge or 0,
+	((Tuning.Locomotion or {}).Design or {}).SpeedyRun or 0)
+local function Unclamped(Victim, R)
 	local H = Hum(Victim)
 	return R:IsGrounded() or R.AssemblyRootPart ~= R or (H ~= nil and (H.PlatformStand or H.SeatPart ~= nil))
 		or Victim:GetAttribute("GrippedBy") ~= nil or Victim:GetAttribute("CarriedBy") ~= nil
-		or Now - KnockedAt < (Cfg.CrawlClampGrace or 0.5)
 end
-local function ClampCrawl(Victim, KnockedAt)
+local function ClampCrawl(Victim)
 	local R = Root(Victim)
 	if not R then return end
 	local Now = os.clock()
 	local C = ClampFrom[Victim]
-	if not C or Unclamped(Victim, R, KnockedAt, Now) then
+	if not C or Unclamped(Victim, R) then
 		ClampFrom[Victim] = {Pos = R.Position, T = Now}
 		return
 	end
 	local D = Vector3.new(R.Position.X - C.Pos.X, 0, R.Position.Z - C.Pos.Z).Magnitude
+	if C.Pin then
+		local Since = Now - C.T
+		if D > KnockMomentum * Since + 0.05 then
+			-- further than any momentum could carry it: back at the knock point (the pin stays)
+			R.CFrame += C.Pos - R.Position
+			R.AssemblyLinearVelocity = Vector3.zero
+			Victim:SetAttribute("CrawlClamped", (Victim:GetAttribute("CrawlClamped") or 0) + 1)
+		elseif Since >= (Cfg.CrawlClampGrace or 0.5) then
+			ClampFrom[Victim] = {Pos = R.Position, T = Now} -- the momentum is spent: the crawl's clamp from here
+		end
+		return
+	end
 	if D < 0.05 then return end -- (still: the window keeps growing, up to its cap)
 	local Dt = math.min(Now - C.T, Cfg.CrawlClampWindow or 1)
 	local Max = ((Cfg.CrawlSpeed or 0) * (Cfg.CrawlClampMult or 1.5) + (Cfg.CrawlClampSlack or 2.5)) * Dt
@@ -278,14 +311,23 @@ local function Detach(Target)
 	if TR then pcall(function() TR:SetNetworkOwner(OwnerOf(Target)) end) end
 end
 
+-- shared with TakedownService (pre-flight R16 / D3): the same lock, weld and release, never copied. Attach's Offset is
+-- the caller's own (a takedown passes its own; only Carry passes CarryOffset).
+DownedManager.Lock = Lock
+DownedManager.Attach = Attach
+DownedManager.Detach = Detach
+
 -- ===== Knock / recover =====
 local Recover
 
-function DownedManager.Knock(Victim)
+function DownedManager.Knock(Victim, Seconds)
 	if DownedManager.IsKnocked(Victim) or not Alive(Victim) then return end
 	local WCS, AnimationManager, Stun = Mods()
+	-- the knock's length: Seconds when it's a positive number (assassinations Task 6), else the character's own
+	-- KnockedTime (townsfolk, Task 6b), else TuningConfig.Downed.KnockedTime
+	local KnockedTime = (type(Seconds) == "number" and Seconds > 0 and Seconds < math.huge and Seconds)
+		or tonumber(Victim:GetAttribute("KnockedTime")) or Cfg.KnockedTime
 	-- Second Wind (skill tree keystone): once per life, a shorter knock and a stronger recovery
-	local KnockedTime = tonumber(Victim:GetAttribute("KnockedTime")) or Cfg.KnockedTime -- (per character: townsfolk, Task 6b)
 	local SkillMods = require(game:GetService("ReplicatedStorage").Modules.Managers.SkillMods)
 	if SkillMods.Get(Victim, "SecondWind") > 0 and not Victim:GetAttribute("SecondWindUsed") then
 		Victim:SetAttribute("SecondWindUsed", true)
@@ -304,7 +346,13 @@ function DownedManager.Knock(Victim)
 		local S = Stun.new(WC)
 		S:Start(KnockedTime)
 		if not KnockStun[Victim] then
-			Victim.Destroying:Once(function() KnockStun[Victim], Welds[Victim] = nil, nil end)
+			Victim.Destroying:Once(function()
+				KnockStun[Victim] = nil
+				-- (Task 6) a carry's weld sits on the CARRIER's root: destroy it, don't just forget it
+				local W = Welds[Victim]
+				Welds[Victim] = nil
+				if W then W:Destroy() end
+			end)
 		end
 		KnockStun[Victim] = S
 	end
@@ -319,14 +367,16 @@ function DownedManager.Knock(Victim)
 	-- the crawl's watch (players only): keeps the speed rule for as long as this knock lasts
 	if OwnerOf(Victim) then
 		task.spawn(function()
-			local KnockedAt = os.clock()
 			local Token = {}
 			WatchToken[Victim] = Token
-			ClampFrom[Victim], RebasedAt[Victim] = nil, nil
+			-- (Task 6) the knock's grace is pinned at the knock point
+			local R = Root(Victim)
+			ClampFrom[Victim] = R and {Pos = R.Position, T = os.clock(), Pin = true} or nil
+			RebasedAt[Victim] = nil
 			Victim:SetAttribute("CrawlClamped", nil)
 			while Victim.Parent and DownedManager.IsKnocked(Victim) and Victim:GetAttribute("KnockedUntil") == Until do
 				SetKnockedSpeed(Victim)
-				ClampCrawl(Victim, KnockedAt)
+				ClampCrawl(Victim)
 				task.wait(Cfg.CrawlCheck or 0.1)
 			end
 			-- (fix round 3) only this knock's own state: a re-knock during the last wait has its own watch and token
@@ -388,24 +438,38 @@ function DownedManager.Find(Name)
 end
 
 -- the body this carrier is actually holding. Enemies share names ("Bandit Duelist"), so a name
--- lookup can return a different, healthy one; the CarriedBy link is exact.
+-- lookup can return a different, healthy one; the CarriedBy link is exact. With that link gone (the body was
+-- removed) there is none: no name fallback (assassinations Task 6, pre-flight R6).
 function DownedManager.Carried(Carrier)
 	local Name = Carrier and Carrier:GetAttribute("Carrying")
 	if not Name then return nil end
 	for _, M in ipairs(DownedManager.LiveModels()) do
 		if M.Name == Name and M:GetAttribute("CarriedBy") == Carrier.Name then return M end
 	end
-	return DownedManager.Find(Name)
+	return nil
 end
 
--- nearest knocked, free target within Range of Actor
-function DownedManager.Nearest(Actor, Range)
+-- a takedown's dead body (assassinations, spec §18.1): a dead rig a takedown marked (TakenDownBy), still in the world.
+-- Carry can take one; Grip never does.
+function DownedManager.IsTakedownBody(Model)
+	local H = Hum(Model)
+	return H ~= nil and Model.Parent ~= nil and H.Health <= 0 and Model:GetAttribute("TakenDownBy") ~= nil
+end
+
+-- can a grip or a carry take M: knocked, alive and held by nobody; with Bodies (Carry only), a takedown's body too
+local function Takeable(M, Bodies)
+	if M:GetAttribute("GrippedBy") or M:GetAttribute("CarriedBy") then return false end
+	return (DownedManager.IsKnocked(M) and Alive(M)) or (Bodies == true and DownedManager.IsTakedownBody(M))
+end
+
+-- nearest knocked, free target within Range of Actor. Opts.Bodies (Carry only): a takedown's dead body counts too.
+function DownedManager.Nearest(Actor, Range, Opts)
 	local AR = Root(Actor)
 	if not AR then return nil end
+	local Bodies = type(Opts) == "table" and Opts.Bodies == true
 	local Best, BestD = nil, Range
 	for _, M in ipairs(DownedManager.LiveModels()) do
-		if M ~= Actor and DownedManager.IsKnocked(M) and Alive(M) and not M:GetAttribute("GrippedBy")
-			and not M:GetAttribute("CarriedBy") then
+		if M ~= Actor and Takeable(M, Bodies) then
 			local R = Root(M)
 			local D = R and (R.Position - AR.Position).Magnitude
 			if D and D <= BestD then Best, BestD = M, D end
@@ -453,7 +517,8 @@ function DownedManager.Grip(Gripper, Target)
 	local WaitUntil = os.clock() + 0.6
 	while select(4, Mods()).IsRunning(Gripper) and os.clock() < WaitUntil do RunService.Heartbeat:Wait() end
 	Target = Target or DownedManager.Nearest(Gripper, Cfg.GripRange)
-	if not Target or not Free(Gripper) then return false end
+	-- (Task 6) a target handed in is checked like a found one: knocked, alive, held by nobody (never a dead body)
+	if not Target or Target == Gripper or not Takeable(Target, false) or not Free(Gripper) then return false end
 	local WCS, AnimationManager, Stun = Mods()
 	local WC = WCS.Character.GetCharacterFromInstance(Gripper)
 	local Style = GripStyle(Gripper)
@@ -545,9 +610,20 @@ function DownedManager.Grip(Gripper, Target)
 end
 
 -- ===== Carry =====
+-- [Carrier] = {Target = the exact body held, Conns = its removal hooks} (Task 6: a removed body still has its weld on
+-- the carrier, and a name lookup could find another rig). Plain, emptied by Drop.
+local Held = {}
+
 function DownedManager.Drop(Carrier)
 	if not Carrier then return end
-	local Target = DownedManager.Carried(Carrier)
+	local Hold = Held[Carrier]
+	Held[Carrier] = nil
+	if not Hold and not Carrier:GetAttribute("Carrying") then return end -- (not carrying: nothing to undo)
+	if Hold then
+		for _, Conn in ipairs(Hold.Conns) do Conn:Disconnect() end
+	end
+	-- the exact body held, even one already removed (its weld is still on the carrier); else the CarriedBy link
+	local Target = Hold and Hold.Target or DownedManager.Carried(Carrier)
 	Carrier:SetAttribute("Carrying", nil)
 	local _, AnimationManager = Mods()
 	if Carrier.Parent then
@@ -556,7 +632,8 @@ function DownedManager.Drop(Carrier)
 	end
 	if Target then
 		Target:SetAttribute("CarriedBy", nil)
-		Detach(Target)
+		Detach(Target) -- (the weld goes even when the body is gone)
+		if not Target.Parent then return end
 		SetKnockedSpeed(Target) -- set down: a knocked player may crawl again
 		local CR, TR = Root(Carrier), Root(Target)
 		if CR and TR then TR.CFrame = CR.CFrame * CFrame.new(0, 0, -2.5) end -- set down in front
@@ -565,13 +642,18 @@ function DownedManager.Drop(Carrier)
 			AnimationManager.Stop(Target, "Carried")
 			AnimationManager.Play(Target, "Knocked", {Looped = true, Priority = Enum.AnimationPriority.Action4})
 			if (Target:GetAttribute("KnockedUntil") or 0) <= workspace:GetServerTimeNow() then Recover(Target) end
+		elseif DownedManager.IsTakedownBody(Target) then
+			-- a body lies as it lay before it was picked up (the Knocked pose)
+			AnimationManager.Stop(Target, "Carried")
+			AnimationManager.Play(Target, "Knocked", {Looped = true, Priority = Enum.AnimationPriority.Action4})
 		end
 	end
 end
 
 function DownedManager.Carry(Carrier, Target)
-	Target = Target or DownedManager.Nearest(Carrier, Cfg.CarryRange)
-	if not Target or not Free(Carrier) then return false end
+	Target = Target or DownedManager.Nearest(Carrier, Cfg.CarryRange, {Bodies = true})
+	-- (Task 6) a target handed in is checked like a found one: knocked and alive, or a takedown's body; held by nobody
+	if not Target or Target == Carrier or not Takeable(Target, true) or not Free(Carrier) then return false end
 	local WCS, AnimationManager, Stun = Mods()
 	if not Attach(Carrier, Target, Cfg.CarryOffset) then return false end
 	Target:SetAttribute("CarriedBy", Carrier.Name)
@@ -581,11 +663,25 @@ function DownedManager.Carry(Carrier, Target)
 	AnimationManager.Stop(Target, "Knocked")
 	AnimationManager.Play(Target, "Carried", {Looped = true, Priority = Enum.AnimationPriority.Action4})
 	AnimationManager.Play(Carrier, "Carrying", {Looped = true, Priority = Enum.AnimationPriority.Action})
+	-- held exactly; a body removed while held (a corpse's 120 s, a despawn) is dropped at once
+	local Hold = {Target = Target, Conns = {}}
+	Held[Carrier] = Hold
+	local function Gone()
+		if Held[Carrier] == Hold then DownedManager.Drop(Carrier) end
+	end
+	table.insert(Hold.Conns, Target.Destroying:Connect(Gone))
+	table.insert(Hold.Conns, Target.AncestryChanged:Connect(function()
+		if not Target:IsDescendantOf(workspace) then Gone() end
+	end))
 	local WC = WCS.Character.GetCharacterFromInstance(Carrier)
 	task.spawn(function()
-		while Carrier:GetAttribute("Carrying") == Target.Name do
+		while Held[Carrier] == Hold do
 			task.wait(0.1)
-			if not Alive(Carrier) or not Alive(Target) or not DownedManager.IsKnocked(Target)
+			if Held[Carrier] ~= Hold then break end
+			-- still a body to hold: knocked and alive, or (Task 6) a takedown's dead body
+			local Holdable = Target.Parent ~= nil and ((Alive(Target) and DownedManager.IsKnocked(Target))
+				or DownedManager.IsTakedownBody(Target))
+			if not Alive(Carrier) or not Holdable or Carrier:GetAttribute("Carrying") ~= Target.Name
 				or DownedManager.IsKnocked(Carrier) or (WC and WC:HasStatusEffects({Stun}))
 				or Carrier:GetAttribute("CombatState") ~= nil then
 				DownedManager.Drop(Carrier)

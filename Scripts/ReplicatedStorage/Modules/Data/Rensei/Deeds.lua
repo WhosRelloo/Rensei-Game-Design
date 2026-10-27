@@ -18,7 +18,7 @@
 --     HeatCap  = n      -- the most Heat this crime may add per place per hour
 --   }
 -- Deeds come from: dialogue actions {Kind = "Deed", Deed = id}, quest Outcomes[x].Deeds, and
--- MoralityService's combat hooks (Finishers below: grip vs deliver a knocked enemy).
+-- MoralityService's combat hooks (Finishers below: grip vs deliver a knocked enemy, or assassinate one).
 
 local Deeds = {
 	-- ===== "Chalk on the Foundry Wall": the Lise choice (quest Outcomes) =====
@@ -83,6 +83,23 @@ local Deeds = {
 		Conduct = {Mercy = -1},
 		Scope = "Local",
 		Repeat = {Cap = 10},
+	},
+	-- ===== Takedowns (assassinations, 2026-10-25): an assassinated bandit weighs the same as a finished one (PROPOSAL) =====
+	assassinated_bandit = {
+		Text = "Assassinated a bandit",
+		Conduct = {Mercy = -1},
+		Scope = "Local",
+		Repeat = {Cap = 10},
+	},
+	-- a guard (a victim whose faction is a law, Rensei.Takedown.IsLawFaction; owner 2026-10-27 "Mercy -5 + Heat", spec
+	-- §18.3): a crime, Heat in that law's jurisdiction when it hears of it. Crime 60 is a PROPOSAL (= murder_townsfolk).
+	-- TakedownService picks it instead of Finishers[..].Assassinate (Task 7).
+	assassinated_guard = {
+		Text = "Assassinated a guard",
+		Conduct = {Mercy = -5},
+		Scope = "Local",
+		Repeat = {Cap = 10},
+		Crime = 60,
 	},
 	arrested_bandit = {
 		Text = "Carried a beaten bandit in alive",
@@ -161,11 +178,13 @@ local Deeds = {
 	},
 }
 
--- Which deed a finisher on a knocked enemy records, by its EnemyType attribute (TuningConfig.Enemies).
--- Hostile mobs that just die are not deeds. Players are not covered here (PvP rules undecided).
+-- Which deed a finisher records, by the enemy's EnemyType attribute (TuningConfig.Enemies): Grip = finishing a knocked
+-- one, Deliver = carrying it in alive, Assassinate = a stealth takedown's kill (assassinations, 2026-10-25; a law-faction
+-- victim records assassinated_guard instead). A takedown's knockout is no deed (no Knockout entry), and hostile mobs
+-- that just die are not deeds. Players are not covered here (PvP rules undecided).
 Deeds.Finishers = {
-	Grunt = {Grip = "executed_bandit", Deliver = "arrested_bandit"},
-	Elite = {Grip = "executed_bandit", Deliver = "arrested_bandit"},
+	Grunt = {Grip = "executed_bandit", Deliver = "arrested_bandit", Assassinate = "assassinated_bandit"},
+	Elite = {Grip = "executed_bandit", Deliver = "arrested_bandit", Assassinate = "assassinated_bandit"},
 }
 
 return Deeds

@@ -1,6 +1,7 @@
 -- Test_Takedown (assassinations Task 2, 2026-10-27): Rensei.Takedown's numbers and pure rules. Every expected value
 -- is written by hand here, never read from the module. The module is loaded inside each test, so with it missing
--- every test fails on its own (RED) instead of the whole suite erroring once.
+-- every test fails on its own (RED) instead of the whole suite erroring once. Task 6 adds Deed: the takedown deeds in
+-- Rensei.Deeds.
 local function Load()
 	local M = game.ReplicatedStorage.Modules.Data.Rensei:FindFirstChild("Takedown")
 	assert(M, "Rensei.Takedown is missing")
@@ -190,5 +191,38 @@ return {
 	Hidden = function(T)
 		local K = Load()
 		T.Eq(K.IsHidden(nil), false, "nothing is hidden until stealth missions (M3)")
+	end,
+
+	-- Task 6: the takedown deeds. An assassinated bandit weighs the same as a finished one (Mercy -1, Local, cap 10, no
+	-- crime); a knockout of a hostile mob is no deed. A law-faction victim records assassinated_guard (pre-flight R8, spec
+	-- §18.3): Mercy -5 and a crime (60), which raises Heat only where its own law hears it.
+	Deed = function(T)
+		local Rensei = game.ReplicatedStorage.Modules.Data.Rensei
+		local Deeds = require(Rensei.Deeds)
+		local Heat = require(Rensei.Heat)
+		local B = Deeds.assassinated_bandit
+		T.True(type(B) == "table", "Deeds.assassinated_bandit exists")
+		T.Eq(B.Text, "Assassinated a bandit")
+		T.Same(B.Conduct, {Mercy = -1}, "Conduct")
+		T.Eq(B.Scope, "Local")
+		T.Same(B.Repeat, {Cap = 10}, "Repeat")
+		T.Eq(B.Crime, nil, "a bandit is an outlaw: no crime")
+		T.Eq(Deeds.Finishers.Grunt.Assassinate, "assassinated_bandit", "Grunt")
+		T.Eq(Deeds.Finishers.Elite.Assassinate, "assassinated_bandit", "Elite")
+		T.Eq(Deeds.Finishers.Grunt.Knockout, nil, "a knockout of a hostile mob is no deed")
+		T.Eq(Deeds.Finishers.Elite.Knockout, nil, "nor an Elite's")
+		T.Eq(Deeds.Finishers.Grunt.Grip, "executed_bandit", "the grip's deed is unchanged")
+		T.Eq(Deeds.Finishers.Grunt.Deliver, "arrested_bandit", "the delivery's deed is unchanged")
+		local G = Deeds.assassinated_guard
+		T.True(type(G) == "table", "Deeds.assassinated_guard exists")
+		T.Eq(G.Text, "Assassinated a guard")
+		T.Same(G.Conduct, {Mercy = -5}, "guard Conduct")
+		T.Eq(G.Scope, "Local")
+		T.Same(G.Repeat, {Cap = 10}, "guard Repeat")
+		T.Eq(G.Crime, 60, "a crime")
+		T.Same(Heat.Raised({Jurisdiction = "Militia"}, {"Townsfolk"}, G), {{J = "Militia", Amount = 60}}, "the Militia hears it")
+		T.Same(Heat.Raised({Jurisdiction = "State"}, {"Authority"}, G), {{J = "State", Amount = 60}}, "the State hears it")
+		T.Same(Heat.Raised({Jurisdiction = "State"}, {"Townsfolk"}, G), {}, "another law's people: no Heat")
+		T.Same(Heat.Raised({Jurisdiction = "Militia"}, {"Townsfolk"}, B), {}, "a bandit's assassination: no Heat")
 	end,
 }

@@ -164,6 +164,40 @@ return {
 		end)
 	end,
 
+	-- assassinations Task 6 (the side task's last re-review): the knock's own grace (CrawlClampGrace, for momentum) no
+	-- longer follows the client. The clamp is pinned at the knock point: a move within the fastest legitimate speed (the
+	-- dash's 110 studs/s) x the time since the knock is kept, a farther one is snapped back to the knock point and counted.
+	KnockGraceSnapsBack = function(T)
+		local function Flat(V) return Vector3.new(V.X, 0, V.Z).Magnitude end
+		local function BackOf(Root)
+			local Back = -Root.CFrame.LookVector * Vector3.new(1, 0, 1)
+			return Back.Magnitude > 1e-3 and Back.Unit or Vector3.new(1, 0, 0)
+		end
+		-- control: sprint momentum (24 studs/s, ClientHandler.Run) for 0.4 s inside the grace is kept
+		Knocked(function(C)
+			local Root = C.HumanoidRootPart
+			local Clamped = C:GetAttribute("CrawlClamped") or 0
+			local Back, From = BackOf(Root), Root.Position
+			for _ = 1, 4 do
+				Root.CFrame += Back * 2.4
+				task.wait(0.1)
+			end
+			task.wait((Cfg.CrawlClampGrace or 0.5) + 0.3)
+			T.True(math.abs(Flat(Root.Position - From) - 9.6) < 1, "sprint momentum kept (" .. Flat(Root.Position - From) .. " of 9.6)")
+			T.Eq(C:GetAttribute("CrawlClamped") or 0, Clamped, "momentum isn't clamped")
+		end)
+		-- a 100-stud teleport at once (no dash goes 100 studs in a tick): back at the knock point
+		Knocked(function(C)
+			local Root = C.HumanoidRootPart
+			local Clamped = C:GetAttribute("CrawlClamped") or 0
+			local KnockAt = Root.Position
+			Root.CFrame += BackOf(Root) * 100
+			task.wait(0.35)
+			T.True(Flat(Root.Position - KnockAt) < 1, "snapped back to the knock point (" .. Flat(Root.Position - KnockAt) .. " off)")
+			T.True((C:GetAttribute("CrawlClamped") or 0) > Clamped, "counted as clamped")
+		end)
+	end,
+
 	-- fix round 2: a knocked player in a seat, or welded into another assembly (a latch), is moved by that, not clamped
 	SeatedOrWeldedNotClamped = function(T)
 		Knocked(function(C, H)

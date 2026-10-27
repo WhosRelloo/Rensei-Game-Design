@@ -22,13 +22,14 @@
 --     Anchored); PerceptionService and LightService SetAuto(false); lays the floor; runs Body in a pcall; then Kit.Clean
 --     and the put-back. Re-raises Body's error.
 --   * Kit.Clean(): Guard's clean-up (Guard calls it; SmokeKit.Guarded then removes the parts and puts the character
---     back): every rig the kit made removed (and any other enemy left on the floor), TakingDown, TakedownReadyAt and
+--     back): a carry the case left dropped and any carry weld off the player's root (Task 6), every rig the kit made removed (and any other enemy left on the floor), TakingDown, TakedownReadyAt and
 --     LastTakedownResult cleared on the character, the saved attributes restored, both loops SetAuto(true).
 local Players = game:GetService("Players")
 local SSS = game:GetService("ServerScriptService")
 local PS = require(SSS.PerceptionService)
 local LS = require(SSS.LightService)
 local SmokeKit = require(script.Parent.SmokeKit)
+local DownedManager = require(game:GetService("ReplicatedStorage").Modules.Managers.DownedManager)
 
 local Kit = {}
 
@@ -107,6 +108,13 @@ end
 Kit.Run = SmokeKit.Run
 
 function Kit.Clean()
+	-- (Task 6) a case that failed mid-carry: set the body down first (the carrier's walk back), and no carry weld stays
+	-- on the player's root
+	local Char = Kit.Player().Character
+	if Char:GetAttribute("Carrying") then pcall(DownedManager.Drop, Char) end
+	for _, W in ipairs(Char.HumanoidRootPart:GetChildren()) do
+		if W.Name == "DownedWeld" then W:Destroy() end
+	end
 	for _, Rig in ipairs(Made) do SmokeKit.RemoveEnemy(Rig) end
 	table.clear(Made)
 	SmokeKit.SweepEnemies(Kit.Spot(), SWEEP)
