@@ -1,5 +1,6 @@
--- E toggles Combat Mode. E is also Interact (controls doc): while an interact prompt is showing and
--- you are not in combat, E goes to the prompt instead. The server owns the CombatMode attribute.
+-- E toggles Combat Mode. E is also Interact (controls doc): while an interact prompt on E is showing and
+-- you are not in combat, E goes to the prompt instead (a prompt on another key, the takedown's N, doesn't take E).
+-- The server owns the CombatMode attribute.
 
 local ContextActionService = game:GetService("ContextActionService")
 local ProximityPromptService = game:GetService("ProximityPromptService")
@@ -14,7 +15,7 @@ local Gui = UIState.Gui
 
 local CombatModeUI = {}
 
-local Shown = 0 -- interact prompts currently visible
+local Shown = {} -- the interact prompts on E currently visible
 local Indicator = nil
 
 local function Enabled()
@@ -60,15 +61,28 @@ local function MakeIndicator()
 	return L
 end
 
+-- an E prompt is showing (one destroyed while shown is dropped here)
+local function EPromptShown()
+	for Prompt in pairs(Shown) do
+		if Prompt.Parent then return true end
+		Shown[Prompt] = nil
+	end
+	return false
+end
+
 function CombatModeUI.Start()
 	Indicator = MakeIndicator()
 
-	ProximityPromptService.PromptShown:Connect(function() Shown += 1 end)
-	ProximityPromptService.PromptHidden:Connect(function() Shown = math.max(0, Shown - 1) end)
+	-- only a prompt on E itself takes E from Combat Mode: a takedown prompt on N must not stop E (assassinations spec
+	-- A8, decision 17, 2026-10-25)
+	ProximityPromptService.PromptShown:Connect(function(Prompt)
+		if Prompt.KeyboardKeyCode == Enum.KeyCode.E then Shown[Prompt] = true end
+	end)
+	ProximityPromptService.PromptHidden:Connect(function(Prompt) Shown[Prompt] = nil end)
 
 	ContextActionService:BindAction("RenseiCombatMode", function(_, State)
 		if State ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
-		if Shown > 0 and not UIState.InCombat() then
+		if EPromptShown() and not UIState.InCombat() then
 			return Enum.ContextActionResult.Pass -- interact takes priority
 		end
 		if Gui.Dialogue.Visible then return Enum.ContextActionResult.Pass end
