@@ -107,5 +107,7 @@
   {"Label": "RenseiTests.Play_Perception", "Studio": "ServerStorage/RenseiTests/Play_Perception", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Perception.lua", "Places": ["ye"], "Create": false},
   {"Label": "RenseiTests.Play_Morality", "Studio": "ServerStorage/RenseiTests/Play_Morality", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Morality.lua", "Places": ["ye"], "Create": false},
   {"Label": "RenseiTests.Play_Heat", "Studio": "ServerStorage/RenseiTests/Play_Heat", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Heat.lua", "Places": ["ye"], "Create": false},
-  {"Label": "RenseiTests.Play_Rumours", "Studio": "ServerStorage/RenseiTests/Play_Rumours", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Rumours.lua", "Places": ["ye"], "Create": false}
+  {"Label": "RenseiTests.Play_Rumours", "Studio": "ServerStorage/RenseiTests/Play_Rumours", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Rumours.lua", "Places": ["ye"], "Create": false},
+  {"Label": "Rensei.Takedown", "Studio": "ReplicatedStorage/Modules/Data/Rensei/Takedown", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/Data/Rensei/Takedown.lua", "Places": ["ye", "foundry"], "Create": true},
+  {"Label": "RenseiTests.Test_Takedown", "Studio": "ServerStorage/RenseiTests/Test_Takedown", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_Takedown.lua", "Places": ["ye", "foundry"], "Create": true}
 ]}
