@@ -14,6 +14,8 @@
 
 **Status:** written overnight on 2026-10-25 under the owner's overnight go-ahead. **Not approved by the owner yet. Nothing here is built.** The plan is `Documents/plans/2026-10-25-swimming-revamp.md`.
 
+**Built 2026-10-26 / 27** in both places' Studio (not live): see `Changelog.md`, 2026-10-27. **The Ye plunge hole (§4) was skipped** by the controller's ruling (the owner can reverse it): the survey found the Gorge Pool's floor is `Map.Ground.Tops` parts at y 0, not the Baseplate, with only about 12 x 4 of flat floor. Options for the owner are listed in `Decisions.md`, "Swimming revamp", item 11.
+
 **The owner's request** (Backlog, "After the Foundry Yard plan"): "Completely audit and revamp the swimming system. (I want it to be directional, with a dive system)".
 
 **When it's built:** after all the Foundry Yard tasks and their joint publish checkpoint, alongside the gun class rework (Backlog item 3).

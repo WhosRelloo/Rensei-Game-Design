@@ -88,6 +88,21 @@ This document records established project decisions to keep development consiste
 - **Starter map (owner, 2026-10-17):** "the Resembool-style Countryside farm village", using the owner's Blender model (RockbellHouse). Built as **Lindenmoor** (the name, layout and sizes are PROPOSAL).
 - **Swimming (owner decision 6, 2026-10-18):** basic swimming in deep water with a swim state: **no combat or alchemy while swimming**. The same rule applies to enemies (owner: "enemies in deep water should also be unable to attack or cast, same as players").
 - **Swimming extras (owner, 2026-10-18):** swim sprint (stamina), diving, breath and drowning, more deep water, and touch buttons for sprint and rise that only show while swimming. The numbers are PROPOSAL.
+- **Swimming revamp (2026-10-27, PROPOSAL, awaiting the owner).** The owner's request: "Completely audit and revamp the swimming system. (I want it to be directional, with a dive system)". Taken without the owner (spec `Documents/specs/2026-10-25-swimming-revamp-design.md` §12), each changeable by a `TuningConfig.Swim` number or a ruling:
+  1. A client swim controller replaces Roblox's swim steering; the server keeps every rule.
+  2. Surface swimming is level; only a dive takes you under (looking down no longer dives).
+  3. Ctrl at the surface dives (on the press); hold Ctrl underwater to sink, Space to rise. Touch: a DIVE button in Slide's spot.
+  4. Underwater: camera-relative in 3D, level strafing, a 1.5 studs/s drift up.
+  5. The numbers: UnderSpeedMult 0.85, Ascend / Descend 10, Dive 16 for 0.35 s, DiveMinDepth 4.5, SurfaceBand 0.6, MaxPitch 80°, ClimbOut 4.5 / 3, sprint breath x1.5 underwater, RootBelowSurface 1.4 and HeadOffset 1.5 (measured). The owner's sprint x1.6 / 14 stamina/s, 15 s of air and 6% drowning are kept.
+  6. Breath counts whenever your head is under water, not only in the Swim state.
+  7. A low-ledge climb-out with Space (the owner: it uses the ledge climb, Vault1 / Vault2).
+  8. Stealth: water no longer blocks NPC sight; a diver is seen at x0.3; two new noises, Surface 6 and sprint Stroke 8 every 0.8 s.
+  9. Enemies don't dive (no combat or alchemy in water, as before).
+  10. The speed check only logs and stops the sprint; it never teleports.
+  11. **Foundry Yard's 9-deep cooling pond is the deep dive.** The Ye plunge hole (approved by the owner on 2026-10-25) is **skipped** by the controller's ruling of 2026-10-27, which the owner can reverse: Task 1's survey found the Gorge Pool's floor is `Map.Ground.Tops` parts at y 0, not the Baseplate the plan assumed, with a flat area of only about 12 x 4 studs. The other options, for the owner: (a) a small 12 x 4 hole in the Gorge Pool; (b) a bigger change that also cuts the `Ground.Tops` parts under the pool; (c) the hole in the Mill Pond, whose flat floor is larger.
+  12. Two animation slots, filled with placeholders (owner, 2026-10-25): Swim_Dive and Swim_Surface.
+  13. The air meter is a clone of the HUD's Meter bar.
+  14. SwimClient keeps its name and job; the movement is in the new SwimController.
 - **Dialogue close (owner, 2026-10-18):** a small X button on the dialogue box (works with touch). No menu opens over a conversation.
 
 ## Character creation (2026-10-18)

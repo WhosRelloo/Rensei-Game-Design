@@ -4,6 +4,114 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-27 — Swimming revamp: directional swimming and diving (not live)
+
+The swimming revamp plan (`Documents/plans/2026-10-25-swimming-revamp.md`, run 2026-10-26 / 27; spec `Documents/specs/2026-10-25-swimming-revamp-design.md`) answers the owner's request: "Completely audit and revamp the swimming system. (I want it to be directional, with a dive system)". All of it is in the Studio Edit sessions of **Ye** (106992859583940) and **Foundry Yard** (109591196441030), the same in both. **Nothing is saved or published by this plan.** This is the plan's only Changelog entry.
+
+Every number is a **PROPOSAL** unless the owner chose it or it was measured. The owner's answers of 2026-10-25 are built in: climbing out uses the ledge climb (Vault1 / Vault2), the underwater idle is Swim_Idle, Swim_Dive and Swim_Surface start as placeholders.
+
+**What was wrong** (the spec's audit, findings A1–A18):
+- **Not directional:** Roblox's own swimming moved you along the camera; nothing turned or pitched the body, and looking down at the water dragged you under (A1, A2, A4).
+- **No dive system:** no dive key, no underwater state, buoyancy fought any dive, and Ye's pools are only 5.2 deep (A3, A5, A6).
+- **The breath bar** was a code-built bar in the wrong font (A7), and breath only counted in the swim state, so a carrier could walk a pond's bed forever (A8).
+- **No way out at a wall** (A9), no entry or surfacing feedback (A10).
+- **Stealth:** the water's surface blocked every sight ray, so a diver was invisible even next to an NPC (A11, confirmed by the RED: awareness under water 0, dry 0.12); swimming made no sound after the splash (A12).
+- Shift lock and knockbacks would undo any swim facing or mover (A13, A14); touch players couldn't dive (A15); the server never checked swim speed (A16); the docs disagreed on the swim ids (A17); there were no swim tests (A18).
+
+**What changed:**
+- **Directional swimming** (`Modules.Managers.SwimController`, maths in `Rensei.SwimLogic`): at the surface you swim level, relative to the camera's yaw, with your head held at the surface and the body upright; underwater (after a dive) W follows the camera's full look (pitch clamped to 80°), A / D strafe level, the body turns and pitches into the swim, and with no input you drift up at 1.5 studs/s. The controller's `LinearVelocity` and `AlignOrientation`s sit on the root's own attachments, let go while you're stunned, dashing or knocked back, and keep the humanoid's own jump off while it swims.
+- **Diving:** Ctrl at the surface dives where the water is at least 4.5 deep (Foundry's pond and Ye's pools, not the 4.2-deep creeks); hold Ctrl to sink, Space to rise; Shift sprints underwater (air x1.5). Surfacing plays Swim_Surface; diving plays Swim_Dive.
+- **Climbing out:** Space at the surface, facing a ledge up to 4.5 above the water within 3, climbs out with the ledge climb; otherwise it's the old hop.
+- **The air meter:** a run-time clone of the HUD's own Meter bar (`AirBar`, labelled AIR, DROWNING and blinking at 0), under the vitals while you're under water or short of air. The code-built `SwimHUD` is gone.
+- **The server** (`SwimService`): `Submerged` follows the head; breath counts whenever your head is under water (the carrier exploit closed); `WaterDepthAt`; a speed check that stops a too-fast sprint and warns, never moving anyone. Drowning, the sprint's stamina and owner decision 6 (no combat or alchemy in water) are unchanged.
+- **Stealth and noise:** sight rays ignore water; a diver is seen at x0.3; surfacing (6) and sprint strokes at the surface (8, every 0.8 s) make noise; swimming underwater is silent.
+- **Touch:** a DIVE button in Slide's spot (tap at the surface to dive, hold underwater to sink), beside SPRINT and RISE.
+- **Animations:** `Swim_Dive` and `Swim_Surface` placeholder slots in `Shared.Movement.Swim` (`Art/Studio/Swim/anim_slots.lua`, reversible).
+
+**Decisions taken without the owner** (each is in `Decisions.md`, "Swimming revamp"):
+1. A client swim controller replaces Roblox's swim steering; the server keeps every rule.
+2. Surface swimming is level; only a dive takes you under.
+3. Ctrl dives on the press (the plan said a short tap), holds to sink; Space rises; touch DIVE.
+4. Underwater: camera-relative 3D, level strafing, a slow drift up.
+5. The new numbers (UnderSpeedMult 0.85, Ascend / Descend 10, Dive 16 for 0.35 s, DiveMinDepth 4.5, SurfaceBand 0.6, MaxPitch 80°, ClimbOut 4.5 / 3, sprint breath x1.5; RootBelowSurface 1.4 and HeadOffset 1.5 measured).
+6. Breath counts whenever the head is under water.
+7. The low-ledge climb-out.
+8. Water no longer blocks sight; a diver is seen at x0.3; the Surface and Stroke noises.
+9. Enemies don't dive.
+10. The speed check only logs and stops the sprint.
+11. **The Ye plunge hole is skipped** (the controller's ruling, 2026-10-27; the owner can reverse it): the Gorge Pool's floor is `Map.Ground.Tops` parts at y 0, not the Baseplate, with a flat area of only about 12 x 4. Foundry's 9-deep pond is the deep dive. **Options for the owner:** (a) a small 12 x 4 hole in the Gorge Pool; (b) a bigger change that also cuts the `Ground.Tops` parts; (c) a hole in the Mill Pond, whose flat floor is larger.
+12. Two placeholder animation slots.
+13. The air meter is a clone of the HUD's Meter bar.
+14. SwimClient keeps its name; the movement is the new SwimController.
+
+**Faults the real-input runs found and fixed** (Task 9, keyboard input in Play):
+- Walking into Ye's Mill Pond looking down still dived: Roblox's Swimming state pitched the body, the head sank, and that counted as "sunk". Now the body is kept upright at the surface.
+- The forward stroke lowered the head under the surface, so surface swimming drained air. The surface hold now keeps the head up.
+- In Foundry's 9-deep pond, `Submerged` switched off near the bed (a cell part slab, part water above it). The head check now also reads the cell above.
+- Holding Space at the surface let Roblox's swim-jump lift you out of the water. The humanoid's jump is off while the controller swims.
+- The climb-out's wall ray at the waterline passed under Foundry's slab banks. It now tries several heights.
+
+**Tests** (both places; every Play session hooked, restored and unhooked, save dumps equal):
+- `Test_SwimLogic` (13 pure cases): RED (the module missing) → 13/0 in Ye and Foundry.
+- `Play_Swim` (9 server cases: depth at the dive sites, Submerged follows the head, Submerged near the bed, a carrier's breath drains, drowning hurts a test rig, no sprint on land, speed strikes, a diver is hard to see, surfacing makes noise): RED → 9/0 in Ye and Foundry.
+- `Art/Studio/Swim/client_checks.lua` (9 client checks: the placeholder slots load, level at the surface, the dive goes under, steering down (Foundry: the root fell 5.46), rising to the surface, no dive in the 4.2-deep creek (Ye), shift lock yields underwater, the air meter is the HUD's bar, the DIVE button): RED 0/7 and 0/2 → 9/0 in Ye and Foundry.
+- `Test_Sound` 9/0 and `Test_Perception` 5/0 (new: SwimSounds, SubmergedSight).
+- **Real input, Ye (Mill Pond):** walked in looking down and stayed at the surface (head 5.26–5.31 over a 5.19 surface), Ctrl dived, Shift sprinted underwater, Space surfaced. **Foundry (cooling pond):** walked in, dived to the head 8.5 studs under, sprinted, surfaced, stayed level with Space held, and climbed out onto the west bank; under for about 3.6 s, air 15 → 11.2.
+- **Regression:** Ye `Play_LindenmoorSmoke` 10/0, `Play_Stealth` 9/0, `Play_Perception` 6/0 (once 4/2 straight after the smoke and stealth suites, then 6/0 three times in a fresh session), `Play_Station` 20/0; Foundry `Play_FoundrySmoke` 15/0, `Play_Boot` 2/0, `Play_Station` 20/0. `sync.py --check`: Ye 88/0/0, Foundry 91/0/0. `test_sync.py` 1068/0.
+
+**Not tested:** two real players watching each other dive; a real phone (DIVE was tested with `ForceMobileControls`); a live server.
+
+**Backups and rollback:**
+- **Backups:** `ServerStorage.RenseiBackups["Pre-SwimRevamp_2026-10-25"]` in both places (12 scripts in Ye, 8 in Foundry Yard). Foundry has no backups of SwimService, PerceptionService and NoiseService because the RenseiServer package (v17) already held this plan's versions when Foundry was synced. The SwimController, SwimKit and Play_Swim backups are in-plan copies (those scripts are new).
+- **The rollback order** (Edit, both places):
+  1. Revert TuningConfig, Perception, MobileControls, SwimClient, SwimService, PerceptionService, NoiseService, Test_Perception and Test_Sound (Ye) from that backup.
+  2. Delete the scripts this plan created: `Rensei.SwimLogic`, `Managers.SwimController`, `RenseiTests.Test_SwimLogic`, `SwimKit`, `Play_Swim` (and Foundry's new `Test_Perception` / `Test_Sound`).
+  3. Run `Art/Studio/Swim/anim_slots.lua` with MODE "undo" (it refuses to delete a slot the owner has filled with a real animation).
+
+**For the owner: the publish checkpoint.** This plan publishes nothing. It follows `Documents/World Travel.md` §10:
+1. **Save** Ye and Foundry Yard in Studio.
+2. **Publish the packages from Ye:**
+   - **Modules:** TuningConfig, SwimLogic (new), SwimController (new), MobileControls, Perception;
+   - **RenseiServer:** SwimService, PerceptionService, NoiseService. **Note:** the RenseiServer v17 you published already holds an earlier, unfinished copy of these three (the Task 7 state, without the near-the-bed fix). Without the client half, a place running v17 has the new breath, stealth and noise rules but the old swimming. Publish this round of RenseiServer with the rest.
+   - **Assets:** the two animation slots.
+3. **Update Foundry Yard's packages by hand** (Modules, RenseiServer, Assets), then check with `sync.py --check` (Ye 88/0/0, Foundry 91/0/0) and `anim_slots.lua` MODE "check" (9/0).
+4. **Publish the places:** Ye and Foundry Yard. `SwimClient` is a place script (StarterPlayerScripts), already in both, and goes out with them, like the new test suites.
+5. **Last: Migrate to Latest Update** for both places.
+- **Then:** upload Swim_Dive and Swim_Surface and paste their ids into the slots (`Animations.md`, "Swim (revamp)").
+
+**Open questions** (spec §13): should some enemies dive after a player; underwater items or secrets for quests; a swim skill node (longer breath, faster strokes); gamepad buttons for dive and rise.
+
+### Discord announcement
+
+Hold: not live yet. Post this when the owner publishes the swimming update.
+
+```md
+**Update: Swimming Reworked**
+
+**Swim where you look**
+- At the surface you now swim level, so looking down at the water no longer drags you under.
+- Underwater, you swim wherever the camera points, and your character dives and turns with you.
+
+**Diving**
+- Press Ctrl at the surface to dive (DIVE on touch). The water has to be deep enough.
+- Hold Ctrl to sink and Space to rise. Shift still sprints, underwater too.
+- Foundry Yard's cooling pond is deep enough for a proper dive.
+
+**Air**
+- A new air meter shows under your health while you're under water.
+- Come up before it runs out, or you'll start to drown.
+
+**Getting out**
+- Press Space at the surface to climb straight out onto a low ledge or bank.
+
+**Stealth**
+- Diving is a good way to slip past people, but they can still spot you up close.
+- Splashing in, surfacing and sprint-swimming can be heard.
+
+**Still the same**
+- No fighting or alchemy in the water.
+```
+
 ## 2026-10-25 — Guns rework: aiming fixed, the class rebalanced, the reload animation (not live)
 
 The gun rework plan (`Documents/plans/2026-10-25-gun-rework.md`, Tasks 1–13, run 2026-10-25; spec `Documents/specs/2026-10-25-gun-rework-design.md`) answers the owner's request: "Fix gun shoot mode aiming mechanics. (balance out the gun class completely, add a reload animation as well)". All of it is in the Studio Edit sessions of **Ye** (106992859583940) and **Foundry Yard** (109591196441030), the same in both. **Nothing is saved or published.** The owner had already published Ye, Foundry Yard and the packages (2026-10-25) before the gun code reached the packages, so this is its own publish (the checkpoint below). This is the plan's only Changelog entry.

@@ -36,7 +36,7 @@ Owner's to-do list, in the owner's words. The order is the owner's, and none of 
     - [ ] **Review the PROPOSAL decisions** in the spec's §8 (`Documents/specs/2026-10-25-gun-rework-design.md`) and the controller's later rulings listed in the Changelog entry.
     - [ ] **Detach matches by name outside Give** (test-only workaround in Play_Guns): a gun destroyed outside `WeaponManager.Give` and given again in the same frame loses its attributes to the old Tool's late detach. Players can't do this; the full fix is for Detach to track the current Tool, not its name.
     - [ ] **A server-side grace for a Fan the Hammer aimed behind** (instead of the client's 0.4 s wait before it sends).
-- [ ] **Swimming revamp:** "Completely audit and revamp the swimming system. (I want it to be directional, with a dive system)".
+- [ ] **Swimming revamp:** "Completely audit and revamp the swimming system. (I want it to be directional, with a dive system)". *(Built 2026-10-27 in both places' Studio; not live. Awaiting the owner's review of the PROPOSALs (`Decisions.md`, "Swimming revamp"), the two animation uploads (Swim_Dive, Swim_Surface) and a choice on the skipped Ye plunge hole.)*
 
 ## After the swimming revamp (owner, 2026-10-25)
 In the owner's order:

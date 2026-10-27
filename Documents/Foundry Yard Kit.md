@@ -52,7 +52,7 @@ The map is laid out for the moves the game has today. The tuning is in `TuningCo
 | **High routes and noise** | The iron rail walks (14 up) and the signal gantries (24 up) give loud metal footsteps. The crane girders (about 30 up), the water-tower decks (20) and the wagon roofs (about 12) are lookouts. |
 | **Stealth and shade** (a roof within 80 overhead counts as indoors) | The underworks tunnel, the booking hall, the station and platform canopies, the great hall and its forge wing, the market stalls, and under the rail walks. Quiet cinder lanes run behind every terrace, and the freight path runs to the stowaway door. |
 | **Cover** | Crate, boiler and barrel clusters along the quiet lanes and in the back yards. The wagons (gaps between them to slip through), the yard walls, and the furnaces and anvils inside the hall. |
-| **Swimming** (terrain water, `SwimService`) | The cooling pond in the crane yard: 140 × 96, surface y 3 (1 below the ground) and 9 deep, so you can dive. |
+| **Swimming** (terrain water, `SwimService`) | The cooling pond in the crane yard: 140 × 96, surface y 3 (1 below the ground) and 9 deep. **It is the game's deep dive** (swimming revamp, 2026-10-27): dive with Ctrl (DIVE on touch); a real-input dive reached 8.5 under. Space climbs out onto the 1-stud bank. |
 | **Fights** | Four Grunt spawns in the underworks tunnel only (owner). The practice court is Brannoc's yard. |
 
 The markers in the file:

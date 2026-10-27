@@ -78,7 +78,18 @@ The current weapon skills (Dragonflash, Flurry, Barrage, Scissor Rush, Fan the H
 
 | Sheet | Game name | Status | Notes |
 |---|---|---|---|
-| Swim Forward | `Swim_Forward` | 📦 | prone stroke, loops 1.5 s. **Swim Idle: no id** |
+| Swim Forward | `Swim_Forward` | 📦 | prone stroke, loops 1.5 s (114885907475368) |
+| Swim Idle | `Swim_Idle` | 📦 | treading water at the surface, and the underwater idle (owner, 2026-10-25) (101551092052569) |
+| Swim Sprint | `Swim_Sprint` | 📦 | the sprint stroke, at the surface and underwater (119524744883982) |
+
+**Swim (revamp, 2026-10-27; not live).** Both slots are in `Assets.Animations.Shared.Movement.Swim`, in Ye and Foundry Yard, filled with **placeholders** (owner, 2026-10-25: "Use placeholders for the other 2 animations"):
+
+| Slot | Plays | Placeholder now | |
+|---|---|---|---|
+| `Swim_Dive` | once, as you dive from the surface (the body is pitched down meanwhile) | `Swim_Forward`'s id | owner uploads |
+| `Swim_Surface` | once, as your head breaks the surface after a dive | `Swim_Idle`'s id | owner uploads |
+
+**The owner uploads two R6 animations, Swim_Dive and Swim_Surface: paste each id into its slot's `AnimationId` in `Shared.Movement.Swim` and clear its `Placeholder` attribute. No code changes.** Climbing out uses the ledge climb (`Vault1` / `Vault2`, JumpManager's pull-up) and the underwater idle uses `Swim_Idle` (owner, 2026-10-25), so neither needs a new animation.
 | Wall Ledge Walk Left | `LedgeWalk_Left` | 📦 | **standing** side-step along a narrow ledge (not a hang). **Right: no id** |
 | Walk Left | `Walk_Left` | 📦 | **Walk Right: no id** |
 | Forward Glide/Fall, Gliding Neutral | `Fall_Forward`, `Glide_Neutral` | 📦 | |

@@ -45,11 +45,16 @@ Press to clap and hold to keep the clap ready. Release to cast where the camera 
 | B | Grip (finisher on a knocked target) |
 
 ## Swimming
+Swimming revamp (2026-10-27, not live yet; the keys and numbers are PROPOSAL):
+
 | Key | Action |
 |---|---|
-| W A S D | Swim |
-| Space (hold) | Rise toward the surface |
-| Left Shift | Swim faster |
+| W A S D | Swim. At the surface you stay level (looking down doesn't pull you under); underwater you swim toward where the camera looks |
+| Left Shift | Swim faster (stamina; underwater it also uses air faster) |
+| Left Ctrl | At the surface: dive (where the water is at least 4.5 deep). Underwater, hold: sink |
+| Space | Underwater, hold: rise. At the surface, facing a low ledge (up to 4.5 above the water, within 3): climb out; otherwise a small hop |
+
+Touch: SPRINT (hold), RISE (hold; tap at a low ledge to climb out) and DIVE (tap at the surface to dive; hold underwater to sink). They show only while you're swimming.
 
 ## Menus and screen
 Menus are closed while you're in combat.
