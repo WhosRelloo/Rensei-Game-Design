@@ -64,10 +64,15 @@
 --   witness path uses (Heat.Raised for the body's region, heard by the victim's own faction, Deeds.assassinated_guard's
 --   Crime -> HeatService.Add). Unless the kill's own deed was a crime recorded with a witness strength other than 0: that
 --   raised Heat already (HeatService), so it never rises twice. A grip's deed (executed_bandit) is no crime, so a gripped
---   guard's Heat comes from here.
--- * Start(): the Recorded and BodyFound listeners, and PlayerRemoving -> PlayerLeft(Player): any takedown they're in is
---   released (an interrupt, without the Alarm), THEN their cooldown is forgotten (Task 7 review: the release writes it).
---   Forget(Player) clears the cooldown (tests use it too).
+--   guard's Heat comes from here; so does an assassinated guard's whose deed was past its daily cap (Record counted
+--   nothing, so its body carries no deed: found, it raises the Heat once, like any guard's body nobody saw killed). A
+--   townsperson's body (TownsfolkId) never raises Heat here (Task 8 review): TownsfolkService owns a townsperson's murder
+--   and its Heat (murder_townsfolk, witnessed), and the body carries none of that service's deed to tell a witnessed
+--   murder from an unseen one, so it would be counted twice.
+-- * Start(): the Recorded and BodyFound listeners, and PlayerRemoving -> PlayerLeft(Player): Cancel(Player, true) -- any
+--   takedown they're in released as an interrupt, without the Alarm -- THEN their cooldown is forgotten (Task 7 review:
+--   the release writes it). Cancel(Player, Quiet) -> true when a takedown was running. Forget(Player) clears the
+--   cooldown (tests use it too).
 -- Listeners (each in a pcall): Done(Kind, Player, Rig) after a finished takedown; Failed(Player, Rig, Reason).
 --
 -- Attributes. Victim: TakenDownBy (the player's name; kept on an assassinated corpse), DamageTakenMult (0 while held),
@@ -396,6 +401,8 @@ end
 -- (pre-flight R9; Task 8: keyed on the body) a found law-faction body a player killed raises its law's Heat once, unless
 -- its kill's own deed was a crime someone saw (that raised the Heat already)
 local function OnBodyFound(Body, _, Info)
+	-- (Task 8 review) a townsperson's body is TownsfolkService's: it owns the murder's Heat (see the header)
+	if Body:GetAttribute("TownsfolkId") ~= nil then return end
 	if Info.Kind ~= "Dead" or Info.Heated then return end
 	local Player = Info.By
 	if typeof(Player) ~= "Instance" or Player.Parent ~= Players then return end
@@ -412,12 +419,19 @@ local function OnBodyFound(Body, _, Info)
 	end
 end
 
+-- the player's running takedown released as an interrupt (Quiet: no Alarm); true when one was running
+function TakedownService.Cancel(Player, Quiet)
+	local S = Running[Player]
+	if not S then return false end
+	Release(S, "interrupted", Quiet == true)
+	return true
+end
+
 -- the player left: any takedown they're in is released (an interrupt, without the Alarm), THEN their cooldown is
 -- forgotten (Task 7 review: the release writes the cooldown, so forgetting it first left it behind)
 function TakedownService.PlayerLeft(Player)
 	Recorded[Player] = nil
-	local S = Running[Player]
-	if S then Release(S, "interrupted", true) end
+	TakedownService.Cancel(Player, true)
 	TakedownService.Forget(Player)
 end
 

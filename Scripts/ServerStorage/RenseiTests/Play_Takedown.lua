@@ -21,12 +21,13 @@
 -- Task 8: the knockout (a 300 s knock, a Choke sound of 6, no deed, an "Out" body that is found and can be carried, the
 -- interrupt), waking up (DownedManager.Recover, the timer's own path) raises the alarm where it woke; and (carried from
 -- Task 7) a law-faction body the player gripped raises the law's Heat once when found, a bandit's raises none.
+-- Task 8 fix round: the Task 7 / 8 review cases moved to Play_TakedownHard, and the helpers both suites use to TakedownKit
+-- (unchanged).
 local SSS = game.ServerScriptService
 local DM = require(game.ReplicatedStorage.Modules.Managers.DownedManager)
 local PS = require(SSS.PerceptionService)
 local LS = require(SSS.LightService)
 local WorldClock = require(SSS.WorldClock) -- the clock moves, so the light cases hold it (as Play_Stealth does)
-local Lighting = game:GetService("Lighting")
 local Kit = require(script.Parent.TakedownKit)
 local SmokeKit = require(script.Parent.SmokeKit) -- (Task 6b) RemoveEnemy: the gripper goes once its grip is done
 local Modules = game.ReplicatedStorage.Modules
@@ -38,11 +39,11 @@ local HS = require(SSS.HeatService)
 local Player = Kit.Player()
 local C = Player.Character
 
--- a CFrame on the kit's floor X / Z studs from the spot, facing -Z
-local function At(X, Z)
-	local Pos = Kit.Spot() + Vector3.new(X, 0, Z)
-	return CFrame.lookAt(Pos, Pos + Vector3.new(0, 0, -1))
-end
+-- (Task 8 fix round) the helpers Play_TakedownHard shares live in TakedownKit, moved there unchanged
+local At, AWAY, NEAR, AtHour, AddBody, DeadBody = Kit.At, Kit.AWAY, Kit.NEAR, Kit.AtHour, Kit.AddBody, Kit.DeadBody
+local CarryWeld, Free, WaitFor, Service, Result, Calm = Kit.CarryWeld, Kit.Free, Kit.WaitFor, Kit.Service, Kit.Result, Kit.Calm
+local Assassinate, KnockOut, Finished, Behind, Deed, LAW = Kit.Assassinate, Kit.KnockOut, Kit.Finished, Kit.Behind, Kit.Deed, Kit.LAW
+local GrippedBodyHeat = Kit.GrippedBodyHeat
 
 local function Has(List, Rig)
 	for _, X in ipairs(List) do
@@ -62,34 +63,6 @@ local function Raise(Rig, Where)
 end
 
 -- ===== Task 5: bodies =====
--- where the player waits during a body case: 60 studs off on the floor, beyond a Grunt's 30-stud sight and outside
--- every cone the cases use, but within the 80 studs that keep the NPCs updating
-local AWAY = At(60, 10) + Vector3.new(0, 3, 0)
-
--- the clock held at Hour while Body runs (Body may move it on), then put back as it was
-local function AtHour(Hour, Body)
-	local WasHeld = WorldClock.IsHeld() and Lighting.ClockTime
-	WorldClock.Hold(Hour)
-	local Ok, Err = pcall(Body)
-	if WasHeld then WorldClock.Hold(WasHeld) else WorldClock.Release() end
-	if not Ok then error(Err, 0) end
-end
-
-local function AddBody(Model, Info)
-	assert(type(PS.AddBody) == "function", "PerceptionService.AddBody exists")
-	PS.AddBody(Model, Info)
-	return PS.Bodies[Model]
-end
-
--- a kit Grunt at (X, Z) killed by the test as a takedown would leave it (TakenDownBy set), given 1 s to fall, then
--- registered as a "Dead" body. Returns the body and its Info.
-local function DeadBody(X, Z)
-	local Body = Kit.Spawn("Grunt", At(X, Z))
-	Body:SetAttribute("TakenDownBy", Player.Name)
-	Body.Humanoid.Health = 0
-	task.wait(1)
-	return Body, AddBody(Body, {Kind = "Dead", By = Player})
-end
 
 local function TorsoOf(Body) return Body:FindFirstChild("Torso") or Body:FindFirstChild("UpperTorso") or Body.HumanoidRootPart end
 
@@ -124,25 +97,11 @@ end
 
 -- ===== Task 6: carrying =====
 local function Flat(V) return Vector3.new(V.X, 0, V.Z).Magnitude end
--- the player 4 studs behind the rig at the spot (within CarryRange / GripRange 6), facing it (-Z)
-local NEAR = At(0, 4) + Vector3.new(0, 3, 0)
--- the weld a carry leaves on the carrier's root (DownedManager's Attach names it)
-local function CarryWeld() return C.HumanoidRootPart:FindFirstChild("DownedWeld") end
--- a kit rig lies free like a real one (Kit.Spawn anchors its root)
-local function Free(Rig) Rig.HumanoidRootPart.Anchored = false return Rig end
 
 -- ===== Task 6b: a gripped body ragdolls =====
 local SETTLE = 4 -- Ragdoll.Settle (PROPOSAL), written here by hand, never read from the module
 -- the R6 joints a ragdoll replaces (StarterCharacter, read in Ye's Edit 2026-10-27); the RootJoint is kept
 local LIMB_JOINTS = {"Neck", "Right Shoulder", "Left Shoulder", "Right Hip", "Left Hip"}
-local function WaitFor(Seconds, Fn)
-	local T0 = os.clock()
-	while os.clock() - T0 < Seconds do
-		if Fn() then return true end
-		task.wait(0.05)
-	end
-	return Fn() and true or false
-end
 -- the torso's height above the kit floor's top
 local function Height(Body) return TorsoOf(Body).Position.Y - Kit.Spot().Y end
 -- the body's own parts (the BaseParts directly in the rig)
@@ -183,11 +142,6 @@ local function Gripped(X, Z, TakenDown)
 end
 
 -- ===== Task 7: the server takedown =====
-local function Service()
-	local M = SSS:FindFirstChild("TakedownService")
-	assert(M, "TakedownService exists")
-	return require(M)
-end
 local function RequestModule()
 	local H = SSS:FindFirstChild("ServerHandler")
 	local Requests = H and H:FindFirstChild("Requests")
@@ -195,11 +149,6 @@ local function RequestModule()
 	assert(M, "Requests.Takedown exists")
 	return require(M)
 end
-local function Result() return C:GetAttribute("LastTakedownResult") end
-local function Calm() C:SetAttribute("CombatMode", nil) end -- (the kit puts CombatMode back)
-local function Assassinate(Rig) return Service().Request(Player, "Assassinate", Rig) end
--- the takedown that is running has ended (TakingDown cleared) within Max seconds
-local function Finished(Max) return WaitFor(Max or 2.5, function() return C:GetAttribute("TakingDown") == nil end) end
 -- a refusal: the reason in LastTakedownResult, and nothing marked
 local function Refused(T, Rig, Want, What)
 	local Ok, Why = Assassinate(Rig)
@@ -209,33 +158,14 @@ local function Refused(T, Rig, Want, What)
 	T.Eq(Rig:GetAttribute("TakenDownBy"), nil, What .. ": the target isn't marked")
 	T.Eq(C:GetAttribute("TakingDown"), nil, What .. ": the player isn't marked")
 end
--- a kit Grunt at the spot with the player 3 studs straight behind it, Calm; Opts as Kit.Spawn's
-local function Behind(Opts)
-	local Rig = Kit.Spawn("Grunt", At(0, 0), Opts)
-	Kit.PutBehind(Rig, 3)
-	Calm()
-	return Rig
-end
--- the save's deed entry, with today's count reset first (pre-flight R17 / D11: the daily cap never decides a case; the
--- hook restores the save)
-local function Deed(Id)
-	local M = Progression.GetData(Player).Morality
-	local E = M and M.Deeds[Id]
-	if E then E.DayCount = 0 end
-	return E
-end
 local function Count(Id)
 	local M = Progression.GetData(Player).Morality
 	local E = M and M.Deeds[Id]
 	return E and E.Count or 0
 end
 local function Mercy() return Progression.GetData(Player).Morality.Conduct.Mercy or 0 end
--- the law faction of this place's unnamed ground and its jurisdiction (pre-flight R8, written by hand): Ye counts as
--- Lindenmoor (Militia, the Townsfolk's law), the Foundry place as the Foundry (State, the Authority's law)
-local LAW = ({[106992859583940] = {Faction = "Townsfolk", J = "Militia"}, [109591196441030] = {Faction = "Authority", J = "State"}})[game.PlaceId]
 
 -- ===== Task 8: the knockout =====
-local function KnockOut(Rig) return Service().Request(Player, "Knockout", Rig) end
 -- every deed in the save with its count and times seen, as one string (a deed recorded changes it)
 local function DeedsKey()
 	local M = Progression.GetData(Player).Morality
@@ -244,38 +174,6 @@ local function DeedsKey()
 	table.sort(Out)
 	return table.concat(Out, ",")
 end
--- a kit Grunt (Faction set, or none: a bandit) knocked, then gripped to death by the PLAYER (the real Grip path; a
--- player's grip records its own deed, executed_bandit, which is no crime), then found by a patrol at noon. Want: the law's
--- Heat after the find less before the grip (written by hand by each case)
-local function GrippedBodyHeat(T, Faction, Want)
-	assert(LAW, "a law faction for this place")
-	Kit.Guard(function() AtHour(12, function()
-		Deed("executed_bandit")
-		local Body = Kit.Spawn("Grunt", At(0, 0))
-		if Faction then Body:SetAttribute("Faction", Faction) end
-		DM.Knock(Body)
-		T.True(DM.IsKnocked(Body), "setup: knocked")
-		Kit.PutPlayer(NEAR)
-		Calm()
-		local Heat0 = HS.Value(Player, LAW.J)
-		T.Eq(DM.Grip(C, Body), true, "setup: the player's grip finished")
-		T.True(Body.Humanoid.Health <= 0, "setup: the grip killed it")
-		task.wait(0.3)
-		T.Near(HS.Value(Player, LAW.J) - Heat0, 0, 0.5, "the grip itself raised no Heat (nobody saw it)")
-		local Info = PS.Bodies[Body]
-		T.True(Info ~= nil and Info.Kind == "Dead" and Info.By == Player, "registered: a Dead body, by the player")
-		Kit.PutPlayer(AWAY)
-		task.wait(1)
-		Kit.Spawn("Grunt", At(0, 10)) -- a patrol 10 studs off, facing it (-Z), at noon
-		Kit.Run(4)
-		T.True(Info ~= nil and Info.Found == true, "the patrol found the body")
-		task.wait(0.3)
-		T.Near(HS.Value(Player, LAW.J) - Heat0, Want, 1, ("%s Heat when the body is found: %d"):format(LAW.J, Want))
-		Kit.Run(2)
-		T.Near(HS.Value(Player, LAW.J) - Heat0, Want, 1, "and no more after")
-	end) end)
-end
-
 return {
 	SkipWhileTakenDown = function(T)
 		Kit.Guard(function()
@@ -1345,29 +1243,6 @@ return {
 			T.True(Mine ~= nil and Mine.Info.Kind == "Out", "Info.Kind == \"Out\"")
 		end) end) end)
 	end,
-	-- the knocked-out Grunt gripped to death (a second kit Grunt grips it: the loud finisher, its own "Dead" body): no
-	-- wake-up, so no Raise (a Grunt 25 studs off, inside the 40-stud call and outside the grip's 20-stud Hit, stays
-	-- Unaware); KnockedOutBy cleared; the body is the grip's "Dead" one. (Added after GREEN: a guard of the death branch.)
-	KnockedOutThenGripped = function(T)
-		Kit.Guard(function()
-			local Rig = Behind()
-			T.Eq(KnockOut(Rig), true, "started")
-			T.True(Finished(3), "ended")
-			T.Eq(Result(), "Knockout:ok")
-			Kit.PutPlayer(AWAY)
-			local Second = Kit.Spawn("Grunt", At(-25, 0))
-			local Gripper = Kit.Spawn("Grunt", At(0, -4))
-			local Done = DM.Grip(Gripper, Rig)
-			SmokeKit.RemoveEnemy(Gripper)
-			T.Eq(Done, true, "setup: the grip finished")
-			T.True(Rig.Humanoid.Health <= 0, "setup: the grip killed it")
-			task.wait(0.3)
-			T.Eq(Rig:GetAttribute("KnockedOutBy"), nil, "KnockedOutBy cleared")
-			local Info = PS.Bodies[Rig]
-			T.True(Info ~= nil and Info.Kind == "Dead", "the grip's Dead body: " .. tostring(Info and Info.Kind))
-			T.Eq(PS.PhaseOf(Second), "Unaware", "no wake-up alarm: the Grunt 25 studs off isn't called")
-		end)
-	end,
 	-- a Stun on the player at 1 s: interrupted; the Grunt not knocked, not a body, Alert on the player
 	InterruptKnockout = function(T)
 		Kit.Guard(function()
@@ -1397,122 +1272,4 @@ return {
 	-- assassinated. The control: a gripped bandit's body raises none.
 	GrippedGuardBodyFoundHeat = function(T) GrippedBodyHeat(T, LAW and LAW.Faction, 60) end,
 	GrippedBanditBodyNoHeat = function(T) GrippedBodyHeat(T, nil, 0) end,
-
-	-- ===== Task 7 review (folded into Task 8) =====
-	-- 1. the player leaving mid-takedown: released (quietly), and their cooldown forgotten AFTER the release (it used to be
-	-- forgotten first, and the release wrote it back)
-	LeavingForgetsCooldown = function(T)
-		Kit.Guard(function()
-			local S = Service()
-			T.True(type(S.PlayerLeft) == "function", "TakedownService.PlayerLeft exists (the PlayerRemoving handler)")
-			local A = Behind()
-			local B = Kit.Spawn("Grunt", At(0, -20)) -- 20 studs ahead of A, its back to the player
-			T.Eq(S.Request(Player, "Assassinate", A), true, "started")
-			T.Eq(C:GetAttribute("TakingDown"), A.Name, "mid-takedown") -- (no wait: a hitch can't carry it past the kill)
-			S.PlayerLeft(Player)
-			T.True(Finished(1), "released")
-			T.Eq(Result(), "Assassinate:interrupted", "as an interrupt")
-			T.True(A.Humanoid.Health > 0, "the Grunt lives")
-			T.Eq(PS.PhaseOf(A), "Unaware", "quietly: no alarm")
-			Kit.PutBehind(B, 3)
-			Calm()
-			local Ok, Why = S.Request(Player, "Assassinate", B)
-			T.Eq(Ok, true, "no cooldown left behind (" .. tostring(Why) .. ")")
-			T.True(Finished(), "the second ended")
-		end)
-	end,
-	-- 2. a kill that errors part-way (here: after DownedManager.Finish) is no interrupt: no Failed, the corpse keeps
-	-- TakenDownBy and isn't re-anchored; "<Kind>:error"
-	KillErrorIsNoInterrupt = function(T)
-		local RealFinish = DM.Finish
-		local S = Service()
-		local Fails = 0
-		local function F() Fails += 1 end
-		table.insert(S.Failed, F)
-		local Ok, Err = pcall(Kit.Guard, function()
-			local Rig = Behind()
-			DM.Finish = function(...) RealFinish(...) error("test: the kill fails after Finish") end
-			T.Eq(Assassinate(Rig), true, "started")
-			T.True(Finished(), "ended")
-			DM.Finish = RealFinish
-			T.Eq(Result(), "Assassinate:error", "LastTakedownResult")
-			T.True(Rig.Humanoid.Health <= 0, "setup: the victim died")
-			T.Eq(Fails, 0, "Failed didn't fire")
-			T.Eq(Rig:GetAttribute("TakenDownBy"), Player.Name, "the corpse keeps TakenDownBy")
-			T.Eq(Rig.HumanoidRootPart.Anchored, false, "the corpse's root isn't re-anchored")
-			T.Eq(CarryWeld(), nil, "no weld left")
-			T.Eq(C:GetAttribute("TakingDown"), nil, "the player released")
-		end)
-		DM.Finish = RealFinish
-		local I = table.find(S.Failed, F)
-		if I then table.remove(S.Failed, I) end
-		if not Ok then error(Err, 0) end
-	end,
-	-- 3. a takedown that can't start (here: Glimpse, its first step, errors) leaves the victim's DamageTakenMult as it was
-	FailedStartKeepsDamageMult = function(T)
-		local RealGlimpse = PS.Glimpse
-		local Ok, Err = pcall(Kit.Guard, function()
-			local Rig = Behind()
-			Rig:SetAttribute("DamageTakenMult", 0.5)
-			PS.Glimpse = function() error("test: the takedown can't start") end
-			T.Eq(Assassinate(Rig), true, "requested")
-			T.True(Finished(1), "ended")
-			PS.Glimpse = RealGlimpse
-			T.Eq(Result(), "Assassinate:interrupted", "LastTakedownResult")
-			T.Eq(Rig:GetAttribute("DamageTakenMult"), 0.5, "DamageTakenMult as it was (0.5)")
-			T.True(Rig.Humanoid.Health > 0, "alive")
-		end)
-		PS.Glimpse = RealGlimpse
-		if not Ok then error(Err, 0) end
-	end,
-	-- 4. the victim knocked, or gripped, mid-takedown: interrupted
-	VictimKnockedOrGrippedInterrupts = function(T)
-		Kit.Guard(function()
-			local S = Service()
-			local Rig = Behind()
-			T.Eq(Assassinate(Rig), true, "started")
-			-- (no wait: the hold is already on when Request returns, and a server hitch can't carry it past the kill)
-			T.Eq(C:GetAttribute("TakingDown"), Rig.Name, "mid-takedown")
-			DM.Knock(Rig)
-			T.True(Finished(1), "ended")
-			T.Eq(Result(), "Assassinate:interrupted", "knocked mid-takedown: interrupted")
-			T.True(Rig.Humanoid.Health > 0, "the knocked Grunt lives")
-			T.Eq(Rig:GetAttribute("TakenDownBy"), nil, "unmarked")
-			S.Forget(Player)
-			local Other = Kit.Spawn("Grunt", At(20, 0))
-			Kit.PutBehind(Other, 3)
-			Calm()
-			T.Eq(Assassinate(Other), true, "the second started")
-			T.Eq(C:GetAttribute("TakingDown"), Other.Name, "mid-takedown")
-			Other:SetAttribute("GrippedBy", "Takedown_TestGripper")
-			T.True(Finished(1), "the second ended")
-			T.Eq(Result(), "Assassinate:interrupted", "gripped mid-takedown: interrupted")
-			T.True(Other.Humanoid.Health > 0, "the gripped Grunt lives")
-		end)
-	end,
-	-- 6. CheckDeliveries hands over a knocked, LIVING enemy only: a dead body still marked Knocked is no prisoner
-	DeadKnockedIsNoPrisoner = function(T)
-		Kit.Guard(function()
-			local Captor = Instance.new("Model")
-			Captor.Name = "Takedown_TestCaptor"
-			Captor:SetAttribute("TakesPrisoners", true)
-			local R = Instance.new("Part")
-			R.Name, R.Anchored, R.CanCollide, R.Transparency = "HumanoidRootPart", true, false, 1
-			R.Size = Vector3.new(2, 2, 1)
-			R.Parent = Captor
-			local Ok, Err = pcall(function()
-				local Body = DeadBody(0, 0)
-				Free(Body)
-				Body:SetAttribute("Knocked", true) -- (dead, yet still marked Knocked)
-				Kit.PutPlayer(NEAR)
-				T.True(DM.Carry(C, Body), "setup: carrying the body")
-				R.CFrame = C.HumanoidRootPart.CFrame * CFrame.new(0, 0, -5)
-				Captor.Parent = workspace.World.NPCs
-				task.wait(1.5)
-				T.Eq(Body:GetAttribute("Arrested"), nil, "a dead body is not taken prisoner")
-			end)
-			Captor:Destroy()
-			if not Ok then error(Err, 0) end
-		end)
-	end,
 }
