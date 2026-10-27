@@ -115,5 +115,6 @@
   {"Label": "Rensei.Takedown", "Studio": "ReplicatedStorage/Modules/Data/Rensei/Takedown", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/Data/Rensei/Takedown.lua", "Places": ["ye", "foundry"], "Create": true},
   {"Label": "RenseiTests.Test_Takedown", "Studio": "ServerStorage/RenseiTests/Test_Takedown", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_Takedown.lua", "Places": ["ye", "foundry"], "Create": true},
   {"Label": "RenseiTests.TakedownKit", "Studio": "ServerStorage/RenseiTests/TakedownKit", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/TakedownKit.lua", "Places": ["ye", "foundry"], "Create": true},
-  {"Label": "RenseiTests.Play_Takedown", "Studio": "ServerStorage/RenseiTests/Play_Takedown", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Takedown.lua", "Places": ["ye", "foundry"], "Create": true}
+  {"Label": "RenseiTests.Play_Takedown", "Studio": "ServerStorage/RenseiTests/Play_Takedown", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Takedown.lua", "Places": ["ye", "foundry"], "Create": true},
+  {"Label": "Managers.Ragdoll", "Studio": "ReplicatedStorage/Modules/Managers/Ragdoll", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/Managers/Ragdoll.lua", "Places": ["ye", "foundry"], "Create": true}
 ]}

@@ -23,6 +23,7 @@ local AnimationManager = require(ReplicatedStorage.Modules.Managers.AnimationMan
 local JumpHandler = require(ReplicatedStorage.Modules.Managers.JumpManager)
 local SoundManager = require(ReplicatedStorage.Modules.Managers.SoundManager)
 local WeaponManager = require(ReplicatedStorage.Modules.Managers.WeaponManager)
+local Ragdoll = require(ReplicatedStorage.Modules.Managers.Ragdoll)
 local Roll = require(script.Roll)
 local Run = require(script.Run)
 local Crouch = require(script.Crouch)
@@ -409,6 +410,9 @@ local function CharacterAdded(NewCharacter)
 			Humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
 		end
 	end)
+	-- a gripped body ragdolls (assassinations Task 6b): this client owns its character's physics, so when the server
+	-- marks it Ragdolled it puts its own Humanoid in Physics (else the Humanoid fights the ball sockets)
+	Ragdoll.Watch(NewCharacter)
 	CharacterState = WCSCharacter.GetCharacterFromInstance(Character)
 	-- a sprint / slide of the previous character must not carry over (fix round 1, 2026-10-22)
 	Run.Reset()

@@ -166,7 +166,8 @@ return {
 
 	-- assassinations Task 6 (the side task's last re-review): the knock's own grace (CrawlClampGrace, for momentum) no
 	-- longer follows the client. The clamp is pinned at the knock point: a move within the fastest legitimate speed (the
-	-- dash's 110 studs/s) x the time since the knock is kept, a farther one is snapped back to the knock point and counted.
+	-- dash's 110 studs/s) x (the time since the knock + one 0.1 s tick) + 2.5 studs of slack (Task 6 review) is kept, a
+	-- farther one is snapped back to the knock point and counted.
 	KnockGraceSnapsBack = function(T)
 		local function Flat(V) return Vector3.new(V.X, 0, V.Z).Magnitude end
 		local function BackOf(Root)
@@ -185,6 +186,20 @@ return {
 			task.wait((Cfg.CrawlClampGrace or 0.5) + 0.3)
 			T.True(math.abs(Flat(Root.Position - From) - 9.6) < 1, "sprint momentum kept (" .. Flat(Root.Position - From) .. " of 9.6)")
 			T.Eq(C:GetAttribute("CrawlClamped") or 0, Clamped, "momentum isn't clamped")
+		end)
+		-- control (Task 6 review): near the dash's speed, 9 studs every 0.1 s tick for 0.3 s (27 studs), is kept too; one
+		-- watch tick late, the old allowance (110 x the time since the knock) took a hitch for a teleport
+		Knocked(function(C)
+			local Root = C.HumanoidRootPart
+			local Clamped = C:GetAttribute("CrawlClamped") or 0
+			local Back, From = BackOf(Root), Root.Position
+			for _ = 1, 3 do
+				Root.CFrame += Back * 9
+				task.wait(0.1)
+			end
+			task.wait((Cfg.CrawlClampGrace or 0.5) + 0.3)
+			T.True(math.abs(Flat(Root.Position - From) - 27) < 1, "dash momentum kept (" .. Flat(Root.Position - From) .. " of 27)")
+			T.Eq(C:GetAttribute("CrawlClamped") or 0, Clamped, "dash momentum isn't clamped")
 		end)
 		-- a 100-stud teleport at once (no dash goes 100 studs in a tick): back at the knock point
 		Knocked(function(C)

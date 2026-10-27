@@ -27,6 +27,10 @@
 --   (Nearest's Opts.Bodies); Grip never does. A carry holds its exact body: removed while held (a corpse's 120 s, a
 --   despawn), it is dropped at once and its weld goes with it; nothing is ever looked up by name in its place.
 --   Lock, Attach (with the caller's own offset) and Detach are shared with TakedownService (pre-flight R16 / D3).
+--   A body something else has welded (Welds) is never taken (Task 6 review).
+-- * RAGDOLL (assassinations Task 6b, owner 2026-10-27): a finished grip makes the body a ragdoll (Modules.Managers.Ragdoll,
+--   Apply, just before Health 0) -- enemies, townsfolk and players gripped by players. Carry lets a ragdolled body go
+--   (Ragdoll.Hold: unanchored, held by the carrier; its limbs hang from it) and Drop sets it down limp to settle again.
 -- Attributes (server-written): Knocked, KnockedUntil, GrippedBy, Gripping, CarriedBy, Carrying.
 -- * CRAWL (owner 2026-10-27: "Yes, slow crawl"): a knocked PLAYER crawls at TuningConfig.Downed.CrawlSpeed (PROPOSAL
 --   3) instead of lying still; knocked enemies and townsfolk (the assassinations' knockout too) keep WalkSpeed 0, and
@@ -198,8 +202,9 @@ DownedManager.SetKnockedSpeed = SetKnockedSpeed
 -- of where it was before the move (seen when a carry is set down).
 -- The knock's own grace (assassinations Task 6; it used to follow the client, one free reposition per knock): for the
 -- first CrawlClampGrace seconds the point is PINNED at the knock point. The body may still be carried by what it was
--- doing (a sprint, a dash, the hit's knockback), so the whole way since the knock may be KnockMomentum x the time since
--- it; farther, it is put back at the knock point (counted). Once the grace is over, the crawl's clamp goes on from
+-- doing (a sprint, a dash, the hit's knockback), so the whole way since the knock may be KnockMomentum x (the time since
+-- it + one CrawlCheck tick) + CrawlClampSlack (Task 6 review: a hitch's slack); farther, it is put back at the knock
+-- point (counted). An unclamped tick (carried, welded, seated) inside the grace keeps the pin. Once the grace is over, the crawl's clamp goes on from
 -- wherever the momentum left it.
 -- Weak-keyed (Task 6): a test that sets Knocked directly (no Knock, so no watch to forget them) and calls RebaseCrawl
 -- leaves nothing behind. While a knock lasts, its watch holds the character (an upvalue), so the entry stays.
@@ -223,13 +228,17 @@ local function ClampCrawl(Victim)
 	local Now = os.clock()
 	local C = ClampFrom[Victim]
 	if not C or Unclamped(Victim, R) then
-		ClampFrom[Victim] = {Pos = R.Position, T = Now}
+		-- (Task 6 review) an unclamped tick inside the knock's grace keeps the pin and the knock's time: the point follows,
+		-- but the grace still ends CrawlClampGrace after the knock and its momentum allowance still applies
+		local Keep = C ~= nil and C.Pin == true and Now - C.T < (Cfg.CrawlClampGrace or 0.5)
+		ClampFrom[Victim] = Keep and {Pos = R.Position, T = C.T, Pin = true} or {Pos = R.Position, T = Now}
 		return
 	end
 	local D = Vector3.new(R.Position.X - C.Pos.X, 0, R.Position.Z - C.Pos.Z).Magnitude
 	if C.Pin then
 		local Since = Now - C.T
-		if D > KnockMomentum * Since + 0.05 then
+		-- (Task 6 review) with a hitch's slack: one watch tick late (CrawlCheck) plus the crawl clamp's CrawlClampSlack
+		if D > KnockMomentum * (Since + (Cfg.CrawlCheck or 0.1)) + (Cfg.CrawlClampSlack or 2.5) then
 			-- further than any momentum could carry it: back at the knock point (the pin stays)
 			R.CFrame += C.Pos - R.Position
 			R.AssemblyLinearVelocity = Vector3.zero
@@ -316,6 +325,18 @@ end
 DownedManager.Lock = Lock
 DownedManager.Attach = Attach
 DownedManager.Detach = Detach
+
+-- (Task 6b) the shared ragdoll (Modules.Managers.Ragdoll), required on first use. Without it (a place it hasn't reached)
+-- the call warns once and the body lies whole as before.
+local RagdollWarned = false
+local function RagdollDo(Fn, ...)
+	local M = ReplicatedStorage.Modules.Managers:FindFirstChild("Ragdoll")
+	local Ok, Err = pcall(function(...) return require(M)[Fn](...) end, ...)
+	if not Ok and not RagdollWarned then
+		RagdollWarned = true
+		warn("DownedManager: Ragdoll." .. Fn .. " failed:", Err)
+	end
+end
 
 -- ===== Knock / recover =====
 local Recover
@@ -456,9 +477,10 @@ function DownedManager.IsTakedownBody(Model)
 	return H ~= nil and Model.Parent ~= nil and H.Health <= 0 and Model:GetAttribute("TakenDownBy") ~= nil
 end
 
--- can a grip or a carry take M: knocked, alive and held by nobody; with Bodies (Carry only), a takedown's body too
+-- can a grip or a carry take M: knocked, alive and held by nobody (no hold attribute, no weld of ours); with Bodies (Carry only), a takedown's body too
 local function Takeable(M, Bodies)
 	if M:GetAttribute("GrippedBy") or M:GetAttribute("CarriedBy") then return false end
+	if Welds[M] then return false end -- (Task 6 review) another holder's weld (a takedown's) is never overwritten
 	return (DownedManager.IsKnocked(M) and Alive(M)) or (Bodies == true and DownedManager.IsTakedownBody(M))
 end
 
@@ -596,6 +618,9 @@ function DownedManager.Grip(Gripper, Target)
 		Target:SetAttribute("Knocked", nil)
 		Target:SetAttribute("KnockedStill", nil)
 		KnockStun[Target] = nil
+		-- (Task 6b, owner 2026-10-27) a gripped body ragdolls: joints to ball sockets, before the death so a player's
+		-- joints don't break apart (BreakJointsOnDeath) and an NPC never stands dead for a frame
+		RagdollDo("Apply", Target)
 		Hum(Target).Health = 0
 		for _, Listener in ipairs(DownedManager.Listeners) do
 			local Ok, Err = pcall(Listener, "Grip", Gripper, Target)
@@ -638,7 +663,11 @@ function DownedManager.Drop(Carrier)
 		local CR, TR = Root(Carrier), Root(Target)
 		if CR and TR then TR.CFrame = CR.CFrame * CFrame.new(0, 0, -2.5) end -- set down in front
 		DownedManager.RebaseCrawl(Target)
-		if Alive(Target) and DownedManager.IsKnocked(Target) then
+		if Target:GetAttribute("Ragdolled") then
+			-- (Task 6b) a ragdoll falls where it is set down, limp, and settles again (no pose)
+			AnimationManager.Stop(Target, "Carried")
+			RagdollDo("Hold", Target, false)
+		elseif Alive(Target) and DownedManager.IsKnocked(Target) then
 			AnimationManager.Stop(Target, "Carried")
 			AnimationManager.Play(Target, "Knocked", {Looped = true, Priority = Enum.AnimationPriority.Action4})
 			if (Target:GetAttribute("KnockedUntil") or 0) <= workspace:GetServerTimeNow() then Recover(Target) end
@@ -655,7 +684,13 @@ function DownedManager.Carry(Carrier, Target)
 	-- (Task 6) a target handed in is checked like a found one: knocked and alive, or a takedown's body; held by nobody
 	if not Target or Target == Carrier or not Takeable(Target, true) or not Free(Carrier) then return false end
 	local WCS, AnimationManager, Stun = Mods()
-	if not Attach(Carrier, Target, Cfg.CarryOffset) then return false end
+	-- (Task 6b) a ragdolled body is let go of first (a settled one is anchored where it lies) and held by the carrier
+	local Limp = Target:GetAttribute("Ragdolled") == true
+	if Limp then RagdollDo("Hold", Target, true, OwnerOf(Carrier)) end
+	if not Attach(Carrier, Target, Cfg.CarryOffset) then
+		if Limp then RagdollDo("Hold", Target, false) end
+		return false
+	end
 	Target:SetAttribute("CarriedBy", Carrier.Name)
 	SetKnockedSpeed(Target) -- carried: no crawl
 	Carrier:SetAttribute("Carrying", Target.Name)

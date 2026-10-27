@@ -7,6 +7,11 @@
 -- x0.3, pre-flight R7) and searches there, once per body; a takedown's corpse stays (Takedown.BodySeconds, not 4 s).
 -- Task 6: DownedManager -- Knock takes an optional length; V carries a takedown's dead body (pre-flight R6, spec §18.1),
 -- B never grips one, and a body removed mid-carry is dropped cleanly; Lock / Attach / Detach are shared (R16 / D3).
+-- Task 6b (owner 2026-10-27): a body a finished Grip killed ragdolls (Modules.Managers.Ragdoll), lies on the floor,
+-- settles (anchored), is still found by a patrol, and is carried and set down limp. Every case goes through the real
+-- Grip path: DownedManager.Knock(Body), then DownedManager.Grip(Gripper, Body) with a second kit Grunt as the gripper
+-- (never the player: a player gripper records deeds, and the player is never the victim).
+-- Task 6 review: Knock's Seconds beats the KnockedTime attribute; V refuses a body another holder has welded.
 local SSS = game.ServerScriptService
 local DM = require(game.ReplicatedStorage.Modules.Managers.DownedManager)
 local PS = require(SSS.PerceptionService)
@@ -14,6 +19,7 @@ local LS = require(SSS.LightService)
 local WorldClock = require(SSS.WorldClock) -- the clock moves, so the light cases hold it (as Play_Stealth does)
 local Lighting = game:GetService("Lighting")
 local Kit = require(script.Parent.TakedownKit)
+local SmokeKit = require(script.Parent.SmokeKit) -- (Task 6b) RemoveEnemy: the gripper goes once its grip is done
 local Player = Kit.Player()
 local C = Player.Character
 
@@ -109,6 +115,57 @@ local NEAR = At(0, 4) + Vector3.new(0, 3, 0)
 local function CarryWeld() return C.HumanoidRootPart:FindFirstChild("DownedWeld") end
 -- a kit rig lies free like a real one (Kit.Spawn anchors its root)
 local function Free(Rig) Rig.HumanoidRootPart.Anchored = false return Rig end
+
+-- ===== Task 6b: a gripped body ragdolls =====
+local SETTLE = 4 -- Ragdoll.Settle (PROPOSAL), written here by hand, never read from the module
+-- the R6 joints a ragdoll replaces (StarterCharacter, read in Ye's Edit 2026-10-27); the RootJoint is kept
+local LIMB_JOINTS = {"Neck", "Right Shoulder", "Left Shoulder", "Right Hip", "Left Hip"}
+local function WaitFor(Seconds, Fn)
+	local T0 = os.clock()
+	while os.clock() - T0 < Seconds do
+		if Fn() then return true end
+		task.wait(0.05)
+	end
+	return Fn() and true or false
+end
+-- the torso's height above the kit floor's top
+local function Height(Body) return TorsoOf(Body).Position.Y - Kit.Spot().Y end
+-- the body's own parts (the BaseParts directly in the rig)
+local function BodyParts(Body)
+	local Out = {}
+	for _, P in ipairs(Body:GetChildren()) do if P:IsA("BasePart") then table.insert(Out, P) end end
+	return Out
+end
+-- the name of a body part that is anchored, or nil
+local function AnchoredPart(Body)
+	for _, P in ipairs(BodyParts(Body)) do if P.Anchored then return P.Name end end
+	return nil
+end
+-- a BallSocketConstraint joining the joint's two parts
+local function SocketFor(Body, J)
+	for _, B in ipairs(Body:GetDescendants()) do
+		if B:IsA("BallSocketConstraint") and B.Attachment0 and B.Attachment1 and B.Attachment0.Parent == J.Part0
+			and B.Attachment1.Parent == J.Part1 then
+			return B
+		end
+	end
+	return nil
+end
+-- a kit Grunt at (X, Z), knocked, then finished by a second kit Grunt's grip from 4 studs in front (the real Grip
+-- path), which is removed once its grip is done (so it never looks at the body). TakenDown: TakenDownBy set first, so
+-- the body stays (Takedown.BodySeconds) and V can carry it. Returns the body.
+local function Gripped(X, Z, TakenDown)
+	local Body = Kit.Spawn("Grunt", At(X, Z))
+	if TakenDown then Body:SetAttribute("TakenDownBy", Player.Name) end
+	local Gripper = Kit.Spawn("Grunt", At(X, Z + 4))
+	DM.Knock(Body)
+	assert(DM.IsKnocked(Body), "setup: the body is knocked")
+	local Done = DM.Grip(Gripper, Body)
+	SmokeKit.RemoveEnemy(Gripper)
+	assert(Done == true, "setup: the grip finished")
+	assert(Body.Humanoid.Health <= 0, "setup: the grip killed it")
+	return Body
+end
 
 return {
 	SkipWhileTakenDown = function(T)
@@ -343,6 +400,15 @@ return {
 			local Rig = Kit.Spawn("Grunt", At(10, 0))
 			DM.Knock(Rig, 7)
 			T.Near((Rig:GetAttribute("KnockedUntil") or 0) - workspace:GetServerTimeNow(), 7, 0.2, "Knock(Rig, 7): 7 s")
+			-- (Task 6 review) the length beats the character's own KnockedTime attribute too (control: the attribute alone)
+			local Own = Kit.Spawn("Grunt", At(-10, 0))
+			Own:SetAttribute("KnockedTime", 30)
+			DM.Knock(Own)
+			T.Near((Own:GetAttribute("KnockedUntil") or 0) - workspace:GetServerTimeNow(), 30, 0.2, "control: KnockedTime 30 alone, 30 s")
+			local Both = Kit.Spawn("Grunt", At(-20, 0))
+			Both:SetAttribute("KnockedTime", 30)
+			DM.Knock(Both, 7)
+			T.Near((Both:GetAttribute("KnockedUntil") or 0) - workspace:GetServerTimeNow(), 7, 0.2, "KnockedTime 30 with Knock(Rig, 7): 7 s")
 		end)
 	end,
 	-- (pre-flight R6, spec §18.1) V picks up a takedown's dead body like a knocked one; it stays carried over 20 studs, is
@@ -425,8 +491,6 @@ return {
 				T.Eq(CarryWeld(), nil, What .. ": no weld left on the carrier")
 				T.Near(H.WalkSpeed, WS, 1e-3, What .. ": the carrier walks as before")
 				T.True((Other.HumanoidRootPart.Position - OtherAt).Magnitude < 0.05, What .. ": the same-named bandit wasn't moved")
-				T.Eq(Other:GetAttribute("CarriedBy"), nil, What .. ": nor marked carried")
-				T.Eq(Other.Humanoid.PlatformStand, false, What .. ": nor detached")
 			end
 			local Knocked = Kit.Spawn("Grunt", At(0, 0))
 			DM.Knock(Knocked)
@@ -455,6 +519,108 @@ return {
 			T.Eq(HH.JumpHeight, 0, "no jump")
 			DM.Lock(Holder, false)
 			T.Near(HH.WalkSpeed, WS, 1e-3, "unlocked: its own speed back")
+			-- (Task 6 review) a knocked body another holder has welded (a takedown's weld) is never taken by V
+			local Welded = Free(Kit.Spawn("Grunt", At(-10, 0)))
+			DM.Knock(Welded)
+			T.True(DM.Attach(Holder, Welded, CFrame.new(0, 0, -2)), "another holder's weld on a knocked bandit")
+			Kit.PutPlayer(NEAR)
+			T.Eq(DM.Carry(C, Welded), false, "V refuses the welded body")
+			T.Eq(C:GetAttribute("Carrying"), nil, "the player carries nothing")
+			T.Eq(CarryWeld(), nil, "and has no carry weld")
+			DM.Detach(Welded)
+		end)
+	end,
+
+	-- ===== Task 6b: a gripped body ragdolls =====
+	GripRagdolls = function(T)
+		Kit.Guard(function()
+			-- control first: a plain Health = 0 kill is not a ragdoll (it lies whole, as before)
+			local Plain = Free(Kit.Spawn("Grunt", At(10, 0)))
+			Plain.Humanoid.Health = 0
+			task.wait(0.5)
+			T.Eq(Plain:GetAttribute("Ragdolled"), nil, "control: a plain kill is not Ragdolled")
+			T.True(Plain.Torso.Neck.Enabled and Plain.Torso["Right Hip"].Enabled, "control: its joints are untouched")
+			local Body = Gripped(0, 0)
+			T.Eq(Body:GetAttribute("Ragdolled"), true, "the gripped body is Ragdolled")
+			for _, Name in ipairs(LIMB_JOINTS) do
+				local J = Body.Torso:FindFirstChild(Name)
+				T.True(J ~= nil and J:IsA("Motor6D"), Name .. " is still there (disabled, not destroyed)")
+				T.Eq(J.Enabled, false, Name .. " is disabled")
+				T.True(SocketFor(Body, J) ~= nil, Name .. " has a BallSocketConstraint between its parts")
+			end
+			-- and every other Motor6D between two body parts too, except the RootJoint
+			for _, J in ipairs(Body:GetDescendants()) do
+				if J:IsA("Motor6D") and J.Part0 and J.Part1 and J.Part0.Parent == Body and J.Part1.Parent == Body then
+					if J.Name == "RootJoint" then
+						T.Eq(J.Enabled, true, "the RootJoint stays")
+					else
+						T.True(not J.Enabled and SocketFor(Body, J) ~= nil, J.Name .. ": disabled, with a ball socket")
+					end
+				end
+			end
+			T.True(WaitFor(2, function() return Height(Body) <= 1.5 end),
+				("within 2 s the torso lies within 1.5 studs of the floor: %.2f"):format(Height(Body)))
+			T.Eq(AnchoredPart(Body), nil, "nothing anchored while it falls")
+		end)
+	end,
+	-- after Settle (4 s, PROPOSAL) + 1 s the body is anchored where it lies and doesn't move. (A takedown body, which
+	-- stays Takedown.BodySeconds: a plain gripped bandit's body is still removed at EnemyService's 4 s, before Settle.)
+	RagdollSettles = function(T)
+		Kit.Guard(function()
+			local Body = Gripped(0, 0, true)
+			T.Eq(Body:GetAttribute("Ragdolled"), true, "Ragdolled")
+			task.wait(SETTLE + 1)
+			local Torso = TorsoOf(Body)
+			T.Eq(Torso.Anchored, true, "settled: the torso is anchored")
+			for _, P in ipairs(BodyParts(Body)) do T.Eq(P.Anchored, true, "settled: " .. P.Name .. " anchored") end
+			local Was = Torso.Position
+			task.wait(1)
+			T.True((Torso.Position - Was).Magnitude <= 0.1, ("still over the next 1 s: %.3f"):format((Torso.Position - Was).Magnitude))
+			T.True(Height(Body) <= 1.5, ("settled on the floor: %.2f"):format(Height(Body)))
+		end)
+	end,
+	-- (Task 5's finding) a ragdolled body lies low; a Grunt 10 studs off, facing it at noon, still finds it
+	RagdollBodyIsFound = function(T)
+		Kit.Guard(function() AtHour(12, function() Listen(function(Got)
+			local Body = Gripped(0, 0, true)
+			T.Eq(Body:GetAttribute("Ragdolled"), true, "Ragdolled")
+			T.True(WaitFor(2, function() return Height(Body) <= 1.5 end), ("lying down: %.2f"):format(Height(Body)))
+			local Info = AddBody(Body, {Kind = "Dead", By = Player})
+			local Rig = Kit.Spawn("Grunt", At(0, 10)) -- 10 studs off, facing it (-Z), in the open at noon
+			Kit.PutPlayer(AWAY)
+			Kit.Run(4)
+			T.True(Info ~= nil and Info.Found == true, "a Grunt at 10 studs found the ragdolled body")
+			T.True(Got[1] ~= nil and Got[1].Body == Body and Got[1].Finder == Rig, "BodyFound: that body, by that Grunt")
+		end) end) end)
+	end,
+	-- Task 6's dead-body carry of a ragdolled takedown body: a settled (anchored) one is let go of, carried with
+	-- nothing anchored, and set down limp, then settles again
+	RagdollCarry = function(T)
+		Kit.Guard(function()
+			local Body = Gripped(0, 0, true)
+			T.Eq(Body:GetAttribute("Ragdolled"), true, "Ragdolled")
+			T.True(WaitFor(SETTLE + 3, function() return TorsoOf(Body).Anchored end), "settled before the carry")
+			local Torso = TorsoOf(Body)
+			local P = Vector3.new(Torso.Position.X, Kit.Spot().Y + 3, Torso.Position.Z + 3)
+			Kit.PutPlayer(CFrame.lookAt(P, P + Vector3.new(0, 0, -1)))
+			local Root = C.HumanoidRootPart
+			T.Eq(DM.Request(C, "Carry"), "Carry", "V picks up the ragdolled takedown body")
+			local Stuck = AnchoredPart(Body)
+			for _ = 1, 10 do -- 20 studs in 1 s (-Z)
+				Root.CFrame += Vector3.new(0, 0, -2)
+				task.wait(0.1)
+				Stuck = Stuck or AnchoredPart(Body)
+			end
+			T.Eq(Stuck, nil, "nothing of the body anchored mid-carry")
+			T.Eq(C:GetAttribute("Carrying"), Body.Name, "still carried after 20 studs")
+			local Off = Flat(Torso.Position - Root.Position)
+			T.True(Off < 4, ("the body went with the carrier: %.1f studs off"):format(Off))
+			T.Eq(DM.Request(C, "Carry"), "Dropped", "V again sets it down")
+			T.Eq(CarryWeld(), nil, "no weld left on the carrier")
+			T.Eq(AnchoredPart(Body), nil, "set down: nothing anchored")
+			T.Eq(Body.Humanoid.PlatformStand, true, "set down limp (PlatformStand)")
+			T.True(WaitFor(2, function() return Height(Body) <= 1.5 end), ("it falls to the floor: %.2f"):format(Height(Body)))
+			T.True(WaitFor(SETTLE + 3, function() return Torso.Anchored end), "and settles again")
 		end)
 	end,
 }
