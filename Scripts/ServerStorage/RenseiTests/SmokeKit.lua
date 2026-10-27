@@ -29,6 +29,21 @@
 --     still stand), ClearTemp, and the character put back -- anchored, pivoted home, velocity zeroed, then its anchoring
 --     from before the case restored (pcall too). Re-raises the first error: Before's or Body's, then After's, then the
 --     put-back's.
+-- (Assassinations Task 4, 2026-10-27, pre-flight Ruling R5: moved from Play_Stealth with the same behaviour, so
+-- TakedownKit builds on them instead of copying them; game VM only.)
+--   * SmokeKit.Run(Seconds): PerceptionService stepped by hand, 0.2 s at a time (the caller holds PS.SetAuto(false)).
+--   * SmokeKit.Put(Player, Rig, Local): the player's character at Local (in the rig's root space; -Z is in front of
+--     it), facing the rig level, velocity zeroed, then 0.15 s to settle.
+--   * SmokeKit.SpawnEnemy(Type, At): EnemyService.Spawn from a runtime mark at At (a Vector3) that is never parented, so
+--     the enemy never respawns (RoadService's ambushes spawn the same way); asserts a rig came back and returns it.
+--   * SmokeKit.RemoveEnemy(Rig): the enemy taken out of EnemyService.Active (not a kill: no Died, so no reward and no
+--     respawn), then its WCS character, then the rig (CombatDirector and PerceptionService drop it on removal).
+--   * SmokeKit.SweepEnemies(At, Radius) (Ruling 36): RemoveEnemy for every live enemy whose root is within Radius of
+--     At, for a Spawn that threw after parenting its rig.
+--   * SmokeKit.OwnGrunt(Player, Body) (gun rework Rulings 6 and 38): Body(Rig, S) with a Grunt of its own on a Play-only
+--     floor (a TempPart) at GRUNT_AT high above the map, its root anchored there facing -Z, AIPassive and PS.Reset, inside
+--     Guarded with perception and light stepped by hand; afterwards the Grunt and anything else on the floor are removed,
+--     Crouching is cleared and both loops run again.
 local CollectionService = game:GetService("CollectionService")
 local SSS = game:GetService("ServerScriptService")
 local MovementState = require(game:GetService("ReplicatedStorage").Modules.Managers.MovementState)
@@ -78,6 +93,81 @@ function SmokeKit.Guarded(Player, Body, Before, After)
 	if not Ok then error(Err, 0) end
 	if not AfterOk then error(AfterErr, 0) end
 	if not HomeOk then error(HomeErr, 0) end
+end
+
+-- ===== perception fixtures (assassinations Task 4, R5; moved from Play_Stealth) =====
+-- required when called, so the suites that never use them don't load the services
+local function PS() return require(SSS.PerceptionService) end
+local function ES() return require(SSS.EnemyService) end
+local function LS() return require(SSS.LightService) end
+
+function SmokeKit.Run(Seconds)
+	local Perception = PS()
+	for _ = 1, math.floor(Seconds / 0.2 + 0.5) do Perception.Step(0.2) end
+end
+
+function SmokeKit.Put(Player, Rig, Local)
+	local C = Player.Character
+	local Root = Rig.HumanoidRootPart
+	local Pos = Root.Position + Root.CFrame:VectorToWorldSpace(Local)
+	C:PivotTo(CFrame.lookAt(Pos, Vector3.new(Root.Position.X, Pos.Y, Root.Position.Z)))
+	C.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
+	task.wait(0.15)
+end
+
+function SmokeKit.SpawnEnemy(Type, At)
+	local Mark = Instance.new("Part") -- a runtime mark, never parented
+	Mark.Anchored, Mark.CanCollide, Mark.Transparency = true, false, 1
+	Mark.CFrame = CFrame.new(At)
+	Mark:SetAttribute("EnemyType", Type)
+	local Rig = ES().Spawn(Mark)
+	assert(typeof(Rig) == "Instance", "the case's own " .. tostring(Type) .. " spawned")
+	return Rig
+end
+
+function SmokeKit.RemoveEnemy(Rig)
+	local Enemies = ES()
+	local E = Enemies.Active[Rig]
+	Enemies.Active[Rig] = nil -- not a kill: no Died, so no reward and no respawn
+	if E and E.WCS then pcall(function() E.WCS:Destroy() end) end
+	if Rig.Parent then Rig:Destroy() end -- CombatDirector and PerceptionService drop it on removal
+end
+
+function SmokeKit.SweepEnemies(At, Radius)
+	local Near = {}
+	for Other in pairs(ES().Active) do
+		local Root = Other:FindFirstChild("HumanoidRootPart")
+		if Root and (Root.Position - At).Magnitude <= Radius then table.insert(Near, Other) end
+	end
+	for _, Other in ipairs(Near) do SmokeKit.RemoveEnemy(Other) end
+end
+
+SmokeKit.GRUNT_AT = Vector3.new(0, 2500, 0) -- PROPOSAL: the floor's top centre (both maps' tops are under y 430; GunKit's floor is at 2000)
+SmokeKit.GRUNT_FLOOR = Vector3.new(80, 1, 80) -- PROPOSAL
+SmokeKit.GRUNT_SWEEP = 60 -- PROPOSAL: studs from GRUNT_AT; the clean-up removes any enemy this near (a Spawn that threw half-way)
+
+function SmokeKit.OwnGrunt(Player, Body)
+	local At = SmokeKit.GRUNT_AT
+	local Rig
+	SmokeKit.Guarded(Player, function()
+		SmokeKit.TempPart({Name = "Stealth_Floor", Size = SmokeKit.GRUNT_FLOOR,
+			CFrame = CFrame.new(At - Vector3.new(0, SmokeKit.GRUNT_FLOOR.Y / 2, 0))})
+		Rig = SmokeKit.SpawnEnemy("Grunt", At)
+		Rig.HumanoidRootPart.Anchored = true
+		Rig:PivotTo(CFrame.new(At + Vector3.new(0, 3, 0)))
+		Rig:SetAttribute("AIPassive", true)
+		local S = PS().Npcs[Rig]
+		assert(S ~= nil and S.Type == "Grunt", "the Grunt is a perceiving Grunt")
+		PS().Reset(Rig)
+		Body(Rig, S)
+	end, function()
+		PS().SetAuto(false); LS().SetAuto(false)
+	end, function()
+		if Rig then SmokeKit.RemoveEnemy(Rig) end
+		SmokeKit.SweepEnemies(At, SmokeKit.GRUNT_SWEEP)
+		Player.Character:SetAttribute("Crouching", nil)
+		PS().SetAuto(true); LS().SetAuto(true)
+	end)
 end
 
 function SmokeKit.Copy(V)

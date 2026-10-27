@@ -62,4 +62,10 @@ return {
 		T.Eq(P.StrokeEvery, 0.8, "strokes every 0.8 s")
 		T.True(P.Sounds.Surface < P.Sounds.Splash, "surfacing is quieter than jumping in")
 	end,
+	-- assassinations (2026-10-27, spec §7.2): a choke at the start of a knockout; a body dropping after a takedown
+	TakedownSounds = function(T)
+		T.Eq(P.Sounds.Choke, 6, "a choke")
+		T.Eq(P.Sounds.Takedown, 4, "a body dropping")
+		T.True(P.Sounds.Takedown < P.Sounds.Hit, "a takedown is quieter than a hit")
+	end,
 }

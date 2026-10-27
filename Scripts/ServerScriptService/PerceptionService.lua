@@ -19,6 +19,12 @@
 -- an accidental total cloak: Play_Swim's RED measured 0 awareness under water), and a diver (the Submerged attribute
 -- SwimService sets) is seen at Perception.SubmergedMult (x0.3) in place of the movement multiplier; it wins over
 -- crouching.
+-- Assassinations Task 4 (2026-10-27): a rig being taken down (attribute TakenDownBy) perceives nothing: it doesn't see,
+-- hear or witness (Update, Hear, Perceived). Glimpse(Player, Except) is the one quick look every NPC takes at an attack
+-- (no light or movement multiplier): those that see it remember where the player was, and enemies are alarmed. Raise(Rig,
+-- Where) puts an NPC Alert with nobody to fight, searching around Where, and calls NPCs within 40 studs to look there
+-- (Call takes no player for that). An Alert NPC with no focus -- a raised one, or one whose focus left the server --
+-- now takes a player it fully notices as its focus (before, it could only search, never fight them).
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -86,31 +92,38 @@ local function Points(Character)
 	return {Head.Position, Torso.Position, Root.Position - Vector3.new(0, 2.6, 0)}
 end
 
+-- how many of the first N points (Pts, from Points) Rig has a clear line to from Eye: one ray each. Visible and
+-- Glimpse share it, so both judge sight the same way (the same Rays params and filter).
+local function ClearLines(Rig, Eye, Character, Pts, N)
+	Rays.FilterDescendantsInstances = {Rig, Character}
+	local Clear = 0
+	for I = 1, N do
+		if not workspace:Raycast(Eye, Pts[I] - Eye, Rays) then Clear += 1 end
+	end
+	return Clear
+end
+
 -- the fraction (0, 1/3, 2/3, 1) of those points the NPC has a clear line to, within its own ray budget
 local function Visible(S, Eye, Character, Allowance)
 	local Pts = Points(Character)
 	if not Pts then return 0, Allowance end
 	if Budget <= 0 or Allowance <= 0 then return nil, Allowance end -- no rays left: not checked this tick
-	Rays.FilterDescendantsInstances = {S.Rig, Character}
-	local Clear = 0
-	for _, Pt in ipairs(Pts) do
-		if Budget <= 0 or Allowance <= 0 then break end
-		Budget -= 1
-		Allowance -= 1
-		if not workspace:Raycast(Eye, Pt - Eye, Rays) then Clear += 1 end
-	end
-	return Clear / 3, Allowance
+	local N = math.min(#Pts, Budget, Allowance)
+	Budget -= N
+	Allowance -= N
+	return ClearLines(S.Rig, Eye, Character, Pts, N) / 3, Allowance
 end
 
--- an Alert NPC brings in the others close by: they come to look at Where
+-- an Alert NPC brings in the others close by: they come to look at Where. Player: who it saw (they grow suspicious of
+-- them); nil for a spot with nobody seen (Raise), where they learn where, not who.
 local function Call(S, Player, Where)
 	local Root = S.Rig:FindFirstChild("HumanoidRootPart")
-	if not Root or not Where or not Player then return end -- the focus may have left mid-fight
+	if not Root or not Where then return end
 	for Rig, O in pairs(Npcs) do
 		local R = O ~= S and Rig:FindFirstChild("HumanoidRootPart")
 		-- enemies call enemies, watchers call watchers (spec §17.1: guards are called in, not bandits)
 		if R and O.Combat == S.Combat and (R.Position - Root.Position).Magnitude <= P.CallRadius and O.Phase ~= "Alert" then
-			O.Aware[Player] = math.max(O.Aware[Player] or 0, P.Suspicious)
+			if Player then O.Aware[Player] = math.max(O.Aware[Player] or 0, P.Suspicious) end
 			O.LastKnown = Where
 			O.InvestigateUntil = Now() + P.InvestigateTime
 			SetPhase(O, "Suspicious")
@@ -126,12 +139,19 @@ end
 
 local function Decide(S, Best, BestPlayer, T)
 	if S.Phase == "Alert" then
+		-- Alert with nobody in focus (raised at a spot, or the focus left the server): a player it fully notices becomes the focus
+		if not S.Focus and Best >= 1 then
+			S.Focus, S.SearchUntil = BestPlayer, nil
+			S.LastKnown = S.Spot[BestPlayer] or S.LastKnown
+			Call(S, BestPlayer, S.LastKnown)
+			return
+		end
 		local Seen = S.Focus and S.Seen[S.Focus]
 		if Seen and T - Seen <= P.Memory then S.SearchUntil = nil return end
 		if not S.SearchUntil then
 			S.SearchUntil = T + P.SearchTime
 			S.LastKnown = (S.Focus and S.Spot[S.Focus]) or S.LastKnown
-			Call(S, S.Focus, S.LastKnown)
+			if S.Focus then Call(S, S.Focus, S.LastKnown) end -- (the focus may have left mid-fight: nobody to call about)
 		elseif T >= S.SearchUntil then
 			for K in pairs(S.Aware) do S.Aware[K] = 0 end
 			S.Focus, S.SearchUntil, S.LastKnown = nil, nil, nil
@@ -163,7 +183,7 @@ local function Update(S, Dt, PlayerList)
 	local Rig = S.Rig
 	local Head = Rig:FindFirstChild("Head")
 	local Root = Rig:FindFirstChild("HumanoidRootPart")
-	if not (Head and Root) or not Alive(Rig) or Rig:GetAttribute("Knocked") then return end
+	if not (Head and Root) or not Alive(Rig) or Rig:GetAttribute("Knocked") or Rig:GetAttribute("TakenDownBy") then return end -- (being taken down: perceives nothing)
 	local T = Now()
 	local Cautious = T < S.CautiousUntil
 	local Type = P.Types[S.Type] or P.Types.Grunt
@@ -346,7 +366,7 @@ function PerceptionService.Hear(Position, Radius, Kind, Source)
 	local Heard = 0
 	for Rig, S in pairs(Npcs) do
 		local Head = Rig:FindFirstChild("Head")
-		if Head and S.Phase ~= "Alert" and Rig ~= Source and Alive(Rig) and not Rig:GetAttribute("Knocked") then
+		if Head and S.Phase ~= "Alert" and Rig ~= Source and Alive(Rig) and not Rig:GetAttribute("Knocked") and not Rig:GetAttribute("TakenDownBy") then
 			local Reach = Radius * ((T < S.CautiousUntil) and P.CautiousMult or 1)
 				* ((S.Type == "Agent" and P.LoudAlchemy[Kind or ""]) and P.AgentHearing or 1)
 			local Dist = (Head.Position - Position).Magnitude
@@ -368,12 +388,50 @@ function PerceptionService.Perceived(Player)
 	local Out = {}
 	local T = Now()
 	for Rig, S in pairs(Npcs) do
-		if Alive(Rig) and not Rig:GetAttribute("Knocked") then
+		if Alive(Rig) and not Rig:GetAttribute("Knocked") and not Rig:GetAttribute("TakenDownBy") then
 			local Seen = S.Seen[Player]
 			if Seen and T - Seen <= P.Memory then table.insert(Out, S) end
 		end
 	end
 	return Out
+end
+
+-- one quick look at Player by every NPC but Except (the victim), at an attack (spec §6): an NPC that isn't dead,
+-- knocked or being taken down sees it when the player's root is within its type's range, inside its view cone, and it
+-- has a clear line to the player's head, torso or feet -- three rays of its own (never the tick's budget), no light
+-- or movement multiplier. Each that sees remembers when and where; an enemy is alarmed on the player. Returns their rigs.
+function PerceptionService.Glimpse(Player, Except)
+	local Out = {}
+	local C = Player and Player.Character
+	local CR = C and C:FindFirstChild("HumanoidRootPart")
+	local Pts = C and Points(C)
+	if not (CR and Pts) then return Out end
+	local T = Now()
+	for Rig, S in pairs(Npcs) do
+		local Head = Rig:FindFirstChild("Head")
+		local Root = Rig:FindFirstChild("HumanoidRootPart")
+		if Rig ~= Except and Head and Root and Alive(Rig) and not Rig:GetAttribute("Knocked") and not Rig:GetAttribute("TakenDownBy") then
+			local To = CR.Position - Head.Position
+			local Type = P.Types[S.Type] or P.Types.Grunt
+			if To.Magnitude <= Type.Range and P.ConeMult(Root.CFrame.LookVector, To) > 0
+				and ClearLines(Rig, Head.Position, C, Pts, #Pts) > 0 then
+				S.Seen[Player], S.Spot[Player] = T, CR.Position
+				if S.Combat then PerceptionService.Alarm(Rig, Player) end
+				table.insert(Out, Rig)
+			end
+		end
+	end
+	return Out
+end
+
+-- an Alert search at Where with nobody to fight (a body found, an NPC waking from a knockout): it sweeps around the
+-- spot for SearchTime, then turns Cautious as after any failed search; NPCs of its kind within CallRadius come to look
+function PerceptionService.Raise(Rig, Where)
+	local S = Npcs[Rig]
+	if not S or typeof(Where) ~= "Vector3" then return end
+	S.Focus, S.LastKnown, S.SearchUntil = nil, Where, Now() + P.SearchTime
+	SetPhase(S, "Alert")
+	Call(S, nil, Where)
 end
 
 function PerceptionService.Start()

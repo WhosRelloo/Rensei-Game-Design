@@ -18,14 +18,9 @@ local function Find(Type)
 		if S and S.Type == Type and Rig:FindFirstChild("HumanoidRootPart") then return Rig, S end
 	end
 end
-local function Run(Seconds) for _ = 1, math.floor(Seconds / 0.2 + 0.5) do PS.Step(0.2) end end
-local function Put(Rig, Local)
-	local Root = Rig.HumanoidRootPart
-	local Pos = Root.Position + Root.CFrame:VectorToWorldSpace(Local)
-	C:PivotTo(CFrame.lookAt(Pos, Vector3.new(Root.Position.X, Pos.Y, Root.Position.Z)))
-	C.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
-	task.wait(0.15)
-end
+-- (assassinations Task 4, Ruling R5) Run, Put and OwnGrunt live in SmokeKit now, shared with TakedownKit
+local Run = SmokeKit.Run
+local function Put(Rig, Local) SmokeKit.Put(Player, Rig, Local) end
 local Part = SmokeKit.TempPart
 local function Guard(Rig, Body)
 	SmokeKit.Guarded(Player, Body, function()
@@ -40,55 +35,10 @@ end
 
 -- Gun rework final fix A11 (Ruling 6) and Task 12 (Ruling 38): every Grunt case gets its own Grunt (the first live one
 -- was flaky: whatever it was doing, and whatever stood around it in its camp, decided the result). Only
--- AgentsHearAlchemyTwiceAsFar still takes the first live Agent (a camp alchemist). Each Grunt is EnemyService.Spawn from an unparented runtime mark on a Play-only
--- floor (a TempPart) high above the map, its root anchored there facing -Z, AIPassive and PS.Reset -- Unaware, still,
--- with nothing near it. It goes the way RoadService's ambushes remove theirs (RemoveEnemy: out of EnemyService.Active,
--- so no Died / respawn; its WCS character, then the rig).
-local GRUNT_AT = Vector3.new(0, 2500, 0) -- PROPOSAL: the floor's top centre (both maps' tops are under y 430; GunKit's floor is at 2000)
-local GRUNT_FLOOR = Vector3.new(80, 1, 80) -- PROPOSAL
-local GRUNT_SWEEP = 60 -- PROPOSAL: studs from GRUNT_AT; After removes any enemy this near (a Spawn that threw half-way)
-
-local function RemoveEnemy(Rig)
-	local E = ES.Active[Rig]
-	ES.Active[Rig] = nil -- not a kill: no Died, so no reward and no respawn
-	if E and E.WCS then pcall(function() E.WCS:Destroy() end) end
-	if Rig.Parent then Rig:Destroy() end -- CombatDirector and PerceptionService drop it on removal
-end
-
--- Body(Rig, S) with the case's own Grunt, inside SmokeKit.Guarded (perception and light stepped by hand, as Guard)
-local function OwnGrunt(Body)
-	local Rig
-	SmokeKit.Guarded(Player, function()
-		Part({Name = "Stealth_Floor", Size = GRUNT_FLOOR, CFrame = CFrame.new(GRUNT_AT - Vector3.new(0, GRUNT_FLOOR.Y / 2, 0))})
-		local Mark = Instance.new("Part") -- a runtime mark, never parented (RoadService's ambushes spawn the same way)
-		Mark.Anchored, Mark.CanCollide, Mark.Transparency = true, false, 1
-		Mark.CFrame = CFrame.new(GRUNT_AT)
-		Mark:SetAttribute("EnemyType", "Grunt")
-		Rig = ES.Spawn(Mark)
-		assert(typeof(Rig) == "Instance", "the case's own Grunt spawned")
-		Rig.HumanoidRootPart.Anchored = true
-		Rig:PivotTo(CFrame.new(GRUNT_AT + Vector3.new(0, 3, 0)))
-		Rig:SetAttribute("AIPassive", true)
-		local S = PS.Npcs[Rig]
-		assert(S ~= nil and S.Type == "Grunt", "the Grunt is a perceiving Grunt")
-		PS.Reset(Rig)
-		Body(Rig, S)
-	end, function()
-		PS.SetAuto(false); LS.SetAuto(false)
-	end, function()
-		if Rig then RemoveEnemy(Rig) end
-		-- (Ruling 36) a Spawn that threw after parenting its rig leaves Rig nil: sweep EnemyService's Active list for
-		-- anything standing on this floor and remove it the same way
-		local Near = {}
-		for Other in pairs(ES.Active) do
-			local Root = Other:FindFirstChild("HumanoidRootPart")
-			if Root and (Root.Position - GRUNT_AT).Magnitude <= GRUNT_SWEEP then table.insert(Near, Other) end
-		end
-		for _, Other in ipairs(Near) do RemoveEnemy(Other) end
-		C:SetAttribute("Crouching", nil)
-		PS.SetAuto(true); LS.SetAuto(true)
-	end)
-end
+-- AgentsHearAlchemyTwiceAsFar still takes the first live Agent (a camp alchemist). SmokeKit.OwnGrunt gives each case a
+-- Grunt on a Play-only floor high above the map: Unaware, still, with nothing near it, removed afterwards the way
+-- RoadService's ambushes remove theirs.
+local function OwnGrunt(Body) SmokeKit.OwnGrunt(Player, Body) end
 
 return {
 	WallMuffles = function(T)

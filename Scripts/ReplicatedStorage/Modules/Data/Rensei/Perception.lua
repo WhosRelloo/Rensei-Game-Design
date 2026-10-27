@@ -107,6 +107,8 @@ Perception.Sounds = {
 	Cast = 30, Clap = 8, Gunshot = 60, Hit = 20, Land = 12, Roll = 10, Splash = 12, Break = 25, LockPick = 6,
 	-- swimming revamp (2026-10-26, PROPOSAL): a head breaking the surface after a dive; a sprint stroke at the surface
 	Surface = 6, Stroke = 8,
+	-- assassinations (2026-10-27, PROPOSAL; spec §7.2): the choke at the start of a knockout; the body dropping after a takedown
+	Choke = 6, Takedown = 4,
 }
 Perception.StrokeEvery = 0.8 -- seconds between sprint-stroke sounds at the surface (PROPOSAL)
 Perception.LoudAlchemy = {Cast = true, Clap = true} -- Agents hear these from twice as far
