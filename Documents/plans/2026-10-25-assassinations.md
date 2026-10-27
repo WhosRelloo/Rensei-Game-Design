@@ -1,5 +1,11 @@
 # Assassinations Implementation Plan
 
+> **Owner update (2026-10-27): the spec is APPROVED** ("Approve as written"), with three additions from spec §18. They are part of these tasks:
+> - **Task 5 (bodies): carrying.** `DownedManager.Carry` (V) also accepts a dead takedown body (the rig takedowns leave for 120 s). It is carried, dropped and put down like a knocked rig. Its despawn timer keeps running, and a carried body is still seen as a body. Test: carry a body 20 studs, drop it, then a patrol finds it at the new spot.
+> - **Task 6 (deed): `assassinated_guard`.** Mercy −5, Local, Crime, with Heat in the victim's law jurisdiction through the existing Witness/Heat path, when a witness saw it or the body is found. A target counts as a guard when its faction is a law faction (`Regions` law / `Heat.Law`). If no such enemy type spawns yet, test it with a test rig. Bandits keep `assassinated_bandit`.
+> - **Task 9 (townsfolk): flee and report.** A townsperson whose sight catches a takedown flees, using the existing townsfolk flee, and the deed goes through WitnessService as a witnessed deed: rumours, plus Heat when the deed is a crime, so a guard's killing and not a bandit's. Test: a townsperson in view of a takedown flees, and a Witness record exists.
+> - **Scratch path:** use `C:/Users/Owner/.claude/jobs/0c39df78/tmp/assassination-plan/`. The plan's old scratch path belonged to another session.
+>
 > **Owner update (2026-10-25), overrides the empty-slot text below:** the owner supplied the takedown ids. Use them:
 > - `Takedown_Choke` = 72960497872371 ("Knock out")
 > - `Takedown_ChokeVictim` = 131914091661838 ("Hold")

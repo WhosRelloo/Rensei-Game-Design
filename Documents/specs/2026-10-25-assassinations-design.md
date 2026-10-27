@@ -8,7 +8,7 @@
 >
 > These replace the stand-ins below. The knockout uses the owner's Knock out / Hold pair, not the Bear Hug, and the assassination victim is no longer empty. The slots `Takedown_Choke` / `Takedown_ChokeVictim` take the Knock out / Hold ids, and `Misc_AssassinateVictim` takes 132728216355683. The implementer's Task 1 checks that each id loads in Studio, as the sheet process requires. Nothing is left for the owner to upload for this plan.
 
-**Status:** written overnight on 2026-10-25 under the owner's overnight go-ahead. **Not approved by the owner yet. Nothing here is built.** The plan is `Documents/plans/2026-10-25-assassinations.md`.
+**Status:** **APPROVED by the owner on 2026-10-27** ("Approve as written"), with three answers to the open questions (§18). Written overnight on 2026-10-25 under the owner's overnight go-ahead. Every number is still a PROPOSAL. The plan is `Documents/plans/2026-10-25-assassinations.md`.
 
 **The owner's request** (Backlog, "After the swimming revamp", item 1): "Assassinations that work with the detection system (sight, light, sound)", and "I threw anims in the spreadsheet for it". The same work is the two older items under "Stealth and identity": "build it on top of the detection system" and "Add assassinations to the game, like we talked about before (ONLY PVE)".
 
@@ -391,3 +391,10 @@ The owner was asleep (overnight go-ahead, 2026-10-25). Each is a PROPOSAL.
 5. Whether Grip and Carry are refused while crouched (A15).
 6. That no script in either place binds **N**.
 7. One open, flat test spot per place for the Play tests, chosen by a fixed search, never by the thing under test.
+
+## 18. Owner answers (2026-10-27)
+
+1. **Bodies can be carried:** "Yes, carry bodies". V picks up a dead takedown body like a knocked one, so you can hide it before a patrol finds it. The body's 120 s timer keeps running. A carried body is still a body to anyone who sees it.
+2. **Townsfolk witnesses flee and report:** "Flee and report". A townsperson who sees a takedown runs, using the existing flee behaviour, and reports it like any witnessed deed: rumours through WitnessService and RumourService, plus Heat when the deed is a crime (see 3). Killing a hostile bandit is not a crime, so it raises no Heat, only the rumour.
+3. **Guards are heavier:** "Mercy −5 + Heat". Assassinating an enemy that belongs to a law faction (a guard, a State patrol, or any rig whose faction is a region's law) records `assassinated_guard`: Mercy −5, with Heat in that law's jurisdiction when a witness saw it or the body is found. Bandits stay `assassinated_bandit` (Mercy −1, cap 10 a day). If no law-faction enemy type exists yet, the deed and the check are built and tested with a test rig, ready for when guards spawn.
+
