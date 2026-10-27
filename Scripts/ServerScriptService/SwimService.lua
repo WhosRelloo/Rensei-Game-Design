@@ -86,11 +86,16 @@ function SwimService.HeadUnderwater(Character)
 	if not Head then return false end
 	local P = Head.Position + Vector3.new(0, Tuning.HeadAbove, 0)
 	local Corner = Vector3.new(math.floor(P.X / 4) * 4, math.floor(P.Y / 4) * 4, math.floor(P.Z / 4) * 4)
+	-- (the cell above too: swimming revamp 2026-10-26. Near a pond's bed a cell can be part bed, part water ABOVE it;
+	-- the bottom-fill rule then put the "surface" below a diver's head 8 studs down. Water filling the cell above
+	-- means the head is under, whatever this cell holds.)
 	local Ok, Ch = pcall(function()
-		return workspace.Terrain:ReadVoxelChannels(Region3.new(Corner, Corner + Vector3.new(4, 4, 4)), 4, {"LiquidOccupancy"})
+		return workspace.Terrain:ReadVoxelChannels(Region3.new(Corner, Corner + Vector3.new(4, 8, 4)), 4, {"LiquidOccupancy"})
 	end)
 	if not Ok then return false end
 	local Liquid = Ch.LiquidOccupancy[1][1][1]
+	local Above = Ch.LiquidOccupancy[1][2] and Ch.LiquidOccupancy[1][2][1] or 0
+	if Liquid > 0 and Above >= Tuning.WaterOccupancy then return true end
 	return Liquid > 0 and P.Y < Corner.Y + Liquid * 4
 end
 

@@ -125,6 +125,16 @@ return {
 			T.Eq(Rig:GetAttribute("Submerged"), nil, "two checks out")
 		end)
 	end,
+	-- Task 9 (Foundry real input, 2026-10-27): a diver's head 8 studs down, near the pond's bed, read as out of the
+	-- water (the bed's cell is part slab, part water above it)
+	SubmergedNearTheBed = function(T)
+		local Spot = SwimKit.Main()
+		if not Spot then T.True(true, "no swim spot in this place") return end
+		WithRig(T, Spot.Depth - 1.2, function(Rig)
+			Steps(Rig, 2)
+			T.Eq(Rig:GetAttribute("Submerged"), true, ("head %.1f under, 1.2 over the bed"):format(Spot.Depth - 1.2))
+		end)
+	end,
 	BreathDrainsForACarrier = function(T)
 		WithRig(T, 3, function(Rig)
 			Rig:SetAttribute("Carrying", "x")

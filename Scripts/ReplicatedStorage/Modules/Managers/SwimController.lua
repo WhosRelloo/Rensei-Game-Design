@@ -129,6 +129,14 @@ local function Step()
 		return
 	end
 	local Now = os.clock()
+	-- the humanoid's own jump stays off while the controller swims (held Space made Roblox's Swimming state push the
+	-- swimmer up out of the water: Task 9's real-input run); Hop() lets it jump once. Any other script's change to the
+	-- jump is kept and put back at Stop.
+	if Now >= (S.HopUntil or 0) then
+		local H = S.Humanoid
+		if H.JumpHeight ~= 0 then S.SavedJH = H.JumpHeight H.JumpHeight = 0 end
+		if H.JumpPower ~= 0 then S.SavedJP = H.JumpPower H.JumpPower = 0 end
+	end
 	local Surf = SurfaceY(S.Root.Position)
 	S.Surface = Surf
 	local Hold = Surf == nil or Now < (S.PauseUntil or 0) or Stunned(S.Character) or S.Character:GetAttribute("Dashing")
@@ -228,7 +236,7 @@ function SwimController.Start(Character)
 	Up.Parent = UpAtt
 	SwimController.Mode = "Surface"
 	State = {Character = Character, Humanoid = Humanoid, Root = Root, Head = Head, Att = Att, LV = LV, AO = AO,
-		UpAtt = UpAtt, Up = Up}
+		UpAtt = UpAtt, Up = Up, SavedJH = Humanoid.JumpHeight, SavedJP = Humanoid.JumpPower}
 	State.Conn = RunService.RenderStepped:Connect(Step)
 end
 
@@ -240,7 +248,11 @@ function SwimController.Stop()
 	if S.Conn then S.Conn:Disconnect() end
 	if S.Att then S.Att:Destroy() end
 	if S.UpAtt then S.UpAtt:Destroy() end
-	if S.Humanoid and S.Humanoid.Parent then S.Humanoid.AutoRotate = true end
+	if S.Humanoid and S.Humanoid.Parent then
+		S.Humanoid.AutoRotate = true
+		if S.Humanoid.JumpHeight == 0 then S.Humanoid.JumpHeight = S.SavedJH end
+		if S.Humanoid.JumpPower == 0 then S.Humanoid.JumpPower = S.SavedJP end
+	end
 end
 
 -- true while swimming under water (SettingsUI's shift lock leaves the facing to the controller then)
@@ -274,8 +286,14 @@ function SwimController.ClimbOut()
 	local Surf = S.Surface or SurfaceY(S.Root.Position)
 	if not Surf then return false end
 	local F = Facing(S.Root)
-	local From = Vector3.new(S.Head.Position.X, Surf + 0.2, S.Head.Position.Z)
-	local Wall = workspace:Raycast(From, F * T.ClimbOutReach, Solids())
+	-- the bank's face, from the waterline up (a bank can be a slab over the water, Foundry's pond: a ray at the
+	-- waterline alone passes under it; Task 9's real-input run, 2026-10-27)
+	local From, Wall
+	for _, Up in ipairs({0.2, 1, 2, 3}) do
+		From = Vector3.new(S.Head.Position.X, Surf + Up, S.Head.Position.Z)
+		Wall = workspace:Raycast(From, F * T.ClimbOutReach, Solids())
+		if Wall then break end
+	end
 	if not Wall then return false end
 	local Dist = (Vector3.new(Wall.Position.X, 0, Wall.Position.Z) - Vector3.new(From.X, 0, From.Z)).Magnitude
 	local Probe = Wall.Position + F * 1 + Vector3.new(0, T.ClimbOutHeight + 1, 0)
@@ -302,6 +320,8 @@ function SwimController.Hop()
 	local S = State
 	if not S or SwimController.Mode ~= "Surface" then return false end
 	S.PauseUntil = os.clock() + 0.35
+	S.HopUntil = os.clock() + 0.35
+	S.Humanoid.JumpHeight, S.Humanoid.JumpPower = S.SavedJH, S.SavedJP
 	S.Humanoid.Jump = true
 	return true
 end

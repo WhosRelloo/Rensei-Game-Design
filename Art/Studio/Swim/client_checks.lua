@@ -229,8 +229,9 @@ Check("AirMeterIsTheHudBar", function()
 	ClientActions.Run("SwimDive", false)
 	local NoOld = Player.PlayerGui:FindFirstChild("SwimHUD") == nil
 	return Shown and Img == "rbxassetid://128875786456593" and FillImg == "rbxassetid://94626531816891" and NoOld,
-		("AirBar %s, visible %s, Submerged %s, images %s / %s, no SwimHUD %s"):format(tostring(Air ~= nil),
-			tostring(Air and Air.Visible), tostring(Char():GetAttribute("Submerged")), Img, FillImg, tostring(NoOld))
+		("AirBar %s, visible %s, Submerged %s, images %s / %s, no SwimHUD %s (head %.2f under, mode %s, root %.2f)"):format(
+			tostring(Air ~= nil), tostring(Air and Air.Visible), tostring(Char():GetAttribute("Submerged")), Img, FillImg,
+			tostring(NoOld), HeadDepth(), tostring(SC.Mode), Root().Position.Y)
 end)
 
 Check("DiveButton", function()
