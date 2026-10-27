@@ -1,0 +1,771 @@
+{
+  "Anims": {
+    "Downed": {
+      "Carried": "rbxassetid://124248460861263",
+      "Carrying": "rbxassetid://70888533900445",
+      "DownedCrawl": "rbxassetid://140556271258345",
+      "Drag": "rbxassetid://85054207968303",
+      "Gripped": "",
+      "Gripping": "",
+      "Knocked": "rbxassetid://140397797689506"
+    },
+    "IdsUsedAt": {
+      "131914091661838": "not in the game",
+      "132728216355683": "not in the game",
+      "140607038476506": [
+        "ReplicatedStorage.Assets.Animations.Shared.ClassSkills.Fist_BearHug"
+      ],
+      "72960497872371": "not in the game",
+      "76737043223431": [
+        "ReplicatedStorage.Assets.Animations.Shared.ClassSkills.Fist_BearHugVictim"
+      ],
+      "83505608395055": [
+        "ReplicatedStorage.Assets.Animations.Registry.Misc.Misc_Assassinate"
+      ]
+    },
+    "MustBeAbsent": {
+      "Misc_AssassinateVictim": "absent",
+      "Takedown_Choke": "absent",
+      "Takedown_ChokeVictim": "absent"
+    },
+    "Present": {
+      "Fist_BearHug": [
+        {
+          "AnimationId": "rbxassetid://140607038476506",
+          "FullName": "ReplicatedStorage.Assets.Animations.Shared.ClassSkills.Fist_BearHug"
+        }
+      ],
+      "Fist_BearHugVictim": [
+        {
+          "AnimationId": "rbxassetid://76737043223431",
+          "FullName": "ReplicatedStorage.Assets.Animations.Shared.ClassSkills.Fist_BearHugVictim"
+        }
+      ],
+      "Gauntlets_Grip": [
+        {
+          "AnimationId": "rbxassetid://114886619154794",
+          "FullName": "ReplicatedStorage.Assets.Animations.Weapons.Grips.Gauntlets_Grip"
+        }
+      ],
+      "Gauntlets_Gripped": [
+        {
+          "AnimationId": "rbxassetid://104445631686192",
+          "FullName": "ReplicatedStorage.Assets.Animations.Weapons.Grips.Gauntlets_Gripped"
+        }
+      ],
+      "Gripped": [
+        {
+          "AnimationId": "",
+          "FullName": "ReplicatedStorage.Assets.Animations.Shared.Combat.Downed.Gripped",
+          "Save": "KeyframeSequence",
+          "Unpublished": true
+        }
+      ],
+      "Gripping": [
+        {
+          "AnimationId": "",
+          "FullName": "ReplicatedStorage.Assets.Animations.Shared.Combat.Downed.Gripping",
+          "Save": "KeyframeSequence",
+          "Unpublished": true
+        }
+      ],
+      "Knocked": [
+        {
+          "AnimationId": "rbxassetid://140397797689506",
+          "FullName": "ReplicatedStorage.Assets.Animations.Shared.Combat.Downed.Knocked",
+          "Save": "KeyframeSequence"
+        }
+      ],
+      "Misc_Assassinate": [
+        {
+          "AnimationId": "rbxassetid://83505608395055",
+          "FullName": "ReplicatedStorage.Assets.Animations.Registry.Misc.Misc_Assassinate"
+        }
+      ]
+    },
+    "Root": "ReplicatedStorage.Assets.Animations",
+    "SharedTakedown": "absent"
+  },
+  "Assets": {
+    "Package": true,
+    "PackageId": "rbxassetid://91921092226558",
+    "VersionNumber": 5
+  },
+  "KeyN": {
+    "Hits": [],
+    "Scanned": 625,
+    "SkippedHits": [
+      {
+        "Line": 16,
+        "Path": "ServerStorage.RenseiBackups.Pre-Controls_2026-10-13.UIHandler",
+        "Text": "{Action = \"RenseiStats\", Menu = \"Stats\", Key = Enum.KeyCode.N, Title = \"Stats\"},"
+      }
+    ],
+    "SkippedScripts": 1445,
+    "Unreadable": 0
+  },
+  "Place": {
+    "PlaceId": 106992859583940,
+    "PlayLock": "nil"
+  },
+  "Scripts": {
+    "Managers.DownedManager": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ReplicatedStorage/Modules/Managers/DownedManager"
+    },
+    "Rensei.Deeds": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ReplicatedStorage/Modules/Data/Rensei/Deeds"
+    },
+    "Rensei.Perception": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ReplicatedStorage/Modules/Data/Rensei/Perception"
+    },
+    "Rensei.Settings": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ReplicatedStorage/Modules/Data/Rensei/Settings"
+    },
+    "Rensei.Takedown (new, Task 2)": {
+      "Exists": false,
+      "Path": "ReplicatedStorage/Modules/Data/Rensei/Takedown",
+      "Why": "0 named Takedown under ReplicatedStorage.Modules.Data.Rensei"
+    },
+    "RenseiServer.EnemyService": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiServer/EnemyService"
+    },
+    "RenseiServer.PerceptionService": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiServer/PerceptionService"
+    },
+    "RenseiServer.ServerHandler": {
+      "Class": "Script",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiServer/ServerHandler"
+    },
+    "RenseiServer.TakedownService (new, Task 7)": {
+      "Exists": false,
+      "Path": "ServerStorage/RenseiServer/TakedownService",
+      "Why": "0 named TakedownService under ServerStorage.RenseiServer"
+    },
+    "RenseiTests.Play_Heat": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiTests/Play_Heat"
+    },
+    "RenseiTests.Play_Morality": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiTests/Play_Morality"
+    },
+    "RenseiTests.Play_Perception": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiTests/Play_Perception"
+    },
+    "RenseiTests.Play_Rumours": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiTests/Play_Rumours"
+    },
+    "RenseiTests.Play_Stealth": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiTests/Play_Stealth"
+    },
+    "RenseiTests.Play_TownsfolkHurt": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiTests/Play_TownsfolkHurt"
+    },
+    "RenseiTests.TakedownKit (new, Task 4)": {
+      "Exists": false,
+      "Path": "ServerStorage/RenseiTests/TakedownKit",
+      "Why": "0 named TakedownKit under ServerStorage.RenseiTests"
+    },
+    "RenseiTests.Test_Perception": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiTests/Test_Perception"
+    },
+    "RenseiTests.Test_Sound": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiTests/Test_Sound"
+    },
+    "SPScripts.UIHandler": {
+      "Class": "LocalScript",
+      "Exists": true,
+      "Path": "StarterPlayer/StarterPlayerScripts/UIHandler"
+    },
+    "UI.CombatModeUI": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ReplicatedStorage/Modules/UI/CombatModeUI"
+    },
+    "UI.PromptUI": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ReplicatedStorage/Modules/UI/PromptUI"
+    },
+    "UI.TakedownUI (new, Task 10)": {
+      "Exists": false,
+      "Path": "ReplicatedStorage/Modules/UI/TakedownUI",
+      "Why": "0 named TakedownUI under ReplicatedStorage.Modules.UI"
+    }
+  },
+  "Sequences": {
+    "131914091661838": {
+      "AssetTypeId": 24,
+      "CreatorTargetId": 206818864,
+      "CreatorType": "Group",
+      "First": {
+        "HumanoidRootPart": {
+          "Pos": [
+            0,
+            0,
+            0
+          ],
+          "RotDeg": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Time": 0,
+        "Torso": {
+          "Pos": [
+            0,
+            0,
+            -0.14
+          ],
+          "RotDeg": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "Keyframes": 1,
+      "Last": {
+        "HumanoidRootPart": {
+          "Pos": [
+            0,
+            0,
+            0
+          ],
+          "RotDeg": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Time": 0,
+        "Torso": {
+          "Pos": [
+            0,
+            0,
+            -0.14
+          ],
+          "RotDeg": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "Length": 0,
+      "Loads": true,
+      "Loop": true,
+      "Markers": [],
+      "Name": "Hold",
+      "NamedKeyframes": [],
+      "PlaysLive": "yes",
+      "Poses": [
+        "HumanoidRootPart",
+        "Left Arm",
+        "Left Leg",
+        "Right Arm",
+        "Right Leg",
+        "Torso"
+      ],
+      "Priority": "Enum.AnimationPriority.Movement",
+      "TorsoMaxOffset": {
+        "Studs": 0.14,
+        "Time": 0
+      },
+      "TorsoMaxTurn": {
+        "Deg": 0.1,
+        "Time": 0
+      },
+      "What": "owner: Hold (Takedown_ChokeVictim)"
+    },
+    "132728216355683": {
+      "AssetTypeId": 24,
+      "CreatorTargetId": 206818864,
+      "CreatorType": "Group",
+      "First": {
+        "HumanoidRootPart": {
+          "Pos": [
+            0,
+            0,
+            0
+          ],
+          "RotDeg": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Time": 0,
+        "Torso": {
+          "Pos": [
+            0,
+            0,
+            0
+          ],
+          "RotDeg": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "Keyframes": 140,
+      "Last": {
+        "HumanoidRootPart": {
+          "Pos": [
+            0,
+            0,
+            0
+          ],
+          "RotDeg": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Time": 4.717,
+        "Torso": {
+          "Pos": [
+            0,
+            0,
+            0
+          ],
+          "RotDeg": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "Length": 4.717,
+      "Loads": true,
+      "Loop": false,
+      "Markers": [],
+      "Name": "HammerChoking",
+      "NamedKeyframes": [],
+      "PlaysLive": "yes",
+      "Poses": [
+        "Head",
+        "HumanoidRootPart",
+        "Left Arm",
+        "Left Leg",
+        "Right Arm",
+        "Right Leg",
+        "Torso"
+      ],
+      "Priority": "Enum.AnimationPriority.Action",
+      "TorsoMaxOffset": {
+        "Studs": 0,
+        "Time": 0
+      },
+      "TorsoMaxTurn": {
+        "Deg": 5.7,
+        "Time": 0.3
+      },
+      "What": "owner: Victim (Misc_AssassinateVictim)"
+    },
+    "140607038476506": {
+      "AssetTypeId": 24,
+      "CreatorTargetId": 206818864,
+      "CreatorType": "Group",
+      "First": {
+        "HumanoidRootPart": {
+          "Pos": [
+            0,
+            0,
+            0
+          ],
+          "RotDeg": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Time": 0,
+        "Torso": {
+          "Pos": [
+            -0.02,
+            0.3,
+            -0.18
+          ],
+          "RotDeg": [
+            -10,
+            -0.8,
+            2.5
+          ]
+        }
+      },
+      "Keyframes": 91,
+      "Last": {
+        "HumanoidRootPart": {
+          "Pos": [
+            0,
+            0,
+            0
+          ],
+          "RotDeg": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Time": 1.5,
+        "Torso": {
+          "Pos": [
+            -0.01,
+            0.31,
+            -0.33
+          ],
+          "RotDeg": [
+            0.8,
+            -0.1,
+            0.4
+          ]
+        }
+      },
+      "Length": 1.5,
+      "Loads": true,
+      "Loop": false,
+      "Markers": [],
+      "Name": "BearHug_User",
+      "NamedKeyframes": [],
+      "PlaysLive": "yes",
+      "Poses": [
+        "Head",
+        "HumanoidRootPart",
+        "Left Arm",
+        "Left Leg",
+        "Right Arm",
+        "Right Leg",
+        "Torso"
+      ],
+      "Priority": "Enum.AnimationPriority.Action",
+      "TorsoMaxOffset": {
+        "Studs": 0.73,
+        "Time": 0.717
+      },
+      "TorsoMaxTurn": {
+        "Deg": 23.6,
+        "Time": 0.717
+      },
+      "What": "Fist_BearHug (fallback)"
+    },
+    "72960497872371": {
+      "AssetTypeId": 24,
+      "CreatorTargetId": 206818864,
+      "CreatorType": "Group",
+      "First": {
+        "HumanoidRootPart": {
+          "Pos": [
+            0,
+            0,
+            0
+          ],
+          "RotDeg": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Time": 0,
+        "Torso": {
+          "Pos": [
+            0.03,
+            -0.87,
+            -0.78
+          ],
+          "RotDeg": [
+            28,
+            1.2,
+            -0.9
+          ]
+        }
+      },
+      "Keyframes": 56,
+      "Last": {
+        "HumanoidRootPart": {
+          "Pos": [
+            0,
+            0,
+            0
+          ],
+          "RotDeg": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Time": 1.25,
+        "Torso": {
+          "Pos": [
+            0.01,
+            -0.14,
+            -0.55
+          ],
+          "RotDeg": [
+            11,
+            0.6,
+            -0.8
+          ]
+        }
+      },
+      "Length": 1.25,
+      "Loads": true,
+      "Loop": false,
+      "Markers": [],
+      "Name": "Bad knockout choke",
+      "NamedKeyframes": [],
+      "PlaysLive": "yes",
+      "Poses": [
+        "Head",
+        "HumanoidRootPart",
+        "Left Arm",
+        "Left Leg",
+        "Right Arm",
+        "Right Leg",
+        "Torso"
+      ],
+      "Priority": "Enum.AnimationPriority.Action",
+      "TorsoMaxOffset": {
+        "Studs": 1.17,
+        "Time": 0
+      },
+      "TorsoMaxTurn": {
+        "Deg": 28.1,
+        "Time": 0
+      },
+      "What": "owner: Knock out (Takedown_Choke)"
+    },
+    "76737043223431": {
+      "AssetTypeId": 24,
+      "CreatorTargetId": 206818864,
+      "CreatorType": "Group",
+      "First": {
+        "HumanoidRootPart": {
+          "Pos": [
+            0,
+            0,
+            0
+          ],
+          "RotDeg": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Time": 0,
+        "Torso": {
+          "Pos": [
+            0.01,
+            -0.03,
+            -0.11
+          ],
+          "RotDeg": [
+            5.8,
+            0.7,
+            0.7
+          ]
+        }
+      },
+      "Keyframes": 67,
+      "Last": {
+        "HumanoidRootPart": {
+          "Pos": [
+            0,
+            0,
+            0
+          ],
+          "RotDeg": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Time": 1.433,
+        "Torso": {
+          "Pos": [
+            -0.24,
+            0.25,
+            -0.61
+          ],
+          "RotDeg": [
+            18.2,
+            3.6,
+            -2.4
+          ]
+        }
+      },
+      "Length": 1.433,
+      "Loads": true,
+      "Loop": false,
+      "Markers": [],
+      "Name": "BearHug_Victim",
+      "NamedKeyframes": [],
+      "PlaysLive": "yes",
+      "Poses": [
+        "Head",
+        "HumanoidRootPart",
+        "Left Arm",
+        "Left Leg",
+        "Right Arm",
+        "Right Leg",
+        "Torso"
+      ],
+      "Priority": "Enum.AnimationPriority.Action",
+      "TorsoMaxOffset": {
+        "Studs": 1.42,
+        "Time": 0.667
+      },
+      "TorsoMaxTurn": {
+        "Deg": 18.8,
+        "Time": 1.433
+      },
+      "What": "Fist_BearHugVictim (fallback)"
+    },
+    "83505608395055": {
+      "AssetTypeId": 24,
+      "CreatorTargetId": 206818864,
+      "CreatorType": "Group",
+      "First": {
+        "HumanoidRootPart": {
+          "Pos": [
+            0,
+            0,
+            0
+          ],
+          "RotDeg": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Time": 0,
+        "Torso": {
+          "Pos": [
+            0,
+            0,
+            -0.83
+          ],
+          "RotDeg": [
+            19.4,
+            0,
+            0
+          ]
+        }
+      },
+      "Keyframes": 28,
+      "Last": {
+        "HumanoidRootPart": {
+          "Pos": [
+            0,
+            0,
+            0
+          ],
+          "RotDeg": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Time": 1.133,
+        "Torso": {
+          "Pos": [
+            0.01,
+            -0.4,
+            0
+          ],
+          "RotDeg": [
+            -6.5,
+            2.2,
+            -40.9
+          ]
+        }
+      },
+      "Length": 1.133,
+      "Loads": true,
+      "Loop": false,
+      "Markers": [],
+      "Name": "FistAssassinate",
+      "NamedKeyframes": [
+        {
+          "Name": "Snap",
+          "Time": 0.683
+        }
+      ],
+      "PlaysLive": "yes",
+      "Poses": [
+        "Head",
+        "HumanoidRootPart",
+        "Left Arm",
+        "Left Leg",
+        "Right Arm",
+        "Right Leg",
+        "Torso"
+      ],
+      "Priority": "Enum.AnimationPriority.Action4",
+      "TorsoMaxOffset": {
+        "Studs": 0.83,
+        "Time": 0
+      },
+      "TorsoMaxTurn": {
+        "Deg": 48.2,
+        "Time": 0.767
+      },
+      "What": "Misc_Assassinate (sheet: Assassination)"
+    }
+  },
+  "Spot": {
+    "Found": {
+      "Ground": "Workspace.World.Map.Ground.Tops.Top",
+      "Material": "Grass",
+      "Ring": 2,
+      "X": -32,
+      "Y": 9,
+      "Z": -700
+    },
+    "From": {
+      "Name": "Workspace.World.Map.Lindenmoor.Square.LindenmoorSpawn",
+      "Position": [
+        0,
+        8.5,
+        -668
+      ]
+    },
+    "Rejected": {
+      "Blocked": 7,
+      "NoGround": 0,
+      "NotLevel": 2
+    },
+    "Rules": "first SpawnLocation; 16-stud grid in rings to 400; ray from +40, 200 long; level 1 over a 12-stud cross; 24x24 box 0.5-8 up clear",
+    "Spawns": 2,
+    "Tried": 10
+  }
+}

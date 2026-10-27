@@ -99,5 +99,13 @@
   {"Label": "RenseiTests.SwimKit", "Studio": "ServerStorage/RenseiTests/SwimKit", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/SwimKit.lua", "Places": ["ye", "foundry"], "Create": true},
   {"Label": "RenseiTests.Play_Swim", "Studio": "ServerStorage/RenseiTests/Play_Swim", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Swim.lua", "Places": ["ye", "foundry"], "Create": true},
   {"Label": "RenseiTests.Test_Perception", "Studio": "ServerStorage/RenseiTests/Test_Perception", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_Perception.lua", "Places": ["ye", "foundry"], "Create": true},
-  {"Label": "RenseiTests.Test_Sound", "Studio": "ServerStorage/RenseiTests/Test_Sound", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_Sound.lua", "Places": ["ye", "foundry"], "Create": true}
+  {"Label": "RenseiTests.Test_Sound", "Studio": "ServerStorage/RenseiTests/Test_Sound", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_Sound.lua", "Places": ["ye", "foundry"], "Create": true},
+  {"Label": "Rensei.Settings", "Studio": "ReplicatedStorage/Modules/Data/Rensei/Settings", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/Data/Rensei/Settings.lua", "Places": ["ye", "foundry"], "Create": false},
+  {"Label": "UI.CombatModeUI", "Studio": "ReplicatedStorage/Modules/UI/CombatModeUI", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/UI/CombatModeUI.lua", "Places": ["ye", "foundry"], "Create": false},
+  {"Label": "UI.PromptUI", "Studio": "ReplicatedStorage/Modules/UI/PromptUI", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/UI/PromptUI.lua", "Places": ["ye", "foundry"], "Create": false},
+  {"Label": "SPScripts.UIHandler", "Studio": "StarterPlayer/StarterPlayerScripts/UIHandler", "Class": "LocalScript", "Repo": "Scripts/StarterPlayer/StarterPlayerScripts/UIHandler.client.lua", "Places": ["ye", "foundry"], "Create": false},
+  {"Label": "RenseiTests.Play_Perception", "Studio": "ServerStorage/RenseiTests/Play_Perception", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Perception.lua", "Places": ["ye"], "Create": false},
+  {"Label": "RenseiTests.Play_Morality", "Studio": "ServerStorage/RenseiTests/Play_Morality", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Morality.lua", "Places": ["ye"], "Create": false},
+  {"Label": "RenseiTests.Play_Heat", "Studio": "ServerStorage/RenseiTests/Play_Heat", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Heat.lua", "Places": ["ye"], "Create": false},
+  {"Label": "RenseiTests.Play_Rumours", "Studio": "ServerStorage/RenseiTests/Play_Rumours", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Rumours.lua", "Places": ["ye"], "Create": false}
 ]}
