@@ -13,6 +13,7 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
   2. hostages;
   3. stealth missions;
   4. **the main game quest system with the lore** (starting from the main story concept draft, which the owner approves first);
+     - **Owner direction for it (2026-10-27):** a clear first step on spawning in; keep the roguelike feel; use the cinematics; and gate later chapters behind level, Gate stage and other milestones, so players explore, do side quests and stealth missions, solve investigations and learn alchemy. It's in the main story concept.
   5. consequences for wrong guesses;
   6. the Nemesis system;
   7. reputation in investigations.

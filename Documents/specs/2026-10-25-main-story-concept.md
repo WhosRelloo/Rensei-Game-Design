@@ -64,6 +64,18 @@
 
 ---
 
+## Owner direction for the main questline (2026-10-27)
+
+> "for the main questline, I want players to have a good sense of what to do when they spawn into the main world, while keeping the game's roguelike feel, with the cool cinematics we talked about. And for the main questline, after you complete a certain amount of quests, I want the players to have to level up to a certain level, gate stage, etc. down the line, forcing them to explore the world and do side quests, more stealth missions, investigations, learn alchemy, etc."
+
+What this means for the design (each point goes into the spec):
+1. **A clear first step on spawning in.** A player arriving in the main world always knows the next thing to do: a guided first beat (the waking cutscene, then one clear objective and a marker), plus an always-visible current main objective. Nothing should feel lost or idle.
+2. **Keep the roguelike feel.** Guidance points the way without railroading. Runs differ through the existing systems (clan rolls, rumours, Heat, choices with consequences, permadeath questions still open), and the open world stays open.
+3. **The cinematics** from §4 "Story cutscenes" (the Gate pull, waking) are part of the main questline.
+4. **Progression gates between chapters.** After a block of main quests, the next chapter stays locked until the player meets a **gate**: a minimum level, a Gate (Truth) stage, or other milestones (an alchemy path, investigations solved, stealth missions done, reputation). This makes players explore the world and do side quests, stealth missions, investigations and learn alchemy before the story moves on.
+   - The gate tells the player exactly what is missing and suggests where to find it, using the quest log and the existing systems. It is a goal, not a wall.
+   - Gate thresholds are PROPOSAL until the owner sets them.
+
 ## 1. The start flow
 
 ### 1.1 Step by step

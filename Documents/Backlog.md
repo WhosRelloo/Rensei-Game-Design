@@ -47,6 +47,13 @@ In the owner's order:
    - Brask's desk stays in Ye's Foundry Yard model. Turn-ins use State desks there or later.
 3. [ ] **Stealth missions.**
 4. [ ] **The main game quest system, with the lore** (owner, 2026-10-27: "After assassinations and hostages, and stealth missions, let's start the main game quest system w/ the lore, etc."). Starts from the main story concept draft `Documents/specs/2026-10-25-main-story-concept.md` (needs the owner's approval first) and the lore in `Documents/Lore Bible.md`.
+   - **Owner direction (2026-10-27):**
+     - players know what to do when they spawn into the main world;
+     - keep the roguelike feel;
+     - use the cinematics we discussed;
+     - after a block of main quests, **gate the next chapter behind a level, a Gate stage, etc.**, so players explore and do side quests, stealth missions and investigations, and learn alchemy.
+
+     It's written into the concept's "Owner direction for the main questline".
 5. [ ] **Consequences for wrong guesses** in minigames and puzzles on quests.
 6. [ ] **Nemesis system:** "Gotta make the concept first". The owner has brought it back into scope (see Decisions.md), so it starts as a concept and design for the owner to approve, not code.
 7. [ ] **Reputation shapes investigations:** expand the reputation system so it changes how NPCs answer during investigations. "some will lie to you or just refuse to tell you the truth, or some evil NPC's will spill secrets easier, etc."
