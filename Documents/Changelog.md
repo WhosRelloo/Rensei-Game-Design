@@ -4,7 +4,20 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
-## 2026-10-27 — Swimming revamp: directional swimming and diving (not live)
+## 2026-10-27 — Backlog order: the main game quest system after stealth missions
+
+**Owner:** "I published them. After assassinations and hostages, and stealth missions, let's start the main game quest system w/ the lore, etc."
+- The swimming revamp is **live**.
+- **New Backlog order:**
+  1. assassinations;
+  2. hostages;
+  3. stealth missions;
+  4. **the main game quest system with the lore** (starting from the main story concept draft, which the owner approves first);
+  5. consequences for wrong guesses;
+  6. the Nemesis system;
+  7. reputation in investigations.
+
+## 2026-10-27 — Swimming revamp: directional swimming and diving (live: owner published 2026-10-27)
 
 The swimming revamp plan (`Documents/plans/2026-10-25-swimming-revamp.md`, run 2026-10-26 / 27; spec `Documents/specs/2026-10-25-swimming-revamp-design.md`) answers the owner's request: "Completely audit and revamp the swimming system. (I want it to be directional, with a dive system)". All of it is in the Studio Edit sessions of **Ye** (106992859583940) and **Foundry Yard** (109591196441030), the same in both. **Nothing is saved or published by this plan.** This is the plan's only Changelog entry.
 

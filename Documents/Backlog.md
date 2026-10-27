@@ -11,7 +11,7 @@ Owner's to-do list, in the owner's words. The order is the owner's, and none of 
      - [ ] **Compass marks for `Arrive` objectives.** `acq_metal`'s "Travel to the Foundry Yard" shows no compass point.
      - [ ] **Child rigs for the errand runners.** There is no child rig yet, so Foundry's two runners are adults.
 3. **The gun class rework and the swimming revamp** (below), still after all the Foundry tasks.
-4. **Then, in order** (owner, 2026-10-25): assassinations, stealth missions, consequences for wrong guesses, the Nemesis system (design approved: `Documents/specs/2026-10-25-nemesis-design.md`), reputation in investigations, then the main story. See "After the swimming revamp" below.
+4. **Then, in order** (owner, 2026-10-25; reordered 2026-10-27): assassinations, hostages, stealth missions, **the main game quest system with the lore**, consequences for wrong guesses, the Nemesis system (design approved: `Documents/specs/2026-10-25-nemesis-design.md`), then reputation in investigations. See "After the swimming revamp" below.
 5. **Overnight go-ahead** (owner, 2026-10-25): "you can do everything you listed while I'm sleep, just make sure to post on the changelogs." Nothing is published; every finished piece gets a Changelog entry with a held Discord post.
 
 ## Next, right after World Plan 1 (owner, 2026-10-21 and 2026-10-23)
@@ -36,7 +36,7 @@ Owner's to-do list, in the owner's words. The order is the owner's, and none of 
     - [ ] **Review the PROPOSAL decisions** in the spec's §8 (`Documents/specs/2026-10-25-gun-rework-design.md`) and the controller's later rulings listed in the Changelog entry.
     - [ ] **Detach matches by name outside Give** (test-only workaround in Play_Guns): a gun destroyed outside `WeaponManager.Give` and given again in the same frame loses its attributes to the old Tool's late detach. Players can't do this; the full fix is for Detach to track the current Tool, not its name.
     - [ ] **A server-side grace for a Fan the Hammer aimed behind** (instead of the client's 0.4 s wait before it sends).
-- [ ] **Swimming revamp:** "Completely audit and revamp the swimming system. (I want it to be directional, with a dive system)". *(Built 2026-10-27 in both places' Studio; not live. Awaiting the owner's review of the PROPOSALs (`Decisions.md`, "Swimming revamp"), the two animation uploads (Swim_Dive, Swim_Surface) and a choice on the skipped Ye plunge hole.)*
+- [x] **Swimming revamp:** "Completely audit and revamp the swimming system. (I want it to be directional, with a dive system)". *(Built 2026-10-27 in both places; **live** (owner published 2026-10-27). Still open: the owner's review of the PROPOSALs (`Decisions.md`, "Swimming revamp"), the two animation uploads (Swim_Dive, Swim_Surface) and a choice on the skipped Ye plunge hole.)*
 
 ## After the swimming revamp (owner, 2026-10-25)
 In the owner's order:
@@ -46,10 +46,10 @@ In the owner's order:
    - Key: **N is shared with takedowns, and the target decides** (an enemy means a takedown, a player means a hostage). This is a controller ruling (PROPOSAL); the owner raised no objection.
    - Brask's desk stays in Ye's Foundry Yard model. Turn-ins use State desks there or later.
 3. [ ] **Stealth missions.**
-4. [ ] **Consequences for wrong guesses** in minigames and puzzles on quests.
-5. [ ] **Nemesis system:** "Gotta make the concept first". The owner has brought it back into scope (see Decisions.md), so it starts as a concept and design for the owner to approve, not code.
-6. [ ] **Reputation shapes investigations:** expand the reputation system so it changes how NPCs answer during investigations. "some will lie to you or just refuse to tell you the truth, or some evil NPC's will spill secrets easier, etc."
-7. [ ] **The main story** (concept draft: `Documents/specs/2026-10-25-main-story-concept.md`). Placed here by the controller (the owner left the slot open on 2026-10-25): after the reputation item, before the remaining regions are built, so it can teach every system. The owner can move it.
+4. [ ] **The main game quest system, with the lore** (owner, 2026-10-27: "After assassinations and hostages, and stealth missions, let's start the main game quest system w/ the lore, etc."). Starts from the main story concept draft `Documents/specs/2026-10-25-main-story-concept.md` (needs the owner's approval first) and the lore in `Documents/Lore Bible.md`.
+5. [ ] **Consequences for wrong guesses** in minigames and puzzles on quests.
+6. [ ] **Nemesis system:** "Gotta make the concept first". The owner has brought it back into scope (see Decisions.md), so it starts as a concept and design for the owner to approve, not code.
+7. [ ] **Reputation shapes investigations:** expand the reputation system so it changes how NPCs answer during investigations. "some will lie to you or just refuse to tell you the truth, or some evil NPC's will spill secrets easier, etc."
 
 ## After the main story (owner, 2026-10-25: "The older backlog can go after the main story task")
 The items below, from 2026-10-20, now come after the main story (item 6 in "After the swimming revamp").
