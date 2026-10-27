@@ -286,6 +286,14 @@ function Crouch:OnEndClient()
 		WalkConn:Disconnect()
 	end
 	
+	-- (downed crawl, 2026-10-27) knocked: the server owns the speed and jump (DownedManager.KnockedSpeed: a slow crawl,
+	-- no jump). A crouch that ended while knocked (Ctrl let go after the knock) stood the client back up at walk speed and
+	-- full jump, and the server's value doesn't re-replicate unless it changes, so a knocked player walked off at 16.
+	if Character:GetAttribute("Knocked") then
+		Humanoid.JumpHeight = 0
+		Humanoid.WalkSpeed = require(ReplicatedStorage.Modules.Managers.DownedManager).KnockedSpeed(Character)
+		return
+	end
 	Humanoid.JumpHeight = DefaultJH
 	if Flow then
 		-- the sprint that ran under the slide keeps its speed and run animation; else one starts now

@@ -85,10 +85,40 @@ return {
 			MoverManager.Movement(C, {WS = 9, JH = 0, D = 0.1})
 			task.wait(0.4)
 			T.Near(H.WalkSpeed, Cfg.CrawlSpeed, 1e-3, "after MoverManager's expiry")
-			-- another writer is undone by the watch
+			-- a server-side write by another system (as Block's end on the server) is undone by the watch. (Client-side
+			-- writes don't reach the server; the crouch's is guarded in ClientHandler.Crouch.)
 			H.WalkSpeed = 16
 			task.wait(0.3)
-			T.Near(H.WalkSpeed, Cfg.CrawlSpeed, 1e-3, "a stray write is undone")
+			T.Near(H.WalkSpeed, Cfg.CrawlSpeed, 1e-3, "a server-side stray write is undone")
+			T.Eq(C:GetAttribute("KnockedStill"), nil, "free to crawl: not held still")
+		end)
+	end,
+
+	-- fix round 1: the watch clamps the crawl's distance. A crawl-speed move (3 studs/s) is left alone; a 10-stud jump
+	-- across the ground in one tick (as a teleport or speed exploit would make) is put back at the last allowed point.
+	CrawlClamp = function(T)
+		Knocked(function(C)
+			local Root = C.HumanoidRootPart
+			local function Flat(V) return Vector3.new(V.X, 0, V.Z).Magnitude end
+			task.wait((Cfg.CrawlClampGrace or 0.5) + 0.2) -- past the knock's grace
+			local Start = Root.Position
+			local Clamped = C:GetAttribute("CrawlClamped") or 0
+			-- a normal crawl: 0.3 studs every 0.1 s for 1 s (3 studs/s), along the root's own back (open ground behind)
+			local Back = -Root.CFrame.LookVector * Vector3.new(1, 0, 1)
+			Back = Back.Magnitude > 1e-3 and Back.Unit or Vector3.new(1, 0, 0)
+			for _ = 1, 10 do
+				Root.CFrame += Back * 0.3
+				task.wait(0.1)
+			end
+			task.wait(0.2)
+			T.Eq(C:GetAttribute("CrawlClamped") or 0, Clamped, "a crawl-speed move isn't clamped")
+			T.True(math.abs(Flat(Root.Position - Start) - 3) < 0.6, "the crawl kept its 3 studs (" .. Flat(Root.Position - Start) .. ")")
+			-- a 10-stud jump in one tick
+			local Before = Root.Position
+			Root.CFrame += Back * 10
+			task.wait(0.35)
+			T.True(Flat(Root.Position - Before) < 1, "a 10-stud jump is undone (" .. Flat(Root.Position - Before) .. " studs off)")
+			T.True((C:GetAttribute("CrawlClamped") or 0) > Clamped, "counted as clamped")
 		end)
 	end,
 
@@ -122,6 +152,7 @@ return {
 			T.True(DownedManager.Carry(Carrier, C), "carry started")
 			T.Eq(C:GetAttribute("CarriedBy"), Carrier.Name)
 			T.Eq(H.WalkSpeed, 0, "carried: 0")
+			T.Eq(C:GetAttribute("KnockedStill"), true, "carried: held still (KnockedSpeed reads 0 on the client too)")
 			T.Eq(DownedManager.CanCrawl(C), false)
 			task.wait(0.35)
 			T.Eq(H.WalkSpeed, 0, "carried: still 0 after watch checks")
@@ -132,6 +163,9 @@ return {
 			DownedManager.Drop(Carrier)
 			T.Eq(C:GetAttribute("CarriedBy"), nil)
 			T.Near(H.WalkSpeed, Cfg.CrawlSpeed, 1e-3, "set down: crawl again")
+			T.Eq(C:GetAttribute("KnockedStill"), nil, "set down: not held")
+			task.wait(0.3)
+			T.Eq(C:GetAttribute("CrawlClamped"), nil, "being set down in front isn't clamped (Drop rebases)")
 		end)
 	end,
 
@@ -144,6 +178,7 @@ return {
 			task.spawn(DownedManager.Grip, Gripper, C)
 			T.True(WaitFor(1, function() return C:GetAttribute("GrippedBy") == Gripper.Name end), "grip started")
 			T.Eq(H.WalkSpeed, 0, "gripped: 0")
+			T.Eq(C:GetAttribute("KnockedStill"), true, "gripped: held still")
 			T.Eq(Gripper.Humanoid.WalkSpeed, 0, "the gripper's lock as before")
 			task.wait(0.25)
 			T.Eq(H.WalkSpeed, 0, "gripped: still 0")
@@ -163,6 +198,7 @@ return {
 			DownedManager.Recover(C)
 			T.Eq(C:GetAttribute("Knocked"), nil, "up")
 			T.Eq(C:GetAttribute("KnockedUntil"), nil)
+			T.Eq(C:GetAttribute("KnockedStill"), nil)
 			T.Near(H.WalkSpeed, WS, 1e-3, "walk speed back")
 			T.Near(H.JumpHeight, JH, 1e-3, "jump back")
 			task.wait(0.35)
@@ -177,16 +213,25 @@ return {
 		if not Spot then return end -- (no surveyed deep water in this place)
 		local SwimKit = require(Kit)
 		Knocked(function(C, H)
+			local Was = C.HumanoidRootPart.Position
 			SwimKit.WithPlayerAt(Player, CFrame.new(Spot.At - Vector3.new(0, 2, 0)), function()
 				task.wait(0.4)
 				T.Eq(H.WalkSpeed, 0, "knocked in deep water: still")
+				-- fix round 1: the client's KnockedSpeed (MoverManager's hand-back, the crouch guard) reads 0 here too
+				T.Eq(C:GetAttribute("KnockedStill"), true, "KnockedStill in deep water")
+				T.Eq(DownedManager.KnockedSpeed(C), 0, "KnockedSpeed in deep water")
 			end)
+			DownedManager.RebaseCrawl(C) -- (the kit moved the knocked player on purpose)
 			task.wait(0.4)
 			T.Near(H.WalkSpeed, Cfg.CrawlSpeed, 1e-3, "out of the water: crawl again")
+			T.Eq(C:GetAttribute("KnockedStill"), nil, "out of the water: not held")
+			T.True((C.HumanoidRootPart.Position - Was).Magnitude < 1, "put back where it was, not clamped into the water")
 		end)
 	end,
 
-	-- no escape by train or road: the station's Held (departure, boarding) and the road's HELD list refuse a knock
+	-- no escape by train: the station's Held (boarding and departure) refuses a knock. (The road's threshold refuses one
+	-- too, through RoadService's local Unfit / HELD list; that is checked by reading the code, not here: Unfit isn't
+	-- reachable from a test.)
 	HeldRefusesTravel = function(T)
 		local SS = ServerScriptService:FindFirstChild("StationService")
 		if not SS then return end -- (a place with no station)

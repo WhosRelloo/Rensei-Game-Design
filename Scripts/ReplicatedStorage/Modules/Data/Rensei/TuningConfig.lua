@@ -1000,6 +1000,13 @@ TuningConfig.Downed = {
 	CrawlFade = 0.25, -- PROPOSAL: seconds the idle <-> crawl crossfade takes
 	CrawlStill = 0.12, -- PROPOSAL: seconds of no input before the crawl settles back into the idle (no flicker on a tap)
 	CrawlCheck = 0.1, -- PROPOSAL: seconds between the server's speed checks while knocked
+	-- the crawl's distance clamp (DownedManager.ClampCrawl, fix round 1): at most CrawlSpeed x time x CrawlClampMult +
+	-- CrawlClampSlack studs across the ground since the last allowed point (time capped at CrawlClampWindow s), not in
+	-- the first CrawlClampGrace s of a knock. All PROPOSAL.
+	CrawlClampMult = 1.5,
+	CrawlClampSlack = 0.25,
+	CrawlClampWindow = 0.5,
+	CrawlClampGrace = 0.5,
 	-- the carried body's root in the carrier's root space (DownedManager.Attach, carries only; grips keep the shared root).
 	-- PROPOSAL, from the Play check of the owner's Carry / Carried animations (2026-10-27): over the carrier's left
 	-- shoulder (R6: left = -X), lifted 0.1 so it rests on the shoulder instead of in it.

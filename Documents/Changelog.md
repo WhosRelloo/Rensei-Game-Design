@@ -25,6 +25,8 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Sync:** `sync.py` covers the new pairs (DownedManager, MoverManager, ClientHandler.Crouch, Play_Downed): Ye 92/0/0, Foundry Yard 95/0/0. The Tutorial (no Modules package) got the same DownedManager, MoverManager and AnimationManager, the Downed section of TuningConfig, the crouch guard and the slots. FlowTeleport, Places, DownedManager, AnimationManager, MoverManager, the Downed tuning and the downed / grip slots hash equal across every place that has them (the Menu has only FlowTeleport and Places, both equal).
 
+**Fix round 1 (review minors, same day):** the server clamps a knocked player's crawl distance (a 10-stud jump in one tick is put back; a real crawl isn't touched); attribute `KnockedStill` makes the client's `KnockedSpeed` read 0 in deep water, gripped or carried; repo copies of the Tutorial's TuningConfig and Crouch (`Scripts/Tutorial/...`) and the live Crouch in `Art/Studio/Movement`. Play_Downed 8/0 in Ye, Foundry Yard and the Tutorial; Ye Play_Boot 2/0, Play_Road 11/0; real input: no clamp on a 3 s crawl.
+
 **Packages to publish:** Modules (93881868321364: DownedManager, MoverManager, AnimationManager, TuningConfig) and Assets (91921092226558: the four slots); RenseiServer is unchanged (only the `RenseiTests` suite, which is not in a package). StarterPlayerScripts (Crouch) is saved with each place. The Tutorial is saved with its place.
 
 ### Discord announcement
