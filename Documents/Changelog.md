@@ -29,7 +29,9 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Fix round 2 (re-review, same day):** the clamp puts a body back at its full last position (no more old x / z with a new height), its slack is per second (7 studs/s in all, over at most 1 s), and it leaves alone a grounded or welded assembly, a seat, PlatformStand and the 0.5 s after a rebase. Every deliberate server move of a player calls `RebaseCrawl`: StationService (gate and car-door pushes, platform, ride watchdog, departure), RoadService (arrival spread), TravelService (arrival), AdminService (bring, goto, teleport); these four services are now sync pairs. Play_Downed 10/0 in Ye (x2), Foundry Yard and the Tutorial; Ye Play_Station 20/0, Play_Road 11/0, Play_Boot 2/0. **RenseiServer** (StationService, RoadService, TravelService, AdminService) now also needs publishing.
 
-**Packages to publish:** Modules (93881868321364: DownedManager, MoverManager, AnimationManager, TuningConfig) and Assets (91921092226558: the four slots); RenseiServer is unchanged (only the `RenseiTests` suite, which is not in a package). StarterPlayerScripts (Crouch) is saved with each place. The Tutorial is saved with its place.
+**Fix round 3 (re-review):** a rebase now pins the clamp to the server's own spot right after the move (it followed the client for 0.5 s, so a rebase could be ridden anywhere); a snap inside that grace (the client's stale echo) isn't counted. Rebases are kept for knocked players only, and a re-knock's old watch no longer clears the new knock's state. Play_Downed 11/0 in Ye, Foundry Yard and the Tutorial; Ye Play_Station 20/0, Play_Road 11/0.
+
+**Packages to publish:** Modules (93881868321364: DownedManager, MoverManager, AnimationManager, TuningConfig) and Assets (91921092226558: the four slots); RenseiServer needs publishing too since fix round 2 (StationService, RoadService, TravelService, AdminService: the `Rebased` calls; the `RenseiTests` suite is not in a package). StarterPlayerScripts (Crouch) is saved with each place. The Tutorial is saved with its place.
 
 ### Discord announcement
 

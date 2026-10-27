@@ -142,6 +142,28 @@ return {
 		end)
 	end,
 
+	-- fix round 3: a rebase pins the clamp to the server's spot. A far move inside the rebase's grace without a new rebase
+	-- (as a client riding the grace would make) is snapped back to that spot, and the snap isn't counted (it is also how
+	-- the owning client's stale echo after a server move is handled)
+	RebaseGraceSnapsBack = function(T)
+		Knocked(function(C)
+			local Root = C.HumanoidRootPart
+			local function Flat(V) return Vector3.new(V.X, 0, V.Z).Magnitude end
+			task.wait((Cfg.CrawlClampGrace or 0.5) + 0.2)
+			local Clamped = C:GetAttribute("CrawlClamped") or 0
+			local Back = -Root.CFrame.LookVector * Vector3.new(1, 0, 1)
+			Back = Back.Magnitude > 1e-3 and Back.Unit or Vector3.new(1, 0, 0)
+			C:PivotTo(C:GetPivot() + Back * 6)
+			DownedManager.RebaseCrawl(C)
+			local Spot = Root.Position
+			task.wait(0.05)
+			C:PivotTo(C:GetPivot() + Back * 10) -- inside the grace, no rebase
+			task.wait(0.35)
+			T.True(Flat(Root.Position - Spot) < 1, "snapped back to the rebased spot (" .. Flat(Root.Position - Spot) .. " off)")
+			T.Eq(C:GetAttribute("CrawlClamped") or 0, Clamped, "the grace snap isn't counted")
+		end)
+	end,
+
 	-- fix round 2: a knocked player in a seat, or welded into another assembly (a latch), is moved by that, not clamped
 	SeatedOrWeldedNotClamped = function(T)
 		Knocked(function(C, H)
