@@ -22,9 +22,16 @@
 -- Assassinations Task 4 (2026-10-27): a rig being taken down (attribute TakenDownBy) perceives nothing: it doesn't see,
 -- hear or witness (Update, Hear, Perceived). Glimpse(Player, Except) is the one quick look every NPC takes at an attack
 -- (no light or movement multiplier): those that see it remember where the player was, and enemies are alarmed. Raise(Rig,
--- Where) puts an NPC Alert with nobody to fight, searching around Where, and calls NPCs within 40 studs to look there
+-- Where) puts an NPC Alert with nobody to fight, searching around Where, and calls NPCs within CallRadius to look there
 -- (Call takes no player for that). An Alert NPC with no focus -- a raised one, or one whose focus left the server --
 -- now takes a player it fully notices as its focus (before, it could only search, never fight them).
+-- Assassinations Task 5 (2026-10-27): bodies. AddBody(Model, {Kind = "Dead" | "Out", By = Player}) registers a body
+-- (TakedownService, Tasks 7-8); it leaves the list when the model is destroyed, or by RemoveBody. At the end of each
+-- Step, an enemy (never a townsperson: spec decision 8) that isn't Alert and has a body's torso within its sight range
+-- and view cone casts one ray at it from the tick's budget; while the line is clear it fills toward finding it at the
+-- normal sight rate, scaled by the light on the body (dark is slower) and x SubmergedMult when the body is under water
+-- (pre-flight R7, as a diver). At 1 it finds it: Raise at the body, and the BodyFound listeners run. One finder per
+-- body. Takedown.IsHidden bodies are never found (a stealth-missions hook; nothing is hidden yet).
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -33,6 +40,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local P = require(ReplicatedStorage.Modules.Data.Rensei.Perception)
+local Takedown = require(ReplicatedStorage.Modules.Data.Rensei.Takedown)
 
 local PerceptionService = {}
 local Npcs = {} -- [Rig] = state
@@ -238,6 +246,79 @@ local function Update(S, Dt, PlayerList)
 	Decide(S, Best, BestPlayer, T)
 end
 
+-- ===== bodies (assassinations Task 5) =====
+local Bodies = {} -- [Model] = Info: {Kind, By, Found, Fill = {[Rig] = 0..1}}
+PerceptionService.Bodies = Bodies
+PerceptionService.BodyFound = {} -- listeners (Body, Finder, Info), each run in a pcall
+
+-- Info = {Kind = "Dead" | "Out", By = Player}. Registering a model again starts its finding over.
+function PerceptionService.AddBody(Model, Info)
+	local Again = Bodies[Model] ~= nil
+	Info.Found, Info.Fill = false, {}
+	Bodies[Model] = Info
+	if not Again then Model.Destroying:Once(function() Bodies[Model] = nil end) end
+	return Info
+end
+
+function PerceptionService.RemoveBody(Model) Bodies[Model] = nil end
+
+local Swim = nil -- SwimService, required on first use (it loads after this service)
+local function Underwater(Model)
+	if not Swim then
+		local M = ServerScriptService:FindFirstChild("SwimService")
+		local Ok, S = pcall(function() return M and require(M) end)
+		if not (Ok and S) then return false end
+		Swim = S
+	end
+	local Ok, Yes = pcall(Swim.HeadUnderwater, Model)
+	return Ok and Yes == true
+end
+
+local function Found(Body, Rig, Info, Where)
+	Info.Found = true
+	PerceptionService.Raise(Rig, Where)
+	for _, Listener in ipairs(PerceptionService.BodyFound) do
+		local Ok, Err = pcall(Listener, Body, Rig, Info)
+		if not Ok then warn("PerceptionService BodyFound:", Err) end
+	end
+end
+
+-- after the NPC updates, with the rays left in the tick's budget: one per enemy that has a body in view
+local function FindBodies(Dt)
+	for Body, Info in pairs(Bodies) do
+		local Torso = Body:FindFirstChild("Torso") or Body:FindFirstChild("UpperTorso") or Body:FindFirstChild("HumanoidRootPart")
+		if not Info.Found and Torso and not Takedown.IsHidden(Body) then
+			local Light, Water -- worked out once per body per tick, when an NPC first has a clear line to it
+			for Rig, S in pairs(Npcs) do
+				local Head, Root = Rig:FindFirstChild("Head"), Rig:FindFirstChild("HumanoidRootPart")
+				if S.Combat and S.Phase ~= "Alert" and Head and Root and Alive(Rig) and not Rig:GetAttribute("Knocked")
+					and not Rig:GetAttribute("TakenDownBy") then
+					local To = Torso.Position - Head.Position
+					local Dist = To.Magnitude
+					local Cone = Dist <= (P.Types[S.Type] or P.Types.Grunt).Range and P.ConeMult(Root.CFrame.LookVector, To) or 0
+					if Cone > 0 then
+						if Budget <= 0 then return end -- no rays left: the rest look next tick
+						Budget -= 1
+						Rays.FilterDescendantsInstances = {Rig, Body}
+						if not workspace:Raycast(Head.Position, To, Rays) then
+							if not Light then
+								Light = P.ExposureMult(PerceptionService.ExposureOf(Body) or 1)
+								Water = Underwater(Body) and P.SubmergedMult or 1 -- (in Rate's movement slot, as for a diver)
+							end
+							local Fill = (Info.Fill[Rig] or 0) + P.Rate(S.Type, Dist, Cone, 1, Water, Light, Now() < S.CautiousUntil) * Dt
+							Info.Fill[Rig] = Fill
+							if Fill >= 1 then
+								Found(Body, Rig, Info, Torso.Position)
+								break -- one finder per body
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
 function PerceptionService.Step(Dt)
 	Clock += Dt
 	Budget = P.RaysPerTick
@@ -257,6 +338,7 @@ function PerceptionService.Step(Dt)
 		end
 		if Near or S.Phase ~= "Unaware" then Update(S, Dt, List) end
 	end
+	FindBodies(Dt)
 end
 
 local Auto = true
@@ -425,10 +507,13 @@ function PerceptionService.Glimpse(Player, Except)
 end
 
 -- an Alert search at Where with nobody to fight (a body found, an NPC waking from a knockout): it sweeps around the
--- spot for SearchTime, then turns Cautious as after any failed search; NPCs of its kind within CallRadius come to look
+-- spot for SearchTime, then turns Cautious as after any failed search; NPCs of its kind within CallRadius come to look.
+-- An NPC already Alert on someone keeps that fight and isn't raised (Task 4 review: otherwise its next tick takes the
+-- player back as its focus and Where is lost anyway).
 function PerceptionService.Raise(Rig, Where)
 	local S = Npcs[Rig]
 	if not S or typeof(Where) ~= "Vector3" then return end
+	if S.Phase == "Alert" and S.Focus then return end
 	S.Focus, S.LastKnown, S.SearchUntil = nil, Where, Now() + P.SearchTime
 	SetPhase(S, "Alert")
 	Call(S, nil, Where)

@@ -61,12 +61,13 @@ local Blocking = require(States.Blocking)
 local CombatDirector = require(game:GetService("ServerScriptService"):WaitForChild("CombatDirector"))
 local PerceptionService = require(game:GetService("ServerScriptService").PerceptionService)
 local Perception = require(ReplicatedStorage.Modules.Data.Rensei.Perception)
+local Takedown = require(ReplicatedStorage.Modules.Data.Rensei.Takedown)
 
 local SPAWN_TAG = "RenseiEnemySpawn"
 local function Alchemy() return require(game:GetService("ServerScriptService").AlchemyService) end -- (lazy: it requires us)
 local SightParams = RaycastParams.new()
 SightParams.FilterType = Enum.RaycastFilterType.Include
-local CORPSE_SECONDS = 4
+local CORPSE_SECONDS = 4 -- a takedown's body (attribute TakenDownBy) stays Takedown.BodySeconds instead (assassinations Task 5)
 
 local EnemyService = {}
 EnemyService.Active = {} -- [Rig] = enemy record
@@ -517,7 +518,7 @@ function Spawn(Part)
 	Rig.Humanoid.Died:Once(function()
 		EnemyService.Active[Rig] = nil
 		CombatDirector.Unregister(Rig, "Died") -- its token (if any) passes on now
-		task.delay(CORPSE_SECONDS, function()
+		task.delay(Rig:GetAttribute("TakenDownBy") and Takedown.BodySeconds or CORPSE_SECONDS, function()
 			pcall(function() WC:Destroy() end)
 			if Rig.Parent then Rig:Destroy() end
 		end)
