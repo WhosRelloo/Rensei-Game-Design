@@ -22,7 +22,7 @@
 --     Anchored); PerceptionService and LightService SetAuto(false); lays the floor; runs Body in a pcall; then Kit.Clean
 --     and the put-back. Re-raises Body's error.
 --   * Kit.Clean(): Guard's clean-up (Guard calls it; SmokeKit.Guarded then removes the parts and puts the character
---     back): a carry the case left dropped and any carry weld off the player's root (Task 6), every rig the kit made removed (and any other enemy left on the floor), TakingDown, TakedownReadyAt and
+--     back): a carry the case left dropped and any carry weld off the player's root (Task 6), every rig the kit made removed (and any other enemy left on the floor), every townsperson Folk made despawned with its post (Task 9), TakingDown, TakedownReadyAt and
 --     LastTakedownResult cleared on the character, the saved attributes restored, both loops SetAuto(true). (Task 7) A
 --     crouch Kit.Crouch started is stopped; a takedown left running is waited out (its victim is gone, so it ends as an
 --     interrupt), and TakedownService forgets the player's cooldown (Forget), so no case starts on the last one's.
@@ -31,6 +31,10 @@
 --   * (Task 8 fix round) the cases' shared helpers, moved here unchanged from Play_Takedown for Play_TakedownHard: At,
 --     AWAY, NEAR, AtHour, AddBody, DeadBody, CarryWeld, Free, WaitFor, Service, Result, Calm, Assassinate, KnockOut,
 --     Finished, Behind, Deed, LAW and GrippedBodyHeat (each described where it is defined, below).
+--   * Kit.Folk(Name, At) -> Id, Rig (Task 9, pre-flight R10): a test townsperson of the case's own on the floor, standing
+--     at At (a CFrame: where and which way it faces) at a post of its own (SmokeKit.FolkPost / FolkDef / SpawnFolk,
+--     the fixture Play_TownsfolkHurt uses), once PerceptionService tracks it as a watcher (2 s at most). Only inside
+--     Guard; Kit.Clean despawns it and removes its post.
 local Players = game:GetService("Players")
 local SSS = game:GetService("ServerScriptService")
 local PS = require(SSS.PerceptionService)
@@ -57,6 +61,7 @@ local SAVED = {"CombatMode", "Crouching", "Exposure"} -- the character attribute
 local CLEARED = {"TakingDown", "TakedownReadyAt", "LastTakedownResult"} -- cleared after every case
 
 local Made = {} -- the rigs Spawn made, until Clean
+local FolkMade = {} -- (Task 9) the townsfolk Folk made, {Id, Post}, until Clean
 local Saved = nil -- the attributes Guard saved, while a Guard runs
 
 function Kit.Player() return Players:GetPlayers()[1] end
@@ -80,6 +85,16 @@ function Kit.Spawn(Type, At, Opts)
 	while not PS.Tracks(Rig) and os.clock() - T0 < 2 do task.wait(0.05) end
 	PS.Reset(Rig)
 	return Rig
+end
+
+function Kit.Folk(Name, At)
+	assert(Saved ~= nil, "TakedownKit.Folk runs inside Guard (its floor and its clean-up)")
+	local Id = "TDF_" .. Name .. "_" .. tostring(math.random(1e6))
+	table.insert(FolkMade, {Id = Id, Post = SmokeKit.FolkPost(Id, At, "Work")})
+	local Rig = SmokeKit.SpawnFolk(SmokeKit.FolkDef(Id, "Takedown Test " .. Name, {{0, 24, Id}}, 3000 + #FolkMade))
+	local T0 = os.clock()
+	while not PS.Tracks(Rig) and os.clock() - T0 < 2 do task.wait(0.05) end
+	return Id, Rig
 end
 
 function Kit.Face(Rig, Dir)
@@ -150,6 +165,12 @@ function Kit.Clean()
 	end
 	for _, Rig in ipairs(Made) do SmokeKit.RemoveEnemy(Rig) end
 	table.clear(Made)
+	-- (Task 9) the case's townsfolk and their posts
+	for _, X in ipairs(FolkMade) do
+		pcall(require(SSS.TownsfolkService).Despawn, X.Id)
+		pcall(function() X.Post:Destroy() end)
+	end
+	table.clear(FolkMade)
 	SmokeKit.SweepEnemies(Kit.Spot(), SWEEP)
 	-- (Task 7) a takedown a failed case left running ends once its victim is gone (an interrupt): wait for its release, so
 	-- what it writes on the character is cleared below; then the next case starts off cooldown

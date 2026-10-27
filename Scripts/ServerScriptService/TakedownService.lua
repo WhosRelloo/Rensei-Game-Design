@@ -15,9 +15,13 @@
 -- * Request(Player, Kind, Target) -> ok, reason: refused -> the next allowed time is at least now + RefusedCooldown and
 --   LastTakedownResult = "<Kind>:<reason>". Accepted -> in the same step, with no yield, the target is marked
 --   TakenDownBy and the player TakingDown (one takedown per target, spec §11), then the takedown runs on its own thread.
---   Chunk (Elite) targets are refused "todo" until Task 9, before anything is marked.
+--   A Full target is assassinated or knocked out (below); a Chunk target (an Elite, spec §8) can only be backstabbed:
+--   Takedown.Check refuses its knockout ("kind"), an Immune one (a boss, a trial foe, anything perception doesn't track)
+--   and a townsperson ("townsfolk", PvE) before anything is marked.
 -- * The ASSASSINATION of a Full target (spec §4-§7):
---     1. PerceptionService.Glimpse(Player, Target): every NPC but the victim takes one quick look (spec §6);
+--     1. PerceptionService.Glimpse(Player, Target): every NPC but the victim takes one quick look (spec §6); each
+--        townsperson that saw it runs (Task 9, spec §18.2, pre-flight R10: TownsfolkService.Startle, away from the
+--        player) and reports it as a witness of the deed (step 6's capture);
 --     2. the player is locked (DownedManager.Lock); the victim takes no damage (DamageTakenMult 0), is stunned (WCS Stun
 --        for LethalTime) and stops its animations;
 --     3. the player is put behind it (Target root * Takedown.Offset:Inverse()) and the victim's root is welded to the
@@ -51,6 +55,16 @@
 --   unless Takedown.IsHidden, PerceptionService.Raise puts it Alert searching where it woke (and calls others in). When it
 --   dies instead (a grip, a delivery) its "Out" body is dropped and KnockedOutBy cleared; a grip stays the loud
 --   finisher it was, with its own deed and its own "Dead" body (spec §4).
+-- * The BACKSTAB of a Chunk target (Task 9, spec §8; "Assassinate" only): step 1's look (townsfolk who saw it run); the
+--   player locked and playing Anims.Assassinate's player animation (its fallback as ever) up to the Snap
+--   (LethalTime x KillAt), with step 5's interrupts, then stopped. No weld, no protection, no victim animation. Then one
+--   hit through the normal hit path: TakenDownBy cleared (so a hit that kills leaves an ordinary corpse, not a takedown's
+--   body), DownedManager.Damage(Target, MaxHealth x ChunkShare) -- the 45% that takes it to 0 knocks a knockable rig, as
+--   any hit does -- and ProgressionService.RecordHit(Character, Target, "Hit"): the 20-stud Hit sound, the Alarm (Alert
+--   on the player) and the last-hit credit, as for any hit; a WCS Stun on it for ChunkStun (while it lives). Then the
+--   release (as in 7), the cooldown, LastTakedownResult "Assassinate:backstab", and, when it is alive and not knocked,
+--   Failed(Player, Rig, "survived") (the Nemesis hook, spec §13), else Done("Assassinate", Player, Rig). No credit of
+--   its own, no deed, no body.
 -- * INTERRUPTED (any kind): released as in 7, and (the victim living) TakenDownBy cleared and the root's anchoring put
 --   back, DamageTakenMult (when it was saved) and the victim's Stun, the victim Alert on the player
 --   (PerceptionService.Alarm), the cooldown as in 8, LastTakedownResult "<Kind>:interrupted", then Failed(Player, Rig,
@@ -73,7 +87,8 @@
 --   takedown they're in released as an interrupt, without the Alarm -- THEN their cooldown is forgotten (Task 7 review:
 --   the release writes it). Cancel(Player, Quiet) -> true when a takedown was running. Forget(Player) clears the
 --   cooldown (tests use it too).
--- Listeners (each in a pcall): Done(Kind, Player, Rig) after a finished takedown; Failed(Player, Rig, Reason).
+-- Listeners (each in a pcall): Done(Kind, Player, Rig) after a finished takedown; Failed(Player, Rig, Reason), Reason
+-- "interrupted" or (an Elite that lived through a backstab) "survived".
 --
 -- Attributes. Victim: TakenDownBy (the player's name; kept on an assassinated corpse), DamageTakenMult (0 while held),
 -- KnockedOutBy (the player's UserId while knocked out), FinishedBy (DownedManager.Finish), read: Faction, TakedownClass,
@@ -120,6 +135,20 @@ local function Fire(List, ...)
 	for _, Fn in ipairs(List) do
 		local Ok, Err = pcall(Fn, ...)
 		if not Ok then warn("TakedownService listener:", Err) end
+	end
+end
+
+-- (Task 9, spec §18.2, pre-flight R10) each townsperson among Saw (Glimpse's rigs) runs from the takedown, away from the
+-- player; a failure is warned and never stops the takedown
+local function Startle(Saw, Character)
+	local R = Root(Character)
+	local From = R and R.Position
+	for _, Rig in ipairs(Saw) do
+		local Id = Rig:GetAttribute("TownsfolkId")
+		if Id ~= nil then
+			local Ok, Err = pcall(function() require(ServerScriptService.TownsfolkService).Startle(Id, From) end)
+			if not Ok then warn("TakedownService: a witness couldn't run:", Err) end
+		end
 	end
 end
 
@@ -234,8 +263,9 @@ local function KnockOut(S)
 	WatchWake(T)
 end
 
--- the end of a takedown, once. Outcome: "ok" (after the kill, or the knockout's whole hold), "interrupted" (Quiet: no
--- Alarm, the player left), or "error" (the kill failed part-way: no Alarm, neither Done nor Failed)
+-- the end of a takedown, once. Outcome: "ok" (after the kill, or the knockout's whole hold), "backstab" (after a Chunk
+-- target's hit: Done, or Failed "survived"), "interrupted" (Quiet: no Alarm, the player left), or "error" (the kill
+-- failed part-way: no Alarm, neither Done nor Failed)
 local function Release(S, Outcome, Quiet)
 	if S.Over then return end
 	S.Over = true
@@ -257,7 +287,8 @@ local function Release(S, Outcome, Quiet)
 			local TR = Root(T)
 			if TR and S.Anchored ~= nil then TR.Anchored = S.Anchored end
 			if A.Victim then AnimationManager.Stop(T, A.Victim) AnimationManager.Stop(T, A.VictimFallback) end
-			if Outcome ~= "ok" and not DownedManager.IsKnocked(T) then
+			-- (Task 9: only when the hold stopped its animations; a backstab never touches them)
+			if Outcome ~= "ok" and S.Stopped and not DownedManager.IsKnocked(T) then
 				AnimationManager.Play(T, "Idle", {Looped = true, Priority = Enum.AnimationPriority.Core})
 			end
 		end
@@ -283,6 +314,12 @@ local function Release(S, Outcome, Quiet)
 		Fire(TakedownService.Done, Kind, S.Player, T)
 	elseif Outcome == "interrupted" then
 		Fire(TakedownService.Failed, S.Player, T, "interrupted")
+	elseif Outcome == "backstab" then
+		if Alive(T) and not DownedManager.IsKnocked(T) then
+			Fire(TakedownService.Failed, S.Player, T, "survived") -- (the Nemesis hook, spec §13)
+		else
+			Fire(TakedownService.Done, Kind, S.Player, T)
+		end
 	end
 end
 
@@ -291,7 +328,7 @@ local function Hold(S)
 	local Player, C, T, Kind = S.Player, S.Character, S.Target, S.Kind
 	-- (Task 7 review) saved first, so a takedown that can't start never writes over what the victim had
 	S.Mult, S.MultSaved = T:GetAttribute("DamageTakenMult"), true
-	PerceptionService.Glimpse(Player, T)
+	Startle(PerceptionService.Glimpse(Player, T), C)
 	DownedManager.Lock(C, true)
 	S.Locked = true
 	T:SetAttribute("DamageTakenMult", 0)
@@ -301,6 +338,7 @@ local function Hold(S)
 		S.Stun:Start(Takedown[Kind == "Knockout" and "KnockoutTime" or "LethalTime"])
 	end
 	AnimationManager.StopAllAnims(T)
+	S.Stopped = true
 	if Kind == "Knockout" then require(ServerScriptService.NoiseService).Emit(Root(T).Position, "Choke", C) end
 	local PR, TR = Root(C), Root(T)
 	S.Anchored = TR.Anchored
@@ -312,6 +350,32 @@ local function Hold(S)
 	local Speed = Takedown.Speed(Kind)
 	AnimationManager.Play(C, A.Player, {Priority = Enum.AnimationPriority.Action4, Speed = Speed, Fallback = A.PlayerFallback})
 	AnimationManager.Play(T, A.Victim, {Priority = Enum.AnimationPriority.Action4, Speed = Speed, Fallback = A.VictimFallback})
+end
+
+-- (Task 9) a Chunk target's backstab, up to the hit: the look, the player locked and playing the assassination
+local function Backstab(S)
+	local Player, C, T = S.Player, S.Character, S.Target
+	S.Detached = true -- (never welded: nothing to let go)
+	Startle(PerceptionService.Glimpse(Player, T), C)
+	DownedManager.Lock(C, true)
+	S.Locked = true
+	local A = Takedown.Anims.Assassinate
+	AnimationManager.Play(C, A.Player, {Priority = Enum.AnimationPriority.Action4, Speed = Takedown.Speed("Assassinate"),
+		Fallback = A.PlayerFallback})
+end
+
+-- (Task 9) the backstab's hit at the Snap: the normal hit path, the stun, then the release
+local function Stab(S)
+	local Player, C, T = S.Player, S.Character, S.Target
+	local A = Takedown.Anims.Assassinate
+	AnimationManager.Stop(C, A.Player)
+	AnimationManager.Stop(C, A.PlayerFallback)
+	T:SetAttribute("TakenDownBy", nil) -- (first: a hit that kills leaves an ordinary corpse, not a takedown's body)
+	DownedManager.Damage(T, Hum(T).MaxHealth * Takedown.ChunkShare)
+	require(ServerScriptService.ProgressionService).RecordHit(C, T, "Hit")
+	local VWC = Alive(T) and WCS.Character.GetCharacterFromInstance(T)
+	if VWC then Stun.new(VWC):Start(Takedown.ChunkStun) end
+	Release(S, "backstab")
 end
 
 local function Broken(S)
@@ -345,16 +409,16 @@ local function Kill(S)
 	Release(S, "ok")
 end
 
-local function Run(Player, Target, Kind)
+local function Run(Player, Target, Kind, Chunk)
 	local S = {Player = Player, Character = Player.Character, Target = Target, Kind = Kind}
 	Running[Player] = S
-	local Ok, Err = pcall(Hold, S)
+	local Ok, Err = pcall(Chunk and Backstab or Hold, S)
 	if not Ok then
 		warn("TakedownService: the takedown couldn't start:", Err)
 		Release(S, "interrupted")
 		return
 	end
-	-- the knockout holds for its whole KnockoutTime; the assassination kills at the Snap (LethalTime x KillAt)
+	-- the knockout holds for its whole KnockoutTime; the assassination kills (a backstab hits) at the Snap (LethalTime x KillAt)
 	local EndAt = Kind == "Knockout" and Takedown.KnockoutTime or Takedown.LethalTime * Takedown.KillAt
 	local T0 = os.clock()
 	while true do
@@ -367,7 +431,7 @@ local function Run(Player, Target, Kind)
 		Release(S, "ok")
 		return
 	end
-	local KillOk, KillErr = pcall(Kill, S)
+	local KillOk, KillErr = pcall(Chunk and Stab or Kill, S)
 	if not KillOk then
 		-- (Task 7 review) past the point of no return (the credit, the deed, the death may be done): no interrupt
 		warn("TakedownService: the kill failed:", KillErr)
@@ -380,8 +444,6 @@ function TakedownService.Request(Player, Kind, Target)
 	if not (Root(Character) and typeof(Target) == "Instance" and Target:IsA("Model") and Root(Target)) then return false, "missing" end
 	local Ctx = TakedownService.Context(Player, Target, Kind)
 	local Ok, Reason = Takedown.Check(Ctx)
-	-- an Elite's backstab (Task 9) doesn't exist yet: refused before anything is marked
-	if Ok and Ctx.Class == "Chunk" then Ok, Reason = false, "todo" end
 	if not Ok then
 		NextAt[Player] = math.max(NextAt[Player] or 0, os.clock() + Takedown.RefusedCooldown) -- (never shortens a cooldown)
 		Character:SetAttribute("LastTakedownResult", Label(Kind) .. ":" .. tostring(Reason))
@@ -390,7 +452,7 @@ function TakedownService.Request(Player, Kind, Target)
 	-- the same step as the last check, no yield between: one takedown per target
 	Target:SetAttribute("TakenDownBy", Player.Name)
 	Character:SetAttribute("TakingDown", Target.Name)
-	task.spawn(Run, Player, Target, Kind)
+	task.spawn(Run, Player, Target, Kind, Ctx.Class == "Chunk") -- (a Chunk target: Check let only "Assassinate" through)
 	return true, "started"
 end
 

@@ -7,7 +7,6 @@
 -- DownedManager -> ProgressionService.RecordHit's listeners; the grip goes through DownedManager.Request. Timers are
 -- shortened inside a test and put back by the fixture (KnockedSeconds, BodySeconds, HelpChance, TalkCooldown, HurtFlee).
 local SSS = game:GetService("ServerScriptService")
-local CollectionService = game:GetService("CollectionService")
 local TS = require(SSS.TownsfolkService)
 local Mover = require(SSS.TownsfolkService.Mover)
 local WorldClock = require(SSS.WorldClock)
@@ -21,6 +20,7 @@ local DownedManager = require(Managers.DownedManager)
 local TownsfolkLogic = require(game.ReplicatedStorage.Modules.Data.Rensei.TownsfolkLogic)
 local Player = game.Players:GetPlayers()[1]
 local TestKit = require(script.Parent.TestKit) -- (Task 4b: TestKit.Beside, for Talk's range check)
+local SmokeKit = require(script.Parent.SmokeKit) -- (assassinations Task 9, R5: FolkPost, FolkDef, SpawnFolk)
 
 local GAP = 40
 
@@ -89,32 +89,19 @@ local function Fixture(T, Body)
 	}
 	local X = {Dir = Dir, Side = Side, Tag = Tag, After = After}
 	function X.At(Along, Off) return Origin + Dir * Along + Side * (Off or 0) end
+	-- (assassinations Task 9, R5: the post, the definition and the spawn are SmokeKit's now, the same as before)
 	function X.Post(Name, Along, Kind, Facing, Off)
 		local Id = "TH_" .. Name .. "_" .. Tag
 		local Pos = X.At(Along, Off)
-		local P = Instance.new("Part")
-		P.Name = "TestPost_" .. Id
-		P.Anchored, P.CanCollide, P.CanQuery, P.CanTouch = true, false, false, false
-		P.Transparency = 0.5
-		P.Size = Vector3.new(2, 0.2, 2)
-		P.CFrame = CFrame.lookAt(Pos, Pos + (Facing or Side))
-		P:SetAttribute("PostId", Id)
-		P:SetAttribute("Kind", Kind)
-		CollectionService:AddTag(P, "RenseiPost")
-		P.Parent = workspace
-		table.insert(Made, P)
+		table.insert(Made, SmokeKit.FolkPost(Id, CFrame.lookAt(Pos, Pos + (Facing or Side)), Kind))
 		return Id
 	end
 	function X.Def(Name, Schedule)
 		Seq += 1
-		return {
-			Id = "THF_" .. Name .. "_" .. Tag, Name = "Hurt Test " .. Name, Job = "Tester", JobLine = "Just testing.",
-			Faction = "Townsfolk", Idle = "NPC_CrossArms", Look = {Nation = "Amestrian", Seed = 2000 + Seq}, Schedule = Schedule,
-		}
+		return SmokeKit.FolkDef("THF_" .. Name .. "_" .. Tag, "Hurt Test " .. Name, Schedule, 2000 + Seq)
 	end
 	function X.Spawn(D, Region)
-		task.wait() -- (the post signal is deferred)
-		local Rig = TS.Spawn(D, Region or "Test")
+		local Rig = SmokeKit.SpawnFolk(D, Region)
 		table.insert(Spawned, D.Id)
 		return Rig
 	end

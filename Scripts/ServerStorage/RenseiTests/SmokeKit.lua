@@ -40,6 +40,15 @@
 --     respawn), then its WCS character, then the rig (CombatDirector and PerceptionService drop it on removal).
 --   * SmokeKit.SweepEnemies(At, Radius) (Ruling 36): RemoveEnemy for every live enemy whose root is within Radius of
 --     At, for a Spawn that threw after parenting its rig.
+-- (Assassinations Task 9, 2026-10-27, pre-flight Rulings R5 / R10: moved from Play_TownsfolkHurt's fixture with the
+-- same behaviour, so Play_Takedown's townsfolk witness spawns its townsperson the same way; game VM only.)
+--   * SmokeKit.FolkPost(Id, At, Kind) -> Part: a test townsfolk post, a see-through 2 x 0.2 x 2 anchored Part at At (a
+--     CFrame: where they stand and which way they face) that nothing collides with, tagged RenseiPost with PostId = Id
+--     and Kind, in workspace. The caller destroys it.
+--   * SmokeKit.FolkDef(Id, Name, Schedule, Seed) -> Def: a test townsperson's definition (job "Tester", faction
+--     Townsfolk, idle NPC_CrossArms, an Amestrian look from Seed) on Schedule ({{From, To, PostId}, ...}).
+--   * SmokeKit.SpawnFolk(Def, Region): TownsfolkService.Spawn(Def, Region or "Test") once the post's tag signal has run
+--     (it is deferred); returns the rig. The caller despawns it (TownsfolkService.Despawn(Def.Id)).
 --   * SmokeKit.OwnGrunt(Player, Body) (gun rework Rulings 6 and 38): Body(Rig, S) with a Grunt of its own on a Play-only
 --     floor (a TempPart) at GRUNT_AT high above the map, its root anchored there facing -Z, AIPassive and PS.Reset, inside
 --     Guarded with perception and light stepped by hand; afterwards the Grunt and anything else on the floor are removed,
@@ -140,6 +149,33 @@ function SmokeKit.SweepEnemies(At, Radius)
 		if Root and (Root.Position - At).Magnitude <= Radius then table.insert(Near, Other) end
 	end
 	for _, Other in ipairs(Near) do SmokeKit.RemoveEnemy(Other) end
+end
+
+-- ===== townsfolk fixtures (assassinations Task 9, R5 / R10; moved from Play_TownsfolkHurt) =====
+function SmokeKit.FolkPost(Id, At, Kind)
+	local P = Instance.new("Part")
+	P.Name = "TestPost_" .. Id
+	P.Anchored, P.CanCollide, P.CanQuery, P.CanTouch = true, false, false, false
+	P.Transparency = 0.5
+	P.Size = Vector3.new(2, 0.2, 2)
+	P.CFrame = At
+	P:SetAttribute("PostId", Id)
+	P:SetAttribute("Kind", Kind)
+	CollectionService:AddTag(P, "RenseiPost")
+	P.Parent = workspace
+	return P
+end
+
+function SmokeKit.FolkDef(Id, Name, Schedule, Seed)
+	return {
+		Id = Id, Name = Name, Job = "Tester", JobLine = "Just testing.",
+		Faction = "Townsfolk", Idle = "NPC_CrossArms", Look = {Nation = "Amestrian", Seed = Seed}, Schedule = Schedule,
+	}
+end
+
+function SmokeKit.SpawnFolk(Def, Region)
+	task.wait() -- (the post signal is deferred)
+	return require(SSS.TownsfolkService).Spawn(Def, Region or "Test")
 end
 
 SmokeKit.GRUNT_AT = Vector3.new(0, 2500, 0) -- PROPOSAL: the floor's top centre (both maps' tops are under y 430; GunKit's floor is at 2000)
