@@ -15,6 +15,8 @@
 --   faster than a free fall is put back (a real fall isn't); the rise rule's floor is world geometry, never a character
 --   (stairs still climb, an accomplice underneath doesn't lift the pair). Written by hand: the free fall's bound is far
 --   under a 25-stud drop in 0.1 s and far over a real 30-stud fall; RiseSlack 3.
+-- * Task 7 (pre-flight P5; Task 6 re-review m1): a grab's pair is policed as a hold's (GrabbingClamped); a "broken" or
+--   an "error" end puts the hostage back at the last checked spot at rest; a huge move is clamped before any ray.
 local DM = require(game.ReplicatedStorage.Modules.Managers.DownedManager)
 local ServerStorage = game:GetService("ServerStorage")
 local SSS = game:GetService("ServerScriptService")
@@ -576,6 +578,77 @@ return {
 			T.Eq(Svc().Rebase(Rig), true, "Rebase(the hostage) rebases the same pair")
 			Svc().Free(Player, "released")
 			T.Eq(Svc().Rebase(C), false, "control: no led pair, nothing to rebase")
+		end)
+	end,
+
+	-- (Task 7, pre-flight P5) a grab's welded pair is policed as a hold's: the captor at LeadSpeed 12 from the weld, and
+	-- its root moved 8 studs mid-grab is put back while the grab goes on
+	GrabbingClamped = function(T)
+		HK.Guard(function()
+			local _, _, S = HK.Grabbed()
+			T.Eq(C.Humanoid.WalkSpeed, 12, "the captor walks at LeadSpeed 12 from the weld")
+			HK.Loose()
+			T.Eq(Clamped(), 0, "setup: nothing put back yet")
+			Fresh()
+			local P0 = CRoot().Position
+			CRoot().CFrame += CRoot().CFrame.LookVector * 8
+			local Back = WaitFor(0.3, function() return Ground(CRoot().Position, P0) <= 1 and Clamped() >= 1 end)
+			T.True(Back, "put back within 0.3 s (" .. F2(Ground(CRoot().Position, P0)) .. " studs off, " .. Clamped() .. " counted)")
+			T.True(On(S) and S.State == "Grabbing", "the grab goes on (" .. tostring(S.State) .. ", " .. tostring(HK.Result()) .. ")")
+		end)
+	end,
+
+	-- (Task 7, Task 6 re-review m1) a "broken" end puts the hostage back at the last checked spot x Offset, at rest: the
+	-- captor's client never decides where a hostage it broke away is left, nor how fast
+	BrokenSnapsBack = function(T)
+		HK.Guard(function()
+			local Rig = Led(T)
+			local Good = CRoot().CFrame
+			local HR = Rig.HumanoidRootPart
+			CRoot():FindFirstChild("DownedWeld"):Destroy()
+			HR.CFrame += Vector3.new(6, 0, 0)
+			HR.AssemblyLinearVelocity = Vector3.new(0, 0, 40)
+			T.True(Ended("Bind:broken", 0.3), "\"broken\" within 0.3 s (" .. tostring(HK.Result()) .. ")")
+			local Off = Dist(HR.Position, (Good * OFFSET).Position)
+			T.True(Off <= 1, "put back at the last checked spot (" .. F2(Off) .. " studs off)")
+			T.True(HR.AssemblyLinearVelocity.Magnitude < 5, "at rest (" .. F2(HR.AssemblyLinearVelocity.Magnitude) .. " studs/s)")
+		end)
+	end,
+
+	-- (Task 7, Task 6 re-review m1) so does an "error" end (Broken made to fail; it warns twice by design)
+	ErrorSnapsBack = function(T)
+		HK.Guard(function()
+			local Rig = Led(T)
+			local Good = CRoot().CFrame
+			local HR = Rig.HumanoidRootPart
+			local HS = Svc()
+			local Real = HS.Broken
+			local Ok, Err = pcall(function()
+				HS.Broken = function() error("Play_HostageHard: Broken made to fail") end
+				CRoot():FindFirstChild("DownedWeld"):Destroy()
+				HR.CFrame += Vector3.new(6, 0, 0)
+				HR.AssemblyLinearVelocity = Vector3.new(0, 0, 40)
+				T.True(Ended("Bind:error", 0.3), "\"error\" within 0.3 s (" .. tostring(HK.Result()) .. ")")
+			end)
+			HS.Broken = Real
+			if not Ok then error(Err, 0) end
+			local Off = Dist(HR.Position, (Good * OFFSET).Position)
+			T.True(Off <= 1, "put back at the last checked spot (" .. F2(Off) .. " studs off)")
+			T.True(HR.AssemblyLinearVelocity.Magnitude < 5, "at rest (" .. F2(HR.AssemblyLinearVelocity.Magnitude) .. " studs/s)")
+		end)
+	end,
+
+	-- (Task 7, Task 6 re-review m1; a regression guard: this engine's Raycast doesn't throw on a ray past its 15,000-stud
+	-- limit, measured in Edit 2026-10-28) a move of 100,000 studs straight up is clamped before any ray: the pair is put
+	-- back and the hold stays on, never "error"
+	HugeMoveNoThrow = function(T)
+		HK.Guard(function()
+			local _, _, S = Led(T)
+			local P0 = CRoot().Position
+			CRoot().CFrame += Vector3.new(0, 1e5, 0)
+			local Back = WaitFor(0.3, function() return Dist(CRoot().Position, P0) <= 1 and Clamped() >= 1 end)
+			T.True(Back, "put back within 0.3 s (" .. F2(Dist(CRoot().Position, P0)) .. " studs off)")
+			T.True(On(S), "the hold is still on (" .. tostring(HK.Result()) .. ")")
 		end)
 	end,
 }

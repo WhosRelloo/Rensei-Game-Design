@@ -14,6 +14,17 @@
 --   rule itself, with controls; hostages switched off (Rensei.Hostage.Enabled = false until Task 14): a live-shaped
 --   request or take is refused, the test bypass closed by HostageService._TestBypass (a seam that can only make it
 --   stricter). ReleaseErrorStillRestores warns twice by design ("Broken failed" and its own error text).
+-- * Task 7: the stealth grab (a standing stand-in, the player behind it, TakedownKit.PutBehind), its struggle from 40%
+--   and its 3 s window; the hostage's struggle (HostageService.Struggle: rate limit, stamina, drain, a break free);
+--   re-takes counted only once Held (pre-flight P22); immunity refusing a grab too; the grab's refusals (seen, far, a
+--   busy target); the hostage root's network owner given back after a grab became a hold (Task 6 re-review m3: Pair
+--   is idempotent). Written by hand (Rensei.Hostage, PROPOSAL): GrabStart 0.4, GrabWindow 3 s, GrabRange 4 + RangeSlack
+--   1.5, the rear arc 70 + 10 degrees, ShoveStun 1 s, BreakStun 1.5 s, StrugglePress 0.06 x clamp((1 + own Strength) /
+--   (1 + captor's Strength), 0.5, 2) (the kit pins Strength 5 on both sides unless a case says: 5 vs 5 -> 0.06; 30 vs 5
+--   or 5 vs 0 -> clamped to 2 -> 0.12), StruggleDrain 0.05 a second, StruggleStamina 4, MaxPressesPerSecond 8.
+--   RefuseNotKnocked now puts the player in FRONT of the standing stand-in (TakedownKit.PutInFront): FRONT (the spot +3
+--   Z, facing -Z) is BEHIND a stand-in at the spot, which also faces -Z. ImmuneAfterRelease and RetakeHalves (binds) are
+--   regression guards: they pass on Task 5's code (pre-flight P11).
 local SSS = game:GetService("ServerScriptService")
 local CollectionService = game:GetService("CollectionService")
 local DM = require(game.ReplicatedStorage.Modules.Managers.DownedManager)
@@ -69,6 +80,40 @@ local function SafeZone()
 	CollectionService:AddTag(P, "RenseiSafeZone")
 	return P
 end
+-- (Task 7) a deed's lifetime count on the player's (mock) profile, 0 when never recorded
+local function DeedCount(Id)
+	local M = require(SSS.ProgressionService).GetData(Player).Morality
+	local E = M and M.Deeds[Id]
+	return E and E.Count or 0
+end
+-- (Task 7) a WCS Stun on the character, not the crouch's (TakedownService.Stunned, called, never copied)
+local function Stunned(Character) return require(SSS.TakedownService).Stunned(Character) end
+-- (Task 7) seconds from now until that Stun is over, polled every frame (at most Max): a stun's length measured, so a
+-- slow frame can't fail a fixed wait
+local function StunLeft(Character, Max)
+	local T0 = os.clock()
+	while Stunned(Character) and os.clock() - T0 < Max do task.wait() end
+	return os.clock() - T0
+end
+local function RM() return require(game.ReplicatedStorage.Modules.Managers.ResourceManager) end
+local function FullStamina(Character) RM().Set(Character, "Stamina", RM().Max(Character, "Stamina")) end
+-- (Task 7) the real player as the HOSTAGE: knocked at the spot, a stand-in captor 3 studs off (facing it) binds them,
+-- Held within 2 s. The player's root stays anchored (PutPlayer), and the stand-in captor's root is anchored once the
+-- take has started: a rig just let go still settles (measured up to 0.85 studs, near the bind's 1-stud slack), which
+-- interrupted the bind in two of the first GREEN run's cases.
+local function Captive(T, Opts)
+	local Cap, CapPL = HK.StandIn(At(0, 3), Opts) -- (facing -Z: the player at the spot is 3 studs in front of it)
+	TK.PutPlayer(At(0, 0) + Vector3.new(0, 3, 0))
+	T.True(HK.KnockPlayer(), "setup: the player is knocked")
+	local Ok, Why = Svc().Take(CapPL, C)
+	Cap.HumanoidRootPart.Anchored = true
+	T.Eq(Ok, true, "setup: the stand-in's take starts (" .. tostring(Why) .. ")")
+	T.True(WaitFor(2.0, function()
+		local S = Svc().SessionOf(Player)
+		return S ~= nil and S.State == "Held"
+	end), "setup: Held within 2 s (" .. tostring(HK.Result(Cap)) .. ")")
+	return Cap, CapPL, Svc().SessionOf(Player)
+end
 -- a free pair: no weld, no hold marks, no lock entry on either (a stand-in still knocked keeps its knock's own lock)
 local function AllLetGo(T, Rig, What)
 	T.Eq(Weld(), nil, What .. ": no weld on the player's root")
@@ -119,6 +164,16 @@ return {
 			T.Eq(HK.Result(), "Bind:not_player", "LastHostageResult")
 			T.Eq(Grunt:GetAttribute("HeldBy"), nil, "the Grunt isn't marked")
 			T.Eq(C:GetAttribute("Holding"), nil, "the player isn't marked")
+			-- (Task 7; a guard: the NPC rule comes before the grab's own gates) a standing Grunt with the player behind it
+			local Standing = TK.Spawn("Grunt", At(-6, 0))
+			TK.PutBehind(Standing, 3)
+			HS.Forget(Player, {NextAt = true})
+			Ok, Why = HS.Take(Player, Standing)
+			T.Eq(Ok, false, "grabbing a standing Grunt from behind is refused")
+			T.Eq(Why, "not_player", "the reason")
+			T.Eq(HK.Result(), "Grab:not_player", "LastHostageResult")
+			T.Eq(Standing:GetAttribute("HeldBy"), nil, "the standing Grunt isn't marked")
+			TK.PutPlayer(FRONT)
 			-- an NPC as the captor: a player-like it would have to be, and it never is
 			local Rig = KnockedStandIn(0, -3)
 			local Fake = {IsStandIn = true, Character = Grunt, Name = Grunt.Name, DisplayName = Grunt.Name, UserId = -999,
@@ -201,15 +256,15 @@ return {
 		end)
 	end,
 
-	-- a standing target is a grab: "todo" until Task 7, refused before anything is marked
+	-- a standing target is a grab, and one the player stands in front of has seen them (Task 7: was "todo")
 	RefuseNotKnocked = function(T)
 		HK.Guard(function()
 			local Rig = HK.StandIn(At(0, 0))
-			TK.PutPlayer(FRONT)
+			TK.PutInFront(Rig, 3)
 			local Ok, Why = Svc().Take(Player, Rig)
 			T.Eq(Ok, false, "refused")
-			T.Eq(Why, "todo", "the reason")
-			T.Eq(HK.Result(), "Grab:todo", "LastHostageResult")
+			T.Eq(Why, "seen", "the reason")
+			T.Eq(HK.Result(), "Grab:seen", "LastHostageResult")
 			T.Eq(Rig:GetAttribute("HeldBy"), nil, "not marked")
 		end)
 	end,
@@ -507,7 +562,8 @@ return {
 		end)
 	end,
 
-	-- (pre-flight P11, from Task 7) a released hostage is immune for ImmuneAfter
+	-- (pre-flight P11, from Task 7; a regression guard, it passes on Task 5's code) a released hostage is immune for
+	-- ImmuneAfter
 	ImmuneAfterRelease = function(T)
 		HK.Guard(function()
 			local Rig = Held(T)
@@ -519,7 +575,8 @@ return {
 		end)
 	end,
 
-	-- (pre-flight P11 / P22, from Task 7) each hold of the same hostage within 10 minutes halves the next
+	-- (pre-flight P11 / P22, from Task 7; a regression guard, it passes on Task 5's code) each hold of the same hostage
+	-- within 10 minutes halves the next
 	RetakeHalves = function(T)
 		HK.Guard(function()
 			local Rig, PL = Held(T)
@@ -534,6 +591,234 @@ return {
 				T.True(WaitFor(2.0, IsHeld), "Held again")
 				T.Near(C:GetAttribute("HostageUntil") - Now(), Want, 1, "re-taken: " .. Want .. " s")
 			end
+		end)
+	end,
+
+	-- (Task 7) the stealth grab: welded at once with no bind time, the bar at 40% at once; with no presses, Held once the
+	-- 3 s window is over, the bar reset, took_hostage recorded then (not at the grab)
+	GrabFromBehind = function(T)
+		HK.Guard(function()
+			local Took0 = DeedCount("took_hostage")
+			local Rig = HK.StandIn(At(0, 0))
+			TK.PutBehind(Rig, 3)
+			local Ok, Why = Svc().Take(Player, Rig)
+			T.Eq(Ok, true, "the grab starts (" .. tostring(Why) .. ")")
+			T.Eq(Why, "started", "the reason")
+			local S = Svc().SessionOf(Player)
+			T.True(S ~= nil and S.State == "Grabbing", "Grabbing (" .. tostring(S and S.State) .. ")")
+			T.Near(Rig:GetAttribute("Struggle") or -1, 0.4, 0.001, "the bar is at 40% at once")
+			T.True(Weld() ~= nil and Weld().Part1 == Rig.HumanoidRootPart, "welded at once (no bind time)")
+			T.Eq(Rig:GetAttribute("HeldBy"), Player.Name, "HeldBy = the player")
+			T.Eq(DM.IsKnocked(Rig), false, "the stand-in was never knocked")
+			T.Eq(DeedCount("took_hostage"), Took0, "no took_hostage while grabbing")
+			task.wait(3.5)
+			T.True(IsHeld(), "Held after GrabWindow + 0.5 s (" .. tostring(HK.Result()) .. ")")
+			T.Eq(S.Struggle, 0, "the bar reset")
+			T.Eq(Rig:GetAttribute("Struggle"), 0, "the Struggle attribute reset")
+			T.Eq(DeedCount("took_hostage"), Took0 + 1, "took_hostage +1 once Held")
+			T.Near((C:GetAttribute("HostageUntil") or 0) - Now(), 179.5, 1, "a 180 s hold, Held about 0.5 s ago")
+		end)
+	end,
+
+	-- (ruling R3) a grab needs the rear arc (70 + 10 degrees) within GrabRange 4 + 1.5: in front or at 90 degrees it is
+	-- "seen", 6 studs straight behind it is "far"; the control, 3 studs straight behind, starts
+	GrabSeen = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local Rig = HK.StandIn(At(0, 0))
+			local Cases = {
+				{"in front", function() TK.PutInFront(Rig, 3) end, "Grab:seen"},
+				{"at 90 degrees", function() TK.PutBehind(Rig, 3, 90) end, "Grab:seen"},
+				{"6 studs behind", function() TK.PutBehind(Rig, 6) end, "Grab:far"},
+			}
+			for _, Case in ipairs(Cases) do
+				HS.Forget(Player, {NextAt = true})
+				Case[2]()
+				T.Eq(HS.Take(Player, Rig), false, Case[1] .. ": refused")
+				T.Eq(HK.Result(), Case[3], Case[1] .. ": LastHostageResult")
+				T.Eq(Rig:GetAttribute("HeldBy"), nil, Case[1] .. ": not marked")
+			end
+			HS.Forget(Player, {NextAt = true})
+			TK.PutBehind(Rig, 3)
+			T.Eq(HS.Take(Player, Rig), true, "control: 3 studs straight behind, the grab starts")
+		end)
+	end,
+
+	-- (lesson I2, both ways) a grab target that is taking someone down, gripping or carrying, or being taken down, is
+	-- refused "target_busy"; the control, none of them, starts
+	GrabRefusesBusyTarget = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local Rig = HK.StandIn(At(0, 0))
+			TK.PutBehind(Rig, 3)
+			for _, Mark in ipairs({"TakingDown", "Gripping", "Carrying", "TakenDownBy"}) do
+				HS.Forget(Player, {NextAt = true})
+				Rig:SetAttribute(Mark, "X")
+				local Ok = HS.Take(Player, Rig)
+				Rig:SetAttribute(Mark, nil)
+				T.Eq(Ok, false, Mark .. ": refused")
+				T.Eq(HK.Result(), "Grab:target_busy", Mark .. ": LastHostageResult")
+				T.Eq(Rig:GetAttribute("HeldBy"), nil, Mark .. ": not marked")
+			end
+			HS.Forget(Player, {NextAt = true})
+			T.Eq(HS.Take(Player, Rig), true, "control: a free target, the grab starts")
+		end)
+	end,
+
+	-- the grabbed stand-in (Strength 30 against the player's 5: (31 / 6) clamped to 2, 0.12 a press) fills the bar from
+	-- 40%: shoved off before the window ends; the player stunned about 1 s (ShoveStun); attempted_hostage, not took_hostage
+	GrabShovedOff = function(T)
+		HK.Guard(function()
+			local Att0, Took0 = DeedCount("attempted_hostage"), DeedCount("took_hostage")
+			local Rig, PL = HK.Grabbed({Strength = 30})
+			local T0 = os.clock()
+			for _ = 1, 3 do -- (once a second, three times; the first already fills it)
+				FullStamina(Rig) -- (pre-flight P4)
+				Svc().Struggle(PL, 8)
+				if HK.Result() then break end
+				task.wait(1)
+			end
+			T.Eq(HK.Result(), "Grab:grab_failed", "shoved off")
+			T.True(os.clock() - T0 < 3, "before the 3 s window ended")
+			T.Eq(Rig:GetAttribute("HeldBy"), nil, "the stand-in is free")
+			T.Eq(Weld(), nil, "no weld")
+			T.Eq(DeedCount("attempted_hostage"), Att0 + 1, "attempted_hostage +1")
+			T.Eq(DeedCount("took_hostage"), Took0, "took_hostage unchanged")
+			T.True(Stunned(C), "the player is stunned")
+			local Len = StunLeft(C, 3)
+			T.Near(Len, 1, 0.3, "stunned about 1 s (ShoveStun; " .. ("%.2f"):format(Len) .. " s)")
+		end)
+	end,
+
+	-- (pre-flight P22) a shoved-off grab is no hold, so it doesn't halve the next one: a bind right after lasts 180 s
+	GrabFailedNotARetake = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local Rig, PL = HK.Grabbed({Strength = 30})
+			HS.Struggle(PL, 8)
+			T.Eq(HK.Result(), "Grab:grab_failed", "setup: shoved off")
+			T.True(WaitFor(2.0, function() return not Stunned(C) end), "setup: the shove's stun is over")
+			HS.Forget(PL, {ImmuneUntil = true})
+			HS.Forget(Player, {NextAt = true})
+			Rig:PivotTo(At(0, 0) + Vector3.new(0, 3, 0))
+			DM.Knock(Rig)
+			TK.PutPlayer(FRONT)
+			T.Eq(HS.Take(Player, Rig), true, "bound right after")
+			T.True(WaitFor(2.0, IsHeld), "Held")
+			T.Near((C:GetAttribute("HostageUntil") or 0) - Now(), 180, 1, "a full 180 s: the shoved-off grab wasn't a re-take")
+		end)
+	end,
+
+	-- (Task 6 re-review m3) a grab that becomes a hold is welded once (Pair is idempotent), so the stand-in root's network
+	-- owner from before the grab (the server's, not auto: set here) is what it gets back after the release, never the
+	-- captor's client
+	GrabOwnerGivenBack = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local Rig = HK.StandIn(At(0, 0))
+			local HR = Rig.HumanoidRootPart
+			HR:SetNetworkOwner(nil)
+			TK.PutBehind(Rig, 3)
+			HK.Loose() -- (the player's root let go, so its client can own the pair)
+			T.Eq(HR:GetNetworkOwner(), nil, "setup: the server owns the stand-in's root")
+			T.Eq(HR:GetNetworkOwnershipAuto(), false, "setup: not auto")
+			T.Eq(HS.Take(Player, Rig), true, "the grab starts")
+			T.True(WaitFor(1.0, function() return HR:GetNetworkOwner() == Player end), "grabbing: the player's client owns the pair")
+			T.True(WaitFor(4.0, IsHeld), "Held after the window (" .. tostring(HK.Result()) .. ")")
+			T.Eq(HS.Free(Player, "released"), true, "released")
+			task.wait(0.5) -- (the old owner comes back 0.25 s after the release)
+			T.Eq(HR:GetNetworkOwner(), nil, "the server owns the stand-in's root again, as before the grab")
+			T.Eq(HR:GetNetworkOwnershipAuto(), false, "and not auto, as before the grab")
+		end)
+	end,
+
+	-- (spec §4) the immunity after any release refuses a grab as well as a bind; the control: immunity forgotten, it starts
+	ImmuneRefusesGrab = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local Rig, PL = Held(T)
+			HS.Free(Player, "released")
+			HS.Forget(Player, {NextAt = true})
+			T.Eq(DM.IsKnocked(Rig), false, "setup: the released hostage is standing")
+			TK.PutBehind(Rig, 3)
+			T.Eq(HS.Take(Player, Rig), false, "a grab right after a release is refused")
+			T.Eq(HK.Result(), "Grab:immune", "LastHostageResult")
+			HS.Forget(Player, {NextAt = true})
+			HS.Forget(PL, {ImmuneUntil = true})
+			T.Eq(HS.Take(Player, Rig), true, "control: the immunity forgotten, the grab starts (" .. tostring(HK.Result()) .. ")")
+		end)
+	end,
+
+	-- the real player as the hostage of a stand-in captor with Strength 0 (pre-flight P4: (1 + 5) / (1 + 0) clamped to 2,
+	-- 0.12 a press): eight presses each 0.5 s, stamina full, break free within 10 s; the captor stunned about 1.5 s
+	-- (BreakStun); the player free and immune for 5 s
+	StruggleFrees = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local Cap = Captive(T, {Strength = 0})
+			local T0, Freed = os.clock(), false
+			while os.clock() - T0 < 10 do
+				FullStamina(C)
+				HS.Struggle(Player, 8)
+				if HK.Result(Cap) == "Bind:struggled" then Freed = true break end
+				task.wait(0.5)
+			end
+			local FreedAt = Now()
+			T.True(Freed, "\"struggled\" within 10 s (" .. tostring(HK.Result(Cap)) .. ")")
+			T.Eq(C:GetAttribute("HeldBy"), nil, "the player's HeldBy cleared")
+			T.Near(C:GetAttribute("GrabImmuneUntil") or 0, FreedAt + 5, 0.3, "immune for 5 s")
+			T.True(Stunned(Cap), "the stand-in captor is stunned")
+			local Len = StunLeft(Cap, 3)
+			T.Near(Len, 1.5, 0.3, "stunned about 1.5 s (BreakStun; " .. ("%.2f"):format(Len) .. " s)")
+		end)
+	end,
+
+	-- (review M7) a message is ignored unless its Count is a whole number from 1 to MaxPressesPerSecond 8; at most 8
+	-- presses a rolling second count (5 vs 5: 0.06 a press, so twenty single presses in one frame add 8 x 0.06 = 0.48);
+	-- the captor's own presses never count; _Sends counts the hostage's messages (pre-flight P9) and Forget clears it
+	StruggleRateLimited = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local _, CapPL, S = Captive(T)
+			FullStamina(C)
+			local Sends0 = HS._Sends(Player)
+			for _, Bad in ipairs({50, 9, 0, -1, 1.5, 0 / 0, math.huge, "8"}) do HS.Struggle(Player, Bad) end
+			T.Eq(S.Struggle, 0, "out of range, fractional, NaN, infinite and non-number counts are ignored")
+			HS.Struggle(CapPL, 8)
+			T.Eq(S.Struggle, 0, "the captor's presses don't count")
+			for _ = 1, 20 do HS.Struggle(Player, 1) end
+			T.Near(S.Struggle, 0.48, 0.005, "twenty single presses in one frame: 8 counted")
+			T.Near(C:GetAttribute("Struggle") or -1, S.Struggle, 1e-6, "the bar is on the Struggle attribute")
+			T.Eq(HS._Sends(Player) - Sends0, 28, "_Sends counted each of the hostage's 28 messages")
+			HS.Forget(Player)
+			T.Eq(HS._Sends(Player), 0, "Forget clears _Sends")
+		end)
+	end,
+
+	-- no stamina, no press; the control: with stamina, one press adds 0.06 (5 vs 5) and spends StruggleStamina 4
+	StruggleNeedsStamina = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local _, _, S = Captive(T)
+			RM().Set(C, "Stamina", 0)
+			HS.Struggle(Player, 1)
+			T.Eq(S.Struggle, 0, "no stamina: the press adds nothing")
+			FullStamina(C)
+			local St0 = RM().Get(C, "Stamina")
+			HS.Struggle(Player, 1)
+			T.Near(S.Struggle, 0.06, 0.001, "control: with stamina, one press adds 0.06")
+			T.Near(St0 - RM().Get(C, "Stamina"), 4, 0.01, "and spends 4 stamina")
+		end)
+	end,
+
+	-- the bar drains StruggleDrain 0.05 a second: 0.5, then 2 s with no presses, 0.4
+	StruggleDrains = function(T)
+		HK.Guard(function()
+			local Rig, _, S = HK.Held()
+			S.Struggle = 0.5
+			task.wait(2)
+			T.Near(S.Struggle, 0.4, 0.02, "0.4 after 2 s")
+			T.Near(Rig:GetAttribute("Struggle") or -1, S.Struggle, 0.01, "the attribute follows the bar")
 		end)
 	end,
 

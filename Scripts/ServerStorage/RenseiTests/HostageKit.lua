@@ -33,6 +33,8 @@
 --     knocked), the player at Kit.FRONT (3 studs in front of it, facing it; TakedownKit.PutPlayer anchors the root), the
 --     take started and Held within 2 s, else an error. Kit.Loose(): the player's root let go (PutPlayer anchors it), as
 --     in a real game, with 0.3 s to settle (Play_TakedownHard's own Loose, for the hostage suites and client checks).
+--   * (Task 7) Kit.Grabbed(Opts) -> Rig, PL, S: a standing stand-in (Kit.StandIn(At(0, 0), Opts)) grabbed by the player
+--     from 3 studs straight behind it (TakedownKit.PutBehind), the session Grabbing, else an error.
 --   * Kit.Clean(): every session of the player and of each stand-in freed with "error"; HostageService.ClearStandIns;
 --     every stand-in's WCS character and rig destroyed; the player recovered if knocked; Holding, HeldBy, HostageUntil,
 --     Struggle, GrabImmuneUntil, LastHostageResult and HostageClamped cleared on the player; HostageService.Forget for
@@ -175,6 +177,18 @@ function Kit.Held(Opts)
 	end)
 	assert(Held, "HostageKit.Held: Held within 2 s (" .. tostring(Kit.Result()) .. ")")
 	return Rig, PL, HS().SessionOf(Player())
+end
+
+-- (Task 7) the player grabs a standing stand-in from behind: Kit.StandIn(At(0, 0), Opts) (facing -Z), the player 3
+-- studs straight behind it (TakedownKit.PutBehind), the take started and Grabbing, else an error
+function Kit.Grabbed(Opts)
+	local Rig, PL = Kit.StandIn(TakedownKit.At(0, 0), Opts)
+	TakedownKit.PutBehind(Rig, 3)
+	local Ok, Why = HS().Take(Player(), Rig)
+	assert(Ok, "HostageKit.Grabbed: the grab starts (" .. tostring(Why) .. ")")
+	local S = HS().SessionOf(Player())
+	assert(S ~= nil and S.State == "Grabbing", "HostageKit.Grabbed: Grabbing (" .. tostring(S and S.State) .. ")")
+	return Rig, PL, S
 end
 
 function Kit.Loose()
