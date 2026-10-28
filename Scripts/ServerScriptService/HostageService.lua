@@ -152,7 +152,8 @@
 --     5. the captor's cooldown (now + Cooldown) and LastHostageResult = "<Kind>:<Outcome>"; (5b, Task 7 fix round 1) a
 --        grab that never became Held records attempted_hostage for the captor, witnessed, unless the captor's own
 --        Player is gone;
---     6. Notify both ({State = "Free", Outcome, Role}) and a toast;
+--     6. Notify both ({State = "Free", Outcome, Role}; the captor's with Options, Task 8) and a toast (none for
+--        "finished": the grip that follows is no freedom);
 --     7. the Released listeners (S, Outcome), each in a pcall;
 --     8. (Task 11) a running ransom demand of this session is voided.
 --   A bind slower than BindTime + SLOW_PAST, or a release whose steps 1-6 take longer than SLOW_RELEASE (the
@@ -162,6 +163,26 @@
 --   through Watch (Broken) or Free.
 -- * Rebase(Character) -> bool (Task 6, pre-flight P6): the led pair that character is either side of has its lead
 --   clamp started again from the captor's root's spot now (see THE PAIR POLICED); false when it leads no pair.
+-- * THE CAPTOR MENU (Task 8, spec §3). MenuOptions(Captor) -> {{Id, Text, Locked, Why}}, only while that PL is the
+--   captor of a Held session (else {}), in this order: Release ("Let them go"), Finish ("Finish them"), Ransom ("Demand
+--   ransom": locked "They have no party here" when PartyOf(hostage) is the hostage alone, else, until Task 11, locked
+--   "Not yet"); TurnIn is absent until Task 11. Every "Hostage" Notify to the captor carries Options = MenuOptions
+--   (Grabbing and Free: {}), so HostageUI (Task 12) draws the wheel from it; it is sent at Held and whenever an option's
+--   lock changes (Task 11). Menu(Captor, Choice, Arg) -> bool (true when the choice acted; Requests.Hostage ignores
+--   it): every choice re-checks that the caller is the captor of a Held session (a hostage, a grab, a released or
+--   unknown session, a non-string or unknown choice: ignored). Arg is unused by Release and Finish (review M7's range
+--   check belongs to Task 11's ransom tier).
+--     - "Release": Release(S, "released"), then released_hostage recorded (witnessed), then THE RELEASE HEAT (ruling,
+--       spec §3 "its Heat is only half that of the original crime"): the took_hostage Heat this hold raised at the take
+--       (S.TookHeat: per jurisdiction, HeatService.Value just after Announce's Record less just before -- Morality's
+--       Recorded listeners, HeatService's among them, run in that same step) is halved, HeatService.Reduce(J,
+--       raised / 2). Heat that word of the taking raises later (a rumour's arrival elsewhere) isn't touched;
+--     - "Finish" (not while the captor is stunned: a grip would fail at once, so the hold goes on): Release(S,
+--       "finished") (no "free" toast); DownedManager.Knock(HC) (the hostage's HP kept: Knock only sets the state); then,
+--       on its own thread, the NORMAL GRIP, DownedManager.Grip(CC, HC): its styles, its stun cancel (a rescue that stuns
+--       the captor mid-grip leaves the hostage knocked and alive), the ragdoll, its listeners. Done -> killed_hostage
+--       recorded (witnessed). The grip's own marks (Gripping / GrippedBy) keep every take, grip, carry and takedown off
+--       both of them while it runs (Task 4's exclusion, both ways).
 -- * Free(PL, Outcome) -> bool: that PL's session (either side) released. SessionOf(PL) -> S | nil. Forget(PL, Only):
 --   the PL's cooldown (NextAt), immunity (ImmuneUntil), re-take times (Taken) and (Task 7) struggle messages and rate
 --   window (Sends) forgotten; Only (a set, e.g. {ImmuneUntil = true}) forgets just those. Released: listeners (S, Outcome).
@@ -184,6 +205,7 @@ local Modules = ReplicatedStorage.Modules
 local Rensei = Modules.Data.Rensei
 local Hostage = require(Rensei.Hostage)
 local Regions = require(Rensei.Regions)
+local Heat = require(Rensei.Heat)
 local WCS = require(Modules.Framework.WCS)
 local Stun = require(Modules.Skills.States.Stun)
 local AttackRunner = require(Modules.Managers.AttackRunner)
@@ -579,12 +601,15 @@ local function Release(S, Outcome)
 	if S.Kind == "Grab" and S.HeldAt == nil and IsPlayer(S.Captor) and S.Captor.Parent == Players then
 		Step("recording the failed grab", Record, S.Captor, "attempted_hostage", {Witness = true})
 	end
-	-- 6. both told
+	-- 6. both told (Task 8: the captor's with its Options, {} now the session is over; no "free" toast for a finish)
 	Step("notifying", function()
-		Notify(S.Captor, "Hostage", {State = "Free", Outcome = Outcome, Role = "Captor"})
+		Notify(S.Captor, "Hostage", {State = "Free", Outcome = Outcome, Role = "Captor",
+			Options = HostageService.MenuOptions(S.Captor)})
 		Notify(S.Hostage, "Hostage", {State = "Free", Outcome = Outcome, Role = "Hostage"})
-		Toast(S.Captor, ("%s is free."):format(S.Hostage.DisplayName or S.Hostage.Name)) -- PROPOSAL (text)
-		Toast(S.Hostage, "You're free.") -- PROPOSAL (text)
+		if Outcome ~= "finished" then
+			Toast(S.Captor, ("%s is free."):format(S.Hostage.DisplayName or S.Hostage.Name)) -- PROPOSAL (text)
+			Toast(S.Hostage, "You're free.") -- PROPOSAL (text)
+		end
 	end)
 	local R6 = os.clock() -- (steps 1-6: the listeners below may yield, so they aren't timed)
 	-- 7. the listeners
@@ -1010,12 +1035,35 @@ local function BeginHeld(S, Time)
 	return UntilServer
 end
 
--- both told (each its own Role, pre-flight P28) and took_hostage recorded (a real captor, witnessed)
+-- (Task 8) a real player's Heat now, per jurisdiction (Rensei.Heat.Order), or nil (a stand-in, no profile, an error)
+local function HeatNow(PL)
+	if not IsPlayer(PL) then return nil end
+	local Ok, Out = pcall(function()
+		local HeatService = require(ServerScriptService.HeatService)
+		local T = {}
+		for _, J in ipairs(Heat.Order) do T[J] = HeatService.Value(PL, J) end
+		return T
+	end)
+	return Ok and Out or nil
+end
+
+-- both told (each its own Role, pre-flight P28; Task 8: the captor's with its Options) and took_hostage recorded (a real
+-- captor, witnessed). (Task 8, the release Heat) the Heat that Record raised in this same step (Morality's Recorded
+-- listeners, HeatService's OnRecorded among them, run before Record returns) is kept per jurisdiction in S.TookHeat, so
+-- a release unharmed can halve it.
 local function Announce(S, UntilServer)
 	for _, X in ipairs({{S.Captor, "Captor"}, {S.Hostage, "Hostage"}}) do
-		Notify(X[1], "Hostage", {State = "Held", Role = X[2], Captor = S.Captor.Name, Hostage = S.Hostage.Name, Until = UntilServer})
+		Notify(X[1], "Hostage", {State = "Held", Role = X[2], Captor = S.Captor.Name, Hostage = S.Hostage.Name, Until = UntilServer,
+			Options = X[2] == "Captor" and HostageService.MenuOptions(S.Captor) or nil})
 	end
+	local Before = HeatNow(S.Captor)
 	Record(S.Captor, "took_hostage", {Witness = true})
+	local After = Before and HeatNow(S.Captor)
+	S.TookHeat = {}
+	for J, V in pairs(After or {}) do
+		local Raised = V - (Before[J] or 0)
+		if Raised > 0 then S.TookHeat[J] = Raised end
+	end
 end
 
 -- step 3: the hold, in one step (no yield until Watch is running)
@@ -1047,7 +1095,8 @@ local function Grab(S)
 	task.spawn(Watch, S)
 	local EndsServer = workspace:GetServerTimeNow() + Hostage.GrabWindow
 	for _, X in ipairs({{S.Captor, "Captor"}, {S.Hostage, "Hostage"}}) do
-		Notify(X[1], "Hostage", {State = "Grabbing", Role = X[2], Captor = S.Captor.Name, Hostage = S.Hostage.Name, Ends = EndsServer})
+		Notify(X[1], "Hostage", {State = "Grabbing", Role = X[2], Captor = S.Captor.Name, Hostage = S.Hostage.Name, Ends = EndsServer,
+			Options = X[2] == "Captor" and HostageService.MenuOptions(S.Captor) or nil}) -- (Task 8: {} while Grabbing)
 	end
 end
 
@@ -1153,8 +1202,67 @@ function HostageService.Forget(PL, Only)
 	if not Only or Only.Sends then Sends[K], Presses[K] = nil, nil end -- (Task 7, P9: the messages and the rate window)
 end
 
--- (Task 8 builds the captor menu; Requests.Hostage already routes it)
-function HostageService.Menu(_Captor, _Choice, _Arg) end
+-- ===== the captor menu (Task 8, spec §3; see THE CAPTOR MENU in the header) =====
+-- the Held session Captor is the captor of, or nil
+local function CaptorSession(Captor)
+	if Captor == nil or not IsPL(Captor) then return nil end
+	local S = ByCaptor[Key(Captor)]
+	if not S or S.Over or S.Captor ~= Captor or S.State ~= "Held" then return nil end
+	return S
+end
+
+function HostageService.MenuOptions(Captor)
+	local S = CaptorSession(Captor)
+	if not S then return {} end
+	local Alone = #HostageService.PartyOf(S.Hostage) <= 1
+	return {
+		{Id = "Release", Text = "Let them go", Locked = false},
+		{Id = "Finish", Text = "Finish them", Locked = false},
+		-- (Task 11 builds the demand; until then it stays locked)
+		{Id = "Ransom", Text = "Demand ransom", Locked = true, Why = Alone and "They have no party here" or "Not yet"},
+		-- (TurnIn: offered near a desk with a Wanted hostage, Task 11; absent until then)
+	}
+end
+
+-- release unharmed: the Mercy deed, then the took_hostage Heat this hold raised halved (the ruling on spec §3)
+local function MenuRelease(S)
+	local Took = S.TookHeat or {}
+	if not Release(S, "released") then return false end
+	Record(S.Captor, "released_hostage", {Witness = true})
+	if IsPlayer(S.Captor) then
+		for J, Raised in pairs(Took) do
+			Step("halving the taking's Heat", function()
+				require(ServerScriptService.HeatService).Reduce(S.Captor, J, Raised / 2)
+			end)
+		end
+	end
+	return true
+end
+
+-- finish them: the hold let go, the hostage knocked (its HP kept), then the normal Grip on its own thread
+local function MenuFinish(S)
+	local Captor, CC, HC = S.Captor, S.CC, S.HC
+	if Stunned(CC) then return false end -- (a stunned captor's grip would fail at once: the hold goes on)
+	if not Release(S, "finished") then return false end
+	if not (Alive(CC) and Alive(HC)) then return true end
+	Step("knocking the hostage", DownedManager.Knock, HC)
+	if not DownedManager.IsKnocked(HC) then return true end
+	task.spawn(function()
+		local Ok, Done = pcall(DownedManager.Grip, CC, HC)
+		if not Ok then warn("HostageService: the finishing grip failed:", Done) return end
+		if Done == true then Record(Captor, "killed_hostage", {Witness = true}) end
+	end)
+	return true
+end
+
+function HostageService.Menu(Captor, Choice, _Arg)
+	if type(Choice) ~= "string" then return false end
+	local S = CaptorSession(Captor)
+	if not S then return false end
+	if Choice == "Release" then return MenuRelease(S) end
+	if Choice == "Finish" then return MenuFinish(S) end
+	return false
+end
 
 -- the PlayerRemoving handler (a test seam): every session of that PL released as "left" (its cooldown, immunity and
 -- re-take times are kept: a rejoin doesn't reset them)

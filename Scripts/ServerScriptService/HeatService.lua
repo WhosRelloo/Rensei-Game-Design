@@ -8,7 +8,8 @@
 --   * Wanted 0-5 per jurisdiction (Heat.Thresholds), published as Player attributes Wanted_<J> / Heat_<J> for
 --     the HUD, with a banner when it changes. Heat decays -5 per hour of real time (offline too).
 --   * Getting clear here: Fine (a State desk: Foreman Brask's dialogue, Wanted <= 2, 100 x level). The cell,
---     pardons, bribes and safehouses come with later plans.
+--     pardons, bribes and safehouses come with later plans. Reduce (hostages Task 8) takes some Heat off one
+--     jurisdiction: a hostage released unharmed halves what its taking raised (HostageService).
 --   * Crimes recorded here: unlicensed casting (OnCast, from AlchemyService) and assault (a hit on a watcher).
 -- Every number is a PROPOSAL.
 
@@ -73,6 +74,27 @@ function HeatService.Add(Player, J, Amount, Region, Cap)
 		ProgressionService.Sync(Player)
 	end
 	return Added
+end
+
+-- (hostages Task 8, spec §3) takes Amount off one jurisdiction's Heat (decay applied first), never below 0; returns what
+-- was taken off (0 for an unknown jurisdiction, no profile, or an Amount that isn't a finite number above 0). The
+-- region windows (Add's per-hour caps) are left as they are. HostageService: a hostage released unharmed halves the
+-- Heat its taking raised.
+function HeatService.Reduce(Player, J, Amount)
+	local H = HeatTable(Player)
+	if not H or not Heat.Law[J] or type(Amount) ~= "number" or Amount ~= Amount or Amount <= 0 or Amount == math.huge then
+		return 0
+	end
+	local E = H[J]
+	if not E then return 0 end
+	local Now = Clock()
+	local Cur = Heat.Current(E, Now)
+	local Off = math.min(Cur, Amount)
+	if Off <= 0 then return 0 end
+	E.Value, E.At = Cur - Off, Now
+	HeatService.Publish(Player)
+	ProgressionService.Sync(Player)
+	return Off
 end
 
 function HeatService.Clear(Player, J)

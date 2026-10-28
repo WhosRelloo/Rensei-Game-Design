@@ -28,6 +28,14 @@
 -- * Task 7 fix round 1 (review I1; spec §2, "a failed grab still counts as an assault"): every grab that ends without
 --   becoming Held records attempted_hostage once (a blink, a knocked hostage, a shove); only the shove stuns; a grab
 --   that became a hold never records it.
+-- * Task 8: the captor menu (HostageService.MenuOptions / Menu): its shape and the Options on the captor's notifies;
+--   Release (released_hostage; the ruling on spec §3: a witnessed take's Heat halved at a release unharmed, through
+--   HeatService.Reduce, which HeatReduceOneJurisdiction checks on its own); Finish through the normal Grip (dead within
+--   GripTime 2 + 1 s, killed_hostage), cancelled by a stun mid-grip, and refused to a stunned captor; only the captor of
+--   a Held session chooses; a take a kit townsperson sees is witnessed (Strength > 0, a rumour). The witnessed cases
+--   step perception themselves (TakedownKit.Run) and put the player's Heat back after (KeepHeat). Written by hand:
+--   took_hostage's Crime 30 heard at once in Ye (net +15 after a release; 0 in the Foundry, see the case), GripTime
+--   2 s, the option texts.
 local SSS = game:GetService("ServerScriptService")
 local CollectionService = game:GetService("CollectionService")
 local DM = require(game.ReplicatedStorage.Modules.Managers.DownedManager)
@@ -124,6 +132,77 @@ local function AllLetGo(T, Rig, What)
 	T.Eq(Rig:GetAttribute("HeldBy"), nil, What .. ": the stand-in's HeldBy cleared")
 	T.Eq(DM.IsLocked(C), false, What .. ": no lock entry on the player")
 	if not DM.IsKnocked(Rig) then T.Eq(DM.IsLocked(Rig), false, What .. ": no lock entry on the stand-in") end
+end
+
+-- ===== Task 8 helpers =====
+local function HeatSvc() return require(SSS.HeatService) end
+local function Copy(X)
+	if type(X) ~= "table" then return X end
+	local O = {}
+	for K, V in pairs(X) do O[K] = Copy(V) end
+	return O
+end
+-- Body run with the player's Heat (the mock save's Morality.Heat) put back after it, failed or not, so a case that
+-- raises Heat leaves none for the cases and suites after it (the hook restores the whole save at the end anyway)
+local function KeepHeat(Body)
+	local M = require(SSS.ProgressionService).GetData(Player).Morality
+	local Was = Copy(M.Heat)
+	local Ok, Err = pcall(Body)
+	M.Heat = Was
+	pcall(HeatSvc().Publish, Player, true)
+	if not Ok then error(Err, 0) end
+end
+local function Ids(Options)
+	local Out = {}
+	for _, O in ipairs(Options or {}) do table.insert(Out, O.Id) end
+	return Out
+end
+local function StunPlayer(Seconds)
+	local WCS = require(game.ReplicatedStorage.Modules.Framework.WCS)
+	local Stun = require(game.ReplicatedStorage.Modules.Skills.States.Stun)
+	Stun.new(WCS.Character.GetCharacterFromInstance(C)):Start(Seconds)
+end
+-- a take a townsperson sees (the brief's TakeIsWitnessed setup): a knocked stand-in at the spot and the player 3 studs in
+-- front of it (placed first: with no player near, a townsperson is held Asleep), a kit townsperson (TakedownKit.Folk) 10
+-- studs off facing the pair, at noon; perception stepped (TakedownKit.Run: the kit holds PerceptionService's own loop)
+-- before the take and through the bind; Held. Body(Rig, PL, Got, Morality, Heat0) runs inside HostageKit.Guard and
+-- KeepHeat: Got lists what MoralityService.Recorded saw for the player (a listener added here, removed after), the save's
+-- rumours are emptied for the case and put back after (an older rumour can't stand in), and Heat0 is the player's
+-- Heat in this place's jurisdiction (TakedownKit.LAW) just before the take.
+local function Witnessed(T, Body)
+	local MS = require(SSS.MoralityService)
+	local TS = require(SSS.TownsfolkService)
+	local Morality = require(SSS.ProgressionService).GetData(Player).Morality
+	local Rumours = Morality.Rumours
+	local Got = {}
+	local function L(P, Id, _, Info) if P == Player then table.insert(Got, {Deed = Id, Info = Info}) end end
+	table.insert(MS.Recorded, L)
+	Morality.Rumours = {}
+	local Ok, Err = pcall(HK.Guard, function() KeepHeat(function() TK.AtHour(12, function()
+		local Rig, PL = KnockedStandIn(0, 0)
+		TK.PutPlayer(FRONT)
+		local Pos = At(10, 1.5).Position
+		local Id = TK.Folk("Saw", CFrame.lookAt(Pos, At(0, 1.5).Position))
+		T.True(WaitFor(3, function() return TS.State(Id) == "AtPost" end),
+			"setup: the townsperson is calm at its post (" .. tostring(TS.State(Id)) .. ")")
+		TK.Run(1)
+		local Heat0 = HeatSvc().Value(Player, TK.LAW.J)
+		T.Eq(Svc().Take(Player, Rig), true, "setup: the take starts")
+		local T0 = os.clock()
+		while not IsHeld() and os.clock() - T0 < 2.5 do TK.Run(0.2) task.wait(0.1) end
+		T.True(IsHeld(), "setup: Held (" .. tostring(HK.Result()) .. ")")
+		task.wait(0.3) -- (the Recorded listeners run in their own threads)
+		Body(Rig, PL, Got, Morality, Heat0)
+	end) end) end)
+	local I = table.find(MS.Recorded, L)
+	if I then table.remove(MS.Recorded, I) end
+	Morality.Rumours = Rumours
+	if not Ok then error(Err, 0) end
+end
+local function Find(Got, Deed)
+	local Rec = nil
+	for _, X in ipairs(Got) do if X.Deed == Deed then Rec = X end end
+	return Rec
 end
 
 return {
@@ -892,6 +971,217 @@ return {
 			end)
 			HS._NoSave, HS._PartyOf = Real, nil
 			if not Ok then error(Err, 0) end
+		end)
+	end,
+
+	-- ===== Task 8: the captor menu's Release and Finish, and the deeds (texts written by hand from the brief) =====
+	-- only the captor of a Held session has options: Release, Finish, Ransom, in that order; Ransom locked ("They have no
+	-- party here" for a hostage alone, else "Not yet" until Task 11). The captor's Held notify carries them (UIService
+	-- .Notify watched, put back after), and its Free notify carries {} (the session over).
+	MenuOptionsShape = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			T.Same(HS.MenuOptions(Player), {}, "not holding: no options")
+			local UI = require(SSS.UIService)
+			local RealNotify = UI.Notify
+			local Sent = {}
+			UI.Notify = function(P, Kind, Data)
+				if P == Player and Kind == "Hostage" then table.insert(Sent, Data) end
+				return RealNotify(P, Kind, Data)
+			end
+			local Ok, Err = pcall(function()
+				local _, PL = Held(T)
+				local O = HS.MenuOptions(Player)
+				T.Same(Ids(O), {"Release", "Finish", "Ransom"}, "the ids, in order")
+				T.Eq(O[1] and O[1].Text, "Let them go", "Release's text")
+				T.Eq(O[1] and O[1].Locked, false, "Release is open")
+				T.Eq(O[2] and O[2].Text, "Finish them", "Finish's text")
+				T.Eq(O[2] and O[2].Locked, false, "Finish is open")
+				T.Eq(O[3] and O[3].Text, "Demand ransom", "Ransom's text")
+				T.Eq(O[3] and O[3].Locked, true, "Ransom is locked")
+				T.Eq(O[3] and O[3].Why, "They have no party here", "a hostage alone: no party here")
+				local _, Friend = HK.StandIn(At(8, 0))
+				PL.Party = {Friend}
+				T.Eq(HS.MenuOptions(Player)[3].Why, "Not yet", "a hostage with a party: locked until Task 11")
+				T.Same(HS.MenuOptions(PL), {}, "the hostage has no menu")
+				local HeldNote = nil
+				for _, D in ipairs(Sent) do if D.State == "Held" then HeldNote = D end end
+				T.True(HeldNote ~= nil, "the captor was told Held")
+				T.Same(Ids(HeldNote and HeldNote.Options), {"Release", "Finish", "Ransom"}, "the Held notify carries the options")
+				HS.Free(Player, "released")
+				local FreeNote = Sent[#Sent]
+				T.Eq(FreeNote and FreeNote.State, "Free", "then told Free")
+				T.Same(FreeNote and FreeNote.Options, {}, "the Free notify carries no options")
+			end)
+			UI.Notify = RealNotify
+			if not Ok then error(Err, 0) end
+			T.Same(HS.MenuOptions(Player), {}, "released: no options")
+		end)
+	end,
+
+	-- Release: the hold ends "released", the Mercy deed released_hostage +1; nobody saw the take, so it raised no Heat
+	-- and the release changes none (Heat_<J>, rounded to 0.1 on the attribute)
+	MenuRelease = function(T)
+		HK.Guard(function()
+			local HS, J = Svc(), TK.LAW.J
+			local Attr0, Heat0 = Player:GetAttribute("Heat_" .. J), HeatSvc().Value(Player, J)
+			local Rig = Held(T)
+			local Released0 = DeedCount("released_hostage")
+			T.Eq(HS.Menu(Player, "Release"), true, "the choice acted")
+			T.Eq(HK.Result(), "Bind:released", "LastHostageResult")
+			AllLetGo(T, Rig, "released")
+			T.Eq(DeedCount("released_hostage") - Released0, 1, "released_hostage +1")
+			task.wait(0.3)
+			T.Near(HeatSvc().Value(Player, J), Heat0, 0.05, J .. " Heat unchanged")
+			T.Near(Player:GetAttribute("Heat_" .. J) or 0, Attr0 or 0, 0.1, "the Heat_" .. J .. " attribute unchanged")
+			T.Eq(HS.Menu(Player, "Release"), false, "a second Release: no session, ignored")
+		end)
+	end,
+
+	-- (ruling on spec §3, "its Heat is only half that of the original crime") a witnessed take raises took_hostage's Crime
+	-- in this place's jurisdiction when that law hears it there; a release unharmed takes half of it back, and no other
+	-- jurisdiction moves. Written by hand per place (Rensei.Regions, Heat.Raised): Ye's unnamed ground is Lindenmoor
+	-- (Militia), where the Townsfolk are, so a townsperson's word raises Militia 30 at once (net +15 after the release);
+	-- the Foundry is State land without the Authority among its factions, so a townsperson's word raises no State Heat at
+	-- once (the law hears it only when word reaches it), and the release has nothing to halve (net 0).
+	MenuReleaseHalvesHeat = function(T)
+		local RAISED, NET = table.unpack(({[106992859583940] = {30, 15}, [109591196441030] = {0, 0}})[game.PlaceId])
+		Witnessed(T, function(_, _, _, _, Heat0)
+			local J = TK.LAW.J
+			local Others = {}
+			for _, K in ipairs({"State", "Militia", "Circle"}) do
+				if K ~= J then Others[K] = HeatSvc().Value(Player, K) end
+			end
+			T.Near(HeatSvc().Value(Player, J) - Heat0, RAISED, 0.5, ("the witnessed take raised %s Heat %d"):format(J, RAISED))
+			local Released0 = DeedCount("released_hostage")
+			T.Eq(Svc().Menu(Player, "Release"), true, "the choice acted")
+			task.wait(0.3)
+			T.Eq(DeedCount("released_hostage") - Released0, 1, "released_hostage +1")
+			T.Near(HeatSvc().Value(Player, J) - Heat0, NET, 0.5, ("released unharmed: half of it taken back (net +%d)"):format(NET))
+			for K, V in pairs(Others) do T.Near(HeatSvc().Value(Player, K), V, 0.05, K .. " Heat unchanged") end
+		end)
+	end,
+
+	-- (the release Heat's own seam) HeatService.Reduce takes Heat off one jurisdiction only, returns what it took, never
+	-- goes below 0, and ignores a non-finite, non-positive or non-number amount and an unknown jurisdiction
+	HeatReduceOneJurisdiction = function(T)
+		HK.Guard(function() KeepHeat(function()
+			local HeatS, J = HeatSvc(), TK.LAW.J
+			T.Eq(type(HeatS.Reduce), "function", "HeatService.Reduce exists")
+			local Before = {}
+			for _, K in ipairs({"State", "Militia", "Circle"}) do Before[K] = HeatS.Value(Player, K) end
+			HeatS.Add(Player, J, 40)
+			T.Near(HeatS.Reduce(Player, J, 15), 15, 1e-6, "Reduce returns what it took off")
+			T.Near(HeatS.Value(Player, J) - Before[J], 25, 0.05, "+40 then -15: +25")
+			for K, V in pairs(Before) do
+				if K ~= J then T.Near(HeatS.Value(Player, K), V, 0.05, K .. " unchanged") end
+			end
+			local Mid = HeatS.Value(Player, J)
+			for _, Bad in ipairs({0, -5, 0 / 0, math.huge, "5"}) do
+				T.Eq(HeatS.Reduce(Player, J, Bad), 0, "ignored: " .. tostring(Bad))
+			end
+			T.Eq(HeatS.Reduce(Player, J), 0, "ignored: no amount")
+			T.Eq(HeatS.Reduce(Player, "Nowhere", 5), 0, "ignored: an unknown jurisdiction")
+			T.Near(HeatS.Value(Player, J), Mid, 0.05, "nothing taken by the ignored calls")
+			T.Near(HeatS.Reduce(Player, J, Mid + 50), Mid, 0.05, "at most what there is")
+			T.Near(HeatS.Value(Player, J), 0, 0.01, "never below 0")
+			T.Eq(Player:GetAttribute("Heat_" .. J), 0, "published on the attribute")
+		end) end)
+	end,
+
+	-- Finish: the hold ends "finished", the hostage knocked at its own HP and gripped by the player through the normal
+	-- Grip (GrippedBy / Gripping); while it runs the grip's marks keep a take off both (guards: Task 4's exclusion); dead
+	-- within GripTime 2 + 1 s; killed_hostage +1
+	MenuFinish = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local Rig = Held(T)
+			local H = Rig.Humanoid
+			local HP0 = H.Health
+			local Killed0 = DeedCount("killed_hostage")
+			T.Eq(HS.Menu(Player, "Finish"), true, "the choice acted")
+			T.Eq(HK.Result(), "Bind:finished", "LastHostageResult")
+			T.Eq(Rig:GetAttribute("HeldBy"), nil, "the hold is over")
+			T.Eq(C:GetAttribute("Holding"), nil, "the player holds nobody")
+			T.True(DM.IsKnocked(Rig), "the hostage is knocked for the grip")
+			T.Near(H.Health, HP0, 0.5, "its HP kept (Knock only sets the state)")
+			T.Eq(Rig:GetAttribute("GrippedBy"), Player.Name, "the normal grip runs on it")
+			T.Eq(C:GetAttribute("Gripping"), Rig.Name, "the player is gripping")
+			local _, Other = HK.StandIn(At(8, 0))
+			T.Eq(HS.Context(Other, Rig, "Bind").TargetFree, false, "guard: the gripped hostage can't be taken")
+			T.Eq(HS.Context(Player, Other.Character, "Grab").CaptorFree, false, "guard: the gripping player takes nobody")
+			T.True(WaitFor(3, function() return H.Health <= 0 end), "dead within GripTime 2 + 1 s")
+			T.True(WaitFor(0.5, function() return DeedCount("killed_hostage") - Killed0 == 1 end), "killed_hostage +1")
+			T.Eq(C:GetAttribute("Gripping"), nil, "the grip is over")
+		end)
+	end,
+
+	-- a rescue mid-grip: a WCS Stun on the player 0.3 s into the Finish cancels the grip, as for any grip; the stand-in is
+	-- left alive and knocked, and killed_hostage doesn't move. First, a captor already stunned can't Finish (the grip
+	-- would fail at once): ignored, still Held.
+	FinishCancelledByStun = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local Rig = Held(T)
+			local Killed0 = DeedCount("killed_hostage")
+			-- (the case's stuns are waited out even when it fails, so the next case never starts stunned: RED saw that)
+			local Ok, Err = pcall(function()
+				StunPlayer(0.5)
+				T.Eq(HS.Menu(Player, "Finish"), false, "a stunned captor's Finish is ignored")
+				T.True(IsHeld(), "still Held")
+				T.True(WaitFor(1.5, function() return not Stunned(C) end), "setup: the stun is over")
+				T.Eq(HS.Menu(Player, "Finish"), true, "the choice acted")
+				task.wait(0.3)
+				T.Eq(Rig:GetAttribute("GrippedBy"), Player.Name, "setup: gripping")
+				StunPlayer(1)
+				T.True(WaitFor(0.5, function() return Rig:GetAttribute("GrippedBy") == nil end), "the stun cancels the grip")
+				task.wait(2.2) -- (past the grip's 2 s)
+				T.True(Rig.Humanoid.Health > 0, "the stand-in is alive")
+				T.True(DM.IsKnocked(Rig), "and knocked")
+				T.Eq(C:GetAttribute("Gripping"), nil, "the player isn't gripping")
+				T.Eq(DeedCount("killed_hostage") - Killed0, 0, "killed_hostage unchanged")
+			end)
+			WaitFor(2, function() return not Stunned(C) end)
+			if not Ok then error(Err, 0) end
+		end)
+	end,
+
+	-- only the captor of a Held session chooses: the hostage's own Release or Finish, an unknown or non-string choice,
+	-- and any choice during a grab are ignored
+	MenuNotCaptor = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local Rig, PL = Held(T)
+			T.Eq(HS.Menu(PL, "Release"), false, "the hostage's Release is ignored")
+			T.Eq(HS.Menu(PL, "Finish"), false, "the hostage's Finish is ignored")
+			for _, Bad in ipairs({"Bogus", "release", 5}) do
+				T.Eq(HS.Menu(Player, Bad), false, "ignored: " .. tostring(Bad))
+			end
+			T.True(IsHeld(), "still Held")
+			T.Eq(Rig:GetAttribute("HeldBy"), Player.Name, "still held by the player")
+			T.Eq(DM.IsKnocked(Rig), false, "never knocked")
+		end)
+		HK.Guard(function()
+			local HS = Svc()
+			local Rig = HK.Grabbed()
+			T.Same(HS.MenuOptions(Player), {}, "no options while Grabbing")
+			T.Eq(HS.Menu(Player, "Release"), false, "a Release while Grabbing is ignored")
+			T.Eq(HS.Menu(Player, "Finish"), false, "a Finish while Grabbing is ignored")
+			local S = HS.SessionOf(Player)
+			T.True(S ~= nil and S.State == "Grabbing" and Rig:GetAttribute("HeldBy") == Player.Name, "still Grabbing")
+		end)
+	end,
+
+	-- (P3: Guard reset the day counts) a townsperson facing the pair 10 studs off sees the bind: took_hostage is recorded
+	-- with a witness Strength above 0 (MoralityService.Recorded), and a rumour of it starts (Data.Morality.Rumours)
+	TakeIsWitnessed = function(T)
+		Witnessed(T, function(_, _, Got, Morality)
+			local Rec = Find(Got, "took_hostage")
+			T.True(Rec ~= nil, "took_hostage was recorded")
+			T.True((Rec and Rec.Info.Strength or 0) > 0, "with a witness Strength above 0 (" .. tostring(Rec and Rec.Info.Strength) .. ")")
+			local Rumour = nil
+			for _, R in ipairs(Morality.Rumours or {}) do if R.Deed == "took_hostage" then Rumour = R end end
+			T.True(Rumour ~= nil, "a rumour of it started")
 		end)
 	end,
 }
