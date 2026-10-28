@@ -119,7 +119,7 @@ Every number is a **PROPOSAL** unless the owner chose it or it was measured. The
   - `Play_Stealth` and the other Ye-only suites stay Ye-only.
 
 **Owner questions:**
-- Is "HammerChoking" (132728216355683, 4.717 s, the victim animation cut at the Snap) the intended Assassination Victim?
+- ~~Is "HammerChoking" (132728216355683, 4.717 s, the victim animation cut at the Snap) the intended Assassination Victim?~~ Answered 2026-10-28, owner: "Yes I like that animation". It stays.
 - Spec §16, open question 2: should the takedown key be rebindable?
 
 **Tests** (hooked Play, one session at a time; the owner's save dump and deed probe were equal before and after every session except the incident below). RED first in every task; final GREEN counts:
