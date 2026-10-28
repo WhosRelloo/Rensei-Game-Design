@@ -26,10 +26,15 @@
 --     W is held 2 s. The server reads the captor's ground displacement <= 42 studs (LeadAllowance(1) x 2 + 1) AND
 --     HostageClamped > 0, and the hold still on. Before Task 6 (RED) it went about 48 studs (Task 1: 37.99-48.39) with no
 --     counter; the displacement and the peak server-seen speed are printed either way (the re-measure).
+--   (Fix round I2's fling at a release is Play_HostageHard's NoFlingAtRelease, not a client check: in Studio the server
+--   sees almost none of a client's fling at the release -- 0 to 12 of 147 studs/s measured -- so a client-driven case
+--   can't fail before the fix.)
 --   * ClientLeadWalkOk (the clamp's real-client control, added in Task 6): W held 2 s at the server's LeadSpeed 12 ->
 --     HostageClamped stays 0, at least 18 studs walked, the hold still on.
---   * ClientWeldBreak (the player the captor): the client destroys ITS copy of the DownedWeld and moves the stand-in's
---     root 5 studs (the client owns it). The server sees "broken" within 0.5 s.
+--   * ClientWeldBreakInert (the player the captor; fix round 1, ledger ruling: an inert control, not a "broken" end):
+--     the client destroys ITS copy of the DownedWeld and moves the stand-in's root 5 studs. The server keeps its weld
+--     and never sees the move (Task 6 measured a 0.00-stud gap for 2.5 s), so over INERT_WATCH the server's gap stays
+--     <= PairSlack 1.5 and the hold stays on. The server's own "broken" path is Play_HostageHard's PairBroken.
 --   * HeldClientCantMove (the R1 control; the player the HOSTAGE): the player knocked, a stand-in captor binds them
 --     (HostageService.Take(StandInPL, PlayerCharacter)). Held, the client sets its root's CFrame 10 studs off and
 --     PlatformStand false, W is held 1 s, then Humanoid.Jump = true: the server sees the player's root within PairSlack
@@ -48,8 +53,9 @@ local Remote = ReplicatedStorage:WaitForChild("HostageChecks_TEMP_Remote", 30)
 local Player = Players.LocalPlayer
 
 local Down, Up = 0, 0 -- W presses seen since this script started (the runner's, through user_keyboard_input)
-UIS.InputBegan:Connect(function(Input) if Input.KeyCode == Enum.KeyCode.W then Down += 1 end end)
-UIS.InputEnded:Connect(function(Input) if Input.KeyCode == Enum.KeyCode.W then Up += 1 end end)
+local DownAt, HeldFor = 0, 0 -- when the last W went down, and how long the last one was held (client clock)
+UIS.InputBegan:Connect(function(Input) if Input.KeyCode == Enum.KeyCode.W then Down += 1 DownAt = os.clock() end end)
+UIS.InputEnded:Connect(function(Input) if Input.KeyCode == Enum.KeyCode.W then Up += 1 HeldFor = os.clock() - DownAt end end)
 
 local function Char() return Player.Character end
 local function Hum() return Char():FindFirstChildOfClass("Humanoid") end
@@ -57,7 +63,7 @@ local SprintConn, WasWS = nil, nil
 
 local Checks = {}
 function Checks.Ping() return true end
-function Checks.Keys() return {Down = Down, Up = Up} end
+function Checks.Keys() return {Down = Down, Up = Up, HeldFor = HeldFor, Fps = 1 / RunService.RenderStepped:Wait()} end
 
 -- the client's own WalkSpeed 24, written every frame (as an exploiter, or Run's sprint, would)
 function Checks.Sprint()
@@ -135,7 +141,7 @@ local SERVER = [==[
 -- from it here; pre-flight P15):
 --   SPRINT_BOUND 42 studs: LeadAllowance(1) x 2 + 1 = (LeadSpeed 12 x LeadMult 1.5 + LeadSlack 2.5) x 2 s + 1.
 --   SPRINT_MS 2000: the W hold of ClientSprintClamped. WRIGGLE_MS 1000: HeldClientCantMove's.
---   BROKEN_WITHIN 0.5 s. PAIR_SLACK 1.5 studs. OFFSET: the hostage's root 1.5 studs in front of the captor's.
+--   INERT_WATCH 2.5 s. PAIR_SLACK 1.5 studs. OFFSET: the hostage's root 1.5 studs in front of the captor's.
 --   KEY_WAIT 30 s: for the runner's real W press (see the file's header). SETTLE 0.3 s after a press.
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -148,7 +154,7 @@ local Player = Kit.Player()
 local C = Player.Character
 
 local SPRINT_BOUND, SPRINT_MS, WRIGGLE_MS = 42, 2000, 1000
-local BROKEN_WITHIN, PAIR_SLACK, OFFSET = 0.5, 1.5, CFrame.new(0, 0, -1.5)
+local INERT_WATCH, PAIR_SLACK, OFFSET = 2.5, 1.5, CFrame.new(0, 0, -1.5)
 local KEY_WAIT, SETTLE = 30, 0.3
 local LEAD_MIN = 18 -- studs: LeadSpeed 12 x 2 s = 24, less the start and the stop
 
@@ -262,8 +268,9 @@ local Suite = {
 			local Pressed = HoldW(SPRINT_MS)
 			task.wait(SETTLE)
 			local Disp = Ground(Root.Position, P0)
-			Note("ClientLeadWalkOk", ("displacement %s studs, HostageClamped %d, client WalkSpeed %s, held %s")
-				:format(F2(Disp), Clamped(), tostring(C.Humanoid.WalkSpeed), tostring(On(S))))
+			local K = Ask("Keys")
+			Note("ClientLeadWalkOk", ("displacement %s studs, HostageClamped %d, client WalkSpeed %s, held %s; client-seen W held %s s at %s fps")
+				:format(F2(Disp), Clamped(), tostring(C.Humanoid.WalkSpeed), tostring(On(S)), F2(K.HeldFor), F2(K.Fps)))
 			T.True(Pressed, "the runner's W press arrived (held " .. SPRINT_MS .. " ms)")
 			T.Eq(Clamped(), 0, "never put back")
 			T.True(Disp >= LEAD_MIN, "it walked at least " .. LEAD_MIN .. " studs (" .. F2(Disp) .. ")")
@@ -271,33 +278,27 @@ local Suite = {
 		end)
 	end,
 
-	-- the captor's client breaks its own weld and moves the stand-in: the server ends it "broken"
-	ClientWeldBreak = function(T)
+	-- (ledger ruling, fix round 1: an inert control) the captor's client breaks its own copy of the weld and moves the
+	-- stand-in: the server never sees it (it keeps the weld), so the pair stays where the weld holds it and the hold on
+	ClientWeldBreakInert = function(T)
 		Case(function()
 			local Rig, _, S = HK.Held()
 			HK.Loose()
 			local HR, CR = Rig.HumanoidRootPart, C.HumanoidRootPart
 			local Gap = Sample(function()
-				if S.Over then return 0 end
+				if S.Over then return math.huge end
 				return (HR.Position - (CR.CFrame * OFFSET).Position).Magnitude
 			end)
 			local R = Ask("BreakWeld")
-			local Broke = Kit.WaitFor(BROKEN_WITHIN, function() return HK.Result() == "Bind:broken" end)
+			task.wait(INERT_WATCH)
 			local MaxGap = Gap()
-			-- (observed, not asserted) what the server sees over the next 2 s: the gap, the hold
-			local Later = Sample(function()
-				if S.Over then return 0 end
-				return (HR.Position - (CR.CFrame * OFFSET).Position).Magnitude
-			end)
-			task.wait(2)
-			Note("ClientWeldBreak", ("client weld destroyed %s, client-seen move %s; within 0.5 s: broken %s, server gap max %s; "
-				.. "over 2 s more: server gap max %s, server weld %s, held %s, result %s"):format(tostring(R.Destroyed), F2(R.Dist),
-				tostring(Broke), F2(MaxGap), F2(Later()), tostring(CR:FindFirstChild("DownedWeld") ~= nil), tostring(On(S)), tostring(HK.Result())))
+			Note("ClientWeldBreakInert", ("client weld destroyed %s, client-seen move %s; over %s s: server gap max %s, server weld %s, held %s")
+				:format(tostring(R.Destroyed), F2(R.Dist), tostring(INERT_WATCH), F2(MaxGap),
+				tostring(CR:FindFirstChild("DownedWeld") ~= nil), tostring(On(S))))
 			T.True(R.Destroyed, "setup: the client destroyed its DownedWeld")
 			T.True(R.Moved, "setup: the client moved the stand-in's root (it saw " .. F2(R.Dist) .. " studs)")
-			T.True(Broke, "\"broken\" within " .. BROKEN_WITHIN .. " s (" .. tostring(HK.Result()) .. "; server-seen gap up to "
-				.. F2(MaxGap) .. " studs)")
-			T.Eq(Rig:GetAttribute("HeldBy"), nil, "the stand-in is free")
+			T.True(MaxGap <= PAIR_SLACK, "the server's pair never moved: gap max " .. F2(MaxGap) .. " <= 1.5")
+			T.True(On(S), "the hold is still on (" .. tostring(HK.Result()) .. ")")
 		end)
 	end,
 

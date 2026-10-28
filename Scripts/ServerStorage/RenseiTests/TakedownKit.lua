@@ -270,6 +270,10 @@ function Kit.WaitFor(Seconds, Fn)
 		if Fn() then return true end
 		task.wait(0.05)
 	end
+	-- (hostages Task 6 fix round, the Foundry ReleaseOnTimeout flake) one more frame before failing: after a long server
+	-- stall this thread can resume past its deadline BEFORE the thread it waits on (a Heartbeat:Wait) has run once, so
+	-- the waited thing gets that frame. The deadline itself stays wall-clock.
+	task.wait()
 	return Fn() and true or false
 end
 

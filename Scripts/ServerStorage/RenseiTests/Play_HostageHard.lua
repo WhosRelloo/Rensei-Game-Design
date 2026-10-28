@@ -10,6 +10,11 @@
 --   in a real game. Written by hand (Rensei.Hostage, PROPOSAL): LeadAllowance(0.1) = (12 x 1.5 + 2.5) x 0.1 = 2.05 studs
 --   per watch tick of 0.1 s; TeleportBreak 40; Offset 1.5 studs in front. The client half (a real client walking,
 --   breaking its weld, a held client trying to move) is Art/Studio/Hostage/client_checks.lua.
+-- * Task 6 fix round 1 (review I1-I4): a blink (too far, or through a wall or a floor) ends "teleport" with the hostage
+--   put back at the last checked spot; so does any release in a clamp fight; a release never flings the hostage; a drop
+--   faster than a free fall is put back (a real fall isn't); the rise rule's floor is world geometry, never a character
+--   (stairs still climb, an accomplice underneath doesn't lift the pair). Written by hand: the free fall's bound is far
+--   under a 25-stud drop in 0.1 s and far over a real 30-stud fall; RiseSlack 3.
 local DM = require(game.ReplicatedStorage.Modules.Managers.DownedManager)
 local ServerStorage = game:GetService("ServerStorage")
 local SSS = game:GetService("ServerScriptService")
@@ -51,6 +56,18 @@ local function Ground(A, B) return Vector3.new(A.X - B.X, 0, A.Z - B.Z).Magnitud
 local function On(S) return not S.Over and Svc().SessionOf(Player) == S end
 local function Ended(Want, Max) return WaitFor(Max, function() return HK.Result() == Want end) end
 local function F2(X) return ("%.2f"):format(X) end
+local function Dist(A, B) return (A - B).Magnitude end
+-- (fix round) the lead's window made fresh: the root stepped back 0.5 studs three times, 0.1 s apart (an honest walk),
+-- so the lead's time is at most a tick or two old and a jump right after is measured against a tick's allowance, not
+-- the up-to-1-s window a root left standing still earns (LeadWindow: a hitch's longest gap, by design)
+local function Fresh()
+	for _ = 1, 3 do
+		CRoot().CFrame += CRoot().CFrame.LookVector * -0.5
+		task.wait(0.1)
+	end
+end
+-- a TEMP anchored part (SmokeKit removes it after the case)
+local function Block(Size, At) return SmokeKit.TempPart({Name = "HostageHard_TEMP_Block", Size = Size, CFrame = At}) end
 -- Held, the player's client owning the pair (its root let go); the counter starts at 0
 local function Led(T)
 	local Rig, PL, S = HK.Held()
@@ -265,6 +282,7 @@ return {
 	LeadClamped = function(T)
 		HK.Guard(function()
 			local _, _, S = Led(T)
+			Fresh()
 			local P0 = CRoot().Position
 			CRoot().CFrame += CRoot().CFrame.LookVector * 8
 			local Back = WaitFor(0.3, function() return Ground(CRoot().Position, P0) <= 1 and Clamped() >= 1 end)
@@ -275,21 +293,184 @@ return {
 		end)
 	end,
 
-	-- the captor's root moved 60 studs (over TeleportBreak 40): the hold ends "teleport"; the stand-in is free where the
-	-- move left it (1.5 studs in front of the moved root), not dragged back
+	-- the captor's root moved 60 studs (over TeleportBreak 40): the hold ends "teleport"; (fix round I1) the stand-in is
+	-- put back at the last checked spot (1.5 studs in front of where the captor stood), never left where the client put it
 	TeleportEnds = function(T)
 		HK.Guard(function()
 			local Rig = Led(T)
-			local P0 = CRoot().Position
-			local To = CRoot().CFrame + Vector3.new(60, 0, 0)
+			local Good = CRoot().CFrame
+			local To = Good + Vector3.new(60, 0, 0)
 			CRoot().CFrame = To
 			T.True(Ended("Bind:teleport", 0.5), "\"teleport\" within 0.5 s (" .. tostring(HK.Result()) .. ")")
 			T.Eq(Rig:GetAttribute("HeldBy"), nil, "the stand-in is free")
 			T.Eq(CRoot():FindFirstChild("DownedWeld"), nil, "no weld on the player's root")
 			local HR = Rig.HumanoidRootPart.Position
-			T.True(Ground(HR, (To * OFFSET).Position) <= 3, "the stand-in is where the move left it ("
-				.. F2(Ground(HR, (To * OFFSET).Position)) .. " studs off)")
-			T.True(Ground(HR, P0) > 50, "not dragged back (" .. F2(Ground(HR, P0)) .. " studs from the old spot)")
+			T.True(Dist(HR, (Good * OFFSET).Position) <= 1, "the stand-in is back at the last checked spot ("
+				.. F2(Dist(HR, (Good * OFFSET).Position)) .. " studs off)")
+			T.True(Ground(HR, To.Position) > 50, "not left where the client put it (" .. F2(Ground(HR, To.Position)) .. " studs off)")
+		end)
+	end,
+
+	-- (fix round I1) a client fighting the clamp (its spot 6 studs off re-applied every frame), then a release mid-fight:
+	-- the stand-in is left at the last checked spot, not at the client's
+	ClampFightSnapsBack = function(T)
+		HK.Guard(function()
+			local Rig = Led(T)
+			Fresh()
+			local Good = CRoot().CFrame
+			local Fight = Good + Vector3.new(6, 0, 0)
+			-- (the client's spot, written again after each put-back: twice, so the clamp has fought it)
+			for _ = 1, 2 do
+				CRoot().CFrame = Fight
+				local Before = Clamped()
+				WaitFor(0.5, function() return Clamped() > Before end)
+			end
+			T.True(Clamped() >= 2, "setup: the clamp fought back (" .. Clamped() .. " put-backs)")
+			CRoot().CFrame = Fight -- (the client's last word, then the release in the same step)
+			T.Eq(Svc().Free(Player, "released"), true, "released mid-fight")
+			task.wait(0.2)
+			local HR = Rig.HumanoidRootPart.Position
+			T.True(Dist(HR, (Good * OFFSET).Position) <= 1, "the stand-in is at the last checked spot ("
+				.. F2(Dist(HR, (Good * OFFSET).Position)) .. " studs off; " .. F2(Dist(HR, (Fight * OFFSET).Position))
+				.. " from the client's)")
+		end)
+	end,
+
+	-- (fix round I2) the pair moving fast at a release (100 studs/s up and a spin, the velocity a captor's client can give
+	-- it): the stand-in isn't flung (it stays where it was let go, at rest, not spinning). Both sides are stand-ins here,
+	-- so the server owns the pair and its velocity write is the one released (with the player as the captor, the watch
+	-- keeps the pair the player's client's and the client's packets overwrite a server write). Before the fix (measured):
+	-- the stand-in rose 21 studs in 0.3 s.
+	NoFlingAtRelease = function(T)
+		HK.Guard(function()
+			local Rig = HK.StandIn(TK.At(0, 0))
+			DM.Knock(Rig)
+			local Cap, CapPL = HK.StandIn(TK.At(0, 3)) -- (facing -Z: the knocked stand-in 3 studs in front of it)
+			local Ok, Why = Svc().Take(CapPL, Rig)
+			T.Eq(Ok, true, "setup: the stand-in captor's take starts (" .. tostring(Why) .. ")")
+			T.True(WaitFor(2.0, function()
+				local X = Svc().SessionOf(CapPL)
+				return X ~= nil and X.State == "Held"
+			end), "setup: held within 2 s (" .. tostring(HK.Result(Cap)) .. ")")
+			local HR, CapRoot = Rig.HumanoidRootPart, Cap.HumanoidRootPart
+			CapRoot.AssemblyLinearVelocity = Vector3.new(0, 100, 0)
+			CapRoot.AssemblyAngularVelocity = Vector3.new(0, 30, 0)
+			local VBefore, P1 = HR.AssemblyLinearVelocity.Magnitude, HR.Position
+			T.Eq(Svc().Free(CapPL, "released"), true, "released (in the same step)")
+			CapRoot.AssemblyLinearVelocity, CapRoot.AssemblyAngularVelocity = Vector3.zero, Vector3.zero
+			T.True(VBefore > 50, "setup: the pair was moving fast at the release (" .. F2(VBefore) .. " studs/s)")
+			task.wait(0.3)
+			T.True(Dist(HR.Position, P1) < 3, "not flung (" .. F2(Dist(HR.Position, P1)) .. " studs from where it was let go)")
+			T.True(HR.AssemblyLinearVelocity.Magnitude < 5, "at rest (" .. F2(HR.AssemblyLinearVelocity.Magnitude) .. " studs/s)")
+			T.True(HR.AssemblyAngularVelocity.Magnitude < 2, "not spinning (" .. F2(HR.AssemblyAngularVelocity.Magnitude) .. " rad/s)")
+		end)
+	end,
+
+	-- (fix round I3) the pair through the kit floor (20 studs straight down: a noclip): a blink, "teleport", and the
+	-- stand-in back at the last checked spot, above the floor
+	NoclipDropEnds = function(T)
+		HK.Guard(function()
+			local Rig = Led(T)
+			local Good = CRoot().CFrame
+			CRoot().CFrame = Good - Vector3.new(0, 20, 0)
+			T.True(Ended("Bind:teleport", 0.3), "\"teleport\" within 0.3 s (" .. tostring(HK.Result()) .. ")")
+			local HR = Rig.HumanoidRootPart.Position
+			T.True(Dist(HR, (Good * OFFSET).Position) <= 1, "the stand-in is back above the floor ("
+				.. F2(Dist(HR, (Good * OFFSET).Position)) .. " studs off)")
+		end)
+	end,
+
+	-- (fix round I3) the pair through a wall (an anchored TEMP wall 3 studs to the side, the root moved 6 studs past it):
+	-- a blink, "teleport", the stand-in back on this side (LeadClamped is the control: the same kind of move, no wall,
+	-- is only put back)
+	BlinkThroughWallEnds = function(T)
+		HK.Guard(function()
+			local Rig = Led(T)
+			local Good = CRoot().CFrame
+			Block(Vector3.new(0.4, 12, 12), CFrame.new(Good.Position + Vector3.new(3, 0, 0)))
+			CRoot().CFrame = Good + Vector3.new(6, 0, 0)
+			T.True(Ended("Bind:teleport", 0.3), "\"teleport\" within 0.3 s (" .. tostring(HK.Result()) .. ")")
+			local HR = Rig.HumanoidRootPart.Position
+			T.True(Dist(HR, (Good * OFFSET).Position) <= 1, "the stand-in is back on this side of the wall ("
+				.. F2(Dist(HR, (Good * OFFSET).Position)) .. " studs off)")
+		end)
+	end,
+
+	-- (fix round I3) the pair on a TEMP platform 30 studs up (moved there, then Rebase), the platform removed and the root
+	-- at once 25 studs lower (in 0.1 s, far past a free fall): put back, counted, still held
+	DropTooFastPutBack = function(T)
+		HK.Guard(function()
+			local _, _, S = Led(T)
+			local P0 = CRoot().Position
+			local Top = Block(Vector3.new(12, 1, 12), CFrame.new(P0.X, P0.Y - 3 + 30 - 0.5, P0.Z - 0.75))
+			CRoot().CFrame += Vector3.new(0, 30, 0)
+			T.Eq(Svc().Rebase(C), true, "setup: rebased on the platform")
+			task.wait(0.8)
+			Top:Destroy()
+			CRoot().CFrame -= Vector3.new(0, 25, 0)
+			T.True(WaitFor(0.3, function() return Clamped() >= 1 end), "put back within 0.3 s (" .. Clamped() .. ")")
+			T.True(On(S), "the hold is still on (" .. tostring(HK.Result()) .. ")")
+		end)
+	end,
+
+	-- (fix round I3, the control) the same platform removed with nothing else: the pair falls 30 studs for real onto the
+	-- kit floor, never put back, still held
+	FallOk = function(T)
+		HK.Guard(function()
+			local _, _, S = Led(T)
+			local P0 = CRoot().Position
+			local Top = Block(Vector3.new(12, 1, 12), CFrame.new(P0.X, P0.Y - 3 + 30 - 0.5, P0.Z - 0.75))
+			CRoot().CFrame += Vector3.new(0, 30, 0)
+			T.Eq(Svc().Rebase(C), true, "setup: rebased on the platform")
+			task.wait(0.8)
+			Top:Destroy()
+			T.True(WaitFor(3, function() return CRoot().Position.Y - P0.Y < 1 end), "landed on the kit floor ("
+				.. F2(CRoot().Position.Y - P0.Y) .. " studs above it)")
+			task.wait(0.3)
+			T.Eq(Clamped(), 0, "never put back")
+			T.True(On(S), "the hold is still on (" .. tostring(HK.Result()) .. ")")
+		end)
+	end,
+
+	-- (fix round I4, the control) six TEMP steps of 0.8 studs, 2 studs wide, the root moved up them one per 0.2 s: 4.8
+	-- studs climbed (over RiseSlack 3: each step is floor), never put back
+	StairsClimbOk = function(T)
+		HK.Guard(function()
+			local _, _, S = Led(T)
+			local Good = CRoot().CFrame
+			local P0 = Good.Position
+			for K = 1, 6 do
+				local H = 0.8 * K
+				Block(Vector3.new(2, H, 8), CFrame.new(P0.X + 2 * K, P0.Y - 3 + H / 2, P0.Z - 0.75))
+			end
+			for K = 1, 6 do
+				CRoot().CFrame = Good + Vector3.new(2 * K, 0.8 * K, 0)
+				task.wait(0.2)
+			end
+			task.wait(0.3)
+			T.Eq(Clamped(), 0, "never put back")
+			T.True(CRoot().Position.Y - P0.Y >= 4, "up the stairs (" .. F2(CRoot().Position.Y - P0.Y) .. " studs)")
+			T.True(On(S), "the hold is still on (" .. tostring(HK.Result()) .. ")")
+		end)
+	end,
+
+	-- (fix round I4) an accomplice rig (anchored, a character) kept just under the captor's feet while the server raises
+	-- the captor 2.5 studs a tick: a character is no floor, so the rise is put back by the second tick
+	AccompliceNoRise = function(T)
+		HK.Guard(function()
+			local _, _, S = Led(T)
+			local Acc = HK.StandIn(TK.At(20, 20))
+			Acc.HumanoidRootPart.Anchored = true
+			local Good = CRoot().CFrame
+			for K = 1, 4 do
+				CRoot().CFrame = Good + Vector3.new(0, 2.5 * K, 0)
+				local R = CRoot().Position
+				Acc:PivotTo(CFrame.new(R.X, R.Y - 5.3, R.Z)) -- (its head 0.3 under the captor's feet)
+				task.wait(0.1)
+			end
+			Acc:PivotTo(TK.At(20, 20) + Vector3.new(0, 3, 0))
+			T.True(Clamped() >= 1, "the rise was put back (" .. Clamped() .. ")")
+			T.True(On(S), "the hold is still on (" .. tostring(HK.Result()) .. ")")
 		end)
 	end,
 

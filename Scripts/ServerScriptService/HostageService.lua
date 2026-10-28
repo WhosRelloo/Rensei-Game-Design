@@ -51,7 +51,8 @@
 --        captor re-locked at LeadSpeed and the lead clamp started (Pair, Task 6); Anims.Hold / Anims.Held looped at Action4; State "Held", S.Until (os.clock)
 --        and HostageUntil (server time) on both; this take counted in Taken (pre-flight P22: only a hold is a re-take);
 --        Watch started; Notify both; took_hostage recorded (a real captor, witnessed).
--- * Broken(S) -> outcome | nil (public, a test seam): "left" (either not Present), "died" (either character dead or
+-- * Broken(S) -> outcome | nil (public, a test seam; review M9: while the pair is led it also ACTS -- it puts the pair
+--   back, writes the owner and the hostage's humanoid, puts tools away -- so a test calling it directly moves things): "left" (either not Present), "died" (either character dead or
 --   replaced), "knocked" (the captor knocked; while Held, the hostage knocked: decision 5); then, while the pair is LED
 --   (welded, S.Attached, and Held or -- Task 7 -- Grabbing: pre-flight P5), THE PAIR POLICED (below): "teleport",
 --   "broken", "water"; then "safe" (the captor in a safe zone), "timeout" (Held and os.clock() >= S.Until). Task 7 adds
@@ -65,16 +66,22 @@
 --   client's WalkSpeed is its own: the server's LeadSpeed lock is only advice (Task 1 measured 37.99-48.39 studs in 2 s
 --   at a server WalkSpeed of 16). WHAT THE SERVER CHECKS INSTEAD, every WatchTick in Broken, with its own positions (the
 --   hostage's own client owns nothing of the pair, so it can't move, jump or draw; the checks below keep it so):
---     1. the lead clamp (S.Lead = {Pos, Y, T, Rebased}, set when the pair is welded to the captor's root): D = the
---        captor's root's ground (x / z) distance from S.Lead.Pos, Dt = now - S.Lead.T.
---        - D > TeleportBreak -> "teleport" (an admin bring, a station move, an exploit: the hold ends rather than follow);
---        - D > Hostage.LeadAllowance(Dt), or the root more than RiseSlack above S.Lead.Y -> the pair PUT BACK: the
---          captor's root moved to S.Lead.Pos (its full position, the hostage with it), its velocity zeroed,
---          HostageClamped + 1 on the captor's character, S.Lead.T = now;
---        - else S.Lead follows: Pos and T = now; Y = the root's Y when the server sees a floor under the captor's legs
---          (GROUND_RAY: a stair or a ramp walked up is ground), else min(S.Lead.Y, the root's Y) (in the air only a
---          descent lowers it, so a jump or a climb is held to RiseSlack). A root that hasn't moved (under 0.05 studs)
---          leaves Pos and T, so the window grows to LeadWindow, as the crawl clamp's does (a late packet is no sprint).
+--     1. the lead clamp (S.Lead = {Pos, CF, Y, T, GroundY, GroundT, Rebased}, set when the pair is welded to the
+--        captor's root: the last point the server checked and allowed): D = the captor's root's ground (x / z) distance
+--        from S.Lead.Pos, Dt = now - S.Lead.T.
+--        - a BLINK -> "teleport" (an admin bring, a station move, an exploit: the hold ends rather than follow): D >
+--          TeleportBreak, or (fix round I3) the straight path from S.Lead.Pos to the root hits world geometry (Terrain or
+--          an anchored part, never a character: a move through a wall or a floor);
+--        - D > Hostage.LeadAllowance(Dt), or the root more than RiseSlack above S.Lead.Y, or (fix round I3) more than a
+--          free fall below the last ground point (GroundY - Y > Gravity / 2 x (now - GroundT + DROP_LAG)^2 + DROP_SLACK)
+--          -> the pair PUT BACK: the captor's root moved to S.Lead.Pos (its full position, the hostage with it), its
+--          velocity zeroed, HostageClamped + 1 on the captor's character, S.Lead.T = now;
+--        - else S.Lead follows: Pos, CF and T = now; Y = the root's Y when the server sees a FLOOR under the captor's legs
+--          (GROUND_RAY: a stair or a ramp walked up is ground; fix round I4: a floor is Terrain, an anchored part or a part
+--          the server owns, never a character -- an accomplice -- nor a client's loose part), else min(S.Lead.Y, the
+--          root's Y) (in the air only a descent lowers it, so a jump or a climb is held to RiseSlack); on a floor
+--          GroundY / GroundT = here, now. A root that hasn't moved (under 0.05 studs) leaves Pos and T, so the window
+--          grows to LeadWindow, as the crawl clamp's does (a late packet is no sprint).
 --        It is the crawl clamp's shape (DownedManager's ClampCrawl) with the hostage's numbers, kept small here rather
 --        than shared (pre-flight D4): the two differ in what they end (a teleport break here), in the rise check and in
 --        where the point is kept (the session here, a weak table there). DownedManager.RebaseCrawl isn't used: neither
@@ -91,14 +98,20 @@
 --        them; a Tool in the hostage's character goes back to its Backpack (decision 18; a stand-in's PL.Backpack, which
 --        a test gives it);
 --     5. deep water (SwimService.InDeepWater, read only) for either side -> "water" (decision 17).
---   Pair(S) welds and leads the pair (Hold; Task 7's grab calls it too, P5): the weld, S.Attached, the captor locked at
---   LeadSpeed (its earlier lock given back first only when this session made one) and S.Lead.
+--   Pair(S) welds and leads the pair (Hold; Task 7's grab calls it too, P5): the hostage root's network ownership noted
+--   (S.OwnerWas), the weld, S.Attached, the captor locked at LeadSpeed (its earlier lock given back first only when
+--   this session made one) and S.Lead.
+--   AT THE RELEASE (fix round I1 / I2: Settle, Release step 2) the captor's client never decides where the hostage is
+--   left, nor how fast: the server takes the hostage's root, zeroes every part's linear and angular velocity, puts it
+--   at S.Lead.CF x Offset after a "teleport" or within FIGHT_WINDOW of a counted put-back (a client fighting the clamp),
+--   and gives its ownership back as it was before the hold OWNER_BACK later.
 -- * Watch(S): every WatchTick while not S.Over, pcall(HostageService.Broken, S); an outcome -> Release(S, outcome), an
 --   error -> Release(S, "error").
 -- * Release(S, Outcome): THE ONE EXIT of a session (lesson: TakedownService's Release). Guarded by S.Over and the
 --   session's identity (ByCaptor[Key(Captor)] == S); every step in its own pcall, so one failing never skips the rest:
 --     1. S.Over; unindexed; its connections dropped;
---     2. the weld let go (DownedManager.Detach: PlatformStand off, the hostage's root back to its own client), only when
+--     2. the weld let go (DownedManager.Detach: PlatformStand off), then the hostage settled (Settle: at rest, put back
+--        after a blink or a clamp fight, its old owner back OWNER_BACK later: fix round I1 / I2), only when
 --        this session welded the pair (S.Attached; Task 5 fix, review I1: a Detach of a pair never attached would set
 --        every part of the knocked hostage non-massless -- hair, accessories, a weapon -- and PlatformStand off);
 --     3. the hostage: its lock given back when the hold locked it (not while knocked: the knock's lock nests on ours and
@@ -168,6 +181,12 @@ local REBASE_GRACE = 0.5
 -- (Task 6) PROPOSAL: studs below the captor's legs a floor may be and still be the ground it stands on (the lead's Y)
 local GROUND_RAY = 1.5
 local STILL = 0.05 -- (Task 6) studs: a root that moved less hasn't moved (the crawl clamp's own threshold)
+-- (Task 6 fix round 1, review I1-I4) PROPOSAL numbers:
+local FIGHT_WINDOW = 1 -- seconds: a release this soon after a counted put-back puts the hostage back at the lead's spot
+local DROP_LAG = 0.2 -- seconds added to the time since the lead was last on the ground (two watch ticks of lateness)
+local DROP_SLACK = 4 -- studs a drop may exceed a free fall from the lead's last ground height
+local OWNER_BACK = 0.25 -- seconds the server keeps a released hostage (at rest) before its old owner gets it back
+local WORLD_TRIES = 8 -- rays a WorldHit may cast, stepping past characters and parts that aren't world geometry
 
 local StandIns = {} -- [Model] = PL (tests only; read only while SeamOpen)
 local ByCaptor = {} -- [Key] = S
@@ -431,6 +450,33 @@ end
 
 local function Toast(PL, Text) Notify(PL, "Toast", {Text = Text}) end
 
+-- (fix round I1 / I2; Release step 2) the hostage just let go: the server takes it, every part at rest (no fling from
+-- the captor client's last velocity), put back at the lead's last checked spot x Offset after a "teleport" or within
+-- FIGHT_WINDOW of a counted put-back (a client fighting the clamp never chooses where the hostage is left), and its
+-- network owner given back as it was before the hold OWNER_BACK later (unless it is held again by then).
+local function Settle(S, Outcome)
+	local HC = S.HC
+	local HR = Root(HC)
+	if not HR or not HC.Parent then return end
+	pcall(function() HR:SetNetworkOwner(nil) end)
+	for _, P in ipairs(HC:GetDescendants()) do
+		if P:IsA("BasePart") then
+			P.AssemblyLinearVelocity = Vector3.zero
+			P.AssemblyAngularVelocity = Vector3.zero
+		end
+	end
+	local Fight = S.PutBackAt ~= nil and os.clock() - S.PutBackAt < FIGHT_WINDOW
+	if S.Lead and S.Lead.CF and (Outcome == "teleport" or Fight) then HR.CFrame = S.Lead.CF * Hostage.Offset end
+	local Was = S.OwnerWas
+	if not (Was and Was.Known) then return end
+	task.delay(OWNER_BACK, function()
+		if not HC.Parent or HC:GetAttribute("HeldBy") or Root(HC) ~= HR then return end
+		pcall(function()
+			if Was.Auto then HR:SetNetworkOwnershipAuto() else HR:SetNetworkOwner(Was.Owner) end
+		end)
+	end)
+end
+
 -- the one exit (see the header). Returns true when this call released the session.
 local function Release(S, Outcome)
 	if S.Over or ByCaptor[Key(S.Captor)] ~= S then return false end
@@ -447,7 +493,10 @@ local function Release(S, Outcome)
 	local CC, HC = S.CC, S.HC
 	local NowServer = workspace:GetServerTimeNow()
 	-- 2. the weld let go
-	if S.Attached then Step("letting the hostage go", DownedManager.Detach, HC) end
+	if S.Attached then
+		Step("letting the hostage go", DownedManager.Detach, HC)
+		Step("settling the hostage", Settle, S, Outcome)
+	end
 	-- 3. the hostage
 	Step("unlocking the hostage", function()
 		if S.HLocked and (HC.Parent == nil or not DownedManager.IsKnocked(HC)) then DownedManager.Lock(HC, false) end
@@ -510,41 +559,100 @@ local function Led(S)
 	return S.Attached == true and (S.State == "Held" or S.State == "Grabbing")
 end
 
-local GroundRays = RaycastParams.new()
-GroundRays.FilterType = Enum.RaycastFilterType.Exclude
-GroundRays.RespectCanCollide = true
-GroundRays.IgnoreWater = true
+local WorldRays = RaycastParams.new()
+WorldRays.FilterType = Enum.RaycastFilterType.Exclude
+WorldRays.RespectCanCollide = true
+WorldRays.IgnoreWater = true
 
--- the server sees a floor under the captor's legs
+-- (fix round I3 / I4) world geometry: Terrain or an anchored assembly; for a floor, also a part the server owns. Never a
+-- character (any model with a Humanoid: a player, an accomplice, a rig in World.Live), never a client's loose part.
+local function IsWorld(X, Floor)
+	if X:IsA("Terrain") then return true end
+	local A = X.Parent
+	while A and A ~= workspace do
+		if A:IsA("Model") and A:FindFirstChildOfClass("Humanoid") then return false end
+		A = A.Parent
+	end
+	local R = X.AssemblyRootPart
+	if X.Anchored or (R and R.Anchored) then return true end
+	if not Floor then return false end
+	local Ok, Owner = pcall(function() return X:GetNetworkOwner() end)
+	return Ok and Owner == nil
+end
+
+-- the first world-geometry hit of the ray From + Dir (the pair, World.Live and every player's character skipped), or nil
+local function WorldHit(S, From, Dir, Floor)
+	local Skip = {S.CC, S.HC}
+	local World = workspace:FindFirstChild("World")
+	local Live = World and World:FindFirstChild("Live")
+	if Live then table.insert(Skip, Live) end
+	for _, P in ipairs(Players:GetPlayers()) do
+		if P.Character then table.insert(Skip, P.Character) end
+	end
+	local Hit = nil
+	for _ = 1, WORLD_TRIES do
+		WorldRays.FilterDescendantsInstances = Skip
+		local R = workspace:Raycast(From, Dir, WorldRays)
+		if not R then break end
+		if IsWorld(R.Instance, Floor) then Hit = R break end
+		table.insert(Skip, R.Instance)
+	end
+	WorldRays.FilterDescendantsInstances = {} -- (review M6: no character kept after the call)
+	return Hit
+end
+
+-- the server sees world floor under the captor's legs (review I4: never a character, never a client's loose part)
 local function OnGround(S, CR)
 	local H = Hum(S.CC)
 	local Legs = CR.Size.Y / 2 + (H and H.HipHeight or 0) + ((H and H.RigType == Enum.HumanoidRigType.R6) and 2 or 0)
-	GroundRays.FilterDescendantsInstances = {S.CC, S.HC}
-	return workspace:Raycast(CR.Position, Vector3.new(0, -(Legs + GROUND_RAY), 0), GroundRays) ~= nil
+	return WorldHit(S, CR.Position, Vector3.new(0, -(Legs + GROUND_RAY), 0), true) ~= nil
 end
 
-local function NewLead(CR) return {Pos = CR.Position, Y = CR.Position.Y, T = os.clock()} end
+-- a lead point: where (Pos; CF, the root's whole CFrame), the rise reference Y, when (T), and the last ground point's
+-- height and time (GroundY, GroundT: a drop is measured from them)
+local function NewLead(CR)
+	local Now = os.clock()
+	return {Pos = CR.Position, CF = CR.CFrame, Y = CR.Position.Y, T = Now, GroundY = CR.Position.Y, GroundT = Now}
+end
 
--- 1. the lead clamp: "teleport", or nil (the pair put back when it went further or higher than a led walk could)
+-- the pair put back at the lead's point (its full position), at rest; counted unless it is a rebase's echo
+local function PutBack(S, CR, L, Now, Echo)
+	CR.CFrame += L.Pos - CR.Position
+	CR.AssemblyLinearVelocity = Vector3.zero
+	CR.AssemblyAngularVelocity = Vector3.zero
+	if not Echo then
+		S.CC:SetAttribute("HostageClamped", (S.CC:GetAttribute("HostageClamped") or 0) + 1)
+		S.PutBackAt = Now
+	end
+	L.T = Now
+end
+
+-- 1. the lead clamp: "teleport", or nil (the pair put back when it went further, higher or lower than a led walk could)
 local function LeadCheck(S)
 	local CR, L = Root(S.CC), S.Lead
 	if not CR or not L then return nil end
 	local Now, Pos = os.clock(), CR.Position
-	local D = Flat(Pos - L.Pos).Magnitude
+	local Moved = Pos - L.Pos
+	local D = Flat(Moved).Magnitude
 	local Echo = L.Rebased ~= nil and Now - L.Rebased < REBASE_GRACE
-	if D > Hostage.TeleportBreak and not Echo then return "teleport" end
-	if D > Hostage.LeadAllowance(Now - L.T) or Pos.Y > L.Y + Hostage.RiseSlack then
-		CR.CFrame += L.Pos - Pos
-		CR.AssemblyLinearVelocity = Vector3.zero
-		if not Echo then S.CC:SetAttribute("HostageClamped", (S.CC:GetAttribute("HostageClamped") or 0) + 1) end
-		L.T = Now
+	-- a blink: too far, or through world geometry (a wall, a floor). It ends; Release puts the hostage back (I1).
+	if not Echo and (D > Hostage.TeleportBreak or (Moved.Magnitude >= STILL and WorldHit(S, L.Pos, Moved, false))) then
+		return "teleport"
+	end
+	local Fall = Now - L.GroundT + DROP_LAG
+	local DropMax = 0.5 * workspace.Gravity * Fall * Fall + DROP_SLACK
+	if D > Hostage.LeadAllowance(Now - L.T) or Pos.Y > L.Y + Hostage.RiseSlack or L.GroundY - Pos.Y > DropMax then
+		PutBack(S, CR, L, Now, Echo)
 		return nil
 	end
-	local Y = OnGround(S, CR) and Pos.Y or math.min(L.Y, Pos.Y)
-	if D < STILL then
+	local Ground = OnGround(S, CR)
+	local Y = Ground and Pos.Y or math.min(L.Y, Pos.Y)
+	if Moved.Magnitude < STILL then
 		L.Y = Y -- (still: Pos and T kept, so the window grows up to LeadWindow)
+		if Ground then L.GroundY, L.GroundT = Pos.Y, Now end
 	else
-		S.Lead = {Pos = Pos, Y = Y, T = Now, Rebased = L.Rebased}
+		S.Lead = {Pos = Pos, CF = CR.CFrame, Y = Y, T = Now, Rebased = L.Rebased,
+			GroundY = Ground and Pos.Y or L.GroundY, GroundT = Ground and Now or L.GroundT}
 	end
 	return nil
 end
@@ -600,6 +708,11 @@ end
 
 -- the pair welded and led (Hold; Task 7's grab too, pre-flight P5): see Pair(S) in the header
 local function Pair(S)
+	local HR = Root(S.HC)
+	-- (fix round I2) the hostage root's network ownership before the hold, given back at the release
+	local AutoOk, Auto = pcall(function() return HR:GetNetworkOwnershipAuto() end)
+	local OwnerOk, Owner = pcall(function() return HR:GetNetworkOwner() end)
+	S.OwnerWas = {Known = AutoOk and OwnerOk, Auto = Auto == true, Owner = Owner}
 	if not DownedManager.Attach(S.CC, S.HC, Hostage.Offset) then error("the weld failed") end
 	S.Attached = true
 	if S.CLocked then DownedManager.Lock(S.CC, false) end
