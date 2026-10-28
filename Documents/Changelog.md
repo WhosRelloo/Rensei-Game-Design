@@ -23,7 +23,12 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 - **Not changed:** the Tutorial (`FlowData`) and Main Menu (`MenuData`), where no tests run.
 - **Tooling:** DataManager is now a sync pair (`CharacterHandler.DataManager`, both places) in `Art/Studio/Regions/Foundry/data/sync_manifest.json`. The Play protocol note is in `Lindenmoor Kit.md` ("Studio tooling note (2026-10-27, TestNoSave)").
 
-**Tests:** the new source compiles in Studio (Foundry, Edit); both places' DataManager matched the repo before the change (normalised hash); `test_sync.py` PASS 1338 / FAIL 0. The Play checks are pending.
+**Tests:** the new source compiles in Studio (Foundry, Edit); both places' DataManager matched the repo before the change (normalised hash); `test_sync.py` PASS 1338 / FAIL 0. Synced to both places (backup `Pre-TestNoSave_2026-10-27`; `sync.py --check` SAME 115 in Ye, 114 in Foundry).
+- **Play, Ye, lock `Ye:nosave`, hooked and dumped as usual.** Every real-save read was a `GetAsync` from the Play server, comparing the whole record and its DataStore version.
+  - **Session A:** the switch was proven on before anything changed: the warning, both attributes, and the profile in ProfileService's mock set and not its real one. The real save's Exp was 576. The test added 12,345 Exp to the session (12,921), waited 40 s, then stopped Play from outside the runner with no restore.
+  - **Session B:** the real save was byte-identical, with the same version (`…0000001465…`, last written before session A) and Exp 576. Play_Downed with the switch on gave 10/2: the known KnockGraceSnapsBack and DeepWaterStill flakes, which have nothing to do with saving. The restore dump equalled the first dump, and the real save was still unchanged.
+  - **Session C** (a clean rerun): Play_Downed 12/0, both dumps equal, and the real save unchanged.
+  - After each session the hook was read back as gone. The switch and the lock were cleared in Edit.
 
 ### Discord announcement
 
