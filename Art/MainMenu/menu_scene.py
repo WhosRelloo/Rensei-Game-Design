@@ -25,6 +25,8 @@ TEX = argv[argv.index("--tex") + 1] if "--tex" in argv else "E:/Rensei/Work/main
 SAMPLES = int(argv[argv.index("--samples") + 1]) if "--samples" in argv else 96
 SAVE = argv[argv.index("--save") + 1] if "--save" in argv else None
 PCT = int(argv[argv.index("--pct") + 1]) if "--pct" in argv else 100  # resolution percentage (50 for a quick test)
+BAKE = "--bake" in argv  # bake the materials for Roblox (menu_bake.py)
+EXPORT = "--export" in argv  # write the Roblox stage (menu_export.py) instead of rendering the still
 ANIM = "--anim" in argv  # render the animated preview frames (menu_anim.py) instead of the still
 FRAMES = argv[argv.index("--frames") + 1] if "--frames" in argv else None  # e.g. "0-275" or "0,100,200" (default: all)
 os.makedirs(OUT, exist_ok=True)
@@ -497,16 +499,24 @@ for i, x in enumerate(NICHE_X):
 		rr = NICHE_W / 2 + 0.08
 		box(f"Voussoir{i + 1}_{k}", (x + math.cos(a) * rr, WALL_Y - 0.02, SPRING + math.sin(a) * rr), (0.2, 0.08, 0.2), M["wall"], rot=(0, -a + math.pi / 2, 0))
 	box(f"Keystone{i + 1}", (x, WALL_Y - 0.05, SPRING + NICHE_W / 2 + 0.1), (0.22, 0.12, 0.24), M["wall"])
-	if state != "Locked":
-		# the niche's lamp (a bracket and bulb above the arch) and the light inside
-		box(f"Bracket{i + 1}", (x, WALL_Y - 0.15, 3.05), (0.05, 0.3, 0.05), M["iron"])
-		sphere(f"Bulb{i + 1}", (x, WALL_Y - 0.3, 2.98), 0.06, M["bulb"])
-		light(f"NicheLamp{i + 1}", "POINT", (x, WALL_Y - 0.25, 2.9), 45, (1.0, 0.62, 0.32), 0.08)
-		light(f"NicheFill{i + 1}", "POINT", (x, WALL_Y + 0.25, 2.3), 12, (1.0, 0.55, 0.3), 0.2)
-	if state != "Locked":
-		# a chalk circle on the niche's back wall (a halo behind the character) and one under its feet
-		plane(f"NicheCircle{i + 1}", (x, WALL_Y + 0.78, 1.6), 1.3, 1.3, M["chalk_circle"])
-		plane(f"FootCircle{i + 1}", (x, WALL_Y + 0.3, 0.262), 0.95, 0.95, M["chalk_circle"], rot=(0, 0, 0))
+	# every niche has its lamp, chalk circles and gate; the still and the preview show the ones its slot state wants,
+	# and in game the client does the same from the player's own slots (owned: lamp lit, circles, no gate)
+	lit = state != "Locked"
+	box(f"Bracket{i + 1}", (x, WALL_Y - 0.15, 3.05), (0.05, 0.3, 0.05), M["iron"])
+	sphere(f"Bulb{i + 1}", (x, WALL_Y - 0.3, 2.98), 0.06, M["bulb"]).hide_render = not lit
+	light(f"NicheLamp{i + 1}", "POINT", (x, WALL_Y - 0.25, 2.9), 45, (1.0, 0.62, 0.32), 0.08).hide_render = not lit
+	light(f"NicheFill{i + 1}", "POINT", (x, WALL_Y + 0.25, 2.3), 12, (1.0, 0.55, 0.3), 0.2).hide_render = not lit
+	# a chalk circle on the niche's back wall (a halo behind the character) and one under its feet
+	plane(f"NicheCircle{i + 1}", (x, WALL_Y + 0.78, 1.6), 1.3, 1.3, M["chalk_circle"]).hide_render = not lit
+	plane(f"FootCircle{i + 1}", (x, WALL_Y + 0.3, 0.262), 0.95, 0.95, M["chalk_circle"], rot=(0, 0, 0)).hide_render = not lit
+	gate = []
+	for k in range(11):
+		gx = x - 0.75 + k * 0.15
+		gate.append(cyl(f"Gate{i + 1}_{k}", (gx, WALL_Y - 0.05, 1.4), 0.022, 0.022, 2.4, M["rust"]))
+		gate.append(sphere(f"Spike{i + 1}_{k}", (gx, WALL_Y - 0.05, 2.62), 0.03, M["rust"]))
+	gate.append(box(f"GateBar{i + 1}", (x, WALL_Y - 0.05, 1.7), (NICHE_W, 0.04, 0.05), M["rust"]))
+	for g in gate:
+		g.hide_render = lit
 	if state == "Created":
 		# R6 characters in Rensei's dress: slot 1 an alchemist in red (coat tails, gloves), slot 2 a State Alchemist
 		# in the Authority's blue (gold epaulettes and buttons, the silver watch). In game: the slot's real character.
@@ -558,12 +568,6 @@ for i, x in enumerate(NICHE_X):
 		arm, parts = load_r6(f"Slot{i + 1}", (x, fy, 0.25), 1.85)
 		dress(parts, {"*": M["blank"]})
 		pose_r6(arm, "attention")
-	else:
-		for k in range(8):
-			gx = x - 0.52 + k * 0.15
-			cyl(f"Gate{i + 1}_{k}", (gx, WALL_Y - 0.05, 1.4), 0.022, 0.022, 2.4, M["rust"])
-			sphere(f"Spike{i + 1}_{k}", (gx, WALL_Y - 0.05, 2.62), 0.03, M["rust"])
-		box(f"GateBar{i + 1}", (x, WALL_Y - 0.05, 1.7), (1.2, 0.04, 0.05), M["rust"])
 
 # ---------- the hall: columns, roof trusses, a crane boom ----------
 for x, y in ((-3.6, 3.2), (-5.9, 9.5), (8.8, 5.5)):
@@ -973,7 +977,15 @@ except Exception as e:
 	print("raw output skipped:", e)
 scene.compositing_node_group = ng
 
-if ANIM:
+if BAKE:
+	# tileable PBR maps of the scene's materials, for Roblox MaterialVariants (menu_bake.py)
+	import runpy
+	runpy.run_path(os.path.join(os.path.dirname(os.path.abspath(__file__)), "menu_bake.py"), init_globals=globals())
+elif EXPORT:
+	# the Roblox export: the parts, lights, decals and markers, and the painted backdrop (menu_export.py)
+	import runpy
+	runpy.run_path(os.path.join(os.path.dirname(os.path.abspath(__file__)), "menu_export.py"), init_globals=globals())
+elif ANIM:
 	# the animated preview: menu_anim.py drives the scene frame by frame (it runs in this script's namespace)
 	import runpy
 	runpy.run_path(os.path.join(os.path.dirname(os.path.abspath(__file__)), "menu_anim.py"), init_globals=globals())
