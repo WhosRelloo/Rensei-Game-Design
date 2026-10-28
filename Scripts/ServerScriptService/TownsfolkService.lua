@@ -52,8 +52,10 @@
 --     them back to their schedule. The Talk prompt is off while they flee or shelter.
 --   * Takedowns (assassinations Task 9, spec §18.2, owner 2026-10-27 "Flee and report"): Startle(Id, From) -- a calm
 --     townsperson who saw a takedown (TakedownService: PerceptionService.Glimpse's result) runs the same way, away from
---     From, and hides CalmSeconds. (A takedown is quiet: its Choke / Takedown sounds aren't FleeKinds, so only the ones
---     who saw it run.) Reporting it is the deed's witness capture (MoralityService / WitnessService / RumourService).
+--     From, and hides CalmSeconds. (A knockout and an assassination are quiet: their Choke / Takedown sounds aren't
+--     FleeKinds, so only the ones who saw it run. An Elite's backstab is a real hit: its 20-stud Hit sound sends the
+--     townsfolk in range running too, seen or not, through OnNoise.) Reporting it is the deed's witness capture
+--     (MoralityService / WitnessService / RumourService).
 --   * Talk (Task 6; owner 2026-10-23: speech over their heads in Special Elite, no reply choices): a TalkPrompt on
 --     the root. Talk(Player, Id) is refused (nil) when the player's root is more than TalkRange + TalkMargin studs from
 --     the townsperson's (Foundry Yard plan Task 4b, Ruling 31: the server's own range check; the margin is for lag).

@@ -57,14 +57,15 @@
 --   finisher it was, with its own deed and its own "Dead" body (spec §4).
 -- * The BACKSTAB of a Chunk target (Task 9, spec §8; "Assassinate" only): step 1's look (townsfolk who saw it run); the
 --   player locked and playing Anims.Assassinate's player animation (its fallback as ever) up to the Snap
---   (LethalTime x KillAt), with step 5's interrupts, then stopped. No weld, no protection, no victim animation. Then one
---   hit through the normal hit path: TakenDownBy cleared (so a hit that kills leaves an ordinary corpse, not a takedown's
---   body), DownedManager.Damage(Target, MaxHealth x ChunkShare) -- the 45% that takes it to 0 knocks a knockable rig, as
---   any hit does -- and ProgressionService.RecordHit(Character, Target, "Hit"): the 20-stud Hit sound, the Alarm (Alert
---   on the player) and the last-hit credit, as for any hit; a WCS Stun on it for ChunkStun (while it lives). Then the
---   release (as in 7), the cooldown, LastTakedownResult "Assassinate:backstab", and, when it is alive and not knocked,
---   Failed(Player, Rig, "survived") (the Nemesis hook, spec §13), else Done("Assassinate", Player, Rig). No credit of
---   its own, no deed, no body.
+--   (LethalTime x KillAt), with step 5's interrupts (the release stops it). No weld, no protection, no victim animation.
+--   Then one hit through the normal hit path: TakenDownBy cleared, DownedManager.Damage(Target, MaxHealth x ChunkShare)
+--   -- the 45% that takes it to 0 knocks a knockable rig, as any hit does -- and ProgressionService.RecordHit(Character,
+--   Target, "Hit"): the 20-stud Hit sound, the Alarm (Alert on the player) and the last-hit credit, as for any hit; a
+--   WCS Stun on it for ChunkStun (while it lives and isn't knocked). A hit that will kill (a rig that isn't knockable;
+--   fix round 1, ruling) is instead credited with RecordHit and finished by DownedManager.Finish, like a grip: its body
+--   stays Takedown.BodySeconds, ragdolled, registered "Dead" by the player, TakenDownBy kept. Then the release (as in 7),
+--   the cooldown, LastTakedownResult "Assassinate:backstab", and, when it is alive and not knocked, Failed(Player, Rig,
+--   "survived") (the Nemesis hook, spec §13), else Done("Assassinate", Player, Rig). No credit of its own, no deed.
 -- * INTERRUPTED (any kind): released as in 7, and (the victim living) TakenDownBy cleared and the root's anchoring put
 --   back, DamageTakenMult (when it was saved) and the victim's Stun, the victim Alert on the player
 --   (PerceptionService.Alarm), the cooldown as in 8, LastTakedownResult "<Kind>:interrupted", then Failed(Player, Rig,
@@ -364,17 +365,30 @@ local function Backstab(S)
 		Fallback = A.PlayerFallback})
 end
 
--- (Task 9) the backstab's hit at the Snap: the normal hit path, the stun, then the release
+-- (Task 9) the backstab's hit at the Snap: the normal hit path, the stun, then the release (which stops the player's
+-- animation). (Fix round 1, ruling: the owner wants bodies easy to spot) a hit that will kill -- by DownedManager.Damage's
+-- own rule: the victim's DamageTakenMult, and a knockable rig is knocked at 0 instead -- is a takedown's kill: credited
+-- as the final hit, then finished as a grip or an assassination is (DownedManager.Finish: FinishedBy before the death,
+-- so EnemyService keeps the corpse Takedown.BodySeconds; the ragdoll; a "Dead" body by the player). TakenDownBy stays
+-- on that corpse, as on an assassinated one. A hit it lives through clears TakenDownBy first and leaves no body.
 local function Stab(S)
-	local Player, C, T = S.Player, S.Character, S.Target
-	local A = Takedown.Anims.Assassinate
-	AnimationManager.Stop(C, A.Player)
-	AnimationManager.Stop(C, A.PlayerFallback)
-	T:SetAttribute("TakenDownBy", nil) -- (first: a hit that kills leaves an ordinary corpse, not a takedown's body)
-	DownedManager.Damage(T, Hum(T).MaxHealth * Takedown.ChunkShare)
-	require(ServerScriptService.ProgressionService).RecordHit(C, T, "Hit")
-	local VWC = Alive(T) and WCS.Character.GetCharacterFromInstance(T)
-	if VWC then Stun.new(VWC):Start(Takedown.ChunkStun) end
+	local C, T = S.Character, S.Target
+	local H = Hum(T)
+	local Amount = H.MaxHealth * Takedown.ChunkShare
+	local Mult = T:GetAttribute("DamageTakenMult")
+	local Dealt = (type(Mult) == "number" and Mult >= 0) and Amount * Mult or Amount
+	local Progression = require(ServerScriptService.ProgressionService)
+	if Dealt > 0 and Dealt >= H.Health and not DownedManager.Knockable(T) and not DownedManager.IsKnocked(T) then
+		Progression.RecordHit(C, T, "Hit")
+		DownedManager.Finish(T, C, {Faction = FactionOf(T)})
+	else
+		T:SetAttribute("TakenDownBy", nil)
+		DownedManager.Damage(T, Amount)
+		Progression.RecordHit(C, T, "Hit")
+		-- (a knocked rig is held by its knock's own stun)
+		local VWC = Alive(T) and not DownedManager.IsKnocked(T) and WCS.Character.GetCharacterFromInstance(T)
+		if VWC then Stun.new(VWC):Start(Takedown.ChunkStun) end
+	end
 	Release(S, "backstab")
 end
 

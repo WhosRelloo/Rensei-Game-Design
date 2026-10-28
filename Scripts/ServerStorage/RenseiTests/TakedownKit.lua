@@ -30,7 +30,8 @@
 --     AttackRunner.CrouchStuns, Crouching = true), or stands up again (only a crouch the kit started is stopped).
 --   * (Task 8 fix round) the cases' shared helpers, moved here unchanged from Play_Takedown for Play_TakedownHard: At,
 --     AWAY, NEAR, AtHour, AddBody, DeadBody, CarryWeld, Free, WaitFor, Service, Result, Calm, Assassinate, KnockOut,
---     Finished, Behind, Deed, LAW and GrippedBodyHeat (each described where it is defined, below).
+--     Finished, Behind, Deed, LAW and GrippedBodyHeat (each described where it is defined, below). (Task 9 fix round)
+--     Has, Refused and DeedsKey, moved the same way for Play_TakedownClasses.
 --   * Kit.Folk(Name, At) -> Id, Rig (Task 9, pre-flight R10): a test townsperson of the case's own on the floor, standing
 --     at At (a CFrame: where and which way it faces) at a post of its own (SmokeKit.FolkPost / FolkDef / SpawnFolk,
 --     the fixture Play_TownsfolkHurt uses), once PerceptionService tracks it as a watcher (2 s at most). Only inside
@@ -167,8 +168,10 @@ function Kit.Clean()
 	table.clear(Made)
 	-- (Task 9) the case's townsfolk and their posts
 	for _, X in ipairs(FolkMade) do
-		pcall(require(SSS.TownsfolkService).Despawn, X.Id)
-		pcall(function() X.Post:Destroy() end)
+		local Ok, Err = pcall(require(SSS.TownsfolkService).Despawn, X.Id)
+		if not Ok then warn("TakedownKit: couldn't despawn", X.Id, Err) end
+		Ok, Err = pcall(function() X.Post:Destroy() end)
+		if not Ok then warn("TakedownKit: couldn't remove the post of", X.Id, Err) end
 	end
 	table.clear(FolkMade)
 	SmokeKit.SweepEnemies(Kit.Spot(), SWEEP)
@@ -289,6 +292,32 @@ Kit.LAW = ({[106992859583940] = {Faction = "Townsfolk", J = "Militia"}, [1095911
 -- player's grip records its own deed, executed_bandit, which is no crime), then found by a patrol at noon. Want: the law's
 -- Heat after the find less before the grip (written by hand by each case). Opts.TownsfolkId (Task 8 fix round): the rig
 -- also carries that TownsfolkId (an id no TownsfolkService townsperson has, so that service ignores it).
+-- (Task 9 fix round: moved here unchanged from Play_Takedown, for Play_TakedownClasses) Has(List, Rig): the rig is in
+-- the list (a rig, or a table with .Rig: a witness capture's entry); Refused(T, Rig, Want, What): an assassination of Rig
+-- is refused with reason Want, in LastTakedownResult, and nothing is marked; DeedsKey(): every deed in the save with its
+-- count and times seen, as one string (a deed recorded changes it)
+function Kit.Has(List, Rig)
+	for _, X in ipairs(List) do
+		if X == Rig or (type(X) == "table" and X.Rig == Rig) then return true end
+	end
+	return false
+end
+function Kit.Refused(T, Rig, Want, What)
+	local Ok, Why = Kit.Assassinate(Rig)
+	T.Eq(Ok, false, What .. ": refused")
+	T.Eq(Why, Want, What .. ": the reason")
+	T.Eq(Kit.Result(), "Assassinate:" .. Want, What .. ": LastTakedownResult")
+	T.Eq(Rig:GetAttribute("TakenDownBy"), nil, What .. ": the target isn't marked")
+	T.Eq(Char():GetAttribute("TakingDown"), nil, What .. ": the player isn't marked")
+end
+function Kit.DeedsKey()
+	local M = Progression.GetData(Kit.Player()).Morality
+	local Out = {}
+	for Id, E in pairs((M and M.Deeds) or {}) do table.insert(Out, Id .. "=" .. tostring(E.Count) .. "/" .. tostring(E.Seen)) end
+	table.sort(Out)
+	return table.concat(Out, ",")
+end
+
 function Kit.GrippedBodyHeat(T, Faction, Want, Opts)
 	Opts = Opts or {}
 	local LAW, Player = Kit.LAW, Kit.Player()
