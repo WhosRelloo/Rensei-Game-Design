@@ -200,7 +200,7 @@ The Testbed, `Art/Regions/Testbed/layout.json`, is a 256 × 256 test map with on
 Run it in Blender, through the bridge, with a small Python file:
 
 ```python
-import sys; sys.path.insert(0, r"C:/Users/Owner/Rensei-Game-Design/Art/Blender")
+import sys; sys.path.insert(0, r"E:/Rensei/Rensei-Game-Design/Art/Blender")
 from region_builder import build
 result = build.run("Testbed")                      # every stage, renders included
 # result = build.run("Testbed", "ground,routes,markers")
@@ -265,7 +265,7 @@ The export is `Art/Blender/lindenmoor/export.py`: `export(scene_name="Lindenmoor
 
 ```python
 from lindenmoor import export as EX
-EX.export("Region_<Region>", r"C:/Users/Owner/Rensei-Game-Design/Art/Studio/Regions/<Region>/layout.json", origin=(0, 0, 0))
+EX.export("Region_<Region>", r"E:/Rensei/Rensei-Game-Design/Art/Studio/Regions/<Region>/layout.json", origin=(0, 0, 0))
 ```
 
 With origin (0, 0, 0), region coordinates are world coordinates. Each part row is:

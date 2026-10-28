@@ -11,7 +11,7 @@ the result is also written to <temp>/foundry_check.json). It changes nothing it 
 for the rays are shown again and the file is reverted when it was clean before. Sets `result` to a dict."""
 import json, math, os, sys, traceback
 
-BLENDER = r"C:/Users/Owner/Rensei-Game-Design/Art/Blender"
+BLENDER = r"E:/Rensei/Rensei-Game-Design/Art/Blender"
 if BLENDER not in sys.path:
     sys.path.insert(0, BLENDER)
 for _m in [m for m in list(sys.modules) if m == "region_builder" or m.startswith("region_builder.")]:

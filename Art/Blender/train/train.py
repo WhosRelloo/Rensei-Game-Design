@@ -4,7 +4,7 @@ local +x = forward, rail top at z = 0, floor top at z = 4.2. Helper parts (Board
 Every size and colour is a PROPOSAL (owner refs: the FMA locomotive, the maroon coach, the 3rd-class benches).
 
 Run in Blender:
-    import sys; sys.path.insert(0, r"C:/Users/Owner/Rensei-Game-Design/Art/Blender")
+    import sys; sys.path.insert(0, r"E:/Rensei/Rensei-Game-Design/Art/Blender")
     import train.train as T; result = T.run()            # builds scene "Train"
     T.render_setup(); T.render("loco", path)              # optional preview renders (views in CAMS)
 Export with lindenmoor.export.export("Train", <Art/Studio/Train/layout.json>), then studio_kit.py Art/Studio/Train.

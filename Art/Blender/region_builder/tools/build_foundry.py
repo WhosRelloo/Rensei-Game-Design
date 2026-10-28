@@ -14,7 +14,7 @@ this file to change what runs:
 Sets `result` to a dict. Every number in VIADUCT is a PROPOSAL (owner-approved layout, 2026-10-24)."""
 import json, os, sys, tempfile, time, traceback
 
-BLENDER = r"C:/Users/Owner/Rensei-Game-Design/Art/Blender"
+BLENDER = r"E:/Rensei/Rensei-Game-Design/Art/Blender"
 REPO = os.path.normpath(os.path.join(BLENDER, "..", ".."))
 if BLENDER not in sys.path:
     sys.path.insert(0, BLENDER)

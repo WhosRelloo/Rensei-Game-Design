@@ -1,7 +1,7 @@
 """Builds a region in Blender from Art/Regions/<Region>/layout.json (spec 2026-10-23 §3.2).
 
 Run in Blender (Art/Tools/blender_mcpc.py code @file.py):
-    import sys; sys.path.insert(0, r"C:/Users/Owner/Rensei-Game-Design/Art/Blender")
+    import sys; sys.path.insert(0, r"E:/Rensei/Rensei-Game-Design/Art/Blender")
     from region_builder import build
     result = build.run("Testbed")                         # every stage, renders included
     result = build.run("Testbed", "ground,routes,markers")

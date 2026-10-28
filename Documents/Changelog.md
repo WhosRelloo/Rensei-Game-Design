@@ -2,7 +2,20 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
-**Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
+**Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### 2026-10-28 — The repo moved to E:/Rensei (no game change)
+
+**Owner:** "Any new files you make for the game, throw them on the E: drive since it has more space", then "Move the repo to E:/Rensei too, once no task is mid-edit." C: had 2.7 GB free.
+
+- The whole repo, with its history and the uncommitted Lindenmoor .blend, now lives at `E:/Rensei/Rensei-Game-Design`. The copy was checked file for file (6,242 files, same bytes, same HEAD 48cc849, `git fsck` clean) before the C: copy was removed.
+- The seven Blender scripts that had the old path written in (`lindenmoor/expansion.py`, `region_builder/build.py`, its two Blender checks, `build_foundry.py`, `render_kit_gallery.py`, `train/train.py`) and `Region Builder.md` now point at `E:/Rensei/Rensei-Game-Design/Art/Blender`.
+- Working files (test runs, save dumps, screenshots) go to `E:/Rensei/Work`, backups to `E:/Rensei/Backups`, renders to `E:/Rensei/Renders`.
+- Older plans still mention the C: path; they are history and were left as written.
+
+### Discord announcement
+
+Nothing to post: no player-facing change.
+
+## Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
 ## 2026-10-28 — The takedown key is rebindable (not live)
 

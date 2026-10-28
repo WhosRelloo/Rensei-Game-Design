@@ -9,7 +9,7 @@ the edge ridges and EdgeGaps, the export, and the whole rail-town kit (built in 
 Sets `result` to a dict: {"pass": bool, "fails": [...], ...}."""
 import importlib, json, math, os, sys, tempfile, traceback
 
-BLENDER = r"C:/Users/Owner/Rensei-Game-Design/Art/Blender"
+BLENDER = r"E:/Rensei/Rensei-Game-Design/Art/Blender"
 REPO = os.path.normpath(os.path.join(BLENDER, "..", ".."))
 if BLENDER not in sys.path:
     sys.path.insert(0, BLENDER)

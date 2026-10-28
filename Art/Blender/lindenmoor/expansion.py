@@ -2,7 +2,7 @@
 around the finished village, from Art/Regions/Lindenmoor/layout.json (planned by expansion_plan.py, no bpy).
 
 Run in Blender (Art/Tools/blender_mcpc.py code @file.py):
-    import sys; sys.path.insert(0, r"C:/Users/Owner/Rensei-Game-Design/Art/Blender")
+    import sys; sys.path.insert(0, r"E:/Rensei/Rensei-Game-Design/Art/Blender")
     import importlib, lindenmoor.expansion as X; importlib.reload(X)
     result = X.run("village")            # the finished village as a preview (world.py), then
     result = X.run("ground,water,routes") ...  # see STAGES; X.render_all(); X.save()

@@ -7,7 +7,7 @@ file, so nothing is saved. Set SHOTS to a list of shot names (stages.GALLERY_SHO
 "foundry gantries") to render only those. Sets `result` to a dict."""
 import os, sys, traceback
 
-BLENDER = r"C:/Users/Owner/Rensei-Game-Design/Art/Blender"
+BLENDER = r"E:/Rensei/Rensei-Game-Design/Art/Blender"
 REPO = os.path.normpath(os.path.join(BLENDER, "..", ".."))
 if BLENDER not in sys.path:
     sys.path.insert(0, BLENDER)
