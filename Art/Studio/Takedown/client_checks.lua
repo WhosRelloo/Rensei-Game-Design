@@ -1,6 +1,9 @@
--- client_checks.lua (assassinations Task 10, 2026-10-25): the CLIENT checks of the takedown prompt (Modules.UI.TakedownUI),
--- the E fix (CombatModeUI: only a prompt on E takes E from Combat Mode, spec A8) and N reserved (Rensei.Settings). Play
--- only, run from the Server data model, with the Play protocol's hook (ServerStorage.LMRunSuite):
+-- client_checks.lua (assassinations Task 10, 2026-10-25): the CLIENT checks of the takedown prompt (Modules.UI.TakedownUI)
+-- and the E fix (CombatModeUI: only a prompt on E takes E from Combat Mode, spec A8). (2026-10-28, the takedown key made
+-- rebindable; owner: "Yes it should rebindable") N is no longer reserved: the pure rules are Test_Settings, and
+-- TakedownKeyFollowsBinding / UnboundHidesKeyboardPrompt / ServerSavesTakedownKey here check the prompt and the server's
+-- save path. Each puts the player's own binding and saved Settings back before it returns (Reset restores the client's
+-- binding too). Play only, run from the Server data model, with the Play protocol's hook (ServerStorage.LMRunSuite):
 --   python -I Art/Tools/rbxc.py luau "placeId: <id>" Server @Art/Studio/Takedown/client_checks.lua
 -- It is the gun rework's pattern (Art/Studio/Guns/client_checks.lua), not a new one. Everything it makes is a Play copy
 -- that vanishes at Stop, and it removes it all before returning:
@@ -48,6 +51,10 @@ local UIState = require(ReplicatedStorage.Modules.UI.UIState)
 local TakedownUI = require(ReplicatedStorage.Modules.UI.TakedownUI)
 local Kept = nil -- a TakedownPrompt Remember kept, until Reset
 local Opened = {} -- the menus Menu opened, closed again in Reset
+-- (2026-10-28) the client's Keybinds (the table SettingsUI writes and TakedownUI reads), and the player's own takedown
+-- binding before the first Bind, put back by Bind {Key = Was} or by Reset
+local Keybinds = require(ReplicatedStorage.Modules.Managers.Keybinds)
+local Original = nil
 
 local function PromptOf(Rig)
 	local Root = Rig and Rig:FindFirstChild("HumanoidRootPart")
@@ -60,6 +67,19 @@ local function Count()
 	end
 	return N
 end
+-- the key labels PromptUI draws for the rig's prompt right now (its BillboardGui RenseiPrompt, adorning the root)
+local function Labels(Rig)
+	local Root = Rig and Rig:FindFirstChild("HumanoidRootPart")
+	local Out = {}
+	for _, G in ipairs(Player.PlayerGui:GetChildren()) do
+		if G.Name == "RenseiPrompt" and G:IsA("BillboardGui") and Root and G.Adornee == Root then
+			local H = G:FindFirstChild("Holder")
+			local K = H and H:FindFirstChild("Key") and H.Key:FindFirstChild("KeyText")
+			if K then table.insert(Out, K.Text) end
+		end
+	end
+	return Out
+end
 local function Shown(Want)
 	for P in pairs(ShownNow) do
 		if P.Parent and Want(P) then return true end
@@ -70,20 +90,34 @@ end
 local Checks = {}
 function Checks.Ping() return true end
 
--- Args: Rig, Want (true: a TakedownPrompt under its root, whose ObjectText ends with Ends when given; false: none),
--- Within seconds. Polled every frame from the request.
+-- Args: Rig, Want (true: a TakedownPrompt under its root, whose ObjectText ends with Ends when given, on the key named
+-- Key when given, and drawn by PromptUI with the key label Label when given; false: none), Within seconds. Polled every
+-- frame from the request.
 function Checks.Prompt(Args)
 	local T0 = os.clock()
 	local function Met()
 		local P = PromptOf(Args.Rig)
 		if not Args.Want then return P == nil end
 		return P ~= nil and (Args.Ends == nil or P.ObjectText:sub(-#Args.Ends) == Args.Ends)
+			and (Args.Key == nil or P.KeyboardKeyCode.Name == Args.Key)
+			and (Args.Label == nil or table.find(Labels(Args.Rig), Args.Label) ~= nil)
 	end
 	while not Met() and os.clock() - T0 < Args.Within do RunService.RenderStepped:Wait() end
 	local P = PromptOf(Args.Rig)
 	return {Ok = Met(), After = os.clock() - T0, Count = Count(), ObjectText = P and P.ObjectText, ActionText = P and P.ActionText,
 		Key = P and P.KeyboardKeyCode.Name, Hold = P and P.HoldDuration, Style = P and P.Style.Name,
-		LineOfSight = P and P.RequiresLineOfSight, MaxDistance = P and P.MaxActivationDistance}
+		LineOfSight = P and P.RequiresLineOfSight, MaxDistance = P and P.MaxActivationDistance,
+		Labels = table.concat(Labels(Args.Rig), ",")}
+end
+
+-- (2026-10-28) Args: Key: bind the takedown to that key name in the client's Keybinds, as SettingsUI's Apply does
+-- (Keybinds.Set; its Changed rebinds TakedownUI). The player's own binding is kept before the first Bind.
+function Checks.Bind(Args)
+	if Original == nil then Original = Keybinds.Keys.Takedown end
+	local Was = Original
+	Keybinds.Set("Takedown", Args.Key)
+	if Args.Key == Original then Original = nil end -- put back: nothing left for Reset
+	return {Was = Was, Now = Keybinds.Keys.Takedown, LastInput = UIS:GetLastInputType().Name}
 end
 
 -- Args: Rig, Hold seconds: the prompt held as a key would hold it, then let go
@@ -143,6 +177,7 @@ end
 
 function Checks.Reset()
 	if StandIn then StandIn:Destroy() StandIn = nil end
+	if Original ~= nil then Keybinds.Set("Takedown", Original) Original = nil end
 	Kept = nil
 	for Name in pairs(Opened) do
 		if UIState.IsOpen(Name) then UIState.ToggleMenu(Name) end
@@ -181,6 +216,9 @@ local SERVER = [==[
 --     "Mastery") and the Journal (J): each hides the prompt while open (ruling, PROPOSAL).
 --   (Task 11) NEAR_X, NEAR_Z: a second Grunt at At(1.2, 1.2), facing -Z as the first: the player (3 studs behind the
 --     first, at At(0, 3)) is 2.16 studs from it, 34 degrees off its back, so it is nearer and the target.
+--   (2026-10-28) REBIND "H": a free key (in no Reserved list, bound by nothing); PromptUI labels it "H", and N "N".
+--     RESERVED "LeftShift": a key the server refuses for any action (run). UNBOUND "Unknown": the name Settings leaves
+--     for an action with no key.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SSS = game:GetService("ServerScriptService")
@@ -199,6 +237,8 @@ local KEY_WAIT = 30
 local TAP_GRACE = 0.1
 local MENUS = {"Inventory", "Stats", "Settings", "Mastery", "Journal"}
 local NEAR_X, NEAR_Z = 1.2, 1.2
+local REBIND, RESERVED, UNBOUND = "H", "LeftShift", "Unknown"
+local Progression = require(SSS.ProgressionService)
 local SmokeKit = require(script.Parent.SmokeKit)
 
 local Replies = {}
@@ -231,7 +271,9 @@ end
 
 local function Char() return Player.Character end
 local function Result() return Char():GetAttribute("LastTakedownResult") end
-local function Shows(Rig, Ends) return Ask("Prompt", {Rig = Rig, Want = true, Within = WITHIN, Ends = Ends}) end
+local function Shows(Rig, Ends, Key, Label)
+	return Ask("Prompt", {Rig = Rig, Want = true, Within = WITHIN, Ends = Ends, Key = Key, Label = Label})
+end
 local function Goes(Rig) return Ask("Prompt", {Rig = Rig, Want = false, Within = WITHIN}) end
 local function Secs(R) return ("%.2f s"):format(R.After) end
 
@@ -384,10 +426,76 @@ local Suite = {
 			T.True(R.Ok, "control, every menu closed: the prompt back within 0.5 s (" .. Secs(R) .. ")")
 		end)
 	end,
-	-- N is reserved: no action can be bound to it (pure; control: a free key is bindable)
-	NReserved = function(T)
-		T.Eq(Settings.IsBindableKey("N"), false, "N is not bindable")
-		T.Eq(Settings.IsBindableKey("U"), true, "control: U (free) is bindable")
+	-- (2026-10-28) the prompt follows the player's binding: rebound to H, a fresh prompt on H with PromptUI's label "H",
+	-- with no respawn; bound back, on N again. The player's own binding is put back (here, and by Reset on a failure).
+	TakedownKeyFollowsBinding = function(T)
+		Case(function(Rig)
+			local R0 = Shows(Rig, nil, KEY, KEY)
+			T.True(R0.Ok, "control: on N, labelled N (" .. Secs(R0) .. ", key " .. tostring(R0.Key) .. ", labels "
+				.. tostring(R0.Labels) .. ")")
+			T.True(Ask("Remember", {Rig = Rig}), "setup: its prompt kept")
+			local B = Ask("Bind", {Key = REBIND})
+			T.Eq(B.Was, KEY, "the player's own binding is N")
+			T.Eq(B.Now, REBIND, "Keybinds: the takedown on H")
+			local R = Shows(Rig, nil, REBIND, REBIND)
+			T.True(R.Ok, "rebound: the prompt on H, labelled H, within 0.5 s (" .. Secs(R) .. ", key " .. tostring(R.Key)
+				.. ", labels " .. tostring(R.Labels) .. ")")
+			T.Eq(R.Key, REBIND, "KeyboardKeyCode H")
+			T.Eq(R.Count, 1, "one TakedownPrompt in the workspace")
+			T.True(Ask("Fresh", {Rig = Rig}).New, "a fresh prompt for the new key")
+			T.Near(R.Hold, HOLD_TO_KILL, 1e-6, "HoldDuration unchanged")
+			T.Eq(R.ActionText, FULL_ACTION, "ActionText unchanged")
+			local Back = Ask("Bind", {Key = B.Was})
+			T.Eq(Back.Now, KEY, "bound back: Keybinds on N")
+			local N = Shows(Rig, nil, KEY, KEY)
+			T.True(N.Ok, "bound back: the prompt on N, labelled N, within 0.5 s (" .. Secs(N) .. ", key " .. tostring(N.Key) .. ")")
+			T.Eq(N.Key, KEY, "KeyboardKeyCode N again")
+		end)
+	end,
+	-- (2026-10-28) unbound (Unknown) on keyboard and mouse: no prompt; bound again, it comes back
+	UnboundHidesKeyboardPrompt = function(T)
+		Case(function(Rig)
+			T.True(Shows(Rig, nil, KEY).Ok, "control: the prompt shows on N")
+			local B = Ask("Bind", {Key = UNBOUND})
+			T.Eq(B.Now, UNBOUND, "Keybinds: the takedown unbound")
+			T.True(B.LastInput ~= "Touch" and B.LastInput:sub(1, 7) ~= "Gamepad",
+				"setup: keyboard and mouse input (last input " .. tostring(B.LastInput) .. ")")
+			local G = Goes(Rig)
+			T.True(G.Ok, "unbound: no prompt within 0.5 s (" .. Secs(G) .. ")")
+			task.wait(0.3)
+			T.True(Goes(Rig).Ok, "unbound: still none 0.3 s later (no prompt is made again)")
+			Ask("Bind", {Key = B.Was})
+			local R = Shows(Rig, nil, KEY, KEY)
+			T.True(R.Ok, "bound back: the prompt on N within 0.5 s (" .. Secs(R) .. ")")
+		end)
+	end,
+	-- (2026-10-28) the server's save path (Requests.Settings -> Settings.Resolve): a saved H is kept; a reserved key and
+	-- a name that is no key fall back to N. The player's Settings table is put back (the same table) before it returns.
+	ServerSavesTakedownKey = function(T)
+		Kit.Guard(function()
+			local SH = game:GetService("ServerScriptService"):FindFirstChild("ServerHandler")
+			local M = SH and SH:FindFirstChild("Requests") and SH.Requests:FindFirstChild("Settings")
+			assert(M, "setup: no ServerScriptService.ServerHandler.Requests.Settings")
+			local Request = require(M)
+			local Data = Progression.GetData(Player)
+			assert(Data, "setup: no profile data for the test player")
+			local Orig = Data.Settings
+			local Ok, Err = pcall(function()
+				local Saved = Settings.Resolve(Orig)
+				Saved.Keys.Takedown = REBIND
+				Request(Player, Saved)
+				T.True(Data.Settings ~= Orig, "setup: the request replaced the Settings table")
+				T.Eq(Data.Settings.Keys.Takedown, REBIND, "the server kept the saved H")
+				Saved.Keys.Takedown = RESERVED
+				Request(Player, Saved)
+				T.Eq(Data.Settings.Keys.Takedown, KEY, "a reserved LeftShift falls back to N")
+				Saved.Keys.Takedown = "NotAKey"
+				Request(Player, Saved)
+				T.Eq(Data.Settings.Keys.Takedown, KEY, "a name that is no key falls back to N")
+			end)
+			Data.Settings = Orig
+			if not Ok then error(Err, 0) end
+		end)
 	end,
 }
 

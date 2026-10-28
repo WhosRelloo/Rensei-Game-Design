@@ -11,16 +11,22 @@
 --     Combat Mode); not swimming; off cooldown (workspace:GetServerTimeNow() >= TakedownReadyAt); no conversation open
 --     (Gui.Dialogue, as CombatModeUI checks), no cutscene (a Scriptable camera) and (Task 11) no menu open (Menus).
 --   * One ProximityPrompt, TakedownPrompt, made here on the client under the candidate's HumanoidRootPart, Style Custom
---     (drawn by PromptUI, the game's existing prompt art: no new UI assets), on Takedown.Key (N, reserved in
---     Rensei.Settings). (Task 11) A new candidate gets a new prompt (the old one is destroyed, never moved: it may have
---     gone with its rig); it is destroyed when there is none.
+--     (drawn by PromptUI, the game's existing prompt art: no new UI assets), on the player's takedown key,
+--     TakedownUI.Key() (Settings > Keybinds > Takedown; N by default, Takedown.Key; rebindable since 2026-10-28). (Task 11)
+--     A new candidate gets a new prompt (the old one is destroyed, never moved: it may have gone with its rig); it is
+--     destroyed when there is none. A rebind (Keybinds.Changed "Takedown") destroys it too, so the next pick makes a
+--     fresh one on the new key and PromptUI draws the new key's label (PromptUI reads the key only when a prompt shows).
+--   * Unbound (the key is "Unknown"): no prompt while the player is on keyboard and mouse; on touch or a gamepad
+--     (UserInputService:GetLastInputType) the prompt is offered as always.
 --   * Input: a tap (the hold ends and no Triggered follows within TapGrace) asks for a knockout; a full hold (Triggered)
 --     asks for an assassination. A Chunk target (an Elite) can only be backstabbed: a tap does nothing. Touch: PromptUI's own
 --     tap button holds the prompt (tap / hold), so the prompt is the touch control too.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local UIState = require(script.Parent.UIState)
+local Keybinds = require(ReplicatedStorage.Modules.Managers.Keybinds)
 local Rensei = ReplicatedStorage.Modules.Data.Rensei
 local Takedown = require(Rensei.Takedown)
 local Tuning = require(Rensei.TuningConfig)
@@ -42,6 +48,19 @@ TakedownUI.TapGrace = 0.1
 -- (Task 11, ruling) the full-screen menus (UIState.RegisterMenu names; UIHandler's Bag is "Inventory", its Menu
 -- "Settings"): no prompt while one is open. PROPOSAL.
 TakedownUI.Menus = {"Inventory", "Stats", "Settings", "Mastery", "Journal", "Minigame", "Admin"}
+
+-- The player's takedown key now (an Enum.KeyCode): their Settings binding, N by default; Enum.KeyCode.Unknown when they
+-- left it unbound. Everything that offers the takedown action on a key reads it here (hostages Task 12 too).
+function TakedownUI.Key()
+	return Enum.KeyCode[Keybinds.Keys.Takedown or Takedown.Key]
+end
+
+-- whether the prompt can be offered with the player's input now: always with a key; unbound, only on touch or a gamepad
+function TakedownUI.Offered()
+	if TakedownUI.Key() ~= Enum.KeyCode.Unknown then return true end
+	local Last = UserInputService:GetLastInputType()
+	return Last == Enum.UserInputType.Touch or Last.Name:sub(1, 7) == "Gamepad"
+end
 
 local function Alive(Model)
 	local H = Model:FindFirstChildOfClass("Humanoid")
@@ -119,7 +138,7 @@ local function Make()
 	local P = Instance.new("ProximityPrompt")
 	P.Name = "TakedownPrompt"
 	P.Style = Enum.ProximityPromptStyle.Custom
-	P.KeyboardKeyCode = Enum.KeyCode[Takedown.Key]
+	P.KeyboardKeyCode = TakedownUI.Key()
 	P.HoldDuration = Takedown.HoldToKill
 	P.RequiresLineOfSight = false
 	P.MaxActivationDistance = Takedown.Range + 2
@@ -146,7 +165,7 @@ end
 
 function TakedownUI.Update()
 	local Next, Class = TakedownUI.Candidate()
-	if not Next then Clear() return end
+	if not (Next and TakedownUI.Offered()) then Clear() return end
 	if Next ~= Rig or not (Prompt and Prompt.Parent) then
 		-- (Task 11) a fresh prompt per target: the old one may have gone with its rig, so it is never reparented; Clear
 		-- also drops any hold (a hold never carries over to another rig)
@@ -161,6 +180,10 @@ function TakedownUI.Update()
 end
 
 function TakedownUI.Start()
+	-- a rebind: drop the prompt (and any hold on it); the next pick makes it again on the new key
+	Keybinds.Changed:Connect(function(Name)
+		if Name == "Takedown" then Clear() end
+	end)
 	task.spawn(function()
 		while true do
 			local Ok, Err = pcall(TakedownUI.Update)

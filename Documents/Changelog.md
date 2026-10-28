@@ -4,6 +4,39 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-28 — The takedown key is rebindable (not live)
+
+**Owner** (asked whether the takedown key should be rebindable): "Yes it should rebindable".
+
+**What changed** (Ye and Foundry Yard, the same files in both; the Tutorial is not a package consumer and has no takedowns, so it is left alone):
+- **`Rensei.Settings`:** `Defaults.Keys.Takedown = "N"` and `Bindable.Takedown`; N is out of `Reserved`. B and V (grip, carry) stay reserved. The server's save path (`Requests.Settings` → `Settings.Resolve`) is unchanged: a saved Takedown key is kept when `IsBindableKey` accepts it, anything else falls back to N, and the one-key-per-action rule covers it like the other actions. Nothing changed in ProfileService or the data layer: the key lives in the profile's existing `Settings.Keys`.
+- **`Keybinds`:** `Keys.Takedown = "N"` (without it `Keybinds.Set` ignored the action).
+- **The Settings panel:** a **Takedown** row on the Keybinds tab, after Aim (Guns): a copy of the Aim row (`StarterGui.Uis.Settings.MainFrame.Container.Takedown`, LayoutOrder 150, attribute `KeyNAdd`), the same template and art, made by `Art/Studio/UI/takedown_row.lua` (MODE "remove" takes it out). `SettingsUI` needed no change: it wires every row by its `Tab` and `Kind` attributes.
+  - The first copy came out short (Size Y 0.049 against Aim's 0.0913, the same thing the 2026-10-18 entry fixed for Combat Log and Aim). The script now sets the size after parenting, and a re-run fixed both places: every row is 0.0913.
+  - **For the publish list:** `StarterGui.Uis` is a **package** in Ye (PackageLink v1), and it now has this extra row in both places.
+- **`TakedownUI`:** the prompt is made on `TakedownUI.Key()`, the player's binding (N by default). A rebind (`Keybinds.Changed` "Takedown") drops the prompt, and the next pick (0.1 s) makes a fresh one on the new key, so PromptUI draws the new key's label with no respawn. Left unbound ("Unknown"), no prompt is offered on keyboard and mouse; on touch or a gamepad it is offered as before. Tap, hold, `TapGrace` and the gamepad and touch paths are unchanged.
+  - For hostages Task 12: read the key with `TakedownUI.Key()` (an `Enum.KeyCode`; `Enum.KeyCode.Unknown` when unbound) and offer the prompt only when `TakedownUI.Offered()` is true.
+- Comments that said N is reserved: `Rensei.Settings`, `Rensei.Takedown`, `CombatModeUI`, `TakedownUI`. `Documents/Controls.md`: Takedowns now say "N (rebindable)".
+- **Tooling:** two new sync pairs, `Managers.Keybinds` and `RenseiTests.Test_Settings` (both places).
+
+**Tests:**
+- `Test_Settings` (new, pure): RED 0/6 against the old `Rensei.Settings`, GREEN 6/0 (Ye, Edit, from the repo sources).
+- `Art/Studio/Takedown/client_checks.lua`: `NReserved` is gone (its rule is now in `Test_Settings`); new `TakedownKeyFollowsBinding`, `UnboundHidesKeyboardPrompt` and `ServerSavesTakedownKey`.
+- After the sync (both places, backup `Pre-KeyN_2026-10-28`; `sync.py --check` showed only these six labels differing before it, and SAME after): `Test_Settings` 6/0 and `Test_Takedown` 13/0 in Edit, in Ye and in Foundry.
+- **Play, Ye, lock `Ye:keyN`, two sessions.** Each one: `TestNoSave` set in Edit, then `DataManager.IsNoSave()` true and the mock profile confirmed from the game VM before anything changed; hooked and dumped; restored; dump 2 equal to dump 1 (15,309 chars); Stop; unhook read back as gone; helper out; the switch and lock cleared.
+  - **RED** (the old Studio code): the three new checks 0/3. There was no Takedown key in Keybinds, and the server dropped a saved H.
+  - **GREEN** (after the sync and the row): 11/0. That is every client check except `EStillDraws`, which needs a real E press; CombatModeUI only had a comment change. The prompt moved to H with the label "H" on a fresh prompt and came back to N, with hold time and action text unchanged. Unbound on keyboard and mouse, no prompt. The server kept H and sent LeftShift and "NotAKey" back to N, and the player's own binding and Settings table were put back. On the client, the Settings Takedown row showed "N" on the Keybinds tab.
+- Not tested: a real phone or gamepad (the unbound case on touch or gamepad is code-read only), and a rebind made by a real key press in the Settings panel. The checks rebind through `Keybinds.Set`, as the panel's Apply does.
+
+### Discord announcement
+
+Hold: not live yet. Post this when the owner publishes the update.
+
+```md
+**Small update: Takedown key**
+- You can now change the takedown key (N by default) in the Menu (P), under Keybinds. The prompt shows your new key right away.
+```
+
 ## 2026-10-27 — TestNoSave: test Play sessions can't write the real save (Studio only, not live)
 
 **Owner:** "Yes, add a Studio-only no-save switch for test runs, before hostages starts."

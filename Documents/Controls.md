@@ -18,7 +18,7 @@ Attacks and blocking only work in **Combat Mode**.
 
 | Key | Action |
 |---|---|
-| E | Combat Mode on or off (draw or sheathe). Out of combat, E also uses prompts (talk, inspect, doors). Only a prompt on E stops E from drawing (a takedown prompt on N doesn't; not live yet). |
+| E | Combat Mode on or off (draw or sheathe). Out of combat, E also uses prompts (talk, inspect, doors). Only a prompt on E stops E from drawing (the takedown prompt, on N or its rebound key, doesn't; not live yet). |
 | Left Mouse | Light combo. Hold to keep swinging. In the air: aerial attack. While running: dash attack. |
 | Ctrl + Left Mouse | Uppercut (launches into an air juggle) |
 | Right Mouse | Feint (cancels a light attack's wind-up). With guns in shooting mode: **fire (hold to keep firing)**. |
@@ -53,10 +53,10 @@ Assassinations (2026-10-27, not live yet; the key and numbers are PROPOSAL). Onl
 
 | Key | Action |
 |---|---|
-| N (tap) | Knock out an enemy from behind (it hasn't caught you; you're in Calm) |
-| N (hold 0.6 s) | Assassinate it. Elites and Hunters: a backstab instead. Bosses can't be taken down |
+| N **(rebindable)** (tap) | Knock out an enemy from behind (it hasn't caught you; you're in Calm) |
+| N **(rebindable)** (hold 0.6 s) | Assassinate it. Elites and Hunters: a backstab instead. Bosses can't be taken down |
 
-N is reserved, like B and V: it can't be rebound. Players and townsfolk can never be taken down. Gamepad: the prompt's default button (ButtonX).
+N (rebindable): change it in Menu (P) > Keybinds > Takedown (2026-10-28, not live yet); the prompt shows the key you chose, at once. Tap and hold work the same on any key. A key left unbound (Unknown) shows no takedown prompt on keyboard and mouse; touch and gamepad still get it. B and V stay reserved. Players and townsfolk can never be taken down. Gamepad: the prompt's default button (ButtonX). Touch: tap or hold the prompt itself.
 
 ## Swimming
 Swimming revamp (2026-10-27, not live yet; the keys and numbers are PROPOSAL):
@@ -107,7 +107,7 @@ Every button does the same thing as its key. The fight buttons appear only in Co
 | Z, X, C (hold to keep the clap) | Z, X, C |
 | V (Carry, otherwise Ultimate) | V |
 | Grip (near a knocked body) | B |
-| Takedown: tap or hold the prompt over the enemy (tap: knock out; hold: assassinate) | N |
+| Takedown: tap or hold the prompt over the enemy (tap: knock out; hold: assassinate) | N (rebindable) |
 | Bag, Stats, Menu, Mastery, Journal | `, M, P, K, J |
 
 On a wall, the thumbstick moves you the same way W A S D does.

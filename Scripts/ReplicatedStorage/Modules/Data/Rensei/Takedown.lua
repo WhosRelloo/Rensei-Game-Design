@@ -16,7 +16,7 @@ local Heat = require(script.Parent.Heat)
 
 local Takedown = {}
 
-Takedown.Key = "N" -- tap: knock out; hold HoldToKill: assassinate (reserved in Rensei.Settings)
+Takedown.Key = "N" -- tap: knock out; hold HoldToKill: assassinate. The default: players rebind it (Rensei.Settings Keys.Takedown)
 Takedown.HoldToKill = 0.6 -- seconds
 Takedown.Range = 4 -- studs, root to root on the ground plane
 Takedown.RangeSlack = 1.5 -- server only: lag

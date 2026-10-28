@@ -142,5 +142,7 @@
   {"Label": "RenseiTests.Play_HostageHard", "Studio": "ServerStorage/RenseiTests/Play_HostageHard", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_HostageHard.lua", "Places": ["ye", "foundry"], "Create": true},
   {"Label": "RenseiServer.HostageService", "Studio": "ServerStorage/RenseiServer/HostageService", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/HostageService.lua", "Places": ["ye", "foundry"], "Create": true},
   {"Label": "Requests.Hostage", "Studio": "ServerStorage/RenseiServer/ServerHandler/Requests/Hostage", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/ServerHandler/Requests/Hostage.lua", "Places": ["ye", "foundry"], "Create": true},
-  {"Label": "RenseiTests.Play_Hostage", "Studio": "ServerStorage/RenseiTests/Play_Hostage", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Hostage.lua", "Places": ["ye", "foundry"], "Create": true}
+  {"Label": "RenseiTests.Play_Hostage", "Studio": "ServerStorage/RenseiTests/Play_Hostage", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Hostage.lua", "Places": ["ye", "foundry"], "Create": true},
+  {"Label": "Managers.Keybinds", "Studio": "ReplicatedStorage/Modules/Managers/Keybinds", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/Managers/Keybinds.lua", "Places": ["ye", "foundry"], "Create": false},
+  {"Label": "RenseiTests.Test_Settings", "Studio": "ServerStorage/RenseiTests/Test_Settings", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_Settings.lua", "Places": ["ye", "foundry"], "Create": true}
 ]}

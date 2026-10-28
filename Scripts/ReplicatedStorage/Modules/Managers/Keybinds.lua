@@ -1,8 +1,10 @@
--- Client-side rebindable keys (Dash, Block, LockTarget, WeaponSkill, Aim = guns' shooting mode). Settings writes them; input code reads
--- them and listens to Changed to rebind.
+-- Client-side rebindable keys (Dash, Block, LockTarget, WeaponSkill, Aim = guns' shooting mode, Takedown = the takedown
+-- prompt, 2026-10-28). Settings writes them; input code reads them and listens to Changed to rebind. A key name may be
+-- "Unknown": Rensei.Settings.Resolve leaves an action free when it has no key of its own (Get then returns
+-- Enum.KeyCode.Unknown).
 local Keybinds = {}
 
-Keybinds.Keys = {Dash = "Q", Block = "F", LockTarget = "G", WeaponSkill = "T", Aim = "Y"}
+Keybinds.Keys = {Dash = "Q", Block = "F", LockTarget = "G", WeaponSkill = "T", Aim = "Y", Takedown = "N"}
 
 local ChangedEvent = Instance.new("BindableEvent")
 Keybinds.Changed = ChangedEvent.Event

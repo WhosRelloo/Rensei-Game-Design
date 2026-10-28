@@ -21,6 +21,9 @@ Settings.Defaults = {
 		LockTarget = "G", -- moved off T (user, 2026-10-13: weapon skill is T)
 		WeaponSkill = "T", -- user, 2026-10-13
 		Aim = "Y", -- guns' shooting mode toggle (2026-10-17; Y was free). RMB fires while it's on.
+		-- the takedown prompt (TakedownUI): tap to knock out, hold to assassinate. N, as Rensei.Takedown.Key; rebindable
+		-- since the owner's "Yes it should rebindable" (2026-10-28).
+		Takedown = "N",
 	},
 }
 
@@ -32,18 +35,18 @@ Settings.Sliders = {SFXVolume = true, MusicVolume = true, FieldOfView = true}
 function Settings.FOV(V)
 	return math.floor(60 + math.clamp(V or 0.25, 0, 1) * 40 + 0.5)
 end
-Settings.Bindable = {Dash = true, Block = true, LockTarget = true, WeaponSkill = true, Aim = true}
+Settings.Bindable = {Dash = true, Block = true, LockTarget = true, WeaponSkill = true, Aim = true, Takedown = true}
 
 -- Keys that may never be bound: everything the locked controls doc assigns (movement, heavy R,
 -- slide Ctrl, shift lock Alt, carry V, grip B, alchemy Z/X/C/V, interact E, stats M, inventory `),
--- plus the hotbar, Settings (P) and keys Roblox itself owns.
+-- plus the hotbar, Settings (P) and keys Roblox itself owns. N is not here: it is the takedown's default key, and the
+-- takedown is rebindable (2026-10-28), so N is free for any action once the takedown moves off it.
 Settings.Reserved = {
 	W = true, A = true, S = true, D = true, Space = true, LeftShift = true, RightShift = true,
 	LeftControl = true, RightControl = true, LeftAlt = true, RightAlt = true, Escape = true,
 	R = true, V = true, B = true, Z = true, X = true, C = true, E = true, M = true, P = true,
 	Backquote = true, Slash = true, Tab = true,
 	J = true, K = true, F2 = true, -- Journal, Mastery, admin panel
-	N = true, -- takedown (assassinations, 2026-10-25; PROPOSAL: not rebindable yet)
 	One = true, Two = true, Three = true, Four = true, Five = true, Six = true, Seven = true,
 	Eight = true, Nine = true, Zero = true,
 }

@@ -73,8 +73,8 @@ end
 function CombatModeUI.Start()
 	Indicator = MakeIndicator()
 
-	-- only a prompt on E itself takes E from Combat Mode: a takedown prompt on N must not stop E (assassinations spec
-	-- A8, decision 17, 2026-10-25)
+	-- only a prompt on E itself takes E from Combat Mode: a takedown prompt on its own key (N by default; rebindable,
+	-- never to E, which Rensei.Settings reserves) must not stop E (assassinations spec A8, decision 17, 2026-10-25)
 	ProximityPromptService.PromptShown:Connect(function(Prompt)
 		if Prompt.KeyboardKeyCode == Enum.KeyCode.E then Shown[Prompt] = true end
 	end)
