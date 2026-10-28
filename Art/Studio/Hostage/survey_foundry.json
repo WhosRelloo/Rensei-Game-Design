@@ -1,0 +1,329 @@
+{
+  "Desks": {
+    "DialogueModels": 1,
+    "List": [],
+    "PayFineDialogues": [
+      "foundry_brask (State)"
+    ]
+  },
+  "HUD": {
+    "BossHealth": "ImageLabel",
+    "BossParts": {
+      "Bar": "Bar (ImageLabel)",
+      "HP": "HP (TextLabel)",
+      "Head": "Head (TextLabel)",
+      "Text": "Text (TextLabel)"
+    },
+    "NpcTemplate": "ImageLabel",
+    "Uis": "ScreenGui"
+  },
+  "Names": {
+    "Root": "ReplicatedStorage.Assets.Animations",
+    "SharedHostage": "absent",
+    "Slots": {
+      "Hostage_Bind": "absent",
+      "Hostage_Held": "absent",
+      "Hostage_Hold": "absent",
+      "Hostage_Struggle": "absent"
+    },
+    "StandIns": {
+      "Carrying": [
+        {
+          "AnimationId": "rbxassetid://70888533900445",
+          "FullName": "ReplicatedStorage.Assets.Animations.Shared.Combat.Downed.Carrying"
+        }
+      ],
+      "Gripping": [
+        {
+          "AnimationId": "",
+          "FullName": "ReplicatedStorage.Assets.Animations.Shared.Combat.Downed.Gripping"
+        }
+      ],
+      "Takedown_ChokeVictim": [
+        {
+          "AnimationId": "rbxassetid://131914091661838",
+          "FullName": "ReplicatedStorage.Assets.Animations.Shared.Takedown.Takedown_ChokeVictim"
+        }
+      ]
+    }
+  },
+  "Place": {
+    "PlaceId": 109591196441030,
+    "PlayLock": "nil",
+    "TestNoSave": "nil"
+  },
+  "Requests": {
+    "Folder": "ServerStorage.RenseiServer.ServerHandler.Requests",
+    "Hostage": "absent"
+  },
+  "SafeTag": 0,
+  "Scripts": {
+    "ClientHandler.Run": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "StarterPlayer/StarterPlayerScripts/ClientHandler/Run"
+    },
+    "Managers.MovementState": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ReplicatedStorage/Modules/Managers/MovementState"
+    },
+    "Rensei.Emotes": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ReplicatedStorage/Modules/Data/Rensei/Emotes"
+    },
+    "RenseiServer.AlchemyService": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiServer/AlchemyService"
+    },
+    "RenseiServer.CombatDirector": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiServer/CombatDirector"
+    },
+    "RenseiServer.DialogueService": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiServer/DialogueService"
+    },
+    "RenseiServer.HeatService": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiServer/HeatService"
+    },
+    "RenseiServer.StyleService": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiServer/StyleService"
+    },
+    "RenseiTests.Play_Gate": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiTests/Play_Gate"
+    },
+    "RenseiTests.Play_Road": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiTests/Play_Road"
+    },
+    "RenseiTests.Play_Station": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiTests/Play_Station"
+    },
+    "Requests.ClassSkill": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ServerStorage/RenseiServer/ServerHandler/Requests/ClassSkill"
+    },
+    "Skills.Block": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ReplicatedStorage/Modules/Skills/Combat/Block"
+    },
+    "Skills.FistSwing": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ReplicatedStorage/Modules/Skills/Combat/Fist/FistSwing"
+    },
+    "Skills.Heavy": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ReplicatedStorage/Modules/Skills/Combat/Heavy"
+    },
+    "UI.EmoteWheelUI": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Path": "ReplicatedStorage/Modules/UI/EmoteWheelUI"
+    }
+  },
+  "StarterCharacter": {
+    "Archivable": true,
+    "Class": "Model",
+    "Exists": true,
+    "Humanoid": true,
+    "HumanoidRootPart": true,
+    "PrimaryPart": "HumanoidRootPart",
+    "RigType": "R6",
+    "Scripts": []
+  },
+  "Stations": {
+    "Clerks": [
+      {
+        "Class": "Part",
+        "FullName": "Workspace.World.Map.Foundry.Travel.Station.TicketBooth.TicketClerk",
+        "Position": [
+          -606,
+          5.5,
+          457
+        ],
+        "Route": "nil",
+        "Size": [
+          6,
+          3,
+          1.2000000000000002
+        ],
+        "Train": {
+          "FarCornerLevelStuds": 285.1,
+          "FarCornerStuds": 285.7,
+          "FullName": "Workspace.World.Map.Foundry.Travel.Station.PlatformTrain",
+          "How": "nearest",
+          "NearStuds": 47
+        }
+      }
+    ],
+    "Gates": [
+      {
+        "Class": "Part",
+        "FullName": "Workspace.World.Map.Foundry.Travel.Station.StationGate.StationGate",
+        "Position": [
+          -642.5,
+          10.4,
+          432
+        ],
+        "Route": "LindenmoorFoundry",
+        "Size": [
+          8,
+          8,
+          1
+        ],
+        "Train": {
+          "FarCornerLevelStuds": 254.70000000000002,
+          "FarCornerStuds": 255.10000000000002,
+          "FullName": "Workspace.World.Map.Foundry.Travel.Station.PlatformTrain",
+          "How": "same Route",
+          "NearStuds": 10.5
+        }
+      }
+    ],
+    "LargestFarCorner": {
+      "From": "Workspace.World.Map.Foundry.Travel.Station.TicketBooth.TicketClerk",
+      "LevelStuds": 285.1,
+      "Studs": 285.7,
+      "Train": "Workspace.World.Map.Foundry.Travel.Station.PlatformTrain"
+    },
+    "RideTrains": 1,
+    "Trains": [
+      {
+        "Centre": [
+          -660,
+          14.600000000000001,
+          399.3
+        ],
+        "Class": "Model",
+        "FullName": "Workspace.World.Map.Foundry.Travel.Station.PlatformTrain",
+        "Route": "LindenmoorFoundry",
+        "Size": [
+          14,
+          20.1,
+          441.5
+        ]
+      }
+    ]
+  },
+  "StudioOnly": {
+    "Fill": {
+      "Api": [
+        "Set:function",
+        "Wrap:function"
+      ],
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Functions": [
+        "Wrap(Image)",
+        "Set(Image, Ratio)"
+      ],
+      "NormHash": "1943:691220648:423221419",
+      "Path": "ReplicatedStorage/Modules/UI/Fill"
+    },
+    "PartyService": {
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Functions": [
+        "Get(Player)",
+        "SameParty(A, B)",
+        "Invite(From, Name)",
+        "Respond(Target, Accept)",
+        "Leave(Player)",
+        "Kick(Leader, Name)",
+        "Start()"
+      ],
+      "NormHash": "4554:6715353:563625773",
+      "Path": "ServerStorage/RenseiServer/PartyService",
+      "Require": "failed: Requested module experienced an error while loading"
+    },
+    "ResourceManager": {
+      "Api": [
+        "Add:function",
+        "Get:function",
+        "Init:function",
+        "Max:function",
+        "Rules:table",
+        "Set:function",
+        "Spend:function"
+      ],
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Functions": [
+        "Init(Character)",
+        "Max(Character, Name)",
+        "Get(Character, Name)",
+        "Set(Character, Name, Value)",
+        "Spend(Character, Name, Amount)",
+        "Add(Character, Name, Amount)"
+      ],
+      "NormHash": "3173:16141376:579200409",
+      "Path": "ReplicatedStorage/Modules/Managers/ResourceManager",
+      "Rules": [
+        "Meter:table",
+        "Posture:table",
+        "Stamina:table"
+      ],
+      "StaminaMax": 100
+    },
+    "Stats": {
+      "Api": [
+        "Base:number",
+        "Cap:number",
+        "Default:function",
+        "Info:table",
+        "IsStat:function",
+        "Order:table"
+      ],
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Functions": [
+        "IsStat(Name)",
+        "Default()"
+      ],
+      "HasBody": false,
+      "NormHash": "1410:456561798:521658315",
+      "Order": [
+        "Strength",
+        "Intelligence",
+        "Speed",
+        "Vitality",
+        "Alchemy"
+      ],
+      "Path": "ReplicatedStorage/Modules/Data/Rensei/Stats"
+    },
+    "UIService": {
+      "Api": [
+        "Notify:function",
+        "NotifyAll:function",
+        "Start:function"
+      ],
+      "Class": "ModuleScript",
+      "Exists": true,
+      "Functions": [
+        "Notify(Player, Kind, Payload)",
+        "NotifyAll(Kind, Payload)",
+        "Start()"
+      ],
+      "NormHash": "976:129201366:270201793",
+      "Path": "ServerStorage/RenseiServer/UIService"
+    }
+  }
+}

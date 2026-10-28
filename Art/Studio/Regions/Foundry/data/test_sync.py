@@ -100,9 +100,9 @@ def main():
         check(f"{p['Label']} places", p["Places"] and set(p["Places"]) <= {"ye", "foundry"}, p["Places"])
         check(f"{p['Label']} class", p["Class"] in ("ModuleScript", "Script", "LocalScript"), p["Class"])
         check(f"{p['Label']} path", len(p["Studio"].split("/")) >= 2 and p["Studio"].split("/")[-1], p["Studio"])
-    check("pair count foundry", len(sync.pairs_for(manifest, "foundry")) == 114,  # 79 + the swim revamp's 12 (Task 1) + the downed crawl's 4 + assassinations Task 1's 4 + Task 2's 2 + the downed fix round 2's 4 + assassinations Task 4's 2 + Task 6b's 1 + Task 7's 2 + Task 8 fix's 1 + Task 9 fix's 1 + Task 10's 1 + TestNoSave's 1 (DataManager)
+    check("pair count foundry", len(sync.pairs_for(manifest, "foundry")) == 127,  # 79 + the swim revamp's 12 (Task 1) + the downed crawl's 4 + assassinations Task 1's 4 + Task 2's 2 + the downed fix round 2's 4 + assassinations Task 4's 2 + Task 6b's 1 + Task 7's 2 + Task 8 fix's 1 + Task 9 fix's 1 + Task 10's 1 + TestNoSave's 1 (DataManager) + hostages Task 1's 13
           len(sync.pairs_for(manifest, "foundry")))
-    check("pair count ye", len(sync.pairs_for(manifest, "ye")) == 115,  # 76 + the swim revamp's 12 + the downed crawl's 4 + assassinations Task 1's 8 + Task 2's 2 + the downed fix round 2's 4 + assassinations Task 4's 2 + Task 6b's 1 + Task 7's 2 + Task 8 fix's 1 + Task 9 fix's 1 + Task 10's 1 + TestNoSave's 1 (DataManager)
+    check("pair count ye", len(sync.pairs_for(manifest, "ye")) == 128,  # 76 + the swim revamp's 12 + the downed crawl's 4 + assassinations Task 1's 8 + Task 2's 2 + the downed fix round 2's 4 + assassinations Task 4's 2 + Task 6b's 1 + Task 7's 2 + Task 8 fix's 1 + Task 9 fix's 1 + Task 10's 1 + TestNoSave's 1 (DataManager) + hostages Task 1's 13
           len(sync.pairs_for(manifest, "ye")))
 
     # 3. norm_hash against Studio's value
