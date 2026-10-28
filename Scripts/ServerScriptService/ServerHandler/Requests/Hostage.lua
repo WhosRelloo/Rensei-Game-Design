@@ -1,8 +1,16 @@
 -- Hostage (hostages plan, 2026-10-27): the client asks to take a player hostage, choose from the captor menu, or
 -- struggle. Typed here; every rule is HostageService's. PvP only: an NPC is refused there, first.
+-- (Task 5 fix, ruling K1) switched off until Task 14: while Rensei.Hostage.Enabled is false, every request is refused,
+-- except in a Studio TestNoSave session (the tests' bypass, HostageService.Allowed). IsStudio is asked first, so a
+-- live server never gets past it.
+local RunService = game:GetService("RunService")
+local Hostage = require(game:GetService("ReplicatedStorage").Modules.Data.Rensei.Hostage)
+
 return function(Player, Action, A, B)
 	if type(Action) ~= "string" then return end
+	if Hostage.Enabled ~= true and not RunService:IsStudio() then return end
 	local HS = require(game:GetService("ServerScriptService").HostageService)
+	if not HS.Allowed() then return end
 	if Action == "Take" then
 		if typeof(A) ~= "Instance" or not A:IsA("Model") then return end
 		HS.Take(Player, A)

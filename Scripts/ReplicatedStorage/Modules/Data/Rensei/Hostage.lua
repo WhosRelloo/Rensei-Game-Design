@@ -7,6 +7,9 @@ local Takedown = require(script.Parent.Takedown)
 
 local Hostage = {}
 
+-- (Task 5 fix, controller ruling K1: publish safety) hostages are switched OFF until the plan is done: flipped by Task 14.
+-- While false, Requests.Hostage and HostageService.Take refuse everything outside the Studio TestNoSave test bypass.
+Hostage.Enabled = false
 Hostage.Key = "N" -- shared with takedowns: an enemy target is a takedown, a player target a hostage (controller ruling)
 -- taking
 Hostage.BindTime = 1.5 -- seconds to bind a knocked player (channelled, like Grip)

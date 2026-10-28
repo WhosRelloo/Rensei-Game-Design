@@ -9,6 +9,11 @@
 --   timeout, safe zone, error, shutdown, a knocked captor or hostage); immunity and the re-take halving (pre-flight
 --   P11, moved here from Task 7); the Task 4 review's hand-offs (HeldBy before EndKnock, a knock that ran out recovered
 --   at release, the held pair untakeable).
+-- * Task 5 fix round 1 (review I1, I2, K1, M2, M3, M8, M10): an exit before the weld leaves the hostage's parts as they
+--   were (no Detach of a pair never attached); the bound target untakeable mid-bind, each refusal reached by the hostage
+--   rule itself, with controls; hostages switched off (Rensei.Hostage.Enabled = false until Task 14): a live-shaped
+--   request or take is refused, the test bypass closed by HostageService._TestBypass (a seam that can only make it
+--   stricter). ReleaseErrorStillRestores warns twice by design ("Broken failed" and its own error text).
 local SSS = game:GetService("ServerScriptService")
 local CollectionService = game:GetService("CollectionService")
 local DM = require(game.ReplicatedStorage.Modules.Managers.DownedManager)
@@ -123,6 +128,15 @@ return {
 			T.Eq(Why, "not_player", "the reason")
 			T.Eq(Rig:GetAttribute("HeldBy"), nil, "the stand-in isn't marked")
 			T.Eq(Grunt:GetAttribute("Holding"), nil, "the Grunt isn't marked")
+			-- (review M2) a registered stand-in whose rig carries an NPC's mark is no captor (Take's own IsNpc check)
+			local Turned, TurnedPL = HK.StandIn(At(3, 0))
+			Turned:SetAttribute("EnemyType", "Grunt")
+			T.Eq(HS.PlayerOf(Turned), nil, "a stand-in marked as an NPC is no player-like")
+			Ok, Why = HS.Take(TurnedPL, Rig)
+			T.Eq(Ok, false, "that captor is refused")
+			T.Eq(Why, "not_player", "the reason")
+			T.Eq(Rig:GetAttribute("HeldBy"), nil, "the stand-in isn't marked")
+			Turned:SetAttribute("EnemyType", nil)
 			-- rigs carrying an NPC's marks are refused by the seam
 			for _, Mark in ipairs({"DialogueId", "TownsfolkId", "EnemyType"}) do
 				local Bare = game:GetService("StarterPlayer").StarterCharacter:Clone()
@@ -150,13 +164,18 @@ return {
 
 	BindFromKnocked = function(T)
 		HK.Guard(function()
-			local Rig = Bind(T)
+			local Rig = HK.StandIn(At(0, 0))
+			Rig.Humanoid.Health = 5 -- (review M8: below the 15% floor, so the floor is what the check sees)
+			DM.Knock(Rig)
+			TK.PutPlayer(FRONT)
+			T.True(DM.IsKnocked(Rig), "setup: the stand-in is knocked")
+			T.Eq(Svc().Take(Player, Rig), true, "setup: the take starts")
 			T.True(WaitFor(2.0, function() return not DM.IsKnocked(Rig) and Weld() ~= nil end), "bound within BindTime + 0.5 s")
 			T.Eq(DM.IsKnocked(Rig), false, "the stand-in isn't knocked")
 			T.Eq(Rig:GetAttribute("HeldBy"), Player.Name, "HeldBy = the player")
 			T.Eq(C:GetAttribute("Holding"), Rig.Name, "Holding = the stand-in")
 			local H = Rig.Humanoid
-			T.True(H.Health >= H.MaxHealth * 0.15 - 1e-6, "the stand-in keeps at least 15% health (" .. H.Health .. ")")
+			T.Near(H.Health, H.MaxHealth * 0.15, 0.5, "5 HP raised to the 15% floor (" .. H.Health .. ")")
 			T.Eq(Weld().Part1, Rig.HumanoidRootPart, "DownedWeld on the player's root holds the stand-in")
 			T.Eq(HK.Result(), nil, "no LastHostageResult yet")
 			local Want = (C.HumanoidRootPart.CFrame * OFFSET).Position
@@ -265,12 +284,20 @@ return {
 
 	BindInterruptedByMove = function(T)
 		HK.Guard(function()
-			local Rig = Bind(T)
+			local Rig = KnockedStandIn(0, 0)
+			-- (review I1) a part made massless before the take (hair, accessories, a weapon) stays massless when the bind
+			-- ends before the weld: Release lets go only of a pair it attached
+			local Part = Rig:FindFirstChild("Left Arm") or Rig:FindFirstChild("Head")
+			Part.Massless = true
+			TK.PutPlayer(FRONT)
+			T.Eq(Svc().Take(Player, Rig), true, "setup: the take starts")
 			task.wait(0.5)
 			TK.PutPlayer(FRONT + Vector3.new(3, 0, 0))
 			T.True(Ended("Bind:interrupted", 1.2), "interrupted (" .. tostring(HK.Result()) .. ")")
 			T.True(DM.IsKnocked(Rig), "the stand-in is still knocked")
 			AllLetGo(T, Rig, "interrupted")
+			T.Eq(Part.Massless, true, "the stand-in's massless part is still massless")
+			T.Eq(Rig.Humanoid.PlatformStand, false, "PlatformStand untouched")
 		end)
 	end,
 
@@ -303,8 +330,7 @@ return {
 			local Rig = Held(T)
 			Rig.Humanoid.Health = 0
 			T.True(Ended("Bind:died"), "died within 0.3 s (" .. tostring(HK.Result()) .. ")")
-			T.Eq(Weld(), nil, "no weld")
-			T.Eq(C:GetAttribute("Holding"), nil, "Holding cleared")
+			AllLetGo(T, Rig, "died") -- (review M3: the captor's lock entry too)
 		end)
 	end,
 
@@ -397,19 +423,87 @@ return {
 		end)
 	end,
 
-	-- (hand-off 4) nobody grips, carries or takes down either side of a held pair
+	-- (hand-off 4; review I2) nobody grips, carries or takes down either side of a hostage hold. MID-BIND, where the
+	-- hostage is knocked, unwelded and in reach, so the only gate refusing each one is the hostage rule (HeldBy on the
+	-- target, Holding on the captor); each refusal has its control, passing without that attribute. Then, Held, the same
+	-- refusals stay (a regression guard: the weld and the standing hostage refuse them as well).
 	HeldPairNotTakeable = function(T)
 		HK.Guard(function()
-			local Rig = Held(T)
-			local Other = HK.StandIn(At(3, 3))
-			T.Eq(DM.Grip(Other, Rig), false, "a grip of the hostage is refused")
-			T.True(DM.Carry(Other, Rig) ~= true, "a carry of the hostage is refused")
-			T.True(DM.Request(C, "Grip") ~= "Gripped", "the captor grips nothing")
+			local Grunt = TK.Spawn("Grunt", At(2.5, 1)) -- (standing, facing -Z: the player at FRONT is behind it, 3.2 studs)
+			local Other = HK.StandIn(At(-3, 0)) -- a second "player", 3 studs from the hostage
+			local Spare = KnockedStandIn(-2, 3) -- a knocked "player" nobody holds: the controls' target
+			local Rig = KnockedStandIn(0, 0)
+			TK.PutPlayer(FRONT)
 			TK.Calm()
-			T.Eq(TK.Service().Request(Player, "Assassinate", Rig), false, "no takedown of the hostage")
-			T.True(IsHeld(), "the hold is still on")
+			T.Eq(TK.Service().Check(Player, Grunt, "Assassinate"), true, "setup: the player could take the Grunt down")
+			T.Eq(Svc().Take(Player, Rig), true, "setup: the take starts")
+			task.wait(0.3)
+			local S = Svc().SessionOf(Player)
+			T.True(S ~= nil and S.State == "Binding", "setup: mid-bind")
+			T.True(DM.IsKnocked(Rig) and Weld() == nil, "setup: the hostage is knocked and not welded")
+			-- the target side (HeldBy)
+			T.Eq(DM.Grip(Other, Rig), false, "mid-bind: a grip of the hostage is refused")
+			T.True(DM.Carry(Other, Rig) ~= true, "mid-bind: a carry of the hostage is refused")
 			T.Eq(Rig:GetAttribute("GrippedBy"), nil, "the hostage isn't gripped")
 			T.Eq(Rig:GetAttribute("CarriedBy"), nil, "nor carried")
+			T.Eq(DM.Carry(Other, Spare), true, "control: the same carrier carries a knocked player nobody holds")
+			DM.Drop(Other)
+			-- the captor side (Holding)
+			-- (the spare named, so only the captor's own state decides: Free refuses Holding)
+			T.True(DM.Carry(C, Spare) ~= true, "mid-bind: the captor can't carry the knocked spare")
+			T.Eq(C:GetAttribute("Carrying"), nil, "the captor isn't carrying")
+			local Ok, Why = TK.Service().Check(Player, Grunt, "Assassinate")
+			T.Eq(Ok, false, "mid-bind: the captor takes nobody down")
+			T.Eq(Why, "busy", "the reason")
+			C:SetAttribute("Holding", nil) -- (a pure check, nothing marked; put back at once)
+			local Bare = TK.Service().Check(Player, Grunt, "Assassinate")
+			C:SetAttribute("Holding", Rig.Name)
+			T.Eq(Bare, true, "control: the same moment without Holding, the takedown is allowed")
+			T.True(S.State == "Binding" and not S.Over, "all of it mid-bind")
+			-- held: still refused (regression guard)
+			T.True(WaitFor(2.0, IsHeld), "Held")
+			T.Eq(DM.Grip(Other, Rig), false, "held: no grip of the hostage")
+			T.True(DM.Carry(Other, Rig) ~= true, "held: no carry of the hostage")
+			T.True(IsHeld(), "the hold is still on")
+			-- the captor's controls, once the hold has ended
+			Svc().Free(Player, "released")
+			Rig:PivotTo(At(-20, -20) + Vector3.new(0, 3, 0)) -- (let go in front of the player, it would block the ray)
+			local Again, AgainWhy = TK.Service().Check(Player, Grunt, "Assassinate")
+			T.Eq(Again, true, "control: free again, the takedown would start (" .. tostring(AgainWhy) .. ")")
+			T.Eq(DM.Carry(C, Spare), true, "control: free again, the captor carries the spare")
+			DM.Drop(C)
+		end)
+	end,
+
+	-- (review K1) hostages are switched off until Task 14 (Rensei.Hostage.Enabled = false, written by hand here). Only
+	-- the test bypass (Studio AND TestNoSave AND HostageService._TestBypass) lets a take through; with the bypass shut, a
+	-- live-shaped request and a direct Take are refused and nothing is marked. The control: the bypass open again.
+	DisabledRefusesLiveCall = function(T)
+		HK.Guard(function()
+			local Hostage = require(game.ReplicatedStorage.Modules.Data.Rensei.Hostage)
+			T.Eq(Hostage.Enabled, false, "setup: hostages are switched off")
+			local Handler = SSS:FindFirstChild("ServerHandler")
+			local Module = Handler and Handler:FindFirstChild("Requests") and Handler.Requests:FindFirstChild("Hostage")
+			T.True(Module ~= nil, "setup: Requests.Hostage exists")
+			local Request = require(Module)
+			local Rig = KnockedStandIn(0, 0)
+			TK.PutPlayer(FRONT)
+			local HS = Svc()
+			local Real = HS._TestBypass
+			HS._TestBypass = function() return false end
+			local Ok, Err = pcall(function()
+				Request(Player, "Take", Rig)
+				T.Eq(Svc().SessionOf(Player), nil, "a request while switched off starts nothing")
+				T.Eq(Rig:GetAttribute("HeldBy"), nil, "the target isn't marked")
+				local TakeOk, Why = HS.Take(Player, Rig)
+				T.Eq(TakeOk, false, "a direct Take is refused too")
+				T.Eq(Why, "disabled", "the reason")
+				T.Eq(C:GetAttribute("Holding"), nil, "the player isn't marked")
+			end)
+			HS._TestBypass = Real
+			if not Ok then error(Err, 0) end
+			Request(Player, "Take", Rig)
+			T.Eq(Rig:GetAttribute("HeldBy"), Player.Name, "control: the bypass open, the request takes")
 		end)
 	end,
 

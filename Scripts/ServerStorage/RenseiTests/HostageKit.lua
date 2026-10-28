@@ -30,10 +30,10 @@
 --     which Guard puts back.
 --   * Kit.Result(Character): LastHostageResult on that character (default: the player's).
 --   * Kit.Clean(): every session of the player and of each stand-in freed with "error"; HostageService.ClearStandIns;
---     every stand-in's WCS character and rig destroyed; the player recovered if knocked; its Data.Level and
---     Data.Stats.Strength put back (Sync) and its Health as it was; Holding, HeldBy, HostageUntil, Struggle,
---     GrabImmuneUntil, LastHostageResult and HostageClamped cleared on the player; HostageService.Forget for the player
---     and every stand-in (cooldown, immunity and re-take times).
+--     every stand-in's WCS character and rig destroyed; the player recovered if knocked; Holding, HeldBy, HostageUntil,
+--     Struggle, GrabImmuneUntil, LastHostageResult and HostageClamped cleared on the player; HostageService.Forget for
+--     the player and every stand-in (cooldown, immunity and re-take times). (Guard, after it, puts back the player's
+--     Health, knock attributes, Data.Level and Data.Stats.Strength.)
 local SSS = game:GetService("ServerScriptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DownedManager = require(ReplicatedStorage.Modules.Managers.DownedManager)
@@ -56,7 +56,7 @@ local LEVEL, STRENGTH = 20, 5 -- written by hand (P1 / P2): the default stand-in
 
 local Made = {} -- {Rig, PL, WC} the stand-ins made, until Clean
 local Count = 0 -- stand-ins made by this kit (names and UserIds)
-local Was = nil -- what Guard changed on the player's profile, while a Guard runs: {Level, Strength, Health}
+local Was = nil -- what Guard changed on the player's profile, while a Guard runs: {Level, Strength}
 
 local function HS()
 	local M = SSS:FindFirstChild("HostageService")

@@ -28,6 +28,10 @@
 -- * InSafeZone(Character) (ruling R6): the region's Safe flag; inside a part tagged Hostage.SafeTag (point in box); within
 --   StationSafeRadius (3D) of a RenseiTicketClerk / RenseiStationGate in workspace; inside a RenseiPlatformTrain's
 --   bounding box grown by TrainMargin.
+-- * SWITCHED OFF (Task 5 fix, ruling K1: publish safety) until Task 14 flips Rensei.Hostage.Enabled. Allowed() is
+--   Enabled, or else the tests' bypass: RunService:IsStudio() (asked first) AND DataManager.IsNoSave() AND
+--   HostageService._TestBypass() (a test swaps it to shut the bypass; it can only make Allowed stricter). Take refuses
+--   "disabled" before anything else while not Allowed; Requests.Hostage refuses too. Nothing else starts a session.
 -- * Take(Captor, TargetModel) -> ok, reason. The kind is "Bind" for a knocked target, else "Grab". A non-player either
 --   side is "not_player" first; a Grab is "todo" until Task 7 (refused before anything is marked). Refused: the next
 --   allowed time >= now + RefusedCooldown and LastHostageResult = "<Kind>:<reason>" on the captor's character. Accepted:
@@ -55,7 +59,9 @@
 -- * Release(S, Outcome): THE ONE EXIT of a session (lesson: TakedownService's Release). Guarded by S.Over and the
 --   session's identity (ByCaptor[Key(Captor)] == S); every step in its own pcall, so one failing never skips the rest:
 --     1. S.Over; unindexed; its connections dropped;
---     2. the weld let go (DownedManager.Detach: PlatformStand off, the hostage's root back to its own client);
+--     2. the weld let go (DownedManager.Detach: PlatformStand off, the hostage's root back to its own client), only when
+--        this session welded the pair (S.Attached; Task 5 fix, review I1: a Detach of a pair never attached would set
+--        every part of the knocked hostage non-massless -- hair, accessories, a weapon -- and PlatformStand off);
 --     3. the hostage: its lock given back when the hold locked it (not while knocked: the knock's lock nests on ours and
 --        its Recover gives ours back); its Stun stopped; animations stopped; HeldBy, HostageUntil and Struggle cleared;
 --        immune for ImmuneAfter (GrabImmuneUntil, server time, and ImmuneUntil). A hostage still knocked whose
@@ -67,7 +73,8 @@
 --     6. Notify both ({State = "Free", Outcome, Role}) and a toast;
 --     7. the Released listeners (S, Outcome), each in a pcall;
 --     8. (Task 11) a running ransom demand of this session is voided.
---   A bind slower than BindTime + SLOW_PAST, or a release slower than SLOW_RELEASE, warns its phase timings once.
+--   A bind slower than BindTime + SLOW_PAST, or a release whose steps 1-6 take longer than SLOW_RELEASE (the
+--   listeners, which may yield, aren't timed), warns its phase timings once.
 -- * EXITS (Start): Players.PlayerRemoving -> _Left(P) ("left"); each session's characters' Humanoid.Died and Destroying
 --   and a real owner's CharacterAdded -> "died"; game:BindToClose -> _Shutdown() ("shutdown"). Every other end goes
 --   through Watch (Broken) or Free.
@@ -107,6 +114,9 @@ HostageService.Released = {} -- listeners (S, Outcome)
 HostageService._NoSave = DataManager.IsNoSave
 -- (ruling T1-4, tests only) function(PL) -> a list of PLs, or nil for the normal answer; read only while SeamOpen()
 HostageService._PartyOf = nil
+-- (Task 5 fix, ruling K1) the tests' bypass of the switch, read only in Studio with IsNoSave; a test swaps it to false to
+-- see what a live server does. It can only shut the bypass, never open one.
+HostageService._TestBypass = function() return true end
 
 local BIND_SLACK = 1.0 -- PROPOSAL (the takedowns' HOLD_SLACK): studs the binding captor's root may move
 local SLOW_PAST = 0.5 -- PROPOSAL: seconds past BindTime before a bind's phase timings are warned
@@ -133,6 +143,16 @@ local function SeamOpen()
 	if not Ok or NoSave ~= true then return false end
 	local SeamOk, Seam = pcall(HostageService._NoSave)
 	return SeamOk and Seam == true
+end
+
+-- (ruling K1) may a session start: the switch, or the tests' bypass (Studio first, then the no-save switch, then the seam)
+function HostageService.Allowed()
+	if Hostage.Enabled == true then return true end
+	if not RunService:IsStudio() then return false end
+	local Ok, NoSave = pcall(DataManager.IsNoSave)
+	if not Ok or NoSave ~= true then return false end
+	local BypassOk, Bypass = pcall(HostageService._TestBypass)
+	return BypassOk and Bypass == true
 end
 
 local function IsNpc(M)
@@ -380,7 +400,7 @@ local function Release(S, Outcome)
 	local CC, HC = S.CC, S.HC
 	local NowServer = workspace:GetServerTimeNow()
 	-- 2. the weld let go
-	Step("letting the hostage go", DownedManager.Detach, HC)
+	if S.Attached then Step("letting the hostage go", DownedManager.Detach, HC) end
 	-- 3. the hostage
 	Step("unlocking the hostage", function()
 		if S.HLocked and (HC.Parent == nil or not DownedManager.IsKnocked(HC)) then DownedManager.Lock(HC, false) end
@@ -423,12 +443,13 @@ local function Release(S, Outcome)
 		Toast(S.Captor, ("%s is free."):format(S.Hostage.DisplayName or S.Hostage.Name)) -- PROPOSAL (text)
 		Toast(S.Hostage, "You're free.") -- PROPOSAL (text)
 	end)
+	local R6 = os.clock() -- (steps 1-6: the listeners below may yield, so they aren't timed)
 	-- 7. the listeners
 	for _, Fn in ipairs(HostageService.Released) do Step("a Released listener", Fn, S, Outcome) end
 	-- 8. (Task 11) a running ransom demand of this session is voided here
 	-- phase timings of a slow bind or a slow release
 	local Now = os.clock()
-	if (S.State ~= "Held" and Now - S.T0 > Hostage.BindTime + SLOW_PAST) or Now - R0 > SLOW_RELEASE then
+	if (S.State ~= "Held" and Now - S.T0 > Hostage.BindTime + SLOW_PAST) or R6 - R0 > SLOW_RELEASE then
 		local function At(X) return X and ("%.2f"):format(X - S.T0) or "-" end
 		warn(("HostageService: a slow hold (%s, %s): take 0, bind start %s, held %s, release start %s, release done %s s"):format(
 			S.Kind, tostring(Outcome), At(S.BindStarted), At(S.HeldAt), At(R0), At(Now)))
@@ -509,6 +530,7 @@ local function Hold(S)
 	end
 	Step("putting the hostage's tools away", function() H:UnequipTools() end)
 	if not DownedManager.Attach(CC, HC, Hostage.Offset) then error("the weld failed") end
+	S.Attached = true
 	DownedManager.Lock(CC, false)
 	DownedManager.Lock(CC, true, Hostage.LeadSpeed)
 	StopAnim(CC, Hostage.Anims.Bind)
@@ -572,12 +594,15 @@ local function Connect(S)
 end
 
 function HostageService.Take(Captor, TargetModel)
+	if not HostageService.Allowed() then return false, "disabled" end -- (ruling K1: switched off until Task 14)
 	if not IsPL(Captor) then return false, "not_player" end
 	local CC = Char(Captor)
 	if not (Root(CC) and typeof(TargetModel) == "Instance" and TargetModel:IsA("Model")) then return false, "missing" end
 	if IsNpc(CC) then return false, "not_player" end -- (never an NPC captor)
 	local Kind = DownedManager.IsKnocked(TargetModel) and "Bind" or "Grab"
-	local Ctx = HostageService.Context(Captor, TargetModel, Kind)
+	-- (review M4) a non-player target is refused before the Context's rays and scans
+	local Ctx = (IsNpc(TargetModel) or not HostageService.PlayerOf(TargetModel)) and {IsNpc = true}
+		or HostageService.Context(Captor, TargetModel, Kind)
 	local Ok, Reason
 	if Ctx.IsNpc or not Ctx.IsPlayer then
 		Ok, Reason = false, "not_player" -- (first: the PvP rule, before the grab's placeholder)
@@ -623,12 +648,12 @@ end
 function HostageService.Struggle(_PL, _Count) end
 function HostageService.Menu(_Captor, _Choice, _Arg) end
 
--- the PlayerRemoving handler (a test seam): every session of that PL released as "left"
+-- the PlayerRemoving handler (a test seam): every session of that PL released as "left" (its cooldown, immunity and
+-- re-take times are kept: a rejoin doesn't reset them)
 function HostageService._Left(PL)
 	Each(function(S)
 		if S.Captor == PL or S.Hostage == PL then Release(S, "left") end
 	end)
-	if IsPlayer(PL) then NextAt[Key(PL)] = nil end
 end
 
 -- the BindToClose handler (a test seam): every session released as "shutdown"
