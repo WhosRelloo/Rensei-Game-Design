@@ -179,6 +179,10 @@ The owner's profile was snapshotted when it loaded and restored before Stop. The
 
 ## Studio tooling note (2026-10-27, TestNoSave)
 - **Before a test Play session, set `ServerStorage`'s `TestNoSave` attribute to true in Edit.** In Studio, DataManager then loads a memory-only mock copy of the tester's save, so nothing the session does reaches the real profile, even if Play is stopped before the restore. The server warns `[DataManager] TestNoSave: this Studio session will not save` and sets `ReplicatedStorage`'s `TestNoSave` to true; `DataManager.IsNoSave()` says the same to server code. Keep the hook, the dumps and the restore as a second guard. Clear the attribute in Edit afterwards (a live server ignores it, but don't publish with it set). See the Changelog, "TestNoSave".
+  - The switch needs the **boolean** `true`: a string `"true"` or a `1` leaves saving on.
+  - Guards and tests must ask `DataManager.IsNoSave()` on the server, never the `ReplicatedStorage` attribute (it is only ever set, never cleared, so a stray copy in the place would lie).
+  - `IsNoSave()` is authoritative only in the game VM (a Script, the hook's `LMRunSuite`). A `require` from the `execute_luau` sandbox or the command bar loads its own copy of DataManager, which reads the attribute again and can disagree.
+  - Don't use the admin panel's (F2) **Snapshot** or **Restore** during a TestNoSave session: Snapshot writes the mock's data to the real snapshot store, and a later Restore would put test state into a real save.
 
 ## Expansion (Blender, 2026-10-23): Lindenmoor fills its 2,048 × 2,048 footprint
 

@@ -15,7 +15,7 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 - **Studio only:** `RunService:IsStudio()` is checked first, so a live server never reads the attribute, even in a place published with it set by mistake. It is decided once when DataManager loads.
 - **With it on**, a joining player's real save is read with a plain `GetAsync` on the `PlayerData` store (the store and key ProfileService uses): no session lock and no write. It is deep-copied into a **mock** profile (`ProfileStore.Mock`, memory only), and Migrate, Reconcile, ProfileGuard and the release listener run on that as usual. Auto-saves and the release on leave or Stop go to the mock store, never to the DataStore.
   - `ViewProfileAsync` is **not** used: in this ProfileService version it reads through `UpdateAsync`, which is a write.
-  - A missing save (a new slot) starts from the template. A save that can't be read, or isn't in the expected shape, kicks the player with a "TestNoSave: ..." message; the session never falls back to the real store.
+  - An empty slot (no record, a deleted slot's `"PROFILE_WIPED"`, or a stub holding only GlobalUpdates) starts from the template, as ProfileService would. A save that can't be read, or is in any other shape, kicks the player with a "TestNoSave: ..." message; the session never falls back to the real store.
   - The server sets `ReplicatedStorage`'s `TestNoSave` attribute to true and warns once: `[DataManager] TestNoSave: this Studio session will not save`.
 - **`DataManager.IsNoSave()`** returns true only in such a session, for the test kits to check.
 - **With it off (and on every live server)** the code runs the same calls in the same order as before.

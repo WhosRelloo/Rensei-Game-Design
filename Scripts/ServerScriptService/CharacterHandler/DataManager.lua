@@ -49,6 +49,12 @@ local function LoadMockCopy(Key)
 	if not Ok then
 		return nil, "TestNoSave: couldn't read your save, so this test session can't start. Nothing was saved."
 	end
+	-- a deleted slot ("PROFILE_WIPED", MenuData's wipe) or a GlobalUpdates-only stub is an empty slot to ProfileService
+	-- too: the mock keeps the template (nothing is written either way)
+	if Record == "PROFILE_WIPED" or (type(Record) == "table" and Record.Data == nil and Record.MetaData == nil
+		and type(Record.GlobalUpdates) == "table") then
+		Record = nil
+	end
 	if Record ~= nil and (type(Record) ~= "table" or type(Record.Data) ~= "table") then
 		return nil, "TestNoSave: your save isn't in the expected shape, so this test session won't use it. Nothing was saved."
 	end
@@ -57,7 +63,7 @@ local function LoadMockCopy(Key)
 		return nil, "TestNoSave: the test copy of your save didn't load. Nothing was saved."
 	end
 	if Record ~= nil then
-		Mock.Data = DeepCopy(Record.Data) -- a missing save (a new slot) keeps the template
+		Mock.Data = DeepCopy(Record.Data) -- a missing, wiped or stub save (an empty slot) keeps the template
 	end
 	return Mock
 end
