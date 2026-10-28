@@ -109,6 +109,11 @@ Paths mirror the Studio tree (`Scripts/ServerScriptService/MinigameService.lua` 
 | `ReplicatedStorage/Modules/Managers/SkillMods.lua` | `ReplicatedStorage.Modules.Managers.SkillMods` | 2026-10-25 |
 | `ServerScriptService/ServerHandler/Requests/WeaponSkill.lua` | `ServerStorage.RenseiServer.ServerHandler.Requests.WeaponSkill` (in `ServerScriptService` at run time) | 2026-10-25 |
 | `ServerScriptService/ServerHandler/Requests/Aim.lua` | `ServerStorage.RenseiServer.ServerHandler.Requests.Aim` (in `ServerScriptService` at run time) | 2026-10-25 |
+| `ReplicatedStorage/Modules/Data/Rensei/Takedown.lua` | `ReplicatedStorage.Modules.Data.Rensei.Takedown` | 2026-10-27 |
+| `ReplicatedStorage/Modules/Managers/Ragdoll.lua` | `ReplicatedStorage.Modules.Managers.Ragdoll` | 2026-10-27 |
+| `ReplicatedStorage/Modules/UI/TakedownUI.lua` | `ReplicatedStorage.Modules.UI.TakedownUI` | 2026-10-27 |
+| `ServerScriptService/TakedownService.lua` | `ServerStorage.RenseiServer.TakedownService` (in `ServerScriptService` at run time) | 2026-10-27 |
+| `ServerScriptService/ServerHandler/Requests/Takedown.lua` | `ServerStorage.RenseiServer.ServerHandler.Requests.Takedown` (in `ServerScriptService` at run time) | 2026-10-27 |
 
 Exports so far (all 2026-10-16): the scripts touched by the Assay Bench / Ledger Cipher work, the stuck-dialogue fix (DialogueService, DialogueUI) the morality slice with every engine script it changed, and the emote wheel (see `Documents/Changelog.md`). Each file is byte-identical to the Studio source at the time of export, except `DataManager.lua`: one line names a specific player for a test reset, and that name is replaced with `<redacted>` because this repository is public.
 
@@ -128,3 +133,5 @@ Export 2026-10-18: every script the 2026-10-17 / 18 work added or changed (movem
 Export 2026-10-18 (later): coordinated enemy squads (CombatDirector), the compass (CompassService, CompassUI), the Journal Evidence / Case Board and Class Skill UI revamp, and the speed fixes; see `Documents/Changelog.md`. DamageManager, CombatLogUI, SettingsUI and UIHandler are exported for the first time.
 
 Gun rework export (2026-10-25, plan Task 1): LockOn, CooldownUI, SkillMods and the WeaponSkill / Aim request handlers, read-only from Ye, byte for byte (CRLF normalised to LF). Every gun script is now a sync pair (`Art/Studio/Regions/Foundry/data/sync_manifest.json`), so `sync.py --check` keeps these copies equal to Ye and Foundry.
+
+Assassinations (2026-10-27, plan Tasks 2–11; not live): the new scripts `Rensei.Takedown`, `Managers.Ragdoll` (Task 6b), `UI.TakedownUI`, `TakedownService` and `Requests.Takedown`, written in the repo and set into Ye and Foundry with `sync.py` (Ragdoll also into the Tutorial). The scripts it changed and its test suites (`RenseiTests.TakedownKit`, `Test_Takedown`, `Play_Takedown`, `Play_TakedownHard`, `Play_TakedownClasses`) are sync pairs too; `sync.py --check` showed Ye 114 / Foundry 113 SAME at the end. See `Documents/Changelog.md`, "2026-10-27 — Assassinations".

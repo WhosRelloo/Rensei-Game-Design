@@ -1,6 +1,6 @@
 # Rensei Controls (for testers)
 
-Checked against the game's input code on 2026-10-25: ClientHandler, Keybinds, Settings, UIHandler, HUDUI, CombatModeUI, JumpManager, SwimClient, DialogueUI, EmoteWheelUI and MobileControls (and GunAimUI, after the gun rework). Keys marked **(rebindable)** can be changed in Menu (P) > Keybinds.
+Checked against the game's input code on 2026-10-25: ClientHandler, Keybinds, Settings, UIHandler, HUDUI, CombatModeUI, JumpManager, SwimClient, DialogueUI, EmoteWheelUI and MobileControls (and GunAimUI, after the gun rework; TakedownUI and CombatModeUI's E-prompt rule, after the assassinations). Keys marked **(rebindable)** can be changed in Menu (P) > Keybinds.
 
 ## Moving
 | Key | Action |
@@ -18,7 +18,7 @@ Attacks and blocking only work in **Combat Mode**.
 
 | Key | Action |
 |---|---|
-| E | Combat Mode on or off (draw or sheathe). Out of combat, E also uses prompts (talk, inspect, doors). |
+| E | Combat Mode on or off (draw or sheathe). Out of combat, E also uses prompts (talk, inspect, doors). Only a prompt on E stops E from drawing (a takedown prompt on N doesn't; not live yet). |
 | Left Mouse | Light combo. Hold to keep swinging. In the air: aerial attack. While running: dash attack. |
 | Ctrl + Left Mouse | Uppercut (launches into an air juggle) |
 | Right Mouse | Feint (cancels a light attack's wind-up). With guns in shooting mode: **fire (hold to keep firing)**. |
@@ -41,10 +41,22 @@ Press to clap and hold to keep the clap ready. Release to cast where the camera 
 ## Downed and knocked targets
 | Key | Action |
 |---|---|
-| V | Carry a knocked target |
-| B | Grip (finisher on a knocked target) |
+| V | Carry a knocked target, or a takedown's or a grip's dead body (assassinations, not live yet) |
+| B | Grip (finisher on a knocked target; never a dead body) |
+
+Crouching blocks V and B: stand up first.
 
 **Knocked yourself (2026-10-27, not live yet):** a knocked player can **crawl slowly** with the normal movement keys (WASD / the thumbstick) at 3 studs/s (PROPOSAL), playing Downed Crawl, and lies in Downed Idle when still. Nothing else works while you're down: no jump, attack, skill, alchemy, sprint, dash, crouch, climb or swim, and no grip or carry of your own. Being gripped or carried stops the crawl at once, and so does deep water (you float still). Knocked enemies and townsfolk don't crawl.
+
+## Takedowns (PvE only)
+Assassinations (2026-10-27, not live yet; the key and numbers are PROPOSAL). Only out of Combat Mode, from behind an enemy that hasn't caught you (unaware, suspicious or cautious, never alert). A prompt over the enemy shows its name and state. Crouching isn't required.
+
+| Key | Action |
+|---|---|
+| N (tap) | Knock out an enemy from behind (it hasn't caught you; you're in Calm) |
+| N (hold 0.6 s) | Assassinate it. Elites: a backstab instead. Bosses can't be taken down |
+
+N is reserved, like B and V: it can't be rebound. Players and townsfolk can never be taken down. Gamepad: the prompt's default button (ButtonX).
 
 ## Swimming
 Swimming revamp (2026-10-27, not live yet; the keys and numbers are PROPOSAL):
@@ -95,11 +107,14 @@ Every button does the same thing as its key. The fight buttons appear only in Co
 | Z, X, C (hold to keep the clap) | Z, X, C |
 | V (Carry, otherwise Ultimate) | V |
 | Grip (near a knocked body) | B |
+| Takedown: tap or hold the prompt over the enemy (tap: knock out; hold: assassinate) | N |
 | Bag, Stats, Menu, Mastery, Journal | `, M, P, K, J |
 
 On a wall, the thumbstick moves you the same way W A S D does.
 
 On touch screens, shots near an enemy lean onto them.
+
+On touch screens, V shows only in Combat Mode, so carrying a knocked enemy or a body needs Combat Mode there (assassinations: no Calm carry button yet).
 
 ## Testers only
 | Key | Action |

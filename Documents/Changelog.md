@@ -4,6 +4,173 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-27 — Assassinations: stealth takedowns, PvE only (not live)
+
+The assassinations plan (`Documents/plans/2026-10-25-assassinations.md`, Tasks 1–12 plus Task 6b, run 2026-10-27; spec `Documents/specs/2026-10-25-assassinations-design.md`, **approved by the owner 2026-10-27**, "Approve as written", with the three §18 answers) answers the owner's Backlog item: "Assassinations that work with the detection system (sight, light, sound)", "I threw anims in the spreadsheet for it", and the older "Add assassinations to the game, like we talked about before (ONLY PVE)". All of it is in the Studio Edit sessions of **Ye** (106992859583940) and **Foundry Yard** (109591196441030), the same in both; the Tutorial got only DownedManager and Ragdoll (below). **Nothing is saved or published.** This is the plan's only Changelog entry. The downed crawl side task that ran first has its own entry below ("Downed crawl, Downed Idle, Carry and Carried animations").
+
+Every number is a **PROPOSAL** unless the owner chose it or it was measured. The numbers live in `Rensei.Takedown`; the rules are in `Documents/COMBAT_SYSTEM.md`, "Takedowns (PvE only)".
+
+**What existed and what was missing** (the spec's audit, §2):
+- **A1** No takedown of any kind; `Misc_Assassinate` was registered but never played, and sat in `Registry`, which the client doesn't preload.
+- **A2** A killed enemy's body was deleted 4 s after death, so a kill left nothing to find.
+- **A3** No NPC ever noticed a body: perception only looked at players.
+- **A4** The Grip finisher was loud (a 20-stud "Hit" sound that alarmed the victim).
+- **A5** NPCs could only be called to a search about a player, never to a spot.
+- **A6** Crouch only works out of Combat Mode (in Combat Mode Ctrl is the Uppercut).
+- **A7** Tapping a prompt does nothing in Combat Mode.
+- **A8** Any visible prompt stopped E from drawing your weapon.
+- **A9** The view cone counts someone straight above as "ahead", so it can't judge a drop from above.
+- **A10** Townsfolk are hittable, knockable and grippable; killing one is `murder_townsfolk`.
+- **A11** Enemies heal to full at home, so an unaware enemy is always at full health.
+- **A12** Bosses are the five trial foes, which perception doesn't track.
+- **A13** No current enemy has a faction, so their witnesses add no rumour and no enemy killing is a crime.
+- **A14** The stealth design lives in the 2026-10-19 morality spec's §17, not the proposal document.
+- **A15** Crouching runs a real Stun, so Grip and Carry are refused while crouched (confirmed in Task 1).
+
+**What changed:**
+- **Two takedowns on one key, from Calm:** behind an enemy that hasn't caught you, a prompt (the game's own PromptUI art) shows **N**, the enemy's name and its state ("Bandit (unaware)", "suspicious" or "cautious") and "Knock out · hold to kill". **Tap N: knock out** (2.0 s choke). **Hold N 0.6 s: assassinate** (1.0 s, the kill at the animation's "Snap").
+- **The gates** (server-checked, `TakedownService`): the target is an `EnemyService` enemy, alive and free; not Alert and not fully aware of you; you are in its 140° rear arc (+10° server slack), within 4 studs (+1.5) and 3 up or down, with a clear line torso to torso; you are alive, free, on the ground, not swimming and **out of Combat Mode**. Crouching isn't required (its own Stun is ignored, A15). **The first check refuses a player's character, whatever else is true.**
+- **Witnesses:** at the start, every tracked NPC but the victim takes one quick look (`PerceptionService.Glimpse`). An enemy that sees it goes Alert on you; a townsperson that sees it **runs** (`TownsfolkService.Startle`, owner §18.2) and **reports** it: the deed is recorded with witnesses, so rumours spread (and Heat, when the deed is a crime).
+- **Sounds:** the knockout makes a "Choke" (6 studs), the assassination a "Takedown" (4 studs) as the body drops. The kill skips the 20-stud Hit (A4); EXP, money and quest credit go through `WorldService.Credit` once.
+- **The knockout:** the enemy is knocked for 300 s (the existing knocked state, so V carries it, B grips it, a `TakesPrisoners` NPC takes it). It is a findable "Out" body while it lies there. **Waking up raises the alarm:** it searches where it woke and calls NPCs within 40 studs (`PerceptionService.Raise`). No credit and no deed.
+- **The assassination:** the enemy dies, the kill is credited once and the deed is `assassinated_bandit` (Mercy −1, cap 10 a day), or **`assassinated_guard`** (Mercy −5, Crime 60, owner §18.3) for a law-faction victim. No law-faction enemy spawns yet, so the guard deed is built and tested on a test rig, ready for guards.
+- **Bodies:** an assassinated body **ragdolls** (owner request, below) and stays **120 s** (was 4). Enemies that aren't Alert find bodies by sight, at their normal sight rate, with the **light on the body** counting (deep shadow about 6× slower than a lamp) and a body under water seen at ×0.3. A found body turns the finder Alert, searching there and calling others in; each body is found once. Townsfolk don't look for bodies.
+- **Carrying bodies** (owner §18.1, "Yes, carry bodies"): V picks up a dead takedown body like a knocked one; its 120 s timer keeps running and a carried body is still a body. B never grips a corpse.
+- **Gripped bodies ragdoll** (owner: "When people are dead, make them ragdoll so it's easier to spot a body, looks smoother, etc." / "And by dead I mean after they get gripped"): a finished Grip (B) ragdolls the body (enemies, townsfolk, and players gripped by players); assassinated bodies ragdoll too; other deaths are unchanged. New `Managers.Ragdoll`: joints become limited ball sockets, the body settles, then is anchored where it lies; carrying unfreezes it.
+- **Gripped bodies stay and are clues** (owner: "Yes, gripped bandit bodies should stay 120 seconds like takedown bodies, so they're easy to spot." and "Gripped bodies can be used as clues too."): a gripped enemy's body stays 120 s (was 4 s), and every gripped NPC's body (townsfolk too, which keep their 60 s) is registered so enemies can find it like an assassinated one.
+- **Elites and bosses:** an Elite ("Bandit Duelist") only takes a **backstab** (hold N): 45% of its max health through the normal hit path (the Hit sound, Alert on you), then a 1.2 s stun; no knockout. Bosses, trial foes, the sparring partner and anything perception doesn't track are **immune** (no prompt; refused). A rig's `TakedownClass` attribute overrides (the hook for Nemesis rivals). Townsfolk are refused.
+- **Cooldown:** 4 s after any takedown (finished or interrupted), 0.5 s after a refused request, per player, on the server; the prompt waits for it.
+- **Interrupts:** you're stunned or knocked, either of you dies or vanishes, or you end up 6 studs apart: both are released, the enemy turns Alert on you, and the cooldown applies. The victim takes no damage from anyone during a takedown; you can be hit.
+- **The prompt** (`UI.TakedownUI`, client only): rebuilt for each new target, hidden in Combat Mode, while swimming, on cooldown, in dialogue, in a cutscene and while a menu is open. A tap that ends without the hold sends a knockout 0.1 s later (Roblox fires the hold's end before its trigger).
+- **Touch:** the prompt is the control: tap it to knock out, hold it to assassinate. No new button.
+- **Two fixes the feature needed:** only a prompt on **E** stops E from drawing your weapon (A8); **N is reserved** in Settings, like B and V, so no rebind takes it.
+- **Anti-exploit:** the client decides nothing. Malformed requests are refused quietly; the victim is marked in the same step as the last check (one takedown per target); every heartbeat re-checks the interrupts; a player who leaves is released and forgotten; `LastTakedownResult` records each outcome.
+- **PvE only:** no NPC has a takedown and no path accepts a player as the victim. PvP is unchanged (Grip on a knocked player works as before, now with the ragdoll).
+- **Hooks for later:** `TakedownService.Done` / `.Failed`, `PerceptionService.BodyFound`, `Takedown.IsHidden` (false until hiding spots), `TakedownClass`, `Deeds.Finishers[Type].Assassinate`.
+- **Animations** (`Assets.Animations.Shared.Takedown`, `Art/Studio/Takedown/anim_slots.lua`, reversible): `Misc_Assassinate` 83505608395055 (moved from `Registry`), `Misc_AssassinateVictim` 132728216355683, `Takedown_Choke` 72960497872371 ("Knock out"), `Takedown_ChokeVictim` 131914091661838 ("Hold"). All four load (Task 1); the Bear Hug pair is a fallback only. See `Animations.md`, "Takedowns".
+
+**The owner's rules kept:** PvE only (the server's first check, a test, and the client never offers it on a player); only existing UI assets (PromptUI draws the prompt; no new image, font, sound or ScreenGui); no invented asset id (every id is the owner's, from the sheet or chat).
+
+**Decisions taken without the owner** (each a PROPOSAL):
+- **From the spec (§16):**
+  1. two kinds on one key: tap N knocks out, hold N (0.6 s) assassinates;
+  2. key N, reserved like B and V (not rebindable yet);
+  3. the gates: rear 140° arc, 4 studs (3 up or down), clear line, not Alert and not fully aware of you, from Calm only, crouch not required;
+  4. Suspicious and Cautious enemies can be taken down; Alert ones can't;
+  5. timings: knock out 2.0 s, assassinate 1.0 s, knocked out 300 s, cooldown 4 s;
+  6. sounds: Choke 6, Takedown 4; the kill skips the 20-stud Hit;
+  7. witnesses: one quick look at the start; enemies who see it go Alert; townsfolk remember (and now flee, §18.2);
+  8. bodies stay 120 s; enemies find them by sight, faster in light; a found body starts a search there; townsfolk don't look for bodies (dead bodies became carryable, §18.1);
+  9. waking up raises the alarm as a search at that spot; hiding spots come with stealth missions;
+  10. assassinating a bandit is `assassinated_bandit` (Mercy −1, cap 10 a day); knocking out a hostile mob is no deed;
+  11. Elites: a 45% backstab and a 1.2 s stun, no knockout; bosses and trial foes immune;
+  12. townsfolk can't be taken down;
+  13. the victim can't be damaged during a takedown; the player can;
+  14. the Bear Hug pair is now only the fallback (the owner's Knock out / Hold ids are in);
+  15. the prompt shows the enemy's state word;
+  16. no drop takedowns (no animation; the cone can't judge "above", A9);
+  17. only E prompts stop E from drawing.
+- **The controller's rulings during the plan:**
+  - the victim is placed 2.0 studs in front of the player (the animations carry no root offset, and 1.6 overlapped);
+  - the kill is timed on the server clock (LethalTime × the Snap's share, about 0.6 s), since the player's animation plays on the client;
+  - the victim's animation ("HammerChoking", 4.717 s) is cut at the Snap, then the body ragdolls;
+  - a body's "found" meter never drains: glances add up over the body's life;
+  - a body under water is seen at ×0.3, like a diver;
+  - `assassinated_guard`: Crime 60 (as `murder_townsfolk`), cap 10;
+  - Heat when a guard's body is found (overrides spec §7.5's "no new Heat code", per §18.3): **a found gripped or backstab-killed law-faction (guard) body raises law Heat like an assassinated guard**, once, unless the kill's own deed already heated through a witness; an assassinated guard past the daily cap heats when found;
+  - **townsfolk bodies are excluded there** (TownsfolkService owns murder Heat, so it would count twice);
+  - **townsfolk corpses keep 60 s** (`TownsfolkService.BodySeconds`);
+  - **a killing backstab leaves a 120 s, findable body** like a grip; today every enemy except the sparring dummy is knockable, so a backstab that would kill knocks instead;
+  - **TapGrace 0.1 s** (a tap's knockout waits for the hold's trigger that never comes);
+  - **the prompt hides while a menu is open** (Inventory, Stats, Settings, Mastery, Journal, Minigame, Admin);
+  - the ragdoll's numbers (joint limits, settle after 4 s, still below 0.6 studs/s and 1.5 rad/s, friction 1.5); weapon and accessory joints stay rigid;
+  - the knock grace pins a knocked player to the knock point, with a 110 studs/s momentum allowance (the dash's peak);
+  - a carried corpse can't be delivered as a prisoner (only a living knocked target);
+  - `Play_Stealth` and the other Ye-only suites stay Ye-only.
+
+**Owner questions:**
+- Is "HammerChoking" (132728216355683, 4.717 s, the victim animation cut at the Snap) the intended Assassination Victim?
+- Spec §16, open question 2: should the takedown key be rebindable?
+
+**Tests** (hooked Play, one session at a time; the owner's save dump and deed probe were equal before and after every session except the incident below). RED first in every task; final GREEN counts:
+- **Task 1** (parity and survey): `sync.py --check` Ye 100 / Foundry 99 SAME; `test_sync.py` 1188/0; all six ids load (Assassinate 1.133 s with the "Snap" keyframe at 0.683 s; Knock out 1.25 s; Hold a one-keyframe loop; Victim 4.717 s); N is free; A15 confirmed.
+- **Task 2** (`Rensei.Takedown`): `Test_Takedown` 0/11 → 11/0 (Ye Play, Foundry Edit); Test_Perception 5/0, Test_Heat 6/0; test_sync 1208/0.
+- **Task 3** (the slots): `anim_slots.lua` check 10/9 → 32/0 in Ye and Foundry; `test` mode round trip equal; `AnimationManager.Has` true for all six on the client.
+- **Task 4** (perception skip, Glimpse, Raise, sounds): `Play_Takedown` 0/8 (0/9 split) → 9/0 ×2; Test_Sound 9/1 → 10/0; Test_Perception 5/0, Play_Perception 6/0, Play_Stealth 9/0 ×3, Play_Guns 25/0, Play_LindenmoorSmoke 10/0; test_sync 1268/0.
+- **Task 5** (bodies): `Play_Takedown` 9/7 → 16/0 ×2; Play_Stealth 9/0 ×3, Play_Perception 6/0, Test_Perception 5/0, LindenmoorSmoke 10/0 ×2. Measured: a body at 10 studs is found in 1.4 s at noon; at midnight the meter is 0.63 after three times that.
+- **Task 6** (knock length, deeds, dead-body carry): Test_Takedown 11/1 → 12/0; Play_Takedown 16/5 → 21/0 (Ye ×2, Foundry); `Play_Downed` 11/1 → 12/0 (Ye ×2, Foundry, Tutorial); Play_Morality 3/0, Play_TownsfolkHurt 11/0, Play_NoGrip 6/0.
+- **Task 6b** (gripped bodies ragdoll): Play_Takedown 20/5 → 25/0 (Ye ×2, Foundry); ragdoll client check 0/2 → 2/0 (Ye, Foundry); Play_Downed 12/0 (Ye, Foundry, Tutorial); Tutorial grip-ragdoll 1/0; Stealth 9/0, LindenmoorSmoke 10/0, TownsfolkHurt 11/0, Morality 3/0, NoGrip 6/0; test_sync 1278/0.
+- **Task 7** (the server takedown, assassinate): Test_Takedown 12/1 → 13/0; Play_Takedown 26/27 → 53/0 (Ye ×5; Foundry 53/0 in 5 of 8 runs, the misses being a doubled run and two ragdoll-height flakes); Play_Downed 12/0 (Ye, Foundry, Tutorial); Stealth 9/0, Morality 3/0, Heat 8/0, TownsfolkHurt 11/0, LindenmoorSmoke 10/0, NoGrip 6/0; test_sync 1298/0.
+- **Task 8** (knock out, waking up, gripped-guard Heat): Play_Takedown 54/11 → 66/0; fix round: `Play_TakedownHard` 6/2 → 8/0 ×2 and Play_Takedown 60/0 ×2 in Ye and Foundry; Test_Takedown 13/0, Downed 12/0, Stealth 9/0, Morality 3/0, LindenmoorSmoke 10/0, Heat 8/0, TownsfolkHurt 11/0; test_sync 1308/0.
+- **Task 9** (Elites, bosses, townsfolk, hooks): Play_Takedown 64/3 → 67/0 (Ye ×2, Foundry); fix round: `Play_TakedownClasses` 8/1 → 9/0 ×2 in Ye and Foundry, Play_Takedown 60/0 ×2 and Hard 8/0 in both; Play_Townsfolk 18/0, TownsfolkHurt 11/0 (fresh session), Heat 8/0; test_sync 1328/0.
+- **Task 10** (the prompt, the E fix, N reserved): takedown client checks 0/8 → 8/0 (Ye; Foundry ×2), including a real E press with the prompt showing; Foundry gun client checks 21/0 and swim 9/0; test_sync 1318/0 on the staged index.
+- **Task 11** (the full sweep, plus the prompt-per-target and menu fixes): client checks 1/2 → **10/0** in Ye and Foundry; `sync.py --check` Ye 114 / Foundry 113 SAME; `anim_slots.lua` check 32/0 in both; test_sync 1328/0.
+  - **Ye:** Test_Takedown 13/0, Test_Sound 10/0, Test_Perception 5/0, Play_Takedown 60/0, Hard 8/0, Classes 9/0, Stealth 9/0, Perception 6/0, Morality 3/0, Rumours 3/0, LindenmoorSmoke 10/0, Downed 12/0, TownsfolkHurt 11/0, Heat 8/0; gun suites Guns 25/0, GunAim 21/0, GunBalance 8/0, GunKit 3/0, GunNpc 4/0, GunReload 11/0, Assault 1/0; swim Test_SwimLogic 13/0, Play_Swim 9/0; swim client 9/0.
+  - **Foundry:** Boot 2/0, Test_Takedown 13/0, Play_Takedown 59/1 twice (a different single case each run), Hard 8/0, Classes 9/0, FoundrySmoke 15/0 (third run), Downed 12/0, Test_Sound 10/0, Test_Perception 5/0.
+  - **Real input (Ye):** walked from spawn to the bandit camp, crept up behind an unaware Grunt and held N: "Assassinate:ok", the body ragdolled, "Assassinated a bandit", the bounty counted it, and its partner 15 studs away stayed unaware.
+- **Known flakes and machine-load failures, not regressions** (this plan changed no gun or swim code; up to five Studio windows were open, Ye's client at 15 fps, Foundry's at 8 fps with a 28 Hz server): gun client `KickRespectsCameraShake` (fails below about 20 fps; passes at 54) and `LockOnMarkerOnTarget` (frame-bound, passed on rerun); Foundry swim `SteersDown` at 8 fps (passed 9/0 at 54 fps in Task 10); the ragdoll-height flake (GripRagdolls, RagdollSettles, RagdollBodyIsFound, AssassinatedBodyIsFound under server hitches); Foundry `Play_Takedown` failing a single, different case per run (once `AssassinateSuspicious` "ended", a new signature); `Play_Downed.KnockGraceSnapsBack` and `Play_GunReload.StunCancelsAndRestarts` once each; `Play_TownsfolkCrowd.Performance` over 1.5 ms with the old code too; and the known order effects (TownsfolkHurt.Gossip after Heat, Play_Perception after Stealth, Play_Rumours R2 after Morality).
+
+**Incident (Task 8, owner informed):** during one Ye Play session the Studio window was stopped and closed from outside, so the test hook's restore never ran and the owner's slot 2 save kept that session's test state (test EXP, money, deeds, Heat and rumours). Nothing was written to fix it. The owner chose "Leave my save as it is for now"; the pre-session dump is kept in the session's scratch folder. Every later session restored and compared the save as before.
+
+**Not tested:**
+- a real phone (touch tap and hold on the prompt);
+- **the tap-N knockout and V carry with real keys** (the Task 11 walk-through reached only the assassinate: the partner went Alert in run 1, and the input tool's crouch slid on the slope in run 2); both are covered by the Play and client checks;
+- the gamepad: the prompt uses ProximityPrompt's default ButtonX, which talk prompts share;
+- **no touch carry button out of Combat Mode** (on touch V is the alchemy button, so carrying a body there needs Combat Mode);
+- a player gripped by a player still dying and respawning normally (never done to the owner's character);
+- two real players taking down the same enemy (simulated in `OneTakedownPerTarget`);
+- a live server.
+
+**Backups and rollback:**
+- **Backups:** `ServerStorage.RenseiBackups["Pre-Assassinations_2026-10-25"]` in Ye and Foundry Yard (and the Tutorial, for DownedManager). Each script is cloned once, before this plan's first change. Created scripts have no backup.
+- **The rollback order** (Edit, both places):
+  1. Revert from that backup, for this plan's labels: Rensei.Perception, Rensei.Deeds, Rensei.Settings, Managers.DownedManager, UI.CombatModeUI, SPScripts.UIHandler, SPScripts.ClientHandler, PerceptionService, EnemyService, ServerHandler, MoralityService, TownsfolkService, Test_Sound, SmokeKit, Play_Downed, and in Ye Play_Stealth and Play_TownsfolkHurt. In the Tutorial, DownedManager.
+  2. Delete the scripts this plan created: `Rensei.Takedown`, `Managers.Ragdoll` (Tutorial too), `UI.TakedownUI`, `TakedownService`, `Requests.Takedown`, and the tests `TakedownKit`, `Test_Takedown`, `Play_Takedown`, `Play_TakedownHard`, `Play_TakedownClasses`.
+  3. Run `Art/Studio/Takedown/anim_slots.lua` with MODE "undo" (it moves `Misc_Assassinate` back to `Registry.Misc` and refuses if a slot's id was changed).
+- Never use the downed side task's or older backup folders for these scripts: they predate later work.
+
+**For the owner: the publish checkpoint.** This plan publishes nothing. It follows `Documents/World Travel.md` §10, and may be published only together with whatever hold is then in force. The downed crawl side task's own entry below lists what it adds to the same packages.
+1. **Save** Ye and Foundry Yard in Studio.
+2. **Publish the packages from Ye:**
+   - **Modules:** `Rensei.Takedown` (new), `Rensei.Perception`, `Rensei.Deeds`, `Rensei.Settings` (N reserved), `Rensei.TuningConfig` (the side task's Downed keys), `Managers.DownedManager`, `Managers.Ragdoll` (new), `UI.TakedownUI` (new), `UI.CombatModeUI`;
+   - **RenseiServer:** `TakedownService` (new), `ServerHandler`, `ServerHandler.Requests.Takedown` (new), `PerceptionService`, `EnemyService`, `MoralityService`, `TownsfolkService` (plus the side task's StationService, RoadService, TravelService and AdminService);
+   - **Assets:** `Animations.Shared.Takedown`. Note: Task 1 found Ye's Assets at package version 5 and Foundry's at 4 (the same contents).
+3. **Update Foundry Yard's packages by hand** (Modules, RenseiServer, Assets), then check with `sync.py --check` (expect Ye 114 / 0 / 0, Foundry 113 / 0 / 0) and `anim_slots.lua` MODE "check" (32/0).
+4. **Publish the places** Ye and Foundry Yard. `StarterPlayerScripts.UIHandler` (starts TakedownUI) and `ClientHandler` (the ragdoll watch) are place scripts in both, and go out with them, like the new test suites.
+5. **Last: Migrate to Latest Update** for both places.
+- **The Tutorial:** its Modules is **not** a package, so no package publish reaches it, and it needs nothing else from this plan. Its DownedManager and Ragdoll were set directly (Tasks 6, 6b, 7) and go out with the Tutorial's own place save.
+
+### Discord announcement
+
+Hold: not live yet. Post this when the owner publishes the assassinations update.
+
+```md
+**Update: Assassinations**
+
+**Sneak up, take them down**
+- Creep up behind an enemy who hasn't spotted you, out of Combat Mode, and a prompt appears over them.
+- **Tap N** to choke them out. **Hold N** to take them out for good. On touch, tap or hold the prompt.
+- It only works from behind, before they're on to you. The prompt shows whether they're unaware, suspicious or cautious.
+- Crouching isn't required, but it keeps you quiet and harder to see on the way in.
+- Get hit or knocked mid-takedown and it fails, and your target turns on you.
+
+**Bodies**
+- Knocked-out enemies wake up after a few minutes and raise the alarm.
+- Bodies now go limp and stay where they fall for a while, so they're easier to spot. That goes for anyone finished with a grip too.
+- Enemies who spot a body or a knocked-out friend search the area and call others over. Bodies in the dark take much longer to notice.
+- Press V to pick up a knocked-out enemy or a body and carry it out of sight. Stand up first: you can't carry while crouched.
+
+**Witnesses**
+- Enemies who see you do it come straight for you.
+- Townsfolk who see it run, and word gets around.
+- Assassinating a bandit weighs on your Mercy, like finishing one off.
+
+**Tougher targets**
+- Duelists only take a heavy backstab, and then it's a fight.
+- Bosses can't be taken down.
+- Only enemies can be taken down. Never other players, and never townsfolk.
+```
+
 ## 2026-10-27 — Downed crawl, Downed Idle, Carry and Carried animations (not live)
 
 **Owner:** "Here's the downed idle and downed crawl anim IDs: 140397797689506, 140556271258345", "Yes, slow crawl", and the Carry (70888533900445) / Carried (124248460861263) ids; then "Throw those anims in all places we've worked on so far and make sure everything is synced up". Side task before the assassinations' DownedManager tasks (brief: `.superpowers/sdd/2026-10-25-assassinations/downed-crawl-brief.md`; report: `downed-crawl-report.md` there). Studio Edit sessions of **Ye**, **Foundry Yard** and the **Tutorial**; nothing saved or published. Every number is a **PROPOSAL**.

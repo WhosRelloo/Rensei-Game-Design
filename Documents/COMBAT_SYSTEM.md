@@ -227,3 +227,38 @@ Every number here is **PROPOSAL** (the spec `Documents/specs/2026-10-25-gun-rewo
 - **Crawl guard (fix rounds 1 and 2, 2026-10-27; PROPOSAL numbers):** the server also clamps how far a knocked player's root travels across the ground: at most (`CrawlSpeed` x `CrawlClampMult` 1.5 + `CrawlClampSlack` 2.5/s) = 7 studs/s since the last allowed point, the time capped at `CrawlClampWindow` 1 s; further, the root is put back at that point (its full position). Skipped while the assembly is anchored or grounded, welded into another assembly, PlatformStand, seated, gripped or carried, and for `CrawlClampGrace` 0.5 s after the knock or after a `DownedManager.RebaseCrawl`. Every deliberate server move of a player's character calls `RebaseCrawl` (StationService's pushes, platform, ride watchdog and departure; RoadService's arrival spread; TravelService's arrival; AdminService's bring / goto / teleport; Drop). Attribute `KnockedStill` marks a knocked player the server holds at 0 (deep water, gripped, carried), so the client's `KnockedSpeed` (MoverManager's hand-back, the crouch guard) reads 0 too.
 - **Carry pose:** the Carried body sits over the carrier's left shoulder, its root at `TuningConfig.Downed.CarryOffset` = (-1.5, 0.1, 0) in the carrier's root space (PROPOSAL, from the Play check of the owner's Carry / Carried animations; the old root-to-root weld buried the carrier's head in the body). Grips keep the shared root.
 - The PvP / permadeath consequences of a grip are not decided.
+- **Gripped bodies ragdoll (owner, 2026-10-27; not live yet):** a finished Grip ragdolls the body (`Managers.Ragdoll`: limited ball sockets, settles, then anchored where it lies; carrying unfreezes it). Enemies, townsfolk and players gripped by players; other deaths are unchanged. A gripped enemy's body stays 120 s (was 4 s) and enemies can find it like a takedown body; a townsperson's stays 60 s.
+
+## Takedowns (PvE only; assassinations, 2026-10-27, not live yet)
+
+Every number here is **PROPOSAL** unless marked measured; they live in `Rensei.Takedown`. The server (`TakedownService`) decides everything; the client (`TakedownUI`) only shows the prompt. Spec: `Documents/specs/2026-10-25-assassinations-design.md`.
+
+**PvE only (owner):** the server's first check refuses a player's character, whatever else is true. No NPC has a takedown. Townsfolk are refused too.
+
+**The gates** (all must hold; the server re-checks with its own positions):
+- **Target:** an `EnemyService` enemy, alive, not knocked, gripped, carried, swimming or already being taken down.
+- **Its state:** phase Unaware, Suspicious or Cautious (never Alert), and its awareness of you below 1.
+- **From behind:** within 70° of straight behind it (a 140° rear arc, inside its blind zone); the server allows +10°.
+- **Range:** root to root within 4 studs on the ground plane (server +1.5) and 3 up or down; a clear line torso to torso.
+- **You:** alive, not knocked, gripping, carrying, attacking or stunned (the crouch's own Stun doesn't count), on the ground, not swimming, and **out of Combat Mode**. Crouching isn't required.
+- **Class** not Immune, and the cooldown ready.
+
+**The two kinds** (key N, reserved; the prompt over the enemy shows its name and state word):
+
+| | Knock out (tap N) | Assassinate (hold N 0.6 s) |
+|---|---|---|
+| Length | 2.0 s, interruptible | 1.0 s; the kill at the animation's Snap (about 0.6 s) |
+| Sound | Choke, 6 studs, at the start | Takedown, 4 studs, as the body drops (no 20-stud Hit) |
+| Result | knocked for **300 s** (carry V, grip B, deliver to a `TakesPrisoners` NPC); a findable "Out" body | dies, ragdolls; kill credited once; a findable "Dead" body for **120 s** |
+| Waking up | searches where it woke and calls NPCs within 40 studs (`PerceptionService.Raise`), unless hidden (no hiding spots yet) | — |
+| Deed | none | `assassinated_bandit` (Mercy −1, cap 10 a day); a law-faction victim: `assassinated_guard` (Mercy −5, Crime 60, cap 10) |
+
+- **Witnesses:** at the start every tracked NPC but the victim takes one quick look (normal sight rules, no light or movement multipliers). An enemy that sees it goes Alert on you; a townsperson runs and is a witness of the deed (rumours; Heat only when the deed is a crime).
+- **Bodies:** an enemy that isn't Alert, with the body in range, in its cone and in clear view, fills a "found" meter at its sight rate, with the light on the body counting (deep shadow about 6× slower) and ×0.3 under water. The meter never drains. Found (once per body): the finder turns Alert, searches there and calls others in. Townsfolk don't look. A carried body is still a body.
+- **Heat from a found guard's body:** a "Dead" body of a law-faction NPC a player killed (assassinated, gripped or backstabbed) raises its law's Heat once when found, unless the kill's own deed already heated through a witness. Townsfolk bodies are left to TownsfolkService.
+- **Elites (class Chunk):** backstab only (hold N): 45% of its max health through the normal hit path (the 20-stud Hit, Alert on you), then a 1.2 s stun. No knockout. Every enemy but the sparring dummy is knockable, so a backstab that would kill knocks it; one that kills a non-knockable rig leaves a 120 s body.
+- **Immune:** bosses, trial foes, the sparring dummy and anything perception doesn't track (no prompt). A rig's `TakedownClass` attribute (`Full`, `Chunk`, `Immune`) overrides.
+- **Cooldown:** 4 s after any takedown, 0.5 s after a refused request, per player.
+- **Interrupted** when you're stunned or knocked, either of you dies or vanishes, or you're more than 6 studs apart: both released, the enemy Alert on you, the cooldown applies. The victim takes no damage during a takedown; you can be hit.
+- **Placement:** you're put behind the victim (it sits 2.0 studs in front of you) and it is welded to you for the takedown. Animations play at length ÷ time, clamped 0.6–1.6×.
+- **The prompt** hides in Combat Mode, while swimming, on cooldown, in dialogue or a cutscene, and while a menu is open. A tap's knockout is sent 0.1 s after release (`TapGrace`). Touch: tap or hold the prompt.

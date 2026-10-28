@@ -1,6 +1,6 @@
 # Animations — sheet to game map
 
-Sources: the three animation sheets: **general** ("Animation ID's"), **weapon styles** and **skills**. Last pass **2026-10-19** (Rapier set, Dagger idle and light 3, Katana unsheathe, Rapier grip). The owner's gun reload was added 2026-10-25.
+Sources: the three animation sheets: **general** ("Animation ID's"), **weapon styles** and **skills**. Last pass **2026-10-19** (Rapier set, Dagger idle and light 3, Katana unsheathe, Rapier grip). The owner's gun reload was added 2026-10-25, and the takedown animations 2026-10-27.
 
 In Studio every animation is an `Animation` object under `ReplicatedStorage.Assets.Animations`, found by **name** (`AnimationManager`).
 - **Empty ID:** an `Animation` with an empty id plays its local `KeyframeSequence` save in Studio only, and nothing in a live server.
@@ -93,7 +93,7 @@ The current weapon skills (Dragonflash, Flurry, Barrage, Scissor Rush, Fan the H
 | Wall Ledge Walk Left | `LedgeWalk_Left` | 📦 | **standing** side-step along a narrow ledge (not a hang). **Right: no id** |
 | Walk Left | `Walk_Left` | 📦 | **Walk Right: no id** |
 | Forward Glide/Fall, Gliding Neutral | `Fall_Forward`, `Glide_Neutral` | 📦 | |
-| Berserk Transformation, Lock Pick, Assassination | `Misc_BerserkTransform`, `Misc_LockPick`, `Misc_Assassinate` | 📦 | Assassination victim: 132728216355683 (owner, 2026-10-25). Knock out 72960497872371 / Hold 131914091661838 (owner, 2026-10-25), for the takedown slots in the assassinations plan |
+| Berserk Transformation, Lock Pick, Assassination | `Misc_BerserkTransform`, `Misc_LockPick`, `Misc_Assassinate` | 📦 (Assassination: ✅, see "Takedowns") | `Misc_Assassinate` moved to `Shared.Takedown` and is played by the takedowns; its victim, Knock out and Hold are in the "Takedowns" table below |
 | No! (emote) | `Emote_No` | 📦 | |
 | Clap / Loop / Ground Slam / Arm Extend, Fire 1–5 | `Alchemy_*` | ✅ | alchemy casts |
 | NEW UPPERCUT | `Uppercut` | ✅ | Ctrl+LMB |
@@ -113,6 +113,22 @@ The owner gave these four ids in chat on 2026-10-27; they aren't in the Animatio
 | Carried | `Carried` | 124248460861263 | 0.5 s (a held pose) | the one carried, over the carrier's left shoulder (`TuningConfig.Downed.CarryOffset`) |
 
 `Carrying` and `Carried` were unpublished Studio saves before (their `Save` children stay, unused while an id is set). The assassinations plan (section 18) carries a dead takedown body with these same two slots.
+
+## Takedowns (assassinations, 2026-10-27; not live)
+
+The owner's takedown ids are on the general sheet's Misc. column ("Assassination: 83505608395055 / Victim: 132728216355683", "Knock out: 72960497872371 / Hold: 131914091661838"; re-read 2026-10-27). All four load in Play in Ye and Foundry Yard (Rensei group, R6, every root in place). They live in `Assets.Animations.Shared.Takedown` in both places, made by `Art/Studio/Takedown/anim_slots.lua` (reversible: plan / apply / undo / check / test; each new slot carries `TakedownAdd`, `SheetId` and `Fallback`). The code's slot and fallback names are in `Rensei.Takedown.Anims`; the `Fallback` attribute is documentation only.
+
+| Sheet | Game name | Status | Used by |
+|---|---|---|---|
+| Assassination (83505608395055) | `Misc_Assassinate`, now in `Shared.Takedown` | ✅ (moved from `Registry`; 1.133 s, named keyframe "Snap" at 0.683 s) | the player: assassinate (played at 1.133× to fit 1.0 s; the kill at the Snap); the Elite backstab (cut at the Snap). Fallback `Gripping` |
+| Assassination Victim ("HammerChoking", 132728216355683) | `Misc_AssassinateVictim` | ✅ (4.717 s) | the victim; cut at the Snap, then the body ragdolls. Fallback `Gripped`. **Owner question:** is this the intended victim animation? |
+| Knock out (72960497872371) | `Takedown_Choke` | ✅ (1.25 s) | the player: knock out (played at 0.625× to fill 2.0 s). Fallback `Fist_BearHug` |
+| Hold (131914091661838) | `Takedown_ChokeVictim` | ✅ (a one-keyframe looped pose) | the victim of the knockout. Fallback `Fist_BearHugVictim` |
+| Bear Hug / Victim (skill sheet, 140607038476506 / 76737043223431) | `Fist_BearHug` / `Fist_BearHugVictim`, left in `Shared.ClassSkills` (not moved) | ✅ (1.5 / 1.433 s) | **fallback only**, for the choke pair if an owner id ever fails to load |
+
+- `Misc_Assassinate` still carries its old attributes `SheetName = "Assassination (victim: no id yet)"` and `Wired = false`. They are stale but left as they are, so `anim_slots.lua` MODE "undo" restores the original exactly.
+- Every animation is in place (no root travel), so the victim's spacing is the code's `Takedown.Offset` (2.0 studs, PROPOSAL), not the animation's.
+- The `Fallback` targets `Gripping` and `Gripped` are Studio-only saves; with the owner ids loading, they are never reached.
 
 ## Emotes and NPC idles
 

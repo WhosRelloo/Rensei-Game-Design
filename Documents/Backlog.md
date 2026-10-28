@@ -40,7 +40,14 @@ Owner's to-do list, in the owner's words. The order is the owner's, and none of 
 
 ## After the swimming revamp (owner, 2026-10-25)
 In the owner's order:
-1. [ ] **Assassinations** that work with the detection system (sight, light, sound). "I threw anims in the spreadsheet for it": read the animation spreadsheet first. This is the same work as the two assassination items under "Stealth and identity" below. It stays **PvE only**, as the owner said there.
+1. [x] **Assassinations** that work with the detection system (sight, light, sound). "I threw anims in the spreadsheet for it": read the animation spreadsheet first. This is the same work as the two assassination items under "Stealth and identity" below. It stays **PvE only**, as the owner said there. *(Done 2026-10-27, assassinations plan Tasks 1–12: tap N to knock out, hold N to assassinate, from behind and from Calm; bodies found by sight and light; witnesses; Elites and bosses; the owner's §18 answers (carry bodies, townsfolk flee and report, guards Mercy −5 + Heat) and the owner's ragdoll and gripped-body requests; the owner's four takedown animations. In the Edit sessions of Ye and Foundry Yard; tested; **not live** until the owner publishes. See `Documents/Changelog.md`, "2026-10-27 — Assassinations: stealth takedowns, PvE only (not live)", for the publish checkpoint and the rollback.)*
+   - **Follow-ups (not started):**
+     - [ ] **A rebindable takedown key** (N is reserved for now; spec §16, open question 2).
+     - [ ] **Drop takedowns** (from a ledge onto an enemy): need an animation, and a "from above" rule the view cone can't give (finding A9).
+     - [ ] **Hiding spots** for bodies (`Takedown.IsHidden`, false until stealth missions' slice M3), so a hidden knocked-out enemy wakes without raising the alarm.
+     - [ ] **A touch carry button out of Combat Mode** (on touch, V is the alchemy button, so carrying a body there needs Combat Mode).
+     - [ ] **Review the PROPOSAL decisions:** the spec's §16 list and the controller's rulings in the Changelog entry.
+     - [ ] **Owner question:** is "HammerChoking" (132728216355683) the intended Assassination Victim animation?
 2. [ ] **Hostages** (owner, 2026-10-25: "The hostage design is cool it should go after the assassinations"). Design: `Documents/specs/2026-10-21-hostage-design.md`.
    - The owner approved the design. Its numbers stay PROPOSAL.
    - Key: **N is shared with takedowns, and the target decides** (an enemy means a takedown, a player means a hostage). This is a controller ruling (PROPOSAL); the owner raised no objection.
@@ -88,8 +95,8 @@ These start after the world, travel and seasons plans are finished (`Documents/s
 
 ### Stealth and identity
 - [ ] **"???" name tags:** players show "???" over their head until you figure out who they are (Player Identities).
-- [ ] **Assassination system:** build it on top of the detection system (sight, light, sound). **PvE only.**
-- [ ] **Add assassinations to the game,** "like we talked about before (ONLY PVE)".
+- [x] **Assassination system:** build it on top of the detection system (sight, light, sound). **PvE only.** *(Done 2026-10-27, not live: see "After the swimming revamp", item 1, and the Changelog entry "2026-10-27 — Assassinations".)*
+- [x] **Add assassinations to the game,** "like we talked about before (ONLY PVE)". *(Done 2026-10-27, not live: the same work.)*
 
 ### Quests and UI
 - [x] **Trainer quests:** the alchemy trainers' quests don't work ("Pass [Trainer]'s examination"). *(Done: confirmed by the owner 2026-10-25.)*
