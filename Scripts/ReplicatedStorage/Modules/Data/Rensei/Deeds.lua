@@ -142,6 +142,23 @@ local Deeds = {
 		Crime = 60,
 	},
 
+	-- ===== Hostages (hostages plan, 2026-10-27; spec §2-§6): player on player. Every number a PROPOSAL; Crime 30 is
+	-- an assault x2 (assault_townsfolk is 15). Recorded by HostageService for real players only. =====
+	took_hostage = {Text = "Took a traveller hostage", Conduct = {Mercy = -3, Order = -3}, Scope = "Local",
+		Repeat = {Cap = 5}, Crime = 30},
+	attempted_hostage = {Text = "Tried to seize a traveller", Conduct = {Mercy = -1, Order = -1}, Scope = "Local",
+		Repeat = {Cap = 5}, Crime = 15}, -- a failed grab still counts as an assault (spec §2; decision 6)
+	released_hostage = {Text = "Let a hostage go unharmed", Conduct = {Mercy = 2}, Scope = "Local", Repeat = {Cap = 5}},
+	killed_hostage = {Text = "Killed a hostage", Conduct = {Mercy = -8, Order = -5}, Scope = "Local",
+		Repeat = {Cap = 5}, Crime = 90},
+	used_human_shield = {Text = "Used a hostage as a human shield", Conduct = {Mercy = -2}, Scope = "Local",
+		Repeat = {Cap = 5}, Crime = 10},
+	paid_ransom = {Text = "Paid a ransom to free a friend", Conduct = {Mercy = 2}, Scope = "Local", Repeat = {Cap = 5}},
+	took_ransom = {Text = "Took a ransom for a hostage", Conduct = {Mercy = -3}, Scope = "Local", Repeat = {Cap = 5},
+		Crime = 20},
+	turned_in_fugitive = {Text = "Turned a wanted fugitive in to the State", Conduct = {Order = 3},
+		Standing = {Authority = 5}, Scope = "Local", Repeat = {Cap = 5}},
+
 	-- ===== Birth (2026-10-19, spec §11): recorded once when the character first plays in Ye. Origin offsets
 	-- cut both ways, each at most +-20, and each origin's add up to >= 0 so no origin is a net handicap.
 	-- PLACEHOLDER values (spec §18.2: the owner sets the real table). Birth deeds are heard everywhere at

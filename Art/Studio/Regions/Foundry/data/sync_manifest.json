@@ -135,5 +135,7 @@
   {"Label": "RenseiServer.HeatService", "Studio": "ServerStorage/RenseiServer/HeatService", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/HeatService.lua", "Places": ["ye", "foundry"], "Create": false},
   {"Label": "RenseiServer.DialogueService", "Studio": "ServerStorage/RenseiServer/DialogueService", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/DialogueService.lua", "Places": ["ye", "foundry"], "Create": false},
   {"Label": "Requests.ClassSkill", "Studio": "ServerStorage/RenseiServer/ServerHandler/Requests/ClassSkill", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/ServerHandler/Requests/ClassSkill.lua", "Places": ["ye", "foundry"], "Create": false},
-  {"Label": "ClientHandler.Run", "Studio": "StarterPlayer/StarterPlayerScripts/ClientHandler/Run", "Class": "ModuleScript", "Repo": "Scripts/StarterPlayer/StarterPlayerScripts/ClientHandler/Run.lua", "Places": ["ye", "foundry"], "Create": false}
+  {"Label": "ClientHandler.Run", "Studio": "StarterPlayer/StarterPlayerScripts/ClientHandler/Run", "Class": "ModuleScript", "Repo": "Scripts/StarterPlayer/StarterPlayerScripts/ClientHandler/Run.lua", "Places": ["ye", "foundry"], "Create": false},
+  {"Label": "Rensei.Hostage", "Studio": "ReplicatedStorage/Modules/Data/Rensei/Hostage", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/Data/Rensei/Hostage.lua", "Places": ["ye", "foundry"], "Create": true},
+  {"Label": "RenseiTests.Test_Hostage", "Studio": "ServerStorage/RenseiTests/Test_Hostage", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_Hostage.lua", "Places": ["ye", "foundry"], "Create": true}
 ]}
