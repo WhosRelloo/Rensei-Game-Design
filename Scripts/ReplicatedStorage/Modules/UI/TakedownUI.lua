@@ -9,10 +9,11 @@
 --     ground plane and Takedown.Height up or down.
 --   * Only while the player can take one down: alive; not Knocked, Gripping, Carrying or TakingDown; Calm (not in
 --     Combat Mode); not swimming; off cooldown (workspace:GetServerTimeNow() >= TakedownReadyAt); no conversation open
---     (Gui.Dialogue, as CombatModeUI checks) and no cutscene (a Scriptable camera).
+--     (Gui.Dialogue, as CombatModeUI checks), no cutscene (a Scriptable camera) and (Task 11) no menu open (Menus).
 --   * One ProximityPrompt, TakedownPrompt, made here on the client under the candidate's HumanoidRootPart, Style Custom
 --     (drawn by PromptUI, the game's existing prompt art: no new UI assets), on Takedown.Key (N, reserved in
---     Rensei.Settings). It moves to a new candidate, and is destroyed when there is none.
+--     Rensei.Settings). (Task 11) A new candidate gets a new prompt (the old one is destroyed, never moved: it may have
+--     gone with its rig); it is destroyed when there is none.
 --   * Input: a tap (the hold ends and no Triggered follows within TapGrace) asks for a knockout; a full hold (Triggered)
 --     asks for an assassination. A Chunk target (an Elite) can only be backstabbed: a tap does nothing. Touch: PromptUI's own
 --     tap button holds the prompt (tap / hold), so the prompt is the touch control too.
@@ -38,6 +39,9 @@ local Fired = false -- Triggered since the hold began
 -- A completed hold fires PromptButtonHoldEnded just BEFORE Triggered (measured in Ye Play, 2026-10-27: 4 ms apart), so a
 -- hold's end waits this long for a Triggered before it counts as a tap. PROPOSAL.
 TakedownUI.TapGrace = 0.1
+-- (Task 11, ruling) the full-screen menus (UIState.RegisterMenu names; UIHandler's Bag is "Inventory", its Menu
+-- "Settings"): no prompt while one is open. PROPOSAL.
+TakedownUI.Menus = {"Inventory", "Stats", "Settings", "Mastery", "Journal", "Minigame", "Admin"}
 
 local function Alive(Model)
 	local H = Model:FindFirstChildOfClass("Humanoid")
@@ -60,6 +64,9 @@ local function PlayerReady()
 	local G = UIState.Gui
 	if G:FindFirstChild("Dialogue") and G.Dialogue.Visible then return nil end
 	if workspace.CurrentCamera.CameraType == Enum.CameraType.Scriptable then return nil end
+	for _, Name in ipairs(TakedownUI.Menus) do
+		if UIState.IsOpen(Name) then return nil end
+	end
 	return Root
 end
 
@@ -140,9 +147,11 @@ end
 function TakedownUI.Update()
 	local Next, Class = TakedownUI.Candidate()
 	if not Next then Clear() return end
-	if Next ~= Rig then
-		HoldRig = nil -- a hold never carries over to another rig
-		Prompt = Prompt or Make()
+	if Next ~= Rig or not (Prompt and Prompt.Parent) then
+		-- (Task 11) a fresh prompt per target: the old one may have gone with its rig, so it is never reparented; Clear
+		-- also drops any hold (a hold never carries over to another rig)
+		Clear()
+		Prompt = Make()
 		Rig = Next
 		Prompt.Parent = Next.HumanoidRootPart
 	end

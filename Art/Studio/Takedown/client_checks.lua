@@ -6,8 +6,10 @@
 -- that vanishes at Stop, and it removes it all before returning:
 --   * the RemoteEvent ReplicatedStorage.TakedownChecks_TEMP_Remote (the two halves talk over it);
 --   * the LocalScript TakedownChecks_TEMP (CLIENT below) in the test player's PlayerGui, never in StarterPlayerScripts. It
---     requires nothing this task changes: it only reads TakedownUI's prompt from the workspace (TakedownPrompt under a
---     rig's HumanoidRootPart) and drives it as a player's key would (ProximityPrompt:InputHoldBegin / InputHoldEnd);
+--     reads TakedownUI's prompt from the workspace (TakedownPrompt under a rig's HumanoidRootPart) and drives it as a
+--     player's key would (ProximityPrompt:InputHoldBegin / InputHoldEnd). (Task 11) It also opens and closes the game's
+--     menus through UIState.ToggleMenu, as their keys do (PromptHidesInMenu), and reads TakedownUI's one-shot error flag
+--     _Warned (PromptRebuiltPerTarget); it closes any menu it opened in Reset;
 --   * the ModuleScript ServerStorage.RenseiTests.TakedownChecks_TEMP_Suite (SERVER below), run through LMRunSuite, so
 --     its setup runs in the GAME VM with RenseiTests.TakedownKit: every case in Kit.Guard on the kit's Play-only floor,
 --     with Grunts it spawned itself (never a world enemy, a townsperson or the player), the character put back after;
@@ -41,6 +43,11 @@ local EPresses = 0
 UIS.InputBegan:Connect(function(Input) if Input.KeyCode == Enum.KeyCode.E then EPresses += 1 end end)
 
 local StandIn = nil -- the TEMP prompt on N (RED only), until Reset
+-- (Task 11) the client's own copies of these modules (one VM: the same tables UIHandler started)
+local UIState = require(ReplicatedStorage.Modules.UI.UIState)
+local TakedownUI = require(ReplicatedStorage.Modules.UI.TakedownUI)
+local Kept = nil -- a TakedownPrompt Remember kept, until Reset
+local Opened = {} -- the menus Menu opened, closed again in Reset
 
 local function PromptOf(Rig)
 	local Root = Rig and Rig:FindFirstChild("HumanoidRootPart")
@@ -110,8 +117,37 @@ end
 
 function Checks.EPresses() return EPresses end
 
+-- (Task 11) Args: Rig: keep the TakedownPrompt under its root now (true when there is one)
+function Checks.Remember(Args)
+	Kept = PromptOf(Args.Rig)
+	return Kept ~= nil
+end
+-- Args: Rig: the TakedownPrompt under its root is not the one Remember kept, and that one is gone (destroyed)
+function Checks.Fresh(Args)
+	local P = PromptOf(Args.Rig)
+	return {New = P ~= nil and P ~= Kept, OldGone = Kept == nil or Kept.Parent == nil}
+end
+-- Args: Reset: clear TakedownUI's one-shot error flag first. Returns whether TakedownUI has warned of an error since.
+function Checks.Warned(Args)
+	if Args.Reset then TakedownUI._Warned = nil end
+	return TakedownUI._Warned == true
+end
+-- Args: Name, Open: open or close that menu as its key does (UIState.ToggleMenu); returns whether it is open now
+function Checks.Menu(Args)
+	if UIState.IsOpen(Args.Name) ~= Args.Open then
+		UIState.ToggleMenu(Args.Name)
+		if Args.Open then Opened[Args.Name] = true end
+	end
+	return UIState.IsOpen(Args.Name)
+end
+
 function Checks.Reset()
 	if StandIn then StandIn:Destroy() StandIn = nil end
+	Kept = nil
+	for Name in pairs(Opened) do
+		if UIState.IsOpen(Name) then UIState.ToggleMenu(Name) end
+	end
+	table.clear(Opened)
 	return true
 end
 
@@ -139,6 +175,12 @@ local SERVER = [==[
 --   TAP 0.1 s: a tap (under HoldToKill 0.6). KNOCKOUT_WAIT 3 s: KnockoutTime 2 + 1.
 --   HOLD 0.8 s: HoldToKill 0.6 + 0.2. KILL_WAIT 3 s: LethalTime 1, with room for the release and replication.
 --   KEY_WAIT 30 s: for the runner's real E press (see the file's header).
+--   (Task 11) TAP_GRACE 0.1 s: TakedownUI's wait for a Triggered after a hold ends; HoldAssassinates waits it + 0.2 s more
+--     and the result must still be "Assassinate:ok" (no knockout after the kill).
+--   (Task 11) MENUS: the full-screen menus UIHandler binds (` Bag = "Inventory", M "Stats", P Menu = "Settings", K
+--     "Mastery") and the Journal (J): each hides the prompt while open (ruling, PROPOSAL).
+--   (Task 11) NEAR_X, NEAR_Z: a second Grunt at At(1.2, 1.2), facing -Z as the first: the player (3 studs behind the
+--     first, at At(0, 3)) is 2.16 studs from it, 34 degrees off its back, so it is nearer and the target.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SSS = game:GetService("ServerScriptService")
@@ -154,6 +196,10 @@ local FULL_ACTION = "Knock out · hold to kill"
 local TAP, KNOCKOUT_WAIT = 0.1, 3
 local HOLD, KILL_WAIT = 0.8, 3
 local KEY_WAIT = 30
+local TAP_GRACE = 0.1
+local MENUS = {"Inventory", "Stats", "Settings", "Mastery", "Journal"}
+local NEAR_X, NEAR_Z = 1.2, 1.2
+local SmokeKit = require(script.Parent.SmokeKit)
 
 local Replies = {}
 Remote.OnServerEvent:Connect(function(P, Id, Done, Data)
@@ -279,6 +325,9 @@ local Suite = {
 			local Ok = Kit.WaitFor(KILL_WAIT, function() return Result() == "Assassinate:ok" end)
 			T.True(Ok, "a 0.8 s hold: \"Assassinate:ok\" within 3 s (got " .. tostring(Result()) .. ")")
 			T.True(Rig.Humanoid.Health <= 0, "the Grunt is dead")
+			-- (Task 11) a tap's knockout leaves TapGrace after the release: none may follow the kill
+			task.wait(TAP_GRACE + 0.2)
+			T.Eq(Result(), "Assassinate:ok", "still \"Assassinate:ok\" " .. (TAP_GRACE + 0.2) .. " s later (no knockout followed)")
 		end)
 	end,
 	-- with a prompt on N showing, a real E press still draws (Combat Mode on), and E again puts it back
@@ -295,6 +344,44 @@ local Suite = {
 			T.True(On, "E with the " .. tostring(R.Using) .. " prompt showing: Combat Mode on")
 			local Off = PressE(function() return Char():GetAttribute("CombatMode") ~= true end)
 			T.True(Off, "E again: Combat Mode off")
+		end)
+	end,
+	-- (Task 11) a new prompt for each target, never the old one moved: a second Grunt nearer gets a fresh prompt (the
+	-- first is destroyed); then that Grunt is removed with its prompt, and the prompt comes back to the first with no error
+	PromptRebuiltPerTarget = function(T)
+		Case(function(A)
+			T.True(Shows(A).Ok, "setup: the prompt shows on the first Grunt")
+			Ask("Warned", {Reset = true})
+			T.True(Ask("Remember", {Rig = A}), "setup: its prompt kept")
+			local B = Kit.Spawn("Grunt", Kit.At(NEAR_X, NEAR_Z))
+			local R = Shows(B)
+			T.True(R.Ok, "a nearer Grunt: the prompt on it within 0.5 s (" .. Secs(R) .. ")")
+			T.Eq(R.Count, 1, "one TakedownPrompt in the workspace")
+			local F = Ask("Fresh", {Rig = B})
+			T.True(F.New, "it is a new prompt, not the first one moved")
+			T.True(F.OldGone, "the first one is destroyed")
+			Ask("Remember", {Rig = B})
+			SmokeKit.RemoveEnemy(B) -- its prompt goes with it
+			local G = Shows(A)
+			T.True(G.Ok, "the nearer Grunt removed: the prompt back on the first within 0.5 s (" .. Secs(G) .. ")")
+			T.True(Ask("Fresh", {Rig = A}).New, "a new prompt again")
+			T.Eq(Ask("Warned"), false, "TakedownUI raised no error (a gone prompt is never reparented)")
+		end)
+	end,
+	-- (Task 11, ruling, PROPOSAL) the prompt hides while a menu is open; control: it shows before each menu opens, and
+	-- comes back once they are all closed
+	PromptHidesInMenu = function(T)
+		Case(function(Rig)
+			for _, Name in ipairs(MENUS) do
+				local S = Shows(Rig)
+				T.True(S.Ok, "control, no menu open: the prompt shows (before " .. Name .. ", " .. Secs(S) .. ")")
+				T.Eq(Ask("Menu", {Name = Name, Open = true}), true, "setup: " .. Name .. " is open")
+				local G = Goes(Rig)
+				T.True(G.Ok, Name .. " open: the prompt is gone within 0.5 s (" .. Secs(G) .. ")")
+				T.Eq(Ask("Menu", {Name = Name, Open = false}), false, "setup: " .. Name .. " is closed again")
+			end
+			local R = Shows(Rig)
+			T.True(R.Ok, "control, every menu closed: the prompt back within 0.5 s (" .. Secs(R) .. ")")
 		end)
 	end,
 	-- N is reserved: no action can be bound to it (pure; control: a free key is bindable)
