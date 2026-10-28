@@ -40,7 +40,11 @@
 --   (Ragdoll.Apply, before the death); and it is registered with PerceptionService as a "Dead" body (By = the killer's
 --   Player, nil for an NPC killer; Info's fields added), so a patrol that finds it searches there. A player's body is
 --   neither marked nor registered. (Townsfolk keep TownsfolkService.BodySeconds, 60 s.)
--- Attributes (server-written): Knocked, KnockedUntil, GrippedBy, Gripping, CarriedBy, Carrying.
+-- * HOSTAGES (hostages plan Task 4): Holding / HeldBy are a hold like Gripping / GrippedBy: Free, Takeable and CanCrawl
+--   refuse them; EndKnock(Victim, MinShare) ends a knock without Recover's heal (HostageService binds a knocked player at
+--   their own HP, at least MinShare). The knock's timer (Recover) waits for a bind in progress (HeldBy), as for a grip.
+-- Attributes (server-written): Knocked, KnockedUntil, GrippedBy, Gripping, CarriedBy, Carrying. Read: Holding, HeldBy
+-- (HostageService writes them).
 -- * CRAWL (owner 2026-10-27: "Yes, slow crawl"): a knocked PLAYER crawls at TuningConfig.Downed.CrawlSpeed (PROPOSAL
 --   3) instead of lying still; knocked enemies and townsfolk (the assassinations' knockout too) keep WalkSpeed 0, and
 --   nobody crawls while gripped, carried or in deep water. KnockedSpeed(Model) is the rule (shared, so MoverManager
@@ -82,10 +86,11 @@ function DownedManager.Knockable(Model)
 	return Players:GetPlayerFromCharacter(Model) ~= nil or Model:GetAttribute("Knockable") == true
 end
 
--- the downed crawl (owner 2026-10-27): only a knocked player who is neither gripped nor carried may crawl
+-- the downed crawl (owner 2026-10-27): only a knocked player who is neither gripped nor carried may crawl; (hostages
+-- Task 4) nor held as a hostage (HeldBy), so a player being bound stops crawling at once
 function DownedManager.CanCrawl(Model)
 	return Model ~= nil and DownedManager.IsKnocked(Model) and Players:GetPlayerFromCharacter(Model) ~= nil
-		and not Model:GetAttribute("GrippedBy") and not Model:GetAttribute("CarriedBy")
+		and not Model:GetAttribute("GrippedBy") and not Model:GetAttribute("CarriedBy") and not Model:GetAttribute("HeldBy")
 end
 
 -- the walk speed a knocked character has: CrawlSpeed (PROPOSAL) for a player who may crawl, else 0; 0 too while the
@@ -445,9 +450,13 @@ function DownedManager.Knock(Victim, Seconds)
 	end
 end
 
-function Recover(Victim)
-	if not DownedManager.IsKnocked(Victim) or not Alive(Victim) then return end
-	if Victim:GetAttribute("GrippedBy") then return end -- a grip in progress decides it
+-- (hostages Task 4) ends a knock, the victim keeping at least MinShare of max health (their own HP when it is more):
+-- Recover's body with the share passed in. Refused (false) for a victim not knocked, dead, or gripped (a grip in progress
+-- decides it). A carry is dropped first; Knocked, KnockedUntil and KnockedStill cleared; the knock's Stun stopped; the
+-- walk lock given back; the Knocked animation stopped. HostageService binds a knocked player through it (no heal).
+function DownedManager.EndKnock(Victim, MinShare)
+	if not DownedManager.IsKnocked(Victim) or not Alive(Victim) then return false end
+	if Victim:GetAttribute("GrippedBy") then return false end -- a grip in progress decides it
 	local _, AnimationManager = Mods()
 	local Carrier = Victim:GetAttribute("CarriedBy")
 	if Carrier then DownedManager.Drop(DownedManager.Find(Carrier)) end
@@ -460,10 +469,20 @@ function Recover(Victim)
 	Lock(Victim, false)
 	AnimationManager.Stop(Victim, "Knocked")
 	local H = Hum(Victim)
+	H.Health = math.max(H.Health, H.MaxHealth * (tonumber(MinShare) or 0))
+	return true
+end
+
+function Recover(Victim)
+	if not DownedManager.IsKnocked(Victim) or not Alive(Victim) then return end
+	if Victim:GetAttribute("GrippedBy") then return end -- a grip in progress decides it
+	-- (hostages Task 4) so does a bind in progress: the binder ends the knock (EndKnock), or recovers one whose time ran
+	-- out when the bind fails (HostageService's Release, as Grip does below)
+	if Victim:GetAttribute("HeldBy") then return end
 	local Share = Victim:GetAttribute("SecondWindActive") and 0.30 -- Second Wind (PROPOSAL 30%)
 		or tonumber(Victim:GetAttribute("RecoverHealth")) or Cfg.RecoverHealth -- (per character: townsfolk, Task 6b)
 	Victim:SetAttribute("SecondWindActive", nil)
-	H.Health = math.max(H.Health, H.MaxHealth * Share)
+	DownedManager.EndKnock(Victim, Share)
 end
 DownedManager.Recover = Recover
 
@@ -511,9 +530,11 @@ function DownedManager.IsTakedownBody(Model)
 	return H ~= nil and Model.Parent ~= nil and H.Health <= 0 and Model:GetAttribute("TakenDownBy") ~= nil
 end
 
--- can a grip or a carry take M: knocked, alive and held by nobody (no hold attribute, no weld of ours); with Bodies (Carry only), a takedown's body too
+-- can a grip or a carry take M: knocked, alive and held by nobody (no hold attribute, no weld of ours); with Bodies (Carry only), a takedown's body too.
+-- (hostages Task 4) a hostage (HeldBy) or a captor (Holding) is never taken: both ways, like a grip
 local function Takeable(M, Bodies)
 	if M:GetAttribute("GrippedBy") or M:GetAttribute("CarriedBy") then return false end
+	if M:GetAttribute("HeldBy") or M:GetAttribute("Holding") then return false end
 	if Welds[M] then return false end -- (Task 6 review) another holder's weld (a takedown's) is never overwritten
 	return (DownedManager.IsKnocked(M) and Alive(M)) or (Bodies == true and DownedManager.IsTakedownBody(M))
 end
@@ -535,12 +556,14 @@ function DownedManager.Nearest(Actor, Range, Opts)
 end
 
 -- (assassinations final fix F2, review I2) a player taking someone down (TakingDown, TakedownService) is busy too: a
--- grip would teleport them, victim and all, and a carry would stack a second hold on the takedown's
+-- grip would teleport them, victim and all, and a carry would stack a second hold on the takedown's. (Hostages Task 4)
+-- So is a captor (Holding) and a hostage (HeldBy)
 local function Free(Actor)
 	local WCS, _, Stun, AttackRunner = Mods()
 	local WC = WCS.Character.GetCharacterFromInstance(Actor)
 	return Alive(Actor) and not DownedManager.IsKnocked(Actor) and not Actor:GetAttribute("Gripping")
-		and not Actor:GetAttribute("Carrying") and not Actor:GetAttribute("TakingDown") and not AttackRunner.IsRunning(Actor)
+		and not Actor:GetAttribute("Carrying") and not Actor:GetAttribute("TakingDown")
+		and not Actor:GetAttribute("Holding") and not Actor:GetAttribute("HeldBy") and not AttackRunner.IsRunning(Actor)
 		and not (WC and WC:HasStatusEffects({Stun}))
 end
 

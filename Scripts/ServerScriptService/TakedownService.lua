@@ -9,9 +9,11 @@
 -- * Check(Player, Target, Kind) -> ok, reason: Takedown.Check(Context(...)). Never yields. Context gathers the gates
 --   (spec §3, §11) fail-closed: the real perception phase (nil for a rig perception doesn't track, never defaulted to
 --   Unaware), the class always set (Takedown.ClassOf; TrialFoe from the enemy type's TuningConfig definition), the
---   player's own state (alive, not knocked / gripping / carrying / taking down / attacking, no Stun but the crouch's own
---   -- finding A15 --, on the ground, not swimming), Calm (CombatMode off), the target free (not knocked, gripped,
---   carried, being taken down or swimming, nor itself gripping or carrying someone: final fix F6), the rear arc, the range (+ RangeSlack) and one clear ray torso to torso.
+--   player's own state (alive, not knocked / gripping / carrying / taking down / holding a hostage / held as one /
+--   attacking, no Stun but the crouch's own -- finding A15 --, on the ground, not swimming), Calm (CombatMode off), the
+--   target free (not knocked, gripped, carried, being taken down, held as a hostage or swimming, nor itself gripping,
+--   carrying or holding someone: final fix F6, hostages Task 4), the rear arc, the range (+ RangeSlack) and one clear ray
+--   torso to torso.
 -- * Request(Player, Kind, Target) -> ok, reason: refused -> the next allowed time is at least now + RefusedCooldown and
 --   LastTakedownResult = "<Kind>:<reason>". Accepted -> in the same step, with no yield, the target is marked
 --   TakenDownBy and the player TakingDown (one takedown per target, spec §11), then the takedown runs on its own thread.
@@ -107,9 +109,11 @@
 --
 -- Attributes. Victim: TakenDownBy (the player's name; kept on an assassinated corpse), DamageTakenMult (0 while held),
 -- KnockedOutBy (the player's UserId while knocked out), FinishedBy (DownedManager.Finish), read: Faction, TakedownClass,
--- Boss, EnemyType, TownsfolkId, Knocked, GrippedBy, CarriedBy, Gripping, Carrying, Traversal. Player's character:
--- TakingDown (the victim's name; DownedManager's Grip and Carry refuse a player with it, F2), TakedownReadyAt (server
--- time), and LastTakedownResult (for tests and logs); read: CombatMode, Knocked, Gripping, Carrying, Traversal, Crouching.
+-- Boss, EnemyType, TownsfolkId, Knocked, GrippedBy, CarriedBy, Gripping, Carrying, HeldBy, Holding, Traversal. Player's
+-- character: TakingDown (the victim's name; DownedManager's Grip and Carry refuse a player with it, F2), TakedownReadyAt
+-- (server time), and LastTakedownResult (for tests and logs); read: CombatMode, Knocked, Gripping, Carrying, Holding,
+-- HeldBy, Traversal, Crouching. (Hostages Task 4) Holding / HeldBy are HostageService's (captor / hostage): a takedown
+-- refuses them both ways, "busy" on the player and "target_busy" on the target.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -190,6 +194,8 @@ local function PlayerFree(Character)
 	local H = Hum(Character)
 	if not H or H.Health <= 0 or DownedManager.IsKnocked(Character) then return false end
 	if Character:GetAttribute("Gripping") or Character:GetAttribute("Carrying") or Character:GetAttribute("TakingDown") then return false end
+	-- (hostages Task 4) a captor (Holding) or a hostage (HeldBy) takes nobody down
+	if Character:GetAttribute("Holding") or Character:GetAttribute("HeldBy") then return false end
 	if AttackRunner.IsRunning(Character) or Stunned(Character) then return false end
 	return H.FloorMaterial ~= Enum.Material.Air and Character:GetAttribute("Traversal") ~= "Swim"
 end
@@ -218,7 +224,8 @@ function TakedownService.Context(Player, Target, Kind)
 	Ctx.PlayerCalm = Character ~= nil and Character:GetAttribute("CombatMode") ~= true
 	Ctx.TargetFree = not (Target:GetAttribute("Knocked") or Target:GetAttribute("GrippedBy") or Target:GetAttribute("CarriedBy")
 		or Target:GetAttribute("TakenDownBy") or Target:GetAttribute("Traversal") == "Swim"
-		or Target:GetAttribute("Gripping") or Target:GetAttribute("Carrying")) -- (F6: a rig holding someone)
+		or Target:GetAttribute("Gripping") or Target:GetAttribute("Carrying") -- (F6: a rig holding someone)
+		or Target:GetAttribute("HeldBy") or Target:GetAttribute("Holding")) -- (hostages Task 4: no NPC carries them; both ways)
 	Ctx.Phase = S and S.Phase or nil -- (nil for an untracked rig: refused, never read as Unaware)
 	Ctx.AwareOfYou = S and PerceptionService.Awareness(Target, Player) or nil
 	local PR, TR = Root(Character), Root(Target)
