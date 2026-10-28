@@ -189,6 +189,8 @@ local function Stunned(Character)
 	end
 	return false
 end
+-- (hostages Task 5) public, unchanged: HostageService calls it for its own captor gate, so the crouch rule isn't copied
+TakedownService.Stunned = Stunned
 
 local function PlayerFree(Character)
 	local H = Hum(Character)

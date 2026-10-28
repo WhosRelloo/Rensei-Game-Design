@@ -124,6 +124,10 @@ require(ServerScriptService.RankService).Start() -- public rank / title / clan f
 require(ServerScriptService.SwimService).Start() -- deep water: the Swim traversal state (no fighting / alchemy)
 require(ServerScriptService.CombatDirector).Start() -- enemy squads: encounters, the attack token, surround positions
 require(ServerScriptService.TakedownService).Start() -- stealth takedowns (assassinations), PvE only
+do -- hostages Task 5 (pre-flight P21: in a pcall, so an error can't stop the services after it)
+	local Ok, Err = pcall(function() require(ServerScriptService.HostageService).Start() end) -- hostages (player on player), PvP only
+	if not Ok then warn("[ServerHandler] HostageService.Start failed: " .. tostring(Err)) end
+end
 require(ServerScriptService.CompassService).Start() -- the places the top-of-screen compass can point at
 require(ServerScriptService.TruthService).Start() -- the Gate of Truth encounter (Truth/Gate trials)
 require(ServerScriptService.AutomailService).Start() -- automail arms: the piston strike, heat, condition

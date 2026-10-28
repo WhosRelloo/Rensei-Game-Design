@@ -1,0 +1,468 @@
+-- Play_Hostage (hostages plan Task 5, 2026-10-27; Tasks 7-9 extend it): a hostage taken, held and let go. Run in the
+-- game VM (LMRunSuite), every case inside HostageKit.Guard (the hook's snapshot armed AND DataManager.IsNoSave()), on
+-- TakedownKit's floor, with stand-in players HostageKit makes (the stand-in seam). The real player is the captor unless
+-- a case says otherwise. Every expected number is written by hand (Rensei.Hostage, Task 2: BindTime 1.5, BindRange 6 +
+-- RangeSlack 1.5, MinHealthShare 0.15, MinLevel 5, MaxGap 15, ImmuneAfter 5, Offset 1.5 studs in front, HoldTime 180
+-- halved per re-take).
+-- * Task 5: the stand-in seam (closed outside TestNoSave, never an NPC); PvP only both ways (no NPC hostage or captor,
+--   no stand-in taken down); the bind from knocked and its refusals; the one Release and every exit (leave, death,
+--   timeout, safe zone, error, shutdown, a knocked captor or hostage); immunity and the re-take halving (pre-flight
+--   P11, moved here from Task 7); the Task 4 review's hand-offs (HeldBy before EndKnock, a knock that ran out recovered
+--   at release, the held pair untakeable).
+local SSS = game:GetService("ServerScriptService")
+local CollectionService = game:GetService("CollectionService")
+local DM = require(game.ReplicatedStorage.Modules.Managers.DownedManager)
+local TK = require(script.Parent.TakedownKit)
+local SmokeKit = require(script.Parent.SmokeKit)
+local HK = require(script.Parent.HostageKit)
+local Player = TK.Player()
+local C = Player.Character
+
+local At, WaitFor = TK.At, TK.WaitFor
+local FRONT = At(0, 3) + Vector3.new(0, 3, 0) -- the player 3 studs from the spot, facing it (-Z)
+local OFFSET = CFrame.new(0, 0, -1.5) -- written by hand: the hostage's root 1.5 studs in front of the captor's
+
+local function Svc()
+	local M = SSS:FindFirstChild("HostageService")
+	assert(M, "HostageService exists")
+	return require(M)
+end
+local function Now() return workspace:GetServerTimeNow() end
+local function Weld() return C.HumanoidRootPart:FindFirstChild("DownedWeld") end
+-- a stand-in at (X, Z), knocked (Seconds: the knock's length, else KnockedTime's)
+local function KnockedStandIn(X, Z, Opts, Seconds)
+	local Rig, PL = HK.StandIn(At(X, Z), Opts)
+	DM.Knock(Rig, Seconds)
+	return Rig, PL
+end
+-- a knocked stand-in at the spot and the player 3 studs in front of it; the take started
+local function Bind(T, Opts, Seconds)
+	local Rig, PL = KnockedStandIn(0, 0, Opts, Seconds)
+	TK.PutPlayer(FRONT)
+	T.True(DM.IsKnocked(Rig), "setup: the stand-in is knocked")
+	local Ok, Why = Svc().Take(Player, Rig)
+	T.Eq(Ok, true, "setup: the take starts (" .. tostring(Why) .. ")")
+	return Rig, PL
+end
+local function IsHeld()
+	local S = Svc().SessionOf(Player)
+	return S ~= nil and S.State == "Held"
+end
+-- Bind, then Held within BindTime + 0.5 s
+local function Held(T, Opts)
+	local Rig, PL = Bind(T, Opts)
+	T.True(WaitFor(2.0, IsHeld), "setup: Held within 2 s")
+	return Rig, PL, Svc().SessionOf(Player)
+end
+local function Ended(Want, Max)
+	return WaitFor(Max or 0.3, function() return HK.Result() == Want end)
+end
+-- an invisible, non-solid 20 x 10 x 20 part around the pair, tagged RenseiSafeZone (pre-flight P20); SmokeKit removes it
+local function SafeZone()
+	local P = SmokeKit.TempPart({Name = "Hostage_SafeZone", Size = Vector3.new(20, 10, 20), CFrame = At(0, 1.5) + Vector3.new(0, 3, 0),
+		CanCollide = false, CanQuery = false, CanTouch = false, Transparency = 1})
+	CollectionService:AddTag(P, "RenseiSafeZone")
+	return P
+end
+-- a free pair: no weld, no hold marks, no lock entry on either (a stand-in still knocked keeps its knock's own lock)
+local function AllLetGo(T, Rig, What)
+	T.Eq(Weld(), nil, What .. ": no weld on the player's root")
+	T.Eq(C:GetAttribute("Holding"), nil, What .. ": the player's Holding cleared")
+	T.Eq(Rig:GetAttribute("HeldBy"), nil, What .. ": the stand-in's HeldBy cleared")
+	T.Eq(DM.IsLocked(C), false, What .. ": no lock entry on the player")
+	if not DM.IsKnocked(Rig) then T.Eq(DM.IsLocked(Rig), false, What .. ": no lock entry on the stand-in") end
+end
+
+return {
+	-- the seam is shut when the no-save switch isn't on (HostageService._NoSave swapped, pre-flight P24; put back after)
+	SeamClosedOutsideNoSave = function(T)
+		HK.Guard(function()
+			local Rig, PL = HK.StandIn(At(0, 0))
+			local Bare = game:GetService("StarterPlayer").StarterCharacter:Clone()
+			local HS = Svc()
+			local Real = HS._NoSave
+			HS._NoSave = function() return false end
+			local Ok, Err = pcall(function()
+				local Got, Why = HS.StandIn(Bare, {Name = "Bare", UserId = -1})
+				T.Eq(Got, nil, "StandIn refused")
+				T.Eq(Why, "seam closed", "the reason")
+				T.Eq(HS.PlayerOf(Rig), nil, "a registered stand-in isn't a player while the seam is shut")
+				local TakeOk, TakeWhy = HS.Take(PL, C)
+				T.Eq(TakeOk, false, "a stand-in can't take while the seam is shut")
+				T.Eq(TakeWhy, "not_player", "the reason")
+			end)
+			HS._NoSave = Real
+			Bare:Destroy()
+			if not Ok then error(Err, 0) end
+			T.Eq(HS.PlayerOf(Rig), PL, "control: the seam open again, the stand-in is a player-like")
+		end)
+	end,
+
+	-- PvP: no NPC is a stand-in, a player-like, a hostage or a captor (Task 4 review hand-off 5; P25: DialogueId)
+	NpcNeverAHostage = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local Grunt = TK.Free(TK.Spawn("Grunt", At(0, 0)))
+			DM.Knock(Grunt)
+			TK.PutPlayer(FRONT)
+			T.True(DM.IsKnocked(Grunt), "setup: a knocked Grunt in front of the player")
+			T.Eq(HS.StandIn(Grunt, {}), nil, "a Grunt is never a stand-in")
+			T.Eq(HS.PlayerOf(Grunt), nil, "nor a player-like")
+			local Ok, Why = HS.Take(Player, Grunt)
+			T.Eq(Ok, false, "taking the Grunt is refused")
+			T.Eq(Why, "not_player", "the reason")
+			T.Eq(HK.Result(), "Bind:not_player", "LastHostageResult")
+			T.Eq(Grunt:GetAttribute("HeldBy"), nil, "the Grunt isn't marked")
+			T.Eq(C:GetAttribute("Holding"), nil, "the player isn't marked")
+			-- an NPC as the captor: a player-like it would have to be, and it never is
+			local Rig = KnockedStandIn(0, -3)
+			local Fake = {IsStandIn = true, Character = Grunt, Name = Grunt.Name, DisplayName = Grunt.Name, UserId = -999,
+				Level = 20, Data = {Stats = {}}}
+			Ok, Why = HS.Take(Fake, Rig)
+			T.Eq(Ok, false, "an NPC captor is refused")
+			T.Eq(Why, "not_player", "the reason")
+			T.Eq(Rig:GetAttribute("HeldBy"), nil, "the stand-in isn't marked")
+			T.Eq(Grunt:GetAttribute("Holding"), nil, "the Grunt isn't marked")
+			-- rigs carrying an NPC's marks are refused by the seam
+			for _, Mark in ipairs({"DialogueId", "TownsfolkId", "EnemyType"}) do
+				local Bare = game:GetService("StarterPlayer").StarterCharacter:Clone()
+				Bare:SetAttribute(Mark, "test")
+				local Got, Not = HS.StandIn(Bare, {Name = "Bare", UserId = -2})
+				Bare:Destroy()
+				T.Eq(Got, nil, Mark .. ": refused as a stand-in")
+				T.Eq(Not, "not a stand-in", Mark .. ": the reason")
+			end
+		end)
+	end,
+
+	-- PvE stays PvE: a stand-in player is never a takedown target
+	StandInNeverATakedown = function(T)
+		HK.Guard(function()
+			local Rig = HK.StandIn(At(0, 0))
+			TK.PutBehind(Rig, 3)
+			TK.Calm()
+			local Ok, Why = TK.Service().Request(Player, "Assassinate", Rig)
+			T.Eq(Ok, false, "a takedown of a stand-in is refused")
+			T.Eq(Why, "not_enemy", "the reason")
+			T.Eq(Rig:GetAttribute("TakenDownBy"), nil, "the stand-in isn't marked")
+		end)
+	end,
+
+	BindFromKnocked = function(T)
+		HK.Guard(function()
+			local Rig = Bind(T)
+			T.True(WaitFor(2.0, function() return not DM.IsKnocked(Rig) and Weld() ~= nil end), "bound within BindTime + 0.5 s")
+			T.Eq(DM.IsKnocked(Rig), false, "the stand-in isn't knocked")
+			T.Eq(Rig:GetAttribute("HeldBy"), Player.Name, "HeldBy = the player")
+			T.Eq(C:GetAttribute("Holding"), Rig.Name, "Holding = the stand-in")
+			local H = Rig.Humanoid
+			T.True(H.Health >= H.MaxHealth * 0.15 - 1e-6, "the stand-in keeps at least 15% health (" .. H.Health .. ")")
+			T.Eq(Weld().Part1, Rig.HumanoidRootPart, "DownedWeld on the player's root holds the stand-in")
+			T.Eq(HK.Result(), nil, "no LastHostageResult yet")
+			local Want = (C.HumanoidRootPart.CFrame * OFFSET).Position
+			T.True((Rig.HumanoidRootPart.Position - Want).Magnitude <= 1.5, "the stand-in is in front of the player")
+			T.True(IsHeld(), "the session is Held")
+		end)
+	end,
+
+	-- (hand-off 1) HeldBy is set at the take, before EndKnock: a knock that runs out mid-bind isn't healed by Recover
+	BindExpiredKnockNoHeal = function(T)
+		HK.Guard(function()
+			local Rig = HK.StandIn(At(0, 0))
+			Rig:SetAttribute("RecoverHealth", 0.9)
+			Rig.Humanoid.Health = 10
+			DM.Knock(Rig, 0.5)
+			TK.PutPlayer(FRONT)
+			T.True(DM.IsKnocked(Rig), "setup: knocked for 0.5 s")
+			T.Eq(Svc().Take(Player, Rig), true, "setup: the take starts")
+			task.wait(0.8)
+			T.True(DM.IsKnocked(Rig), "the knock's timer waited for the bind")
+			T.True(WaitFor(1.5, IsHeld), "Held")
+			T.Near(Rig.Humanoid.Health, 15, 1, "bound at 15% (MinHealthShare), not Recover's 90%")
+		end)
+	end,
+
+	-- a standing target is a grab: "todo" until Task 7, refused before anything is marked
+	RefuseNotKnocked = function(T)
+		HK.Guard(function()
+			local Rig = HK.StandIn(At(0, 0))
+			TK.PutPlayer(FRONT)
+			local Ok, Why = Svc().Take(Player, Rig)
+			T.Eq(Ok, false, "refused")
+			T.Eq(Why, "todo", "the reason")
+			T.Eq(HK.Result(), "Grab:todo", "LastHostageResult")
+			T.Eq(Rig:GetAttribute("HeldBy"), nil, "not marked")
+		end)
+	end,
+
+	RefuseFar = function(T)
+		HK.Guard(function()
+			local Rig = KnockedStandIn(0, 0)
+			TK.PutPlayer(At(0, 9) + Vector3.new(0, 3, 0))
+			T.Eq(Svc().Take(Player, Rig), false, "refused at 9 studs")
+			T.Eq(HK.Result(), "Bind:far", "LastHostageResult")
+		end)
+	end,
+
+	-- the levels are each side's Data.Level (pre-flight P2): the kit pins the player's at 20
+	RefuseLevels = function(T)
+		HK.Guard(function()
+			local Low = KnockedStandIn(0, 0, {Level = 4})
+			TK.PutPlayer(FRONT)
+			T.Eq(Svc().Take(Player, Low), false, "a level 4 target is refused")
+			T.Eq(HK.Result(), "Bind:level_low", "LastHostageResult")
+			local Rig = KnockedStandIn(2, 0, {Level = 20})
+			require(SSS.ProgressionService).GetData(Player).Level = 35 -- (the kit puts it back)
+			T.Eq(Svc().Take(Player, Rig), false, "a target 15 levels below is refused")
+			T.Eq(HK.Result(), "Bind:level_gap", "LastHostageResult")
+			require(SSS.ProgressionService).GetData(Player).Level = 34
+			Svc().Forget(Player, {NextAt = true})
+			T.Eq(Svc().Take(Player, Rig), true, "control: 14 levels below, started")
+		end)
+	end,
+
+	RefuseSafe = function(T)
+		HK.Guard(function()
+			local Rig = KnockedStandIn(0, 0)
+			TK.PutPlayer(FRONT)
+			local Zone = SafeZone()
+			T.Eq(Svc().Take(Player, Rig), false, "refused in a safe zone")
+			T.Eq(HK.Result(), "Bind:safe", "LastHostageResult")
+			T.Eq(Rig:GetAttribute("HeldBy"), nil, "not marked")
+			CollectionService:RemoveTag(Zone, "RenseiSafeZone")
+			Svc().Forget(Player, {NextAt = true})
+			T.Eq(Svc().Take(Player, Rig), true, "control: the same part untagged, started")
+		end)
+	end,
+
+	RefuseBusyTarget = function(T)
+		HK.Guard(function()
+			local Rig = KnockedStandIn(0, 0)
+			Rig:SetAttribute("GrippedBy", "X")
+			TK.PutPlayer(FRONT)
+			T.Eq(Svc().Take(Player, Rig), false, "a gripped target is refused")
+			T.Eq(HK.Result(), "Bind:target_busy", "LastHostageResult")
+			T.Eq(Rig:GetAttribute("HeldBy"), nil, "not marked")
+			Rig:SetAttribute("GrippedBy", nil)
+		end)
+	end,
+
+	-- two takes of one knocked stand-in in the same frame (the player, then a second stand-in): only the first
+	OneCaptorPerHostage = function(T)
+		HK.Guard(function()
+			local Other, OtherPL = HK.StandIn(At(0, -3))
+			local Rig = KnockedStandIn(0, 0)
+			TK.PutPlayer(FRONT)
+			T.True(Svc().Check(OtherPL, Rig, "Bind"), "setup: the second captor could take it alone")
+			local A, B = Svc().Take(Player, Rig), table.pack(Svc().Take(OtherPL, Rig))
+			T.Eq(A, true, "the first take starts")
+			T.Eq(B[1], false, "the second is refused")
+			T.Eq(B[2], "target_busy", "the reason")
+			T.Eq(Rig:GetAttribute("HeldBy"), Player.Name, "held by the first")
+			T.Eq(Other:GetAttribute("Holding"), nil, "the second holds nothing")
+		end)
+	end,
+
+	BindInterruptedByMove = function(T)
+		HK.Guard(function()
+			local Rig = Bind(T)
+			task.wait(0.5)
+			TK.PutPlayer(FRONT + Vector3.new(3, 0, 0))
+			T.True(Ended("Bind:interrupted", 1.2), "interrupted (" .. tostring(HK.Result()) .. ")")
+			T.True(DM.IsKnocked(Rig), "the stand-in is still knocked")
+			AllLetGo(T, Rig, "interrupted")
+		end)
+	end,
+
+	-- (hand-off 3) an interrupted bind whose knock ran out meanwhile recovers the hostage at once: never left stuck
+	InterruptedBindRecovers = function(T)
+		HK.Guard(function()
+			local Rig = Bind(T, nil, 0.5)
+			task.wait(0.8)
+			T.True(DM.IsKnocked(Rig), "setup: the knock ran out and its timer waited for the bind")
+			TK.PutPlayer(FRONT + Vector3.new(3, 0, 0))
+			T.True(Ended("Bind:interrupted", 1.2), "interrupted (" .. tostring(HK.Result()) .. ")")
+			T.True(WaitFor(0.3, function() return not DM.IsKnocked(Rig) end), "the stand-in recovered")
+			AllLetGo(T, Rig, "recovered")
+		end)
+	end,
+
+	ReleaseOnLeave = function(T)
+		HK.Guard(function()
+			local WS0 = C.Humanoid.WalkSpeed
+			local Rig, PL = Held(T)
+			Svc()._Left(PL)
+			T.Eq(HK.Result(), "Bind:left", "LastHostageResult")
+			AllLetGo(T, Rig, "left")
+			T.Near(C.Humanoid.WalkSpeed, WS0, 0.01, "the player's walk is what it was before the bind")
+		end)
+	end,
+
+	ReleaseOnDeath = function(T)
+		HK.Guard(function()
+			local Rig = Held(T)
+			Rig.Humanoid.Health = 0
+			T.True(Ended("Bind:died"), "died within 0.3 s (" .. tostring(HK.Result()) .. ")")
+			T.Eq(Weld(), nil, "no weld")
+			T.Eq(C:GetAttribute("Holding"), nil, "Holding cleared")
+		end)
+	end,
+
+	ReleaseOnTimeout = function(T)
+		HK.Guard(function()
+			local Rig, _, S = Held(T)
+			S.Until = os.clock() + 0.5
+			T.True(Ended("Bind:timeout", 1), "timeout within 1 s (" .. tostring(HK.Result()) .. ")")
+			T.Near(Rig:GetAttribute("GrabImmuneUntil") or 0, Now() + 5, 0.6, "immune for 5 s")
+			AllLetGo(T, Rig, "timeout")
+		end)
+	end,
+
+	ReleaseOnSafeZone = function(T)
+		HK.Guard(function()
+			local Rig = Held(T)
+			SafeZone()
+			T.True(Ended("Bind:safe", 0.5), "safe within 0.5 s (" .. tostring(HK.Result()) .. ")")
+			AllLetGo(T, Rig, "safe")
+		end)
+	end,
+
+	-- the watch's Broken errors: the hold still ends through the one Release, and everything is given back
+	ReleaseErrorStillRestores = function(T)
+		HK.Guard(function()
+			local Rig = Held(T)
+			local HS = Svc()
+			local Real = HS.Broken
+			HS.Broken = function() error("Play_Hostage: Broken made to fail") end
+			local Ok, Err = pcall(function()
+				T.True(Ended("Bind:error"), "error within 0.3 s (" .. tostring(HK.Result()) .. ")")
+			end)
+			HS.Broken = Real
+			if not Ok then error(Err, 0) end
+			AllLetGo(T, Rig, "error")
+		end)
+	end,
+
+	ShutdownReleases = function(T)
+		HK.Guard(function()
+			local Rig = Held(T)
+			Svc()._Shutdown()
+			T.Eq(HK.Result(), "Bind:shutdown", "LastHostageResult")
+			AllLetGo(T, Rig, "shutdown")
+		end)
+	end,
+
+	ReleaseOnce = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local Fired = 0
+			local function Listener() Fired += 1 end
+			table.insert(HS.Released, Listener)
+			local Ok, Err = pcall(function()
+				Held(T)
+				T.Eq(HS.Free(Player, "a"), true, "the first Free releases")
+				T.Eq(HS.Free(Player, "b"), false, "the second finds nothing")
+			end)
+			table.remove(HS.Released, table.find(HS.Released, Listener))
+			if not Ok then error(Err, 0) end
+			T.Eq(HK.Result(), "Bind:a", "the first outcome stands")
+			T.Eq(Fired, 1, "Released fired once")
+		end)
+	end,
+
+	-- (hand-off 4) the captor knocked mid-hold ends it; the knock's recovery gives the walk from before the bind back
+	CaptorKnockedReleases = function(T)
+		HK.Guard(function()
+			local WS0 = C.Humanoid.WalkSpeed
+			local Rig = Held(T)
+			T.True(HK.KnockPlayer(), "setup: the player is knocked")
+			T.True(Ended("Bind:knocked"), "knocked within 0.3 s (" .. tostring(HK.Result()) .. ")")
+			T.Eq(Weld(), nil, "no weld")
+			T.Eq(Rig:GetAttribute("HeldBy"), nil, "the stand-in is free")
+			DM.Recover(C)
+			T.Near(C.Humanoid.WalkSpeed, WS0, 0.01, "recovered: the walk from before the bind")
+			T.Eq(DM.IsLocked(C), false, "no lock entry left")
+		end)
+	end,
+
+	-- (decision 5) the hostage knocked while held ends it; the hostage stays knocked and its own timer recovers it
+	HostageKnockedEnds = function(T)
+		HK.Guard(function()
+			local Rig = Held(T)
+			DM.Knock(Rig, 1)
+			T.True(Ended("Bind:knocked"), "knocked within 0.3 s (" .. tostring(HK.Result()) .. ")")
+			T.Eq(Rig:GetAttribute("HeldBy"), nil, "HeldBy cleared")
+			T.True(WaitFor(1.5, function() return not DM.IsKnocked(Rig) end), "the knock's own timer recovered it")
+			T.Eq(DM.IsLocked(Rig), false, "no lock entry left")
+		end)
+	end,
+
+	-- (hand-off 4) nobody grips, carries or takes down either side of a held pair
+	HeldPairNotTakeable = function(T)
+		HK.Guard(function()
+			local Rig = Held(T)
+			local Other = HK.StandIn(At(3, 3))
+			T.Eq(DM.Grip(Other, Rig), false, "a grip of the hostage is refused")
+			T.True(DM.Carry(Other, Rig) ~= true, "a carry of the hostage is refused")
+			T.True(DM.Request(C, "Grip") ~= "Gripped", "the captor grips nothing")
+			TK.Calm()
+			T.Eq(TK.Service().Request(Player, "Assassinate", Rig), false, "no takedown of the hostage")
+			T.True(IsHeld(), "the hold is still on")
+			T.Eq(Rig:GetAttribute("GrippedBy"), nil, "the hostage isn't gripped")
+			T.Eq(Rig:GetAttribute("CarriedBy"), nil, "nor carried")
+		end)
+	end,
+
+	-- (pre-flight P11, from Task 7) a released hostage is immune for ImmuneAfter
+	ImmuneAfterRelease = function(T)
+		HK.Guard(function()
+			local Rig = Held(T)
+			Svc().Free(Player, "released")
+			Svc().Forget(Player, {NextAt = true})
+			DM.Knock(Rig)
+			T.Eq(Svc().Take(Player, Rig), false, "refused right after a release")
+			T.Eq(HK.Result(), "Bind:immune", "LastHostageResult")
+		end)
+	end,
+
+	-- (pre-flight P11 / P22, from Task 7) each hold of the same hostage within 10 minutes halves the next
+	RetakeHalves = function(T)
+		HK.Guard(function()
+			local Rig, PL = Held(T)
+			T.Near(C:GetAttribute("HostageUntil") - Now(), 180, 1, "the first hold: 180 s")
+			for _, Want in ipairs({90, 45}) do
+				Svc().Free(Player, "released")
+				Svc().Forget(PL, {ImmuneUntil = true})
+				Svc().Forget(Player, {NextAt = true})
+				TK.PutPlayer(FRONT)
+				DM.Knock(Rig)
+				T.Eq(Svc().Take(Player, Rig), true, "taken again")
+				T.True(WaitFor(2.0, IsHeld), "Held again")
+				T.Near(C:GetAttribute("HostageUntil") - Now(), Want, 1, "re-taken: " .. Want .. " s")
+			end
+		end)
+	end,
+
+	-- (ruling T1-4) PartyOf: a solo player is alone; a stand-in's own Party; the test stub only while the seam is open
+	PartyOf = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local _, A = HK.StandIn(At(0, 0))
+			local _, B = HK.StandIn(At(3, 0))
+			A.Party = {B}
+			T.Same(HS.PartyOf(Player), {Player}, "the solo player is alone (PartyService.Get is nil)")
+			T.Same(HS.PartyOf(A), {A, B}, "a stand-in's Party, itself first")
+			T.Eq(HS.SameParty(A, B), true, "A and B are one party")
+			T.Eq(HS.SameParty(A, A), false, "never a party with itself")
+			local Real = HS._NoSave
+			local Ok, Err = pcall(function()
+				HS._PartyOf = function(PL) if PL == Player then return {A} end return nil end
+				T.Same(HS.PartyOf(Player), {Player, A}, "the stub answers while the seam is open")
+				HS._NoSave = function() return false end
+				T.Same(HS.PartyOf(Player), {Player}, "the stub is ignored once the seam is shut")
+			end)
+			HS._NoSave, HS._PartyOf = Real, nil
+			if not Ok then error(Err, 0) end
+		end)
+	end,
+}
