@@ -56,7 +56,7 @@ Assassinations (2026-10-27, not live yet; the key and numbers are PROPOSAL). Onl
 | N **(rebindable)** (tap) | Knock out an enemy from behind (it hasn't caught you; you're in Calm) |
 | N **(rebindable)** (hold 0.6 s) | Assassinate it. Elites and Hunters: a backstab instead. Bosses can't be taken down |
 
-N (rebindable): change it in Menu (P) > Keybinds > Takedown (2026-10-28, not live yet); the prompt shows the key you chose, at once. Tap and hold work the same on any key. A key left unbound (Unknown) shows no takedown prompt on keyboard and mouse; touch and gamepad still get it. B and V stay reserved. Players and townsfolk can never be taken down. Gamepad: the prompt's default button (ButtonX). Touch: tap or hold the prompt itself.
+N (rebindable): change it in Menu (P) > Keybinds > Takedown (2026-10-28, not live yet); the prompt shows the key you chose, at once. Tap and hold work the same on any key. A key left unbound (Unknown) shows no takedown prompt on keyboard and mouse; touch and gamepad still get it. B, V and H (the emote wheel) stay reserved. Players and townsfolk can never be taken down. Gamepad: the prompt's default button (ButtonX). Touch: tap or hold the prompt itself.
 
 ## Swimming
 Swimming revamp (2026-10-27, not live yet; the keys and numbers are PROPOSAL):

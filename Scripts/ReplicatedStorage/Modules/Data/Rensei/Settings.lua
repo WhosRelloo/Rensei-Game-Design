@@ -47,6 +47,7 @@ Settings.Reserved = {
 	R = true, V = true, B = true, Z = true, X = true, C = true, E = true, M = true, P = true,
 	Backquote = true, Slash = true, Tab = true,
 	J = true, K = true, F2 = true, -- Journal, Mastery, admin panel
+	H = true, -- emote wheel hold (Rensei.Emotes.Key, EmoteWheelUI); reserved 2026-10-28, after the takedown review
 	One = true, Two = true, Three = true, Four = true, Five = true, Six = true, Seven = true,
 	Eight = true, Nine = true, Zero = true,
 }

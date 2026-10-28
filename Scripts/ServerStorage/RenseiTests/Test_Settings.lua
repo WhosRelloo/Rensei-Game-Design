@@ -4,6 +4,8 @@
 --   the takedown's default key is N (Rensei.Takedown.Key, as it was before it became rebindable);
 --   the other defaults: Dash Q, Block F, Lock Target G, Weapon Skill T, Aim Y;
 --   B (grip) and V (carry / alchemy Ultimate) stay reserved, and so does E (interact / Combat Mode).
+--   H is reserved too (the emote wheel's hold key, Rensei.Emotes.Key; 2026-10-28 review). U is a free key: in no
+--     Reserved list and bound by no script (searched: the repo and Ye's Studio-only ClientHandler.Controls).
 local Settings = require(game.ReplicatedStorage.Modules.Data.Rensei.Settings)
 
 local DEFAULTS = {Dash = "Q", Block = "F", LockTarget = "G", WeaponSkill = "T", Aim = "Y", Takedown = "N"}
@@ -24,19 +26,20 @@ return {
 		T.Eq(Settings.IsBindableKey("B"), false, "B (grip) stays reserved")
 		T.Eq(Settings.IsBindableKey("V"), false, "V (carry) stays reserved")
 		T.Eq(Settings.IsBindableKey("E"), false, "E (interact) stays reserved")
-		T.Eq(Settings.IsBindableKey("H"), true, "control: H (free) is bindable")
+		T.Eq(Settings.IsBindableKey("H"), false, "H (emote wheel hold) is reserved")
+		T.Eq(Settings.IsBindableKey("U"), true, "control: U (free) is bindable")
 	end,
 
 	-- a saved takedown key the server accepts is kept
 	SavedTakedownKeyKept = function(T)
-		local R = Settings.Resolve({Keys = {Takedown = "H"}})
-		T.Eq(R.Keys.Takedown, "H", "a saved H is kept")
+		local R = Settings.Resolve({Keys = {Takedown = "U"}})
+		T.Eq(R.Keys.Takedown, "U", "a saved U is kept")
 		T.Eq(R.Keys.Dash, "Q", "Dash untouched")
 	end,
 
 	-- an invalid saved takedown key falls back to N: reserved, not a key, the wrong type
 	InvalidTakedownKeyFallsBack = function(T)
-		for _, Bad in ipairs({"B", "V", "E", "LeftShift", "One", "NotAKey", "", 14, true}) do
+		for _, Bad in ipairs({"B", "V", "E", "H", "LeftShift", "One", "NotAKey", "", 14, true}) do
 			local R = Settings.Resolve({Keys = {Takedown = Bad}})
 			T.Eq(R.Keys.Takedown, "N", "saved " .. tostring(Bad) .. " falls back to N")
 		end
@@ -60,10 +63,10 @@ return {
 		local D = Settings.Resolve({Keys = {Dash = "N", Takedown = "N"}})
 		T.Eq(D.Keys.Takedown, "N", "both on N: the takedown keeps it")
 		T.Eq(D.Keys.Dash, "Q", "both on N: Dash back to Q")
-		-- the takedown on Q with Dash on H: no duplicate, both kept
-		local E = Settings.Resolve({Keys = {Dash = "H", Takedown = "Q"}})
+		-- the takedown on Q with Dash on U: no duplicate, both kept
+		local E = Settings.Resolve({Keys = {Dash = "U", Takedown = "Q"}})
 		T.Eq(E.Keys.Takedown, "Q", "the takedown may take Dash's default once Dash moved")
-		T.Eq(E.Keys.Dash, "H", "Dash on H")
+		T.Eq(E.Keys.Dash, "U", "Dash on U")
 		-- one key per action holds after every case
 		for Name, R in pairs({A = A, B = B, C = C, D = D, E = E}) do
 			local Seen = {}
@@ -72,6 +75,15 @@ return {
 				Seen[Key] = K
 			end
 		end
+	end,
+
+	-- a save from before H was reserved (2026-10-28): any action saved on H goes back to its own default
+	SavedHFallsBack = function(T)
+		local R = Settings.Resolve({Keys = {Takedown = "H", Dash = "H", Aim = "H"}})
+		T.Eq(R.Keys.Takedown, "N", "a takedown saved on H goes back to N")
+		T.Eq(R.Keys.Dash, "Q", "a Dash saved on H goes back to Q")
+		T.Eq(R.Keys.Aim, "Y", "an Aim saved on H goes back to Y")
+		for K, Key in pairs(R.Keys) do T.True(Key ~= "H", K .. " is not on H") end
 	end,
 
 	-- left free when its own default is taken too: the takedown on G (Lock Target's default) loses G, and N is held by

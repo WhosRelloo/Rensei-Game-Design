@@ -216,7 +216,8 @@ local SERVER = [==[
 --     "Mastery") and the Journal (J): each hides the prompt while open (ruling, PROPOSAL).
 --   (Task 11) NEAR_X, NEAR_Z: a second Grunt at At(1.2, 1.2), facing -Z as the first: the player (3 studs behind the
 --     first, at At(0, 3)) is 2.16 studs from it, 34 degrees off its back, so it is nearer and the target.
---   (2026-10-28) REBIND "H": a free key (in no Reserved list, bound by nothing); PromptUI labels it "H", and N "N".
+--   (2026-10-28) REBIND "U": a free key (in no Reserved list, bound by no script: the repo and Ye's ClientHandler.Controls
+--     searched; H is the emote wheel's and is reserved); PromptUI labels it "U", and N "N".
 --     RESERVED "LeftShift": a key the server refuses for any action (run). UNBOUND "Unknown": the name Settings leaves
 --     for an action with no key.
 local Players = game:GetService("Players")
@@ -237,7 +238,7 @@ local KEY_WAIT = 30
 local TAP_GRACE = 0.1
 local MENUS = {"Inventory", "Stats", "Settings", "Mastery", "Journal"}
 local NEAR_X, NEAR_Z = 1.2, 1.2
-local REBIND, RESERVED, UNBOUND = "H", "LeftShift", "Unknown"
+local REBIND, RESERVED, UNBOUND = "U", "LeftShift", "Unknown"
 local Progression = require(SSS.ProgressionService)
 local SmokeKit = require(script.Parent.SmokeKit)
 
@@ -426,7 +427,7 @@ local Suite = {
 			T.True(R.Ok, "control, every menu closed: the prompt back within 0.5 s (" .. Secs(R) .. ")")
 		end)
 	end,
-	-- (2026-10-28) the prompt follows the player's binding: rebound to H, a fresh prompt on H with PromptUI's label "H",
+	-- (2026-10-28) the prompt follows the player's binding: rebound to U, a fresh prompt on U with PromptUI's label "U",
 	-- with no respawn; bound back, on N again. The player's own binding is put back (here, and by Reset on a failure).
 	TakedownKeyFollowsBinding = function(T)
 		Case(function(Rig)
@@ -436,11 +437,11 @@ local Suite = {
 			T.True(Ask("Remember", {Rig = Rig}), "setup: its prompt kept")
 			local B = Ask("Bind", {Key = REBIND})
 			T.Eq(B.Was, KEY, "the player's own binding is N")
-			T.Eq(B.Now, REBIND, "Keybinds: the takedown on H")
+			T.Eq(B.Now, REBIND, "Keybinds: the takedown on U")
 			local R = Shows(Rig, nil, REBIND, REBIND)
-			T.True(R.Ok, "rebound: the prompt on H, labelled H, within 0.5 s (" .. Secs(R) .. ", key " .. tostring(R.Key)
+			T.True(R.Ok, "rebound: the prompt on U, labelled U, within 0.5 s (" .. Secs(R) .. ", key " .. tostring(R.Key)
 				.. ", labels " .. tostring(R.Labels) .. ")")
-			T.Eq(R.Key, REBIND, "KeyboardKeyCode H")
+			T.Eq(R.Key, REBIND, "KeyboardKeyCode U")
 			T.Eq(R.Count, 1, "one TakedownPrompt in the workspace")
 			T.True(Ask("Fresh", {Rig = Rig}).New, "a fresh prompt for the new key")
 			T.Near(R.Hold, HOLD_TO_KILL, 1e-6, "HoldDuration unchanged")
@@ -469,8 +470,8 @@ local Suite = {
 			T.True(R.Ok, "bound back: the prompt on N within 0.5 s (" .. Secs(R) .. ")")
 		end)
 	end,
-	-- (2026-10-28) the server's save path (Requests.Settings -> Settings.Resolve): a saved H is kept; a reserved key and
-	-- a name that is no key fall back to N. The player's Settings table is put back (the same table) before it returns.
+	-- (2026-10-28) the server's save path (Requests.Settings -> Settings.Resolve): a saved U is kept; a reserved key (H,
+	-- the emote wheel's; LeftShift) and a name that is no key fall back to N. The player's Settings table is put back (the same table) before it returns.
 	ServerSavesTakedownKey = function(T)
 		Kit.Guard(function()
 			local SH = game:GetService("ServerScriptService"):FindFirstChild("ServerHandler")
@@ -485,7 +486,10 @@ local Suite = {
 				Saved.Keys.Takedown = REBIND
 				Request(Player, Saved)
 				T.True(Data.Settings ~= Orig, "setup: the request replaced the Settings table")
-				T.Eq(Data.Settings.Keys.Takedown, REBIND, "the server kept the saved H")
+				T.Eq(Data.Settings.Keys.Takedown, REBIND, "the server kept the saved U")
+				Saved.Keys.Takedown = "H"
+				Request(Player, Saved)
+				T.Eq(Data.Settings.Keys.Takedown, KEY, "a saved H (the emote wheel's) falls back to N")
 				Saved.Keys.Takedown = RESERVED
 				Request(Player, Saved)
 				T.Eq(Data.Settings.Keys.Takedown, KEY, "a reserved LeftShift falls back to N")
