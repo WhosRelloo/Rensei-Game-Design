@@ -1,8 +1,8 @@
 -- HostageService (hostages plan Task 5, 2026-10-27; spec Documents/specs/2026-10-21-hostage-design.md, owner-approved
 -- 2026-10-25): the server side of a player-on-player hostage. The client only asks (Requests.Hostage); every rule is
 -- checked here, with the server's own positions. Numbers and the gate maths: Rensei.Hostage (every number a PROPOSAL
--- unless it says it was measured). Tasks 6-11 extend it (the pair policed, the grab and the struggle, the captor menu,
--- the shield and rescue, ransom and turn-in).
+-- unless it says it was measured). Tasks 6-11 extend it (the pair policed -- Task 6, done --, the grab and the struggle,
+-- the captor menu, the shield and rescue, ransom and turn-in).
 --
 -- PvP ONLY (owner rule): a hostage and a captor are always players. IsNpc (EnemyType, TownsfolkId, DialogueId or an
 -- EnemyService entry; pre-flight P25) is asked FIRST, before a character is ever looked up as a player: PlayerOf never
@@ -48,12 +48,51 @@
 --        (DownedManager.Lock), stunned (WCS) for its hold time + StunPad, tools unequipped; the pair welded at once
 --        (DownedManager.Attach(CC, HC, Offset): the captor is the holder and its client owns the pair, ruling R1; the
 --        knock ended in the same step, so the crawl clamp never sees an unwelded, unknocked hostage: hand-off 2); the
---        captor re-locked at LeadSpeed; Anims.Hold / Anims.Held looped at Action4; State "Held", S.Until (os.clock)
+--        captor re-locked at LeadSpeed and the lead clamp started (Pair, Task 6); Anims.Hold / Anims.Held looped at Action4; State "Held", S.Until (os.clock)
 --        and HostageUntil (server time) on both; this take counted in Taken (pre-flight P22: only a hold is a re-take);
 --        Watch started; Notify both; took_hostage recorded (a real captor, witnessed).
 -- * Broken(S) -> outcome | nil (public, a test seam): "left" (either not Present), "died" (either character dead or
---   replaced), "knocked" (the captor knocked; while Held, the hostage knocked: decision 5), "safe" (the captor in a safe
---   zone), "timeout" (Held and os.clock() >= S.Until). Task 6 adds the pair checks, Task 7 the struggle.
+--   replaced), "knocked" (the captor knocked; while Held, the hostage knocked: decision 5); then, while the pair is LED
+--   (welded, S.Attached, and Held or -- Task 7 -- Grabbing: pre-flight P5), THE PAIR POLICED (below): "teleport",
+--   "broken", "water"; then "safe" (the captor in a safe zone), "timeout" (Held and os.clock() >= S.Until). Task 7 adds
+--   the struggle.
+-- * THE PAIR POLICED (Task 6, ruling R1; the assassinations' final review I1). WHY THE CAPTOR'S CLIENT OWNS THE PAIR:
+--   the captor has to walk while leading the hostage. A Roblox character walks only where its owning client simulates
+--   it, so the captor's root must stay the captor's client's, and a weld joins the hostage's root into that one
+--   assembly, which has one physics owner: the captor's client (DownedManager.Attach hands it over; for a stand-in
+--   captor, the server). The takedowns' fix for I1, anchoring the player, would stop the walk, and making the hostage
+--   the holder (Grip's way) would hand the walking captor to the server. So the captor's client moves the pair, and a
+--   client's WalkSpeed is its own: the server's LeadSpeed lock is only advice (Task 1 measured 37.99-48.39 studs in 2 s
+--   at a server WalkSpeed of 16). WHAT THE SERVER CHECKS INSTEAD, every WatchTick in Broken, with its own positions (the
+--   hostage's own client owns nothing of the pair, so it can't move, jump or draw; the checks below keep it so):
+--     1. the lead clamp (S.Lead = {Pos, Y, T, Rebased}, set when the pair is welded to the captor's root): D = the
+--        captor's root's ground (x / z) distance from S.Lead.Pos, Dt = now - S.Lead.T.
+--        - D > TeleportBreak -> "teleport" (an admin bring, a station move, an exploit: the hold ends rather than follow);
+--        - D > Hostage.LeadAllowance(Dt), or the root more than RiseSlack above S.Lead.Y -> the pair PUT BACK: the
+--          captor's root moved to S.Lead.Pos (its full position, the hostage with it), its velocity zeroed,
+--          HostageClamped + 1 on the captor's character, S.Lead.T = now;
+--        - else S.Lead follows: Pos and T = now; Y = the root's Y when the server sees a floor under the captor's legs
+--          (GROUND_RAY: a stair or a ramp walked up is ground), else min(S.Lead.Y, the root's Y) (in the air only a
+--          descent lowers it, so a jump or a climb is held to RiseSlack). A root that hasn't moved (under 0.05 studs)
+--          leaves Pos and T, so the window grows to LeadWindow, as the crawl clamp's does (a late packet is no sprint).
+--        It is the crawl clamp's shape (DownedManager's ClampCrawl) with the hostage's numbers, kept small here rather
+--        than shared (pre-flight D4): the two differ in what they end (a teleport break here), in the rise check and in
+--        where the point is kept (the session here, a weak table there). DownedManager.RebaseCrawl isn't used: neither
+--        side is knocked.
+--        A deliberate server move of a led pair calls HostageService.Rebase(Character) after it (pre-flight P6: Task 10's
+--        gate push, Task 11's desk), which starts the clamp again from the root's spot. For REBASE_GRACE after it, a far
+--        root is the owning client's stale echo of the spot before the move: put back to the rebased spot, neither
+--        counted nor a "teleport" (DownedManager's fix round 3 saw the same echo).
+--     2. the pair: the weld gone (no DownedWeld on the captor's root, or its Part1 not the hostage's root), or the
+--        hostage's root more than PairSlack from the captor's root x Hostage.Offset -> "broken";
+--     3. ownership: the hostage's root's network owner kept to the captor's Player (nil, the server, for a stand-in
+--        captor), so it never falls back to the hostage's own client;
+--     4. the hostage's own body: WalkSpeed 0, JumpHeight 0 and PlatformStand true written again when anything changed
+--        them; a Tool in the hostage's character goes back to its Backpack (decision 18; a stand-in's PL.Backpack, which
+--        a test gives it);
+--     5. deep water (SwimService.InDeepWater, read only) for either side -> "water" (decision 17).
+--   Pair(S) welds and leads the pair (Hold; Task 7's grab calls it too, P5): the weld, S.Attached, the captor locked at
+--   LeadSpeed (its earlier lock given back first only when this session made one) and S.Lead.
 -- * Watch(S): every WatchTick while not S.Over, pcall(HostageService.Broken, S); an outcome -> Release(S, outcome), an
 --   error -> Release(S, "error").
 -- * Release(S, Outcome): THE ONE EXIT of a session (lesson: TakedownService's Release). Guarded by S.Over and the
@@ -78,12 +117,15 @@
 -- * EXITS (Start): Players.PlayerRemoving -> _Left(P) ("left"); each session's characters' Humanoid.Died and Destroying
 --   and a real owner's CharacterAdded -> "died"; game:BindToClose -> _Shutdown() ("shutdown"). Every other end goes
 --   through Watch (Broken) or Free.
+-- * Rebase(Character) -> bool (Task 6, pre-flight P6): the led pair that character is either side of has its lead
+--   clamp started again from the captor's root's spot now (see THE PAIR POLICED); false when it leads no pair.
 -- * Free(PL, Outcome) -> bool: that PL's session (either side) released. SessionOf(PL) -> S | nil. Forget(PL, Only):
 --   the PL's cooldown (NextAt), immunity (ImmuneUntil) and re-take times (Taken) forgotten; Only (a set, e.g.
 --   {ImmuneUntil = true}) forgets just those. Released: listeners (S, Outcome).
 --
 -- Attributes. Captor's character: Holding (the hostage's name), HostageUntil (server time, while Held),
--- LastHostageResult ("<Kind>:<reason or outcome>"; tests and logs). Hostage's character: HeldBy (the captor's name),
+-- LastHostageResult ("<Kind>:<reason or outcome>"; tests and logs), HostageClamped (Task 6: times the lead clamp put the
+-- pair back; tests and logs). Hostage's character: HeldBy (the captor's name),
 -- HostageUntil, Struggle (Task 7), GrabImmuneUntil (server time). Read: Knocked, KnockedUntil, GrippedBy, Gripping,
 -- CarriedBy, Carrying, TakenDownBy, TakingDown, Traversal, SecondWindActive, EnemyType, TownsfolkId, DialogueId.
 -- Session times (NextAt, ImmuneUntil, Taken, S.T0, S.Until) are os.clock(); the attributes are server time.
@@ -121,6 +163,11 @@ HostageService._TestBypass = function() return true end
 local BIND_SLACK = 1.0 -- PROPOSAL (the takedowns' HOLD_SLACK): studs the binding captor's root may move
 local SLOW_PAST = 0.5 -- PROPOSAL: seconds past BindTime before a bind's phase timings are warned
 local SLOW_RELEASE = 0.25 -- PROPOSAL: seconds a release may take before its timings are warned
+-- (Task 6) PROPOSAL (DownedManager's CrawlClampGrace): seconds after a Rebase in which a far root is the client's stale echo
+local REBASE_GRACE = 0.5
+-- (Task 6) PROPOSAL: studs below the captor's legs a floor may be and still be the ground it stands on (the lead's Y)
+local GROUND_RAY = 1.5
+local STILL = 0.05 -- (Task 6) studs: a root that moved less hasn't moved (the crawl clamp's own threshold)
 
 local StandIns = {} -- [Model] = PL (tests only; read only while SeamOpen)
 local ByCaptor = {} -- [Key] = S
@@ -457,12 +504,138 @@ local function Release(S, Outcome)
 	return true
 end
 
+-- ===== the led pair, policed (Task 6, ruling R1: see THE PAIR POLICED in the header) =====
+-- a welded pair being led: Held, or (Task 7) Grabbing (pre-flight P5)
+local function Led(S)
+	return S.Attached == true and (S.State == "Held" or S.State == "Grabbing")
+end
+
+local GroundRays = RaycastParams.new()
+GroundRays.FilterType = Enum.RaycastFilterType.Exclude
+GroundRays.RespectCanCollide = true
+GroundRays.IgnoreWater = true
+
+-- the server sees a floor under the captor's legs
+local function OnGround(S, CR)
+	local H = Hum(S.CC)
+	local Legs = CR.Size.Y / 2 + (H and H.HipHeight or 0) + ((H and H.RigType == Enum.HumanoidRigType.R6) and 2 or 0)
+	GroundRays.FilterDescendantsInstances = {S.CC, S.HC}
+	return workspace:Raycast(CR.Position, Vector3.new(0, -(Legs + GROUND_RAY), 0), GroundRays) ~= nil
+end
+
+local function NewLead(CR) return {Pos = CR.Position, Y = CR.Position.Y, T = os.clock()} end
+
+-- 1. the lead clamp: "teleport", or nil (the pair put back when it went further or higher than a led walk could)
+local function LeadCheck(S)
+	local CR, L = Root(S.CC), S.Lead
+	if not CR or not L then return nil end
+	local Now, Pos = os.clock(), CR.Position
+	local D = Flat(Pos - L.Pos).Magnitude
+	local Echo = L.Rebased ~= nil and Now - L.Rebased < REBASE_GRACE
+	if D > Hostage.TeleportBreak and not Echo then return "teleport" end
+	if D > Hostage.LeadAllowance(Now - L.T) or Pos.Y > L.Y + Hostage.RiseSlack then
+		CR.CFrame += L.Pos - Pos
+		CR.AssemblyLinearVelocity = Vector3.zero
+		if not Echo then S.CC:SetAttribute("HostageClamped", (S.CC:GetAttribute("HostageClamped") or 0) + 1) end
+		L.T = Now
+		return nil
+	end
+	local Y = OnGround(S, CR) and Pos.Y or math.min(L.Y, Pos.Y)
+	if D < STILL then
+		L.Y = Y -- (still: Pos and T kept, so the window grows up to LeadWindow)
+	else
+		S.Lead = {Pos = Pos, Y = Y, T = Now, Rebased = L.Rebased}
+	end
+	return nil
+end
+
+-- 2. the pair: "broken" when the weld is gone or the hostage's root isn't where the weld holds it
+local function PairCheck(S)
+	local CR, HR = Root(S.CC), Root(S.HC)
+	if not CR or not HR then return "broken" end
+	local W = CR:FindFirstChild("DownedWeld")
+	if not W or W.Part1 ~= HR then return "broken" end
+	if (HR.Position - (CR.CFrame * Hostage.Offset).Position).Magnitude > Hostage.PairSlack then return "broken" end
+	return nil
+end
+
+-- 3. ownership: the hostage's root stays the captor's client's (the server's for a stand-in captor)
+local function KeepOwner(S)
+	local HR = Root(S.HC)
+	if not HR then return end
+	local Owner = IsPlayer(S.Captor) and S.Captor or nil
+	pcall(function() -- (an anchored assembly refuses both calls: a test holds the captor's root)
+		if HR:GetNetworkOwner() ~= Owner then HR:SetNetworkOwner(Owner) end
+	end)
+end
+
+local function BackpackOf(PL)
+	if IsPlayer(PL) then return PL:FindFirstChildOfClass("Backpack") end
+	return typeof(PL.Backpack) == "Instance" and PL.Backpack or nil -- (a stand-in's, which a test gives it)
+end
+
+-- 4. the hostage's own body kept still, its tools put away (decision 18)
+local function KeepStill(S)
+	local H = Hum(S.HC)
+	if H then
+		if H.WalkSpeed ~= 0 then H.WalkSpeed = 0 end
+		if H.JumpHeight ~= 0 then H.JumpHeight = 0 end
+		if not H.PlatformStand then H.PlatformStand = true end
+	end
+	for _, X in ipairs(S.HC:GetChildren()) do
+		if X:IsA("Tool") then
+			local Bag = BackpackOf(S.Hostage)
+			if Bag then X.Parent = Bag elseif H then H:UnequipTools() end
+		end
+	end
+end
+
+-- 5. deep water (SwimService, read only; called through its module, so a test's stub is seen)
+local function InDeepWater(M)
+	local Swim = ServerScriptService:FindFirstChild("SwimService")
+	if not Swim then return false end
+	local Ok, Deep = pcall(function() return require(Swim).InDeepWater(M) end)
+	return Ok and Deep == true
+end
+
+-- the pair welded and led (Hold; Task 7's grab too, pre-flight P5): see Pair(S) in the header
+local function Pair(S)
+	if not DownedManager.Attach(S.CC, S.HC, Hostage.Offset) then error("the weld failed") end
+	S.Attached = true
+	if S.CLocked then DownedManager.Lock(S.CC, false) end
+	DownedManager.Lock(S.CC, true, Hostage.LeadSpeed)
+	S.CLocked = true
+	S.Lead = NewLead(Root(S.CC))
+end
+
+-- (pre-flight P6) a script moved a led pair on purpose: its lead clamp starts again from the captor's root's spot now
+function HostageService.Rebase(Character)
+	if typeof(Character) ~= "Instance" then return false end
+	for _, S in pairs(ByCaptor) do
+		if not S.Over and S.Lead and (S.CC == Character or S.HC == Character) then
+			local CR = Root(S.CC)
+			if not CR then return false end
+			S.Lead = NewLead(CR)
+			S.Lead.Rebased = os.clock()
+			return true
+		end
+	end
+	return false
+end
+
 -- the session's ends, a test seam: see the header
 function HostageService.Broken(S)
 	if not Present(S.Captor) or not Present(S.Hostage) then return "left" end
 	if not Alive(S.CC) or not Alive(S.HC) or Char(S.Captor) ~= S.CC or Char(S.Hostage) ~= S.HC then return "died" end
 	if DownedManager.IsKnocked(S.CC) then return "knocked" end
 	if S.State == "Held" and DownedManager.IsKnocked(S.HC) then return "knocked" end
+	if Led(S) then
+		local Out = LeadCheck(S) or PairCheck(S)
+		if Out then return Out end
+		KeepOwner(S)
+		KeepStill(S)
+		if InDeepWater(S.CC) or InDeepWater(S.HC) then return "water" end
+	end
 	if HostageService.InSafeZone(S.CC) then return "safe" end
 	if S.State == "Held" and os.clock() >= S.Until then return "timeout" end
 	return nil
@@ -529,10 +702,7 @@ local function Hold(S)
 		S.Stun:Start(Time + Hostage.StunPad)
 	end
 	Step("putting the hostage's tools away", function() H:UnequipTools() end)
-	if not DownedManager.Attach(CC, HC, Hostage.Offset) then error("the weld failed") end
-	S.Attached = true
-	DownedManager.Lock(CC, false)
-	DownedManager.Lock(CC, true, Hostage.LeadSpeed)
+	Pair(S) -- (the weld, the captor at LeadSpeed, the lead clamp's first point: Task 6)
 	StopAnim(CC, Hostage.Anims.Bind)
 	Step("the hold animation", AnimationManager.Play, CC, Hostage.Anims.Hold.Name,
 		{Looped = true, Priority = Enum.AnimationPriority.Action4, Fallback = Hostage.Anims.Hold.Fallback})

@@ -29,6 +29,10 @@
 --   * Kit.KnockPlayer(): the player knocked (DownedManager.Knock) with a 60 s knock (KnockedTime 60, SecondWindUsed),
 --     which Guard puts back.
 --   * Kit.Result(Character): LastHostageResult on that character (default: the player's).
+--   * (Task 6) Kit.Held(Opts) -> Rig, PL, S: the player as the captor of a stand-in (Kit.StandIn(At(0, 0), Opts),
+--     knocked), the player at Kit.FRONT (3 studs in front of it, facing it; TakedownKit.PutPlayer anchors the root), the
+--     take started and Held within 2 s, else an error. Kit.Loose(): the player's root let go (PutPlayer anchors it), as
+--     in a real game, with 0.3 s to settle (Play_TakedownHard's own Loose, for the hostage suites and client checks).
 --   * Kit.Clean(): every session of the player and of each stand-in freed with "error"; HostageService.ClearStandIns;
 --     every stand-in's WCS character and rig destroyed; the player recovered if knocked; Holding, HeldBy, HostageUntil,
 --     Struggle, GrabImmuneUntil, LastHostageResult and HostageClamped cleared on the player; HostageService.Forget for
@@ -153,6 +157,31 @@ end
 
 function Kit.Result(Character)
 	return (Character or Player().Character):GetAttribute("LastHostageResult")
+end
+
+-- (Task 6) the player 3 studs in front of the kit's spot, facing it (-Z)
+Kit.FRONT = TakedownKit.At(0, 3) + Vector3.new(0, 3, 0)
+
+function Kit.Held(Opts)
+	local Rig, PL = Kit.StandIn(TakedownKit.At(0, 0), Opts)
+	DownedManager.Knock(Rig)
+	TakedownKit.PutPlayer(Kit.FRONT)
+	assert(DownedManager.IsKnocked(Rig), "HostageKit.Held: the stand-in is knocked")
+	local Ok, Why = HS().Take(Player(), Rig)
+	assert(Ok, "HostageKit.Held: the take starts (" .. tostring(Why) .. ")")
+	local Held = TakedownKit.WaitFor(2.0, function()
+		local S = HS().SessionOf(Player())
+		return S ~= nil and S.State == "Held"
+	end)
+	assert(Held, "HostageKit.Held: Held within 2 s (" .. tostring(Kit.Result()) .. ")")
+	return Rig, PL, HS().SessionOf(Player())
+end
+
+function Kit.Loose()
+	local Root = Player().Character.HumanoidRootPart
+	Root.Anchored = false
+	Root.AssemblyLinearVelocity = Vector3.zero
+	task.wait(0.3)
 end
 
 function Kit.Clean()

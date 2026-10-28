@@ -5,8 +5,14 @@
 --   doesn't crawl; the knock's timer waits for a bind; DownedManager.EndKnock ends a knock without Recover's heal; and
 --   (PvE stays PvE) no takedown ever accepts a player. Nothing sets Holding or HeldBy yet (HostageService, Task 5): the
 --   cases set them by hand, "X" standing for the other party's name. Every expected number is written by hand.
+-- * Task 6 (ruling R1, lesson I1): the led pair policed on the server. Each case holds a stand-in hostage with the REAL
+--   player as the captor (HostageKit.Held), the player's root let go (HostageKit.Loose), so its client owns the pair as
+--   in a real game. Written by hand (Rensei.Hostage, PROPOSAL): LeadAllowance(0.1) = (12 x 1.5 + 2.5) x 0.1 = 2.05 studs
+--   per watch tick of 0.1 s; TeleportBreak 40; Offset 1.5 studs in front. The client half (a real client walking,
+--   breaking its weld, a held client trying to move) is Art/Studio/Hostage/client_checks.lua.
 local DM = require(game.ReplicatedStorage.Modules.Managers.DownedManager)
 local ServerStorage = game:GetService("ServerStorage")
+local SSS = game:GetService("ServerScriptService")
 local TK = require(script.Parent.TakedownKit)
 local SmokeKit = require(script.Parent.SmokeKit) -- RemoveEnemy: a refused case's rig goes before its control
 local HK = require(script.Parent.HostageKit)
@@ -30,6 +36,28 @@ local function KnockPlayer(ByDamage)
 	C:SetAttribute("SecondWindUsed", true)
 	if ByDamage then DM.Damage(C, C.Humanoid.Health) else DM.Knock(C) end
 	return DM.IsKnocked(C)
+end
+
+-- (Task 6) the led pair: the hostage service, the player's root, the clamp's counter, the hold's state
+local OFFSET = CFrame.new(0, 0, -1.5) -- written by hand: the hostage's root 1.5 studs in front of the captor's
+local function Svc()
+	local M = SSS:FindFirstChild("HostageService")
+	assert(M, "HostageService exists")
+	return require(M)
+end
+local function CRoot() return C.HumanoidRootPart end
+local function Clamped() return C:GetAttribute("HostageClamped") or 0 end
+local function Ground(A, B) return Vector3.new(A.X - B.X, 0, A.Z - B.Z).Magnitude end
+local function On(S) return not S.Over and Svc().SessionOf(Player) == S end
+local function Ended(Want, Max) return WaitFor(Max, function() return HK.Result() == Want end) end
+local function F2(X) return ("%.2f"):format(X) end
+-- Held, the player's client owning the pair (its root let go); the counter starts at 0
+local function Led(T)
+	local Rig, PL, S = HK.Held()
+	HK.Loose()
+	T.True(S ~= nil and On(S), "setup: the pair is held")
+	T.Eq(Clamped(), 0, "setup: nothing put back yet")
+	return Rig, PL, S
 end
 
 return {
@@ -229,5 +257,144 @@ return {
 		T.True(tostring(Err):find("snapshot", 1, true) ~= nil, "it says why: " .. tostring(Err))
 		HK.Guard(function() Ran = true end)
 		T.Eq(Ran, true, "control: both true, the case runs")
+	end,
+
+	-- ===== Task 6: the led pair policed (R1) =====
+	-- the captor's root moved 8 studs in one step (well over 2.05 a tick): put back within 1 stud of where it was within
+	-- 0.3 s, counted, and the hold is still on
+	LeadClamped = function(T)
+		HK.Guard(function()
+			local _, _, S = Led(T)
+			local P0 = CRoot().Position
+			CRoot().CFrame += CRoot().CFrame.LookVector * 8
+			local Back = WaitFor(0.3, function() return Ground(CRoot().Position, P0) <= 1 and Clamped() >= 1 end)
+			T.True(Back, "put back within 0.3 s")
+			T.True(Ground(CRoot().Position, P0) <= 1, "within 1 stud of where it was (" .. F2(Ground(CRoot().Position, P0)) .. ")")
+			T.True(Clamped() >= 1, "HostageClamped counted (" .. Clamped() .. ")")
+			T.True(On(S), "the hold is still on (" .. tostring(HK.Result()) .. ")")
+		end)
+	end,
+
+	-- the captor's root moved 60 studs (over TeleportBreak 40): the hold ends "teleport"; the stand-in is free where the
+	-- move left it (1.5 studs in front of the moved root), not dragged back
+	TeleportEnds = function(T)
+		HK.Guard(function()
+			local Rig = Led(T)
+			local P0 = CRoot().Position
+			local To = CRoot().CFrame + Vector3.new(60, 0, 0)
+			CRoot().CFrame = To
+			T.True(Ended("Bind:teleport", 0.5), "\"teleport\" within 0.5 s (" .. tostring(HK.Result()) .. ")")
+			T.Eq(Rig:GetAttribute("HeldBy"), nil, "the stand-in is free")
+			T.Eq(CRoot():FindFirstChild("DownedWeld"), nil, "no weld on the player's root")
+			local HR = Rig.HumanoidRootPart.Position
+			T.True(Ground(HR, (To * OFFSET).Position) <= 3, "the stand-in is where the move left it ("
+				.. F2(Ground(HR, (To * OFFSET).Position)) .. " studs off)")
+			T.True(Ground(HR, P0) > 50, "not dragged back (" .. F2(Ground(HR, P0)) .. " studs from the old spot)")
+		end)
+	end,
+
+	-- the weld destroyed on the server: "broken" within 0.3 s
+	PairBroken = function(T)
+		HK.Guard(function()
+			local Rig = Led(T)
+			local W = CRoot():FindFirstChild("DownedWeld")
+			T.True(W ~= nil, "setup: the pair is welded")
+			W:Destroy()
+			T.True(Ended("Bind:broken", 0.3), "\"broken\" within 0.3 s (" .. tostring(HK.Result()) .. ")")
+			T.Eq(Rig:GetAttribute("HeldBy"), nil, "the stand-in is free")
+		end)
+	end,
+
+	-- the stand-in's WalkSpeed 16, JumpHeight 7.2 and PlatformStand false, written by the test: all back within 0.3 s
+	HostageStaysPut = function(T)
+		HK.Guard(function()
+			local Rig, _, S = Led(T)
+			local H = Rig.Humanoid
+			H.WalkSpeed, H.JumpHeight, H.PlatformStand = 16, 7.2, false
+			local Back = WaitFor(0.3, function() return H.WalkSpeed == 0 and H.JumpHeight == 0 and H.PlatformStand == true end)
+			T.True(Back, "written back within 0.3 s")
+			T.Eq(H.WalkSpeed, 0, "WalkSpeed")
+			T.Eq(H.JumpHeight, 0, "JumpHeight")
+			T.Eq(H.PlatformStand, true, "PlatformStand")
+			T.True(On(S), "the hold is still on")
+		end)
+	end,
+
+	-- a Tool parented to the stand-in by the test: back in its Backpack (a stand-in's: a TEMP folder the test gives it)
+	-- within 0.3 s, in no character
+	ToolPutAway = function(T)
+		HK.Guard(function()
+			local Rig, PL, S = Led(T)
+			local Bag = Instance.new("Folder")
+			Bag.Name = "HostageHard_TEMP_Backpack"
+			Bag.Parent = ServerStorage
+			PL.Backpack = Bag
+			local Tool = Instance.new("Tool")
+			Tool.Name = "HostageHard_TEMP_Tool"
+			Tool.RequiresHandle = false
+			local Ok, Err = pcall(function()
+				Tool.Parent = Rig
+				T.True(WaitFor(0.3, function() return Tool.Parent == Bag end), "put away within 0.3 s (in "
+					.. tostring(Tool.Parent and Tool.Parent:GetFullName()) .. ")")
+				T.True(Tool:FindFirstAncestorOfClass("Model") == nil, "in no character")
+				T.True(On(S), "the hold is still on")
+			end)
+			PL.Backpack = nil
+			Tool:Destroy()
+			Bag:Destroy()
+			if not Ok then error(Err, 0) end
+		end)
+	end,
+
+	-- SwimService.InDeepWater says true for the stand-in (a stub, put back after): "water" within 0.3 s
+	WaterEnds = function(T)
+		HK.Guard(function()
+			local Rig = Led(T)
+			local Swim = require(SSS.SwimService)
+			local Real = Swim.InDeepWater
+			Swim.InDeepWater = function(M) if M == Rig then return true end return Real(M) end
+			local Ok, Err = pcall(function()
+				T.True(Ended("Bind:water", 0.3), "\"water\" within 0.3 s (" .. tostring(HK.Result()) .. ")")
+			end)
+			Swim.InDeepWater = Real
+			if not Ok then error(Err, 0) end
+			T.Eq(Rig:GetAttribute("HeldBy"), nil, "the stand-in is free")
+		end)
+	end,
+
+	-- the control: the captor's root moved 1 stud per 0.1 s for 2 s (10 studs/s, under the lead's 12): never put back,
+	-- the hold still on, and it really went (at least 10 of the 20 studs; the client's echo may take a little back)
+	NormalLeadOk = function(T)
+		HK.Guard(function()
+			local _, _, S = Led(T)
+			local P0 = CRoot().Position
+			local Dir = CRoot().CFrame.LookVector
+			for _ = 1, 20 do
+				CRoot().CFrame += Dir
+				task.wait(0.1)
+			end
+			T.Eq(Clamped(), 0, "never put back")
+			T.True(On(S), "the hold is still on (" .. tostring(HK.Result()) .. ")")
+			T.True(Ground(CRoot().Position, P0) >= 10, "the pair went with it (" .. F2(Ground(CRoot().Position, P0)) .. " studs)")
+		end)
+	end,
+
+	-- (pre-flight P6) a deliberate server move of 8 studs, then HostageService.Rebase: the pair stays where the server put
+	-- it, nothing is counted, the hold is still on (LeadClamped is the control: the same move without Rebase is put back)
+	RebaseKeepsTheMove = function(T)
+		HK.Guard(function()
+			local Rig, _, S = Led(T)
+			local To = CRoot().CFrame + Vector3.new(8, 0, 0)
+			CRoot().CFrame = To
+			T.Eq(Svc().Rebase(C), true, "Rebase(the captor) rebased the pair")
+			task.wait(0.5)
+			T.True(Ground(CRoot().Position, To.Position) <= 1, "it stays where the server put it ("
+				.. F2(Ground(CRoot().Position, To.Position)) .. " studs off)")
+			T.Eq(Clamped(), 0, "nothing counted")
+			T.True(On(S), "the hold is still on (" .. tostring(HK.Result()) .. ")")
+			T.Eq(Svc().Rebase(Rig), true, "Rebase(the hostage) rebases the same pair")
+			Svc().Free(Player, "released")
+			T.Eq(Svc().Rebase(C), false, "control: no led pair, nothing to rebase")
+		end)
 	end,
 }
