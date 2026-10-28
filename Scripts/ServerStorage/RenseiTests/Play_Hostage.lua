@@ -25,6 +25,9 @@
 --   RefuseNotKnocked now puts the player in FRONT of the standing stand-in (TakedownKit.PutInFront): FRONT (the spot +3
 --   Z, facing -Z) is BEHIND a stand-in at the spot, which also faces -Z. ImmuneAfterRelease and RetakeHalves (binds) are
 --   regression guards: they pass on Task 5's code (pre-flight P11).
+-- * Task 7 fix round 1 (review I1; spec §2, "a failed grab still counts as an assault"): every grab that ends without
+--   becoming Held records attempted_hostage once (a blink, a knocked hostage, a shove); only the shove stuns; a grab
+--   that became a hold never records it.
 local SSS = game:GetService("ServerScriptService")
 local CollectionService = game:GetService("CollectionService")
 local DM = require(game.ReplicatedStorage.Modules.Managers.DownedManager)
@@ -598,7 +601,7 @@ return {
 	-- 3 s window is over, the bar reset, took_hostage recorded then (not at the grab)
 	GrabFromBehind = function(T)
 		HK.Guard(function()
-			local Took0 = DeedCount("took_hostage")
+			local Took0, Att0 = DeedCount("took_hostage"), DeedCount("attempted_hostage")
 			local Rig = HK.StandIn(At(0, 0))
 			TK.PutBehind(Rig, 3)
 			local Ok, Why = Svc().Take(Player, Rig)
@@ -617,6 +620,10 @@ return {
 			T.Eq(Rig:GetAttribute("Struggle"), 0, "the Struggle attribute reset")
 			T.Eq(DeedCount("took_hostage"), Took0 + 1, "took_hostage +1 once Held")
 			T.Near((C:GetAttribute("HostageUntil") or 0) - Now(), 179.5, 1, "a 180 s hold, Held about 0.5 s ago")
+			-- (fix round 1; a guard) a grab that became a hold is no failed grab, now or at its release
+			T.Eq(DeedCount("attempted_hostage"), Att0, "Held: no attempted_hostage")
+			T.Eq(Svc().Free(Player, "released"), true, "released")
+			T.Eq(DeedCount("attempted_hostage"), Att0, "released after Held: still no attempted_hostage")
 		end)
 	end,
 
@@ -687,6 +694,49 @@ return {
 			T.True(Stunned(C), "the player is stunned")
 			local Len = StunLeft(C, 3)
 			T.Near(Len, 1, 0.3, "stunned about 1 s (ShoveStun; " .. ("%.2f"):format(Len) .. " s)")
+			T.Eq(DeedCount("attempted_hostage"), Att0 + 1, "(fix round 1) recorded once, never twice")
+		end)
+	end,
+
+	-- (fix round 1, review I1; spec §2: "a failed grab still counts as an assault") a grab the captor's side ends
+	-- before the window is over (here a blink of 60 studs: "teleport") still records attempted_hostage, once; only the
+	-- shove stuns, so the player isn't stunned
+	GrabTeleportStillAnAssault = function(T)
+		HK.Guard(function()
+			local Att0, Took0 = DeedCount("attempted_hostage"), DeedCount("took_hostage")
+			local Rig = HK.Grabbed()
+			C.HumanoidRootPart.CFrame += Vector3.new(60, 0, 0)
+			T.True(Ended("Grab:teleport", 0.5), "\"teleport\" within 0.5 s (" .. tostring(HK.Result()) .. ")")
+			T.Eq(Rig:GetAttribute("HeldBy"), nil, "the stand-in is free")
+			T.Eq(DeedCount("attempted_hostage"), Att0 + 1, "attempted_hostage +1")
+			T.Eq(DeedCount("took_hostage"), Took0, "took_hostage unchanged")
+			T.Eq(Stunned(C), false, "no stun: only a shove stuns")
+			task.wait(0.3)
+			T.Eq(Stunned(C), false, "still no stun 0.3 s on")
+			T.Eq(DeedCount("attempted_hostage"), Att0 + 1, "recorded once")
+		end)
+	end,
+
+	-- (fix round 1; review "cannot verify") a grabbed hostage knocked mid-window ends the grab ("knocked"), which is a
+	-- failed grab (attempted_hostage +1, no stun); the knock's own timer recovers it, with the walk it had before the
+	-- grab and no lock entry left
+	GrabKnockedEnds = function(T)
+		HK.Guard(function()
+			local Att0 = DeedCount("attempted_hostage")
+			local Rig = HK.StandIn(At(0, 0))
+			local WS0 = Rig.Humanoid.WalkSpeed
+			TK.PutBehind(Rig, 3)
+			T.Eq(Svc().Take(Player, Rig), true, "setup: the grab starts")
+			T.Eq(Rig.Humanoid.WalkSpeed, 0, "setup: the grabbed stand-in is locked")
+			DM.Knock(Rig, 1)
+			T.True(Ended("Grab:knocked", 0.3), "\"knocked\" within 0.3 s (" .. tostring(HK.Result()) .. ")")
+			T.Eq(Rig:GetAttribute("HeldBy"), nil, "HeldBy cleared")
+			T.Eq(Weld(), nil, "no weld")
+			T.Eq(DeedCount("attempted_hostage"), Att0 + 1, "a failed grab: attempted_hostage +1")
+			T.Eq(Stunned(C), false, "no stun on the captor")
+			T.True(WaitFor(1.5, function() return not DM.IsKnocked(Rig) end), "the knock's own timer recovered it")
+			T.Eq(DM.IsLocked(Rig), false, "no lock entry left")
+			T.Near(Rig.Humanoid.WalkSpeed, WS0, 0.01, "the walk from before the grab")
 		end)
 	end,
 

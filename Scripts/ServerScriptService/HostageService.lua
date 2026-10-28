@@ -44,8 +44,10 @@
 --   the captor at LeadSpeed, the lead clamp; pre-flight P5, so the pair is policed while Grabbing too); State
 --   "Grabbing", S.Struggle = GrabStart (the Struggle attribute), S.GrabEnds = now + GrabWindow; Watch started; both
 --   told {State = "Grabbing", Ends}. A full bar before GrabEnds: Release "grab_failed", then the captor stunned ShoveStun
---   and attempted_hostage recorded (never took_hostage). At GrabEnds with the bar under 1: Held (BeginHeld, as the bind's
---   step 3 from "the captor:" on), the bar 0, took_hostage recorded then.
+--   (only the shove stuns). EVERY grab that ends without becoming Held -- shoved off or any other end -- records
+--   attempted_hostage once, in Release (step 5b; fix round 1, spec §2: a failed grab still counts as an assault), never
+--   took_hostage. At GrabEnds with the bar under 1: Held (BeginHeld, as the bind's step 3 from "the captor:" on), the
+--   bar 0, took_hostage recorded then.
 -- * Struggle(PL, Count) (Task 7): the hostage's own presses. Ignored unless PL is the hostage of a Grabbing or Held
 --   session, Count is a whole number from 1 to MaxPressesPerSecond (review M7: NaN, infinities, fractions and negatives
 --   refused) and the hostage has stamina; at most MaxPressesPerSecond presses per PL counted in any rolling second; each
@@ -147,7 +149,9 @@
 --        a knocked player is never left stuck (hand-off 3);
 --     4. the captor: the lock given back (also for a character already gone: the entry goes, as TakedownService's F7;
 --        not while knocked, as for the hostage); animations stopped; Holding and HostageUntil cleared;
---     5. the captor's cooldown (now + Cooldown) and LastHostageResult = "<Kind>:<Outcome>";
+--     5. the captor's cooldown (now + Cooldown) and LastHostageResult = "<Kind>:<Outcome>"; (5b, Task 7 fix round 1) a
+--        grab that never became Held records attempted_hostage for the captor, witnessed, unless the captor's own
+--        Player is gone;
 --     6. Notify both ({State = "Free", Outcome, Role}) and a toast;
 --     7. the Released listeners (S, Outcome), each in a pcall;
 --     8. (Task 11) a running ransom demand of this session is voided.
@@ -566,6 +570,15 @@ local function Release(S, Outcome)
 	-- 5. the cooldown and the result
 	NextAt[Key(S.Captor)] = os.clock() + Hostage.Cooldown
 	Step("writing the result", function() CC:SetAttribute("LastHostageResult", S.Kind .. ":" .. tostring(Outcome)) end)
+	-- 5b. (Task 7 fix round 1, review I1; spec §2: "a failed grab still counts as an assault") a grab that ends without
+	-- ever becoming Held -- shoved off, or any other end (a blink, a broken weld, water, a safe zone, a knocked side,
+	-- the hostage leaving, an error) -- records attempted_hostage for the captor, witnessed (Heat through the existing
+	-- witness path), here in the one exit, so it is recorded once whatever ended it and a captor can't dodge it by
+	-- ending the grab first. Skipped only when the captor's own Player is gone (they left: there is no one to record it
+	-- on). A stand-in captor has no profile (Record does nothing for it).
+	if S.Kind == "Grab" and S.HeldAt == nil and IsPlayer(S.Captor) and S.Captor.Parent == Players then
+		Step("recording the failed grab", Record, S.Captor, "attempted_hostage", {Witness = true})
+	end
 	-- 6. both told
 	Step("notifying", function()
 		Notify(S.Captor, "Hostage", {State = "Free", Outcome = Outcome, Role = "Captor"})
@@ -813,17 +826,14 @@ local function SetBar(S, Value)
 	if S.HC.Parent then S.HC:SetAttribute("Struggle", S.Struggle) end
 end
 
--- a full bar ends the session: a grab shoved off (the captor stunned ShoveStun, attempted_hostage recorded: a failed
--- grab is still an assault, decision 6; never took_hostage), or a hostage struggled free (the captor stunned BreakStun).
--- Returns true when it ended the session.
+-- a full bar ends the session: a grab shoved off (the captor stunned ShoveStun -- the shove's own consequence, so only
+-- here; attempted_hostage is recorded by Release for every failed grab, decision 6 / fix round 1, never took_hostage),
+-- or a hostage struggled free (the captor stunned BreakStun). Returns true when it ended the session.
 local function Resolve(S)
 	if S.Over or S.Struggle < 1 then return false end
-	local Captor, CC = S.Captor, S.CC
+	local CC = S.CC
 	if S.State == "Grabbing" then
-		if Release(S, "grab_failed") then
-			Step("stunning the shoved-off captor", StunFor, CC, Hostage.ShoveStun)
-			Record(Captor, "attempted_hostage", {Witness = true})
-		end
+		if Release(S, "grab_failed") then Step("stunning the shoved-off captor", StunFor, CC, Hostage.ShoveStun) end
 		return true
 	elseif S.State == "Held" then
 		if Release(S, "struggled") then Step("stunning the captor", StunFor, CC, Hostage.BreakStun) end
