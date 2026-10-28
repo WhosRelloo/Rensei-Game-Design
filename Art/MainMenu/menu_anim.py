@@ -16,7 +16,7 @@ In game the same motions are Roblox ParticleEmitters, Beams, TweenService and th
 import json
 
 FPS = 24
-LOOP, PAN, HOLD = 192, 60, 24
+LOOP, PAN, HOLD = 192, 84, 24  # the pan: 3.5 s (owner: "smoother and a little slower")
 TOTAL = LOOP + PAN + HOLD
 os.makedirs(os.path.join(OUT, "frames"), exist_ok=True)
 scene.render.resolution_x, scene.render.resolution_y = 1280, 720
@@ -41,6 +41,16 @@ def flicker(t, seed):
 def ease(p):
 	p = min(max(p, 0.0), 1.0)
 	return p * p * (3 - 2 * p)
+
+
+def ease5(p):
+	"""Smootherstep: no jolt at either end (zero speed and zero acceleration)."""
+	p = min(max(p, 0.0), 1.0)
+	return p * p * p * (p * (p * 6 - 15) + 10)
+
+
+def sway(t):
+	return Vector((0.035 * wave(t, 8), 0.02 * wave(t, 8, 1.3), 0.015 * wave(t, 4)))
 
 
 def pivot(name, loc, prefixes):
@@ -142,7 +152,9 @@ S_ROT = (cam.matrix_world.to_quaternion())
 look = Vector((EMPTY_X - 0.6, WALL_Y + 0.3, 1.12))
 E_LOC = Vector((EMPTY_X - 0.75, WALL_Y - 5.2, 1.3))  # a full-body shot, the creator panel's room on the left
 E_ROT = (look - E_LOC).to_track_quat("-Z", "Y")
-C_LOC = (S_LOC + E_LOC) / 2 + Vector((0.0, 0.0, 0.55))  # the curve rises a little as it travels
+# a cubic curve: it eases forward out of the menu view, rises a little, and settles into the alcove from slightly above
+C1 = S_LOC + Vector((0.15, 1.6, 0.3))
+C2 = E_LOC + Vector((-0.1, -1.4, 0.32))
 S_LENS, E_LENS = cd.lens, 33.0
 S_SHIFT, S_FOCUS, S_STOP = cd.shift_y, cd.dof.focus_distance, cd.dof.aperture_fstop
 E_FOCUS = (Vector((EMPTY_X, WALL_Y + 0.3, 1.1)) - E_LOC).length
@@ -151,13 +163,14 @@ E_FOCUS = (Vector((EMPTY_X, WALL_Y + 0.3, 1.1)) - E_LOC).length
 def place_camera(f):
 	t = f / FPS
 	if f < LOOP:
-		cam.location = S_LOC + Vector((0.035 * wave(t, 8), 0.02 * wave(t, 8, 1.3), 0.015 * wave(t, 4)))
+		cam.location = S_LOC + sway(t)
 		cam.rotation_quaternion = S_ROT
 		cd.lens, cd.shift_y, cd.dof.focus_distance, cd.dof.aperture_fstop = S_LENS, S_SHIFT, S_FOCUS, S_STOP
 		return 0.0
-	p = ease((f - LOOP) / PAN)
+	p = ease5((f - LOOP) / PAN)
 	u = 1 - p
-	cam.location = S_LOC * u * u + C_LOC * 2 * u * p + E_LOC * p * p
+	# the idle sway carries on and fades out through the pan, so there's no kink where the pan starts
+	cam.location = S_LOC * u ** 3 + C1 * 3 * u * u * p + C2 * 3 * u * p * p + E_LOC * p ** 3 + sway(t) * (1 - ease((f - LOOP) / (PAN * 0.6)))
 	cam.rotation_quaternion = S_ROT.slerp(E_ROT, p)
 	cd.lens = S_LENS + (E_LENS - S_LENS) * p
 	cd.shift_y = S_SHIFT * u
