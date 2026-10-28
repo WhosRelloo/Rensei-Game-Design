@@ -4,6 +4,31 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 
 **Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
+## 2026-10-27 — TestNoSave: test Play sessions can't write the real save (Studio only, not live)
+
+**Owner:** "Yes, add a Studio-only no-save switch for test runs, before hostages starts."
+
+**Why:** the Play test suites change the tester's profile in memory (EXP, money, deeds, Heat, DayCount), and until now only the test hook's snapshot and restore kept that out of the save. On 2026-10-27 Play was stopped from outside the test runner, the restore never ran, and test state was written to the owner's real slot 2.
+
+**What changed** (`DataManager`, in `ServerStorage.RenseiServer.CharacterHandler` in Ye and Foundry Yard, the same file in both; repo `Scripts/ServerScriptService/CharacterHandler/DataManager.lua`):
+- **The switch:** `ServerStorage:GetAttribute("TestNoSave") == true`, set in **Edit** before Play (the Play copy inherits it). It is off by default, so the owner's own Studio play-testing saves exactly as before.
+- **Studio only:** `RunService:IsStudio()` is checked first, so a live server never reads the attribute, even in a place published with it set by mistake. It is decided once when DataManager loads.
+- **With it on**, a joining player's real save is read with a plain `GetAsync` on the `PlayerData` store (the store and key ProfileService uses): no session lock and no write. It is deep-copied into a **mock** profile (`ProfileStore.Mock`, memory only), and Migrate, Reconcile, ProfileGuard and the release listener run on that as usual. Auto-saves and the release on leave or Stop go to the mock store, never to the DataStore.
+  - `ViewProfileAsync` is **not** used: in this ProfileService version it reads through `UpdateAsync`, which is a write.
+  - A missing save (a new slot) starts from the template. A save that can't be read, or isn't in the expected shape, kicks the player with a "TestNoSave: ..." message; the session never falls back to the real store.
+  - The server sets `ReplicatedStorage`'s `TestNoSave` attribute to true and warns once: `[DataManager] TestNoSave: this Studio session will not save`.
+- **`DataManager.IsNoSave()`** returns true only in such a session, for the test kits to check.
+- **With it off (and on every live server)** the code runs the same calls in the same order as before.
+- **Other DataStore writes a test session could reach:** none. `SlotAccount`'s writes are only called from the Main Menu place, `AdminService`'s (snapshots, bans, the staff log) only from the admin panel, and `RoadService`'s MemoryStore write already skips Studio. ProfileService's own Studio access probe (`____PS`) is not player data and is left alone.
+- **Not changed:** the Tutorial (`FlowData`) and Main Menu (`MenuData`), where no tests run.
+- **Tooling:** DataManager is now a sync pair (`CharacterHandler.DataManager`, both places) in `Art/Studio/Regions/Foundry/data/sync_manifest.json`. The Play protocol note is in `Lindenmoor Kit.md` ("Studio tooling note (2026-10-27, TestNoSave)").
+
+**Tests:** the new source compiles in Studio (Foundry, Edit); both places' DataManager matched the repo before the change (normalised hash); `test_sync.py` PASS 1338 / FAIL 0. The Play checks are pending.
+
+### Discord announcement
+
+No player-facing change; nothing to post.
+
 ## 2026-10-27 — Assassinations: stealth takedowns, PvE only (not live)
 
 The assassinations plan (`Documents/plans/2026-10-25-assassinations.md`, Tasks 1–12 plus Task 6b, run 2026-10-27; spec `Documents/specs/2026-10-25-assassinations-design.md`, **approved by the owner 2026-10-27**, "Approve as written", with the three §18 answers) answers the owner's Backlog item: "Assassinations that work with the detection system (sight, light, sound)", "I threw anims in the spreadsheet for it", and the older "Add assassinations to the game, like we talked about before (ONLY PVE)". All of it is in the Studio Edit sessions of **Ye** (106992859583940) and **Foundry Yard** (109591196441030), the same in both; the Tutorial got only DownedManager and Ragdoll (below). **Nothing is saved or published.** This is the plan's only Changelog entry. The downed crawl side task that ran first has its own entry below ("Downed crawl, Downed Idle, Carry and Carried animations").

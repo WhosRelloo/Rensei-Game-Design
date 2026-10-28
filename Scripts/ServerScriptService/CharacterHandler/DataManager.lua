@@ -5,9 +5,15 @@
 -- * A profile opened by another server (its ForceLoad steals the session lock) kicks the player
 --   here, so nothing is played that can't be saved. FlowService releases with DataManager:Release
 --   before a teleport, which doesn't kick.
+-- * TestNoSave (Studio only, owner 2026-10-27): set ServerStorage's TestNoSave attribute to true in
+--   Edit before Play and the session plays a MOCK copy of the save (ProfileStore.Mock, memory only),
+--   so nothing it does can reach the real profile, even when Play is stopped mid-test.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ServerStorage = game:GetService("ServerStorage")
+local DataStoreService = game:GetService("DataStoreService")
 
 local ProfileService = require(script.ProfileService)
 local ProfileData = require(ReplicatedStorage.Modules.Data.ProfileData)
@@ -18,10 +24,43 @@ local ProfileGuard = require(ServerScriptService:WaitForChild("ProfileGuard"))
 
 local SessionData = ProfileService.GetProfileStore("PlayerData",ProfileData)
 
+-- IsStudio() first, the attribute second: a live server never reads TestNoSave, so a place published
+-- with it set by mistake still saves normally. Decided once, at load, so it can't change mid-session.
+local NoSave = RunService:IsStudio() and ServerStorage:GetAttribute("TestNoSave") == true
+
 local Sessions = {}
 local Leaving = {} -- [Player] = true once released for a teleport (no "opened elsewhere" kick)
 
 local DataManager = {}
+
+local function DeepCopy(T)
+	if type(T) ~= "table" then return T end
+	local C = {}
+	for K, V in pairs(T) do C[K] = DeepCopy(V) end
+	return C
+end
+
+-- TestNoSave: the real save, read with a plain GetAsync (no session lock, no write), copied into a mock
+-- profile. Not ViewProfileAsync: this legacy ProfileService's view goes through UpdateAsync, a write.
+-- Returns the mock profile, or nil and the kick message: the session never falls back to the real store.
+local function LoadMockCopy(Key)
+	-- the store and key ProfileService uses ("PlayerData", no scope)
+	local Ok, Record = pcall(function() return DataStoreService:GetDataStore("PlayerData"):GetAsync(Key) end)
+	if not Ok then
+		return nil, "TestNoSave: couldn't read your save, so this test session can't start. Nothing was saved."
+	end
+	if Record ~= nil and (type(Record) ~= "table" or type(Record.Data) ~= "table") then
+		return nil, "TestNoSave: your save isn't in the expected shape, so this test session won't use it. Nothing was saved."
+	end
+	local Mock = SessionData.Mock:LoadProfileAsync(Key,"ForceLoad")
+	if not Mock then
+		return nil, "TestNoSave: the test copy of your save didn't load. Nothing was saved."
+	end
+	if Record ~= nil then
+		Mock.Data = DeepCopy(Record.Data) -- a missing save (a new slot) keeps the template
+	end
+	return Mock
+end
 
 local function PlayerAdded(Player)
 	-- the save slot the menu picked; nil = the account store couldn't be read (never guess slot 1)
@@ -31,9 +70,14 @@ local function PlayerAdded(Player)
 		Player:Kick("Couldn't load your save slot. Please rejoin.")
 		return
 	end
-	local PlayerData = SessionData:LoadProfileAsync(Key,"ForceLoad")
+	local PlayerData, Why
+	if NoSave then
+		PlayerData, Why = LoadMockCopy(Key)
+	else
+		PlayerData = SessionData:LoadProfileAsync(Key,"ForceLoad")
+	end
 	if not PlayerData then
-		Player:Kick("Data Failed To Load")
+		Player:Kick(Why or "Data Failed To Load")
 		return
 	end
 	ProfileMigrations.Migrate(PlayerData.Data)
@@ -54,6 +98,11 @@ local function PlayerAdded(Player)
 end
 
 function DataManager:Initiate()
+	if NoSave then
+		ReplicatedStorage:SetAttribute("TestNoSave", true) -- tests and the client can see the mode
+		warn("[DataManager] TestNoSave: this Studio session will not save")
+	end
+
 	local function PlayerRemoving(Player)
 		local PlayerData = Sessions[Player]
 		Sessions[Player], Leaving[Player] = nil, nil
@@ -69,6 +118,11 @@ function DataManager:Initiate()
 
 	Players.PlayerAdded:Connect(PlayerAdded)
 	Players.PlayerRemoving:Connect(PlayerRemoving)
+end
+
+-- True only in a Studio session running TestNoSave: every profile here is a mock copy that never saves.
+function DataManager.IsNoSave()
+	return NoSave
 end
 
 function DataManager:GetProfile(Player)

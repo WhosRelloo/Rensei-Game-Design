@@ -121,5 +121,6 @@
   {"Label": "RenseiTests.Play_TakedownClasses", "Studio": "ServerStorage/RenseiTests/Play_TakedownClasses", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_TakedownClasses.lua", "Places": ["ye", "foundry"], "Create": true},
   {"Label": "Managers.Ragdoll", "Studio": "ReplicatedStorage/Modules/Managers/Ragdoll", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/Managers/Ragdoll.lua", "Places": ["ye", "foundry"], "Create": true},
   {"Label": "RenseiServer.TakedownService", "Studio": "ServerStorage/RenseiServer/TakedownService", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/TakedownService.lua", "Places": ["ye", "foundry"], "Create": true},
-  {"Label": "Requests.Takedown", "Studio": "ServerStorage/RenseiServer/ServerHandler/Requests/Takedown", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/ServerHandler/Requests/Takedown.lua", "Places": ["ye", "foundry"], "Create": true}
+  {"Label": "Requests.Takedown", "Studio": "ServerStorage/RenseiServer/ServerHandler/Requests/Takedown", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/ServerHandler/Requests/Takedown.lua", "Places": ["ye", "foundry"], "Create": true},
+  {"Label": "CharacterHandler.DataManager", "Studio": "ServerStorage/RenseiServer/CharacterHandler/DataManager", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/CharacterHandler/DataManager.lua", "Places": ["ye", "foundry"], "Create": false}
 ]}
