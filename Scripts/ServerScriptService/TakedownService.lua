@@ -11,7 +11,7 @@
 --   Unaware), the class always set (Takedown.ClassOf; TrialFoe from the enemy type's TuningConfig definition), the
 --   player's own state (alive, not knocked / gripping / carrying / taking down / attacking, no Stun but the crouch's own
 --   -- finding A15 --, on the ground, not swimming), Calm (CombatMode off), the target free (not knocked, gripped,
---   carried, being taken down or swimming), the rear arc, the range (+ RangeSlack) and one clear ray torso to torso.
+--   carried, being taken down or swimming, nor itself gripping or carrying someone: final fix F6), the rear arc, the range (+ RangeSlack) and one clear ray torso to torso.
 -- * Request(Player, Kind, Target) -> ok, reason: refused -> the next allowed time is at least now + RefusedCooldown and
 --   LastTakedownResult = "<Kind>:<reason>". Accepted -> in the same step, with no yield, the target is marked
 --   TakenDownBy and the player TakingDown (one takedown per target, spec §11), then the takedown runs on its own thread.
@@ -22,16 +22,19 @@
 --     1. PerceptionService.Glimpse(Player, Target): every NPC but the victim takes one quick look (spec §6); each
 --        townsperson that saw it runs (Task 9, spec §18.2, pre-flight R10: TownsfolkService.Startle, away from the
 --        player) and reports it as a witness of the deed (step 6's capture);
---     2. the player is locked (DownedManager.Lock); the victim takes no damage (DamageTakenMult 0), is stunned (WCS Stun
---        for LethalTime) and stops its animations;
---     3. the player is put behind it (Target root * Takedown.Offset:Inverse()) and the victim's root is welded to the
---        player's (DownedManager.Attach with Takedown.Offset: massless, PlatformStand, owned by the player). A rig with an
---        anchored root (test rigs) is un-anchored for the weld;
+--     2. the player's walk is locked (DownedManager.Lock); the victim takes no damage (DamageTakenMult 0), is stunned
+--        (WCS Stun for LethalTime) and stops its animations;
+--     3. the player is put behind it (Target root * Takedown.Offset:Inverse()) and HELD there (final fix F1, review I1):
+--        the player's root is anchored for the whole hold (its Anchored saved and given back by the release on every
+--        end), so neither the client's own walk (a sprint, a crouch let go: a client's WalkSpeed is its own) nor an
+--        exploit can move the player; the walk lock alone never held them. The victim's root is welded to the player's
+--        (DownedManager.Attach with Takedown.Offset: massless, PlatformStand), so the anchored player root holds the
+--        pair still and the server owns it. A rig with an anchored root (test rigs) is un-anchored for the weld;
 --     4. Anims.Assassinate: the player's and the victim's animations, each with its fallback, Action4, at
 --        Takedown.Speed (length / LethalTime, clamped);
 --     5. every Heartbeat until LethalTime x KillAt (the "Snap" keyframe's share): interrupted when either is gone or
---        dead, the player leaves, is knocked or has a Stun other than the crouch's, or the roots are more than
---        BreakDistance apart;
+--        dead, the player leaves, is knocked or has a Stun other than the crouch's, the roots are more than
+--        BreakDistance apart, or (F1) the player's root is more than HOLD_SLACK from where the hold put it;
 --     6. the kill: WorldService.Credit (once; it respects Credited), then the deed with witnesses (assassinated_guard
 --        for a law-faction victim, pre-flight R8: its Faction attribute or its perception faction; else
 --        Deeds.Finishers[EnemyType].Assassinate when there is one), then the weld is let go (Takeable refuses a welded
@@ -39,9 +42,13 @@
 --        Snap), Health 0, and the body registered with PerceptionService ("Dead", By = the player, with the deed, its
 --        witness strength and the faction); then a "Takedown" sound (4 studs) at the body. No RecordHit (finding A4: no
 --        20-stud Hit sound, no alarm);
---     7. release: the player's lock back (not when knocked: the knock's lock and crawl own the walk speed then), the
---        animations stopped, TakingDown cleared. TakenDownBy STAYS on the corpse (the body mark: it lies
---        Takedown.BodySeconds, EnemyService);
+--     7. release: the player's lock back (not when knocked: the knock's lock and crawl own the walk speed then; a
+--        character already gone has its lock entry dropped, F7), and (F5, review M4) a player still crouching keeps the
+--        crouch's walk (CROUCH_SPEED) and no jump until they stand up (Crouching cleared), when the walk and jump the
+--        lock gave back return; the root's anchoring back as it was; the animations stopped, TakingDown cleared.
+--        TakenDownBy STAYS on the corpse (the body mark: it lies Takedown.BodySeconds, EnemyService) -- only on a corpse
+--        this takedown killed (F4, review M2: the outcome "ok", or FinishedBy this player); a victim that died to
+--        something else loses it, so it is no takedown body;
 --     8. the cooldown: the next allowed time = now + Cooldown, TakedownReadyAt, LastTakedownResult "Assassinate:ok",
 --        then the Done listeners.
 -- * The KNOCKOUT of a Full target (Task 8, spec §4-§5): steps 1-2 as above, then a "Choke" sound (6 studs) at the victim;
@@ -56,7 +63,8 @@
 --   dies instead (a grip, a delivery) its "Out" body is dropped and KnockedOutBy cleared; a grip stays the loud
 --   finisher it was, with its own deed and its own "Dead" body (spec §4).
 -- * The BACKSTAB of a Chunk target (Task 9, spec §8; "Assassinate" only): step 1's look (townsfolk who saw it run); the
---   player locked and playing Anims.Assassinate's player animation (its fallback as ever) up to the Snap
+--   player locked, held where they stand (F1: the root anchored, as in step 3) and playing Anims.Assassinate's player
+--   animation (its fallback as ever) up to the Snap
 --   (LethalTime x KillAt), with step 5's interrupts (the release stops it). No weld, no protection, no victim animation.
 --   Then one hit through the normal hit path: TakenDownBy cleared, DownedManager.Damage(Target, MaxHealth x ChunkShare)
 --   -- the 45% that takes it to 0 knocks a knockable rig, as any hit does -- and ProgressionService.RecordHit(Character,
@@ -72,7 +80,11 @@
 --   "interrupted"). Broken also when the victim is knocked or gripped by something else (Task 7 review).
 -- * ERROR (Task 7 review): a takedown whose kill fails part-way (after the credit, the deed or the death) is no
 --   interrupt: released as in 7, a victim still alive given back, no Alarm, the cooldown, "<Kind>:error", and neither Done
---   nor Failed. A corpse keeps TakenDownBy and its root as it lies.
+--   nor Failed. A corpse keeps TakenDownBy (when this takedown's kill made it: F4) and its root as it lies. (Final fix F3,
+--   review M1) The same for any error in the start (steps 1-4) or in the run loop itself (Broken, the release): the
+--   whole run is in pcalls, so an error can never leave the player locked, anchored or marked TakingDown, the victim
+--   welded or with DamageTakenMult 0. A takedown that takes longer than SLOW_LOG (or, for the knockout's 2 s choke, its
+--   planned length + SLOW_PAST) warns its phase timings once: start, Snap, Kill done, Release done.
 -- * Heat when a guard's body is found (pre-flight R9, spec §18.3; Task 8: keyed on the body, not the deed): a "Dead"
 --   body of a law-faction NPC (Takedown.IsLawFaction: its Faction attribute, else its perception faction) that a player
 --   killed -- assassinated or gripped -- raises its law's Heat once when an NPC finds it, through the same rule the
@@ -88,14 +100,16 @@
 --   takedown they're in released as an interrupt, without the Alarm -- THEN their cooldown is forgotten (Task 7 review:
 --   the release writes it). Cancel(Player, Quiet) -> true when a takedown was running. Forget(Player) clears the
 --   cooldown (tests use it too).
+-- * Broken(S) -> true when the running takedown S must end as an interrupt (step 5's rules). The run loop calls it
+--   through TakedownService.Broken, a test seam (final fix F3: a test makes it error to prove the loop still releases).
 -- Listeners (each in a pcall): Done(Kind, Player, Rig) after a finished takedown; Failed(Player, Rig, Reason), Reason
 -- "interrupted" or (an Elite that lived through a backstab) "survived".
 --
 -- Attributes. Victim: TakenDownBy (the player's name; kept on an assassinated corpse), DamageTakenMult (0 while held),
 -- KnockedOutBy (the player's UserId while knocked out), FinishedBy (DownedManager.Finish), read: Faction, TakedownClass,
--- Boss, EnemyType, TownsfolkId, Knocked, GrippedBy, CarriedBy, Traversal. Player's character: TakingDown (the victim's
--- name), TakedownReadyAt (server time), and LastTakedownResult (for tests and logs); read: CombatMode, Knocked,
--- Gripping, Carrying, Traversal.
+-- Boss, EnemyType, TownsfolkId, Knocked, GrippedBy, CarriedBy, Gripping, Carrying, Traversal. Player's character:
+-- TakingDown (the victim's name; DownedManager's Grip and Carry refuse a player with it, F2), TakedownReadyAt (server
+-- time), and LastTakedownResult (for tests and logs); read: CombatMode, Knocked, Gripping, Carrying, Traversal, Crouching.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -124,6 +138,14 @@ TakedownService.Failed = {} -- listeners (Player, Rig, Reason)
 local NextAt = {} -- [Player] = os.clock() from which a request is allowed again
 local Running = {} -- [Player] = the takedown in progress
 local Recorded = {} -- [Player] = {Deed, Strength} of the last deed MoralityService recorded for them (its listener)
+
+-- (final fix, final-fix-brief.md; PROPOSALS)
+local HOLD_SLACK = 1.0 -- F1: studs the held player's root may be from where the hold put it before it is broken
+local SLOW_LOG = 1.5 -- F3: seconds a takedown may take before its phase timings are warned
+local SLOW_PAST = 0.5 -- F3: for a hold planned longer than SLOW_LOG (the knockout's 2 s choke), seconds past its plan
+-- F5: the client crouch's own walk (ClientHandler.Crouch sets 6; TuningConfig.Locomotion.Design.CrouchWalk is that speed)
+local CROUCH_SPEED = ((Tuning.Locomotion or {}).Design or {}).CrouchWalk or 6
+local Crouched = {} -- [Character] = {WalkSpeed, JumpHeight, Conns}: what to stand up to while our crouch speed is on
 
 local function Hum(M) return M and M:FindFirstChildOfClass("Humanoid") end
 local function Root(M) return M and M:FindFirstChild("HumanoidRootPart") end
@@ -195,7 +217,8 @@ function TakedownService.Context(Player, Target, Kind)
 	Ctx.PlayerFree = Character ~= nil and PlayerFree(Character)
 	Ctx.PlayerCalm = Character ~= nil and Character:GetAttribute("CombatMode") ~= true
 	Ctx.TargetFree = not (Target:GetAttribute("Knocked") or Target:GetAttribute("GrippedBy") or Target:GetAttribute("CarriedBy")
-		or Target:GetAttribute("TakenDownBy") or Target:GetAttribute("Traversal") == "Swim")
+		or Target:GetAttribute("TakenDownBy") or Target:GetAttribute("Traversal") == "Swim"
+		or Target:GetAttribute("Gripping") or Target:GetAttribute("Carrying")) -- (F6: a rig holding someone)
 	Ctx.Phase = S and S.Phase or nil -- (nil for an untracked rig: refused, never read as Unaware)
 	Ctx.AwareOfYou = S and PerceptionService.Awareness(Target, Player) or nil
 	local PR, TR = Root(Character), Root(Target)
@@ -264,9 +287,53 @@ local function KnockOut(S)
 	WatchWake(T)
 end
 
+-- (final fix F5, review M4) the server's copy of a player's walk while they crouch. The client's crouch walk (6) never
+-- replicates, so the lock's release used to write the standing walk (16) over it: a crouched player walked at 16 right
+-- after a kill. KeepCrouch writes the crouch's walk and no jump (what the client's crouch has) and keeps the values the
+-- lock gave back; StandUp puts them back once the player stands up (Crouching cleared), so the server never keeps a
+-- stale crouch speed that a later lock would save and hand back to a standing player. It only undoes its own write: a
+-- knock or any other writer since keeps its own speed. Before the next takedown's lock, Hold calls StandUp first, so
+-- that lock saves the standing values (written in the same step as its 0, so only the 0 replicates).
+local function StandUp(C)
+	local X = Crouched[C]
+	if not X then return end
+	Crouched[C] = nil
+	for _, Conn in ipairs(X.Conns) do Conn:Disconnect() end
+	local H = Hum(C)
+	if H and C.Parent and H.WalkSpeed == CROUCH_SPEED and H.JumpHeight == 0 and not DownedManager.IsKnocked(C) then
+		H.WalkSpeed, H.JumpHeight = X.WalkSpeed, X.JumpHeight
+	end
+end
+
+local function KeepCrouch(C)
+	local H = Hum(C)
+	if not H then return end
+	StandUp(C)
+	local X = {WalkSpeed = H.WalkSpeed, JumpHeight = H.JumpHeight, Conns = {}}
+	Crouched[C] = X
+	H.WalkSpeed, H.JumpHeight = CROUCH_SPEED, 0
+	table.insert(X.Conns, C:GetAttributeChangedSignal("Crouching"):Connect(function()
+		if not C:GetAttribute("Crouching") then StandUp(C) end
+	end))
+	table.insert(X.Conns, C.AncestryChanged:Connect(function()
+		if not C:IsDescendantOf(game) then StandUp(C) end -- (a character gone: its entry goes)
+	end))
+end
+
+-- (final fix F1, review I1) the player HELD: the root anchored where it stands now (the Anchored it had saved for the
+-- release) and that spot remembered for Broken. The walk lock alone never held a player: the client owns its character,
+-- and its own WalkSpeed (a sprint, a crouch let go) moved the player and dragged the welded victim.
+local function HoldPlayer(S, PR)
+	S.PlayerAnchored = PR.Anchored
+	PR.Anchored = true
+	PR.AssemblyLinearVelocity = Vector3.zero
+	S.HeldAt = PR.Position
+end
+
 -- the end of a takedown, once. Outcome: "ok" (after the kill, or the knockout's whole hold), "backstab" (after a Chunk
 -- target's hit: Done, or Failed "survived"), "interrupted" (Quiet: no Alarm, the player left), or "error" (the kill
--- failed part-way: no Alarm, neither Done nor Failed)
+-- failed part-way, or (F3) the start or the run loop errored: no Alarm, neither Done nor Failed). Each step that can fail is in
+-- its own pcall (F3), so one failing step never stops the rest.
 local function Release(S, Outcome, Quiet)
 	if S.Over then return end
 	S.Over = true
@@ -276,13 +343,18 @@ local function Release(S, Outcome, Quiet)
 	-- the victim, let go on every end (Takeable refuses a body with a weld; the kill lets go before the ragdoll)
 	if not S.Detached then
 		S.Detached = true
-		DownedManager.Detach(T)
+		local Ok, Err = pcall(DownedManager.Detach, T) -- (F3: nothing in the release may stop the rest of it)
+		if not Ok then warn("TakedownService: couldn't let the victim go:", Err) end
 	end
 	-- a victim that lives on (an interrupt, an error before the death, a knockout) is given back as it was; a corpse
-	-- keeps TakenDownBy (its body mark) and its root as it lies
+	-- keeps its root as it lies, and TakenDownBy (its body mark) only when this takedown killed it (F4, review M2: the
+	-- outcome "ok", or FinishedBy this player -- a backstab's kill, an error after the Finish)
 	local Lives = Alive(T) and (Outcome ~= "ok" or Kind == "Knockout")
 	pcall(function()
 		if S.MultSaved then T:SetAttribute("DamageTakenMult", S.Mult) end
+		if not Lives and not (Outcome == "ok" or T:GetAttribute("FinishedBy") == S.Player.Name) then
+			T:SetAttribute("TakenDownBy", nil) -- (died to something else: no takedown body)
+		end
 		if Lives then
 			T:SetAttribute("TakenDownBy", nil)
 			local TR = Root(T)
@@ -295,17 +367,35 @@ local function Release(S, Outcome, Quiet)
 		end
 	end)
 	if S.Stun then pcall(function() S.Stun:Stop() end) end
-	-- the player: unlocked unless a knock has taken over the walk (its lock nests on ours and Recover gives it back)
+	-- the player: unlocked unless a knock has taken over the walk (its lock nests on ours and Recover gives it back). A
+	-- character already gone has its lock entry dropped all the same (F7, review M6: Lock(C, false) only writes to its
+	-- orphaned Humanoid). Still crouching: the crouch's walk until they stand up (F5, KeepCrouch).
 	pcall(function()
-		if S.Locked and C.Parent and not DownedManager.IsKnocked(C) then DownedManager.Lock(C, false) end
-		if A.Player then AnimationManager.Stop(C, A.Player) AnimationManager.Stop(C, A.PlayerFallback) end
-		C:SetAttribute("TakingDown", nil)
+		if S.Locked and (C.Parent == nil or not DownedManager.IsKnocked(C)) then
+			DownedManager.Lock(C, false)
+			if C.Parent and C:GetAttribute("Crouching") then KeepCrouch(C) end
+		end
 	end)
+	-- the root's anchoring as it was before the hold (F1); a root let free goes back to its player's client
+	pcall(function()
+		local PR = Root(C)
+		if PR and S.PlayerAnchored ~= nil then
+			PR.Anchored = S.PlayerAnchored
+			if not S.PlayerAnchored and C.Parent and S.Player.Parent == Players then PR:SetNetworkOwner(S.Player) end
+		end
+	end)
+	pcall(function()
+		if A.Player then AnimationManager.Stop(C, A.Player) AnimationManager.Stop(C, A.PlayerFallback) end
+	end)
+	pcall(function() C:SetAttribute("TakingDown", nil) end)
 	if Outcome == "ok" and Kind == "Knockout" and Lives then
 		local Ok, Err = pcall(KnockOut, S)
 		if not Ok then warn("TakedownService: the knockout failed:", Err) end
 	end
-	if Outcome == "interrupted" and not Quiet and Alive(T) then PerceptionService.Alarm(T, S.Player) end
+	if Outcome == "interrupted" and not Quiet and Alive(T) then
+		local Ok, Err = pcall(PerceptionService.Alarm, T, S.Player)
+		if not Ok then warn("TakedownService: couldn't raise the alarm:", Err) end
+	end
 	NextAt[S.Player] = os.clock() + Takedown.Cooldown
 	pcall(function()
 		C:SetAttribute("TakedownReadyAt", workspace:GetServerTimeNow() + Takedown.Cooldown)
@@ -322,6 +412,16 @@ local function Release(S, Outcome, Quiet)
 			Fire(TakedownService.Done, Kind, S.Player, T)
 		end
 	end
+	-- (F3, review M1) a slow takedown's phase timings, once, so the next one is diagnosable (seconds since the request)
+	if S.T0 then
+		local Now = os.clock()
+		local Planned = Kind == "Knockout" and Takedown.KnockoutTime or Takedown.LethalTime * Takedown.KillAt
+		if Now - S.T0 > math.max(SLOW_LOG, Planned + SLOW_PAST) then
+			local function At(X) return X and ("%.2f"):format(X - S.T0) or "-" end
+			warn(("TakedownService: a slow takedown (%s, %s): start %s, Snap %s, Kill done %s, Release done %s s"):format(
+				Kind, Outcome, At(S.Started), At(S.Snapped), At(S.Killed), At(Now)))
+		end
+	end
 end
 
 -- steps 1-4: the look, the lock and the protection, the placement and the weld, the animations (the knockout: a Choke)
@@ -330,6 +430,7 @@ local function Hold(S)
 	-- (Task 7 review) saved first, so a takedown that can't start never writes over what the victim had
 	S.Mult, S.MultSaved = T:GetAttribute("DamageTakenMult"), true
 	Startle(PerceptionService.Glimpse(Player, T), C)
+	StandUp(C) -- (F5) a crouch speed a last takedown left is undone first, so the lock saves the standing walk
 	DownedManager.Lock(C, true)
 	S.Locked = true
 	T:SetAttribute("DamageTakenMult", 0)
@@ -345,7 +446,7 @@ local function Hold(S)
 	S.Anchored = TR.Anchored
 	TR.Anchored = false -- (a test rig's anchored root would hold the player in place through the weld)
 	PR.CFrame = TR.CFrame * Takedown.Offset:Inverse()
-	PR.AssemblyLinearVelocity = Vector3.zero
+	HoldPlayer(S, PR) -- (F1) held there: anchored, so the welded pair can't move
 	if not DownedManager.Attach(C, T, Takedown.Offset) then error("the weld failed") end
 	local A = Takedown.Anims[Kind]
 	local Speed = Takedown.Speed(Kind)
@@ -358,8 +459,10 @@ local function Backstab(S)
 	local Player, C, T = S.Player, S.Character, S.Target
 	S.Detached = true -- (never welded: nothing to let go)
 	Startle(PerceptionService.Glimpse(Player, T), C)
+	StandUp(C) -- (F5, as in Hold)
 	DownedManager.Lock(C, true)
 	S.Locked = true
+	HoldPlayer(S, Root(C)) -- (F1) held where they stand
 	local A = Takedown.Anims.Assassinate
 	AnimationManager.Play(C, A.Player, {Priority = Enum.AnimationPriority.Action4, Speed = Takedown.Speed("Assassinate"),
 		Fallback = A.PlayerFallback})
@@ -389,16 +492,20 @@ local function Stab(S)
 		local VWC = Alive(T) and not DownedManager.IsKnocked(T) and WCS.Character.GetCharacterFromInstance(T)
 		if VWC then Stun.new(VWC):Start(Takedown.ChunkStun) end
 	end
+	S.Killed = os.clock()
 	Release(S, "backstab")
 end
 
-local function Broken(S)
+-- step 5's interrupts (TakedownService.Broken: the run loop calls it there, a test seam)
+function TakedownService.Broken(S)
 	local C, T = S.Character, S.Target
 	if S.Player.Parent ~= Players or not Alive(C) or not Alive(T) then return true end
 	if DownedManager.IsKnocked(C) or Stunned(C) then return true end
 	if DownedManager.IsKnocked(T) or T:GetAttribute("GrippedBy") then return true end -- (Task 7 review: taken by something else)
 	local A, B = Root(C), Root(T)
-	return not (A and B) or (A.Position - B.Position).Magnitude > Takedown.BreakDistance
+	if not (A and B) or (A.Position - B.Position).Magnitude > Takedown.BreakDistance then return true end
+	-- (F1, check c) the held player's root moved off where the hold put it
+	return S.HeldAt ~= nil and (A.Position - S.HeldAt).Magnitude > HOLD_SLACK
 end
 
 -- step 6 then 7-8: the kill at the Snap
@@ -420,27 +527,22 @@ local function Kill(S)
 	DownedManager.Detach(T) -- (let go first: the body falls as a ragdoll, and V can carry it)
 	DownedManager.Finish(T, C, Body)
 	require(ServerScriptService.NoiseService).Emit(Where, "Takedown", C)
+	S.Killed = os.clock()
 	Release(S, "ok")
 end
 
-local function Run(Player, Target, Kind, Chunk)
-	local S = {Player = Player, Character = Player.Character, Target = Target, Kind = Kind}
-	Running[Player] = S
-	local Ok, Err = pcall(Chunk and Backstab or Hold, S)
-	if not Ok then
-		warn("TakedownService: the takedown couldn't start:", Err)
-		Release(S, "interrupted")
-		return
-	end
+-- steps 5 on: the hold until the Snap (the knockout: its whole KnockoutTime), then the kill (a backstab: the hit)
+local function HoldThenKill(S, Chunk)
+	local Kind = S.Kind
 	-- the knockout holds for its whole KnockoutTime; the assassination kills (a backstab hits) at the Snap (LethalTime x KillAt)
 	local EndAt = Kind == "Knockout" and Takedown.KnockoutTime or Takedown.LethalTime * Takedown.KillAt
-	local T0 = os.clock()
 	while true do
 		RunService.Heartbeat:Wait()
 		if S.Over then return end
-		if Broken(S) then Release(S, "interrupted") return end
-		if os.clock() - T0 >= EndAt then break end
+		if TakedownService.Broken(S) then Release(S, "interrupted") return end
+		if os.clock() - S.Started >= EndAt then break end
 	end
+	S.Snapped = os.clock()
 	if Kind == "Knockout" then
 		Release(S, "ok")
 		return
@@ -449,6 +551,25 @@ local function Run(Player, Target, Kind, Chunk)
 	if not KillOk then
 		-- (Task 7 review) past the point of no return (the credit, the deed, the death may be done): no interrupt
 		warn("TakedownService: the kill failed:", KillErr)
+		Release(S, "error")
+	end
+end
+
+-- (final fix F3, review M1) every step in a pcall: an error in the start (steps 1-4) or anywhere in the run (Broken, the
+-- release) still releases the takedown as "error" (Release runs once: after a release that already ran it does nothing)
+local function Run(Player, Target, Kind, Chunk)
+	local S = {Player = Player, Character = Player.Character, Target = Target, Kind = Kind, T0 = os.clock()}
+	Running[Player] = S
+	local Ok, Err = pcall(Chunk and Backstab or Hold, S)
+	if not Ok then
+		warn("TakedownService: the takedown couldn't start:", Err)
+		Release(S, "error")
+		return
+	end
+	S.Started = os.clock()
+	local RunOk, RunErr = pcall(HoldThenKill, S, Chunk)
+	if not RunOk then
+		warn("TakedownService: the takedown's run failed:", RunErr)
 		Release(S, "error")
 	end
 end

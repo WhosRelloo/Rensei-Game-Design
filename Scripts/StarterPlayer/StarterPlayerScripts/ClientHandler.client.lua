@@ -202,10 +202,15 @@ local function AlchemyInput(Key, Began)
 	return true
 end
 
+-- a takedown in progress (assassinations final fix F2): B and V aren't sent (the server refuses them too)
+local function TakingDown()
+	return Character ~= nil and Character:GetAttribute("TakingDown") ~= nil
+end
+
 -- V: Carry a knocked target in range, else the alchemy Ultimate (the server decides).
 local function CarryInput(Began)
 	if Began then
-		if not Knocked() then RequestRemote:FireServer("Downed", "Carry", Camera.CFrame.LookVector) end
+		if not Knocked() and not TakingDown() then RequestRemote:FireServer("Downed", "Carry", Camera.CFrame.LookVector) end
 	else
 		-- letting go of V ends a held clap if V started the Ultimate
 		RequestRemote:FireServer("Alchemy", "V", AlchemyAim(), "End")
@@ -269,7 +274,9 @@ for _, Key in ipairs({"Z", "X", "C"}) do
 	ClientActions.Register("Alchemy" .. Key, function(Began) AlchemyInput(Key, Began) end)
 end
 ClientActions.Register("AlchemyV", CarryInput)
-ClientActions.Register("Grip", function(Began) if Began and not Knocked() then RequestRemote:FireServer("Downed", "Grip") end end)
+ClientActions.Register("Grip", function(Began)
+	if Began and not Knocked() and not TakingDown() then RequestRemote:FireServer("Downed", "Grip") end
+end)
 
 for Key, Skill in pairs(Controls) do
 	-- Block is rebindable (Settings > Keybinds); it is bound below from Keybinds.

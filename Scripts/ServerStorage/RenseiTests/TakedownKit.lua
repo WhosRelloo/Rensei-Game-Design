@@ -20,7 +20,8 @@
 --   * Kit.Run(Seconds): SmokeKit.Run (PerceptionService.Step(0.2) repeated; Guard holds SetAuto(false)).
 --   * Kit.Guard(Body): saves the character's CombatMode, Crouching and Exposure (SmokeKit.Guarded saves its pivot and
 --     Anchored); PerceptionService and LightService SetAuto(false); lays the floor; runs Body in a pcall; then Kit.Clean
---     and the put-back. Re-raises Body's error.
+--     and the put-back. Re-raises Body's error. (Final fix F8) It refuses, with an error and before anything runs, while
+--     Kit.SnapshotArmed() is false: no hook save snapshot for the test player (see Kit.SnapshotArmed below).
 --   * Kit.Clean(): Guard's clean-up (Guard calls it; SmokeKit.Guarded then removes the parts and puts the character
 --     back): a carry the case left dropped and any carry weld off the player's root (Task 6), every rig the kit made removed (and any other enemy left on the floor), every townsperson Folk made despawned with its post (Task 9), TakingDown, TakedownReadyAt and
 --     LastTakedownResult cleared on the character, the saved attributes restored, both loops SetAuto(true). (Task 7) A
@@ -190,7 +191,21 @@ function Kit.Clean()
 	PS.SetAuto(true); LS.SetAuto(true)
 end
 
+-- (final fix F8, review I3, test side) the hook's save snapshot is armed for the test player: the hook (LMTestHook,
+-- installed for every Play session) took it and set ServerStorage.LMSnapTaken to their name. Every takedown case can
+-- credit EXP and money or record deeds and Heat on the REAL profile in memory, and only the hook's restore takes them
+-- back, so no case runs without it.
+function Kit.SnapshotArmed()
+	local SS = game:GetService("ServerStorage")
+	local P = Kit.Player()
+	return P ~= nil and SS:FindFirstChild("LMTestHook") ~= nil and SS:GetAttribute("LMSnapTaken") == P.Name
+end
+
 function Kit.Guard(Body)
+	if not Kit.SnapshotArmed() then
+		error("TakedownKit.Guard: the hook's save snapshot isn't armed (ServerStorage.LMSnapTaken, LMTestHook); "
+			.. "refusing a case that can credit or record on the real profile", 0)
+	end
 	local C = Kit.Player().Character
 	SmokeKit.Guarded(Kit.Player(), Body, function()
 		Saved = {}

@@ -728,7 +728,13 @@ return {
 			local Info = PS.Bodies[Rig]
 			T.True(Info ~= nil and Info.Kind == "Dead" and Info.By == Player, "registered as a Dead body by the player")
 			T.Eq(C.HumanoidRootPart:FindFirstChild("DownedWeld"), nil, "no takedown weld left on the player")
-			T.Near(H.WalkSpeed, WS, 1e-3, "the player walks as before")
+			-- (final fix F5) still crouching: the crouch's own speed (6, ClientHandler.Crouch, written by hand) and no jump;
+			-- stood up: the walk and jump from before the takedown
+			T.Near(H.WalkSpeed, 6, 1e-3, "still crouching: the crouch's walk (6)")
+			T.Near(H.JumpHeight, 0, 1e-3, "still crouching: no jump")
+			Kit.Crouch(false)
+			task.wait(0.1)
+			T.Near(H.WalkSpeed, WS, 1e-3, "stood up: the player walks as before")
 			T.Near(H.JumpHeight, JH, 1e-3, "and jumps as before")
 			local Ready = C:GetAttribute("TakedownReadyAt")
 			T.True(type(Ready) == "number", "TakedownReadyAt written")

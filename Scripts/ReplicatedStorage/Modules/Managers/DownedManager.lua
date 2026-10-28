@@ -27,7 +27,9 @@
 --   (Nearest's Opts.Bodies); Grip never does. A carry holds its exact body: removed while held (a corpse's 120 s, a
 --   despawn), it is dropped at once and its weld goes with it; nothing is ever looked up by name in its place.
 --   Lock, Attach (with the caller's own offset) and Detach are shared with TakedownService (pre-flight R16 / D3).
---   A body something else has welded (Welds) is never taken (Task 6 review).
+--   A body something else has welded (Welds) is never taken (Task 6 review). (Assassinations final fix F2) A player
+--   taking someone down (attribute TakingDown) can't grip or carry; IsLocked(Model) tells whether a lock entry is held
+--   (F7: a gripper removed mid-grip leaves none).
 -- * RAGDOLL (assassinations Task 6b, owner 2026-10-27): a finished grip makes the body a ragdoll (Modules.Managers.Ragdoll,
 --   Apply, just before Health 0) -- enemies, townsfolk and players gripped by players. Carry lets a ragdolled body go
 --   (Ragdoll.Hold: unanchored, held by the carrier; its limbs hang from it) and Drop sets it down limp to settle again.
@@ -332,6 +334,8 @@ end
 DownedManager.Lock = Lock
 DownedManager.Attach = Attach
 DownedManager.Detach = Detach
+-- (assassinations final fix F7) is a lock's entry held for this character (tests: none is left behind)
+function DownedManager.IsLocked(Model) return LockedFrom[Model] ~= nil end
 
 -- (Task 6b) the shared ragdoll (Modules.Managers.Ragdoll), required on first use. Without it (a place it hasn't reached)
 -- the body lies whole as before, with one warning; (Task 6b review, Task 7) an error inside it always warns.
@@ -530,11 +534,13 @@ function DownedManager.Nearest(Actor, Range, Opts)
 	return Best
 end
 
+-- (assassinations final fix F2, review I2) a player taking someone down (TakingDown, TakedownService) is busy too: a
+-- grip would teleport them, victim and all, and a carry would stack a second hold on the takedown's
 local function Free(Actor)
 	local WCS, _, Stun, AttackRunner = Mods()
 	local WC = WCS.Character.GetCharacterFromInstance(Actor)
 	return Alive(Actor) and not DownedManager.IsKnocked(Actor) and not Actor:GetAttribute("Gripping")
-		and not Actor:GetAttribute("Carrying") and not AttackRunner.IsRunning(Actor)
+		and not Actor:GetAttribute("Carrying") and not Actor:GetAttribute("TakingDown") and not AttackRunner.IsRunning(Actor)
 		and not (WC and WC:HasStatusEffects({Stun}))
 end
 
@@ -638,6 +644,8 @@ function DownedManager.Grip(Gripper, Target)
 		Lock(Gripper, false)
 		AnimationManager.Stop(Gripper, "Gripping")
 		if Pair then AnimationManager.Stop(Gripper, Pair.Grip) end
+	else
+		LockedFrom[Gripper] = nil -- (assassinations final fix F7, review M6) a gripper gone mid-grip leaves no entry
 	end
 	if Pair and Pair.Victim and Target.Parent then AnimationManager.Stop(Target, Pair.Victim) end
 	if Done then

@@ -1,6 +1,6 @@
 # Rensei Controls (for testers)
 
-Checked against the game's input code on 2026-10-25: ClientHandler, Keybinds, Settings, UIHandler, HUDUI, CombatModeUI, JumpManager, SwimClient, DialogueUI, EmoteWheelUI and MobileControls (and GunAimUI, after the gun rework; TakedownUI and CombatModeUI's E-prompt rule, after the assassinations). Keys marked **(rebindable)** can be changed in Menu (P) > Keybinds.
+Checked against the game's input code on 2026-10-27: ClientHandler, Keybinds, Settings, UIHandler, HUDUI, CombatModeUI, JumpManager, SwimClient, DialogueUI, EmoteWheelUI and MobileControls (and GunAimUI, after the gun rework; TakedownUI and CombatModeUI's E-prompt rule, after the assassinations). Keys marked **(rebindable)** can be changed in Menu (P) > Keybinds.
 
 ## Moving
 | Key | Action |
@@ -44,7 +44,7 @@ Press to clap and hold to keep the clap ready. Release to cast where the camera 
 | V | Carry a knocked target, or a takedown's or a grip's dead body (assassinations, not live yet) |
 | B | Grip (finisher on a knocked target; never a dead body) |
 
-Crouching blocks V and B: stand up first.
+Crouching blocks V and B: stand up first. So does a takedown in progress (assassinations, not live yet).
 
 **Knocked yourself (2026-10-27, not live yet):** a knocked player can **crawl slowly** with the normal movement keys (WASD / the thumbstick) at 3 studs/s (PROPOSAL), playing Downed Crawl, and lies in Downed Idle when still. Nothing else works while you're down: no jump, attack, skill, alchemy, sprint, dash, crouch, climb or swim, and no grip or carry of your own. Being gripped or carried stops the crawl at once, and so does deep water (you float still). Knocked enemies and townsfolk don't crawl.
 
@@ -54,7 +54,7 @@ Assassinations (2026-10-27, not live yet; the key and numbers are PROPOSAL). Onl
 | Key | Action |
 |---|---|
 | N (tap) | Knock out an enemy from behind (it hasn't caught you; you're in Calm) |
-| N (hold 0.6 s) | Assassinate it. Elites: a backstab instead. Bosses can't be taken down |
+| N (hold 0.6 s) | Assassinate it. Elites and Hunters: a backstab instead. Bosses can't be taken down |
 
 N is reserved, like B and V: it can't be rebound. Players and townsfolk can never be taken down. Gamepad: the prompt's default button (ButtonX).
 
