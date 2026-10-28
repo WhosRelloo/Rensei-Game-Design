@@ -17,7 +17,7 @@ Nothing to post: no player-facing change.
 
 ## Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
-## 2026-10-28 — The painted, animated Main Menu (not live; its art awaits the owner's upload approval)
+## 2026-10-28 — The painted, animated Main Menu (not live; art uploaded, the ambience loop still to upload)
 
 **Owner:** "can you hand paint a similar version of the loading screen based on the reference, make sure the background is animated, and when you click a character slot it pans to your character slot (if you haven't customized it or want to edit it)". Then, as the concept was shown: "Make it higher quality", "lower to compensate for roblox's UI overlap", "more FMA like Rensei's theme", "Make the textures higher quality", "use a roblox rigged r6 model", "cool Idle poses that don't overlap into the buildings", "make the menu animated, with animated background, ambiance", "Make the camera animation smoother and a little slower, but I like it", "The look is approved. Go ahead and prepare the in-game build; ask me before uploading anything", "Make sure the blender textures are the same in roblox as well". Design: `Documents/specs/2026-10-28-main-menu-painted-design.md`. The reference (another game's menu) gave the layout and mood only; nothing of it is used.
 
@@ -42,7 +42,13 @@ Nothing to post: no player-facing change.
 - The painted menu in Play: both real characters dressed and posed in alcoves 1–2, alcoves 3–5 gated; cards with busts; EDIT on slot 1 panned into its alcove and opened the creator in Edit mode (Face / Traits only, nation and gender hidden); SAVE LOOK saved on the mock and panned back. No errors from the menu scripts.
 - Not tested: a real upload (none made); the pan for an empty owned slot (the owner has none; the same path as EDIT); Delete (not exercised on the owner's slots, even guarded); a phone screen; the old dais menu after the later client changes (it ran earlier in the day when PaintedStage arrived late; its code paths are kept).
 
-**Waiting on the owner:** approval to upload 27 images and 1 sound (listed in the session's report; files in `E:/Rensei/Renders/MainMenu/upload/`), then the ids go into `MenuArt`, `build_stage.py` re-runs, and the preview is cleared.
+**Uploads (owner: "Approved: upload the 27 images and the ambience loop, put the ids in MenuArt, rebuild, and clear the preview"):**
+- **27 images uploaded** through Studio's image uploader (served from `E:/Rensei/Renders/MainMenu/upload/` on a temporary 127.0.0.1 server, stopped afterwards): the 3 backdrop tiles, the banner, clock, sign and chalk circle, the card, hover and button frames, and 17 material maps (colour, normal and roughness for the three stones; plus metalness for the two irons). The ids are in `MenuArt` (and `E:/Rensei/Work/main-menu/upload_ids.json`).
+- **The preview is cleared** (`preview_textures.lua`, MODE "clear") **before** the rebuild, and a scan of the whole place finds no `RenseiPreview` path or tag left. `build_stage.py` re-ran: every panel and backdrop tile has its image, and every variant its maps.
+- **Fixes found on the way:** the builder now requires a fresh clone of `MenuArt` (Studio's `require` handed back the copy from its earlier run, with zeros); MenuClient waits for `game.Loaded` before looking for its markers (on some joins `MenuStage` hadn't replicated yet, and the old menu came up). Three fresh joins in a row then came up painted.
+- **Tested (Play, TestNoSave proven first):** the painted menu with the uploaded art: the steel card frames, the painted PLAY / CLAN INDEX frames, the baked brick and rust as MaterialVariants. The owner's real records were byte-identical to the day's first fingerprint afterwards; TestNoSave cleared.
+- **The ambience loop is not uploaded:** Studio's uploader takes images only, and an Open Cloud upload needs an API key, which wasn't asked for. The owner uploads `E:/Rensei/Renders/MainMenu/upload/ambience_loop60.wav` (Creator Hub → Audio) and sends its id; it goes into `MenuArt.Ambience` (the menu plays it once it's there; until then the menu is silent).
+- The Studio content junction (`content/textures/RenseiPreview`) is left; nothing uses it now.
 
 ### Discord announcement
 

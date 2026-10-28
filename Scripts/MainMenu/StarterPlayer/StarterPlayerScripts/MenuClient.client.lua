@@ -24,6 +24,7 @@ local CreatorPlus = require(ReplicatedStorage.Modules.Data.Rensei.CreatorPlus)
 local Appearance = require(ReplicatedStorage.Modules.AppearanceService)
 local Remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("MenuRemote")
 local RenseiData = ReplicatedStorage.Modules.Data.Rensei
+if not game:IsLoaded() then game.Loaded:Wait() end -- (the first replication done, so a missing module really is missing)
 local StageMarkers = RenseiData:FindFirstChild("MenuStage")
 -- (persistent streaming sends the stage soon after joining, not at once: wait for it when its markers are here)
 local PaintedStage = StageMarkers and workspace:WaitForChild("PaintedStage", 30) or nil
