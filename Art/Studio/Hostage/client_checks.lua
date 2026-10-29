@@ -40,6 +40,12 @@
 --     PlatformStand false, W is held 1 s, then Humanoid.Jump = true: the server sees the player's root within PairSlack
 --     1.5 of the stand-in's root x Offset the whole time, its owner the server, the hold still on; the client's WCS shows
 --     the Stun. It passes before Task 6 too: the server owns a stand-in captor's pair.
+--   * CaptorNoDash (hostages Task 10 fix round 1; spec section 2: the captor can't dash): the player the captor of a
+--     stand-in. The client runs its own real dash (StarterPlayerScripts.ClientHandler.Roll:OnStartClient, Q's handler,
+--     its cooldown cleared), which asks the server for the dash's i-frames (StateRemote "IFrame"; CharacterHandler
+--     charges the stamina and grants them). Holding: the server grants no IFrame status and spends no stamina (the
+--     dash's movement itself is the client's, bounded by the lead clamp; its displacement is noted). Control: freed,
+--     the same dash gets its IFrame and costs its stamina (TuningConfig.Dash.Stamina 20, written by hand).
 -- ONLY: "" runs every check; else a comma list of check names.
 local ONLY = ""
 
@@ -118,6 +124,14 @@ function Checks.Stunned()
 	return WC ~= nil and WC:HasStatusEffects({Stun}) == true
 end
 
+-- (Task 10 fix round 1) the client's own dash, exactly as Q starts it (its cooldown cleared first); returns once it ends
+function Checks.Dash()
+	local Roll = require(Player:WaitForChild("PlayerScripts"):WaitForChild("ClientHandler"):WaitForChild("Roll"))
+	Roll.ReadyAt = 0
+	Roll:OnStartClient()
+	return true
+end
+
 function Checks.Reset()
 	Checks.SprintStop()
 	return true
@@ -157,6 +171,9 @@ local SPRINT_BOUND, SPRINT_MS, WRIGGLE_MS = 42, 2000, 1000
 local INERT_WATCH, PAIR_SLACK, OFFSET = 2.5, 1.5, CFrame.new(0, 0, -1.5)
 local KEY_WAIT, SETTLE = 30, 0.3
 local LEAD_MIN = 18 -- studs: LeadSpeed 12 x 2 s = 24, less the start and the stop
+-- (Task 10 fix round 1) a dash costs TuningConfig.Dash.Stamina 20 (by hand): refused, under NO_CHARGE is spent (regen
+-- slack); granted, at least CHARGED
+local NO_CHARGE, CHARGED = 5, 15
 
 local Replies = {}
 Remote.OnServerEvent:Connect(function(P, Id, Done, Data)
@@ -229,7 +246,45 @@ local function Case(Body)
 	end)
 end
 
+-- (Task 10 fix round 1) the client's real dash: whether the server granted the IFrame status (sampled from before it
+-- until 0.3 s after it ended) and how much stamina it spent
+local function Dash()
+	local WCS = require(ReplicatedStorage.Modules.Framework.WCS)
+	local IFrame = require(ReplicatedStorage.Modules.Skills.States.IFrame)
+	local RM = require(ReplicatedStorage.Modules.Managers.ResourceManager)
+	local WC = WCS.Character.GetCharacterFromInstance(C)
+	RM.Set(C, "Stamina", RM.Max(C, "Stamina"))
+	local S0 = RM.Get(C, "Stamina")
+	local Seen = Sample(function() return WC:HasStatusEffects({IFrame}) and 1 or 0 end)
+	Ask("Dash")
+	task.wait(SETTLE)
+	return Seen() == 1, S0 - RM.Get(C, "Stamina")
+end
+
 local Suite = {
+	-- (Task 10 fix round 1) the captor's own dash: no i-frames and no stamina while Holding; freed, both
+	CaptorNoDash = function(T)
+		Case(function()
+			local _, _, S = HK.Held()
+			HK.Loose()
+			local Root = C.HumanoidRootPart
+			local P0 = Root.Position
+			local IFrames, Spent = Dash()
+			local Disp = Ground(Root.Position, P0)
+			local Held = On(S)
+			Svc().Free(Player, "a")
+			task.wait(1.1) -- (the server's dash interval, Dash.Cooldown 1 s, by hand)
+			local CIFrames, CSpent = Dash()
+			Note("CaptorNoDash", ("held: i-frames %s, stamina spent %s, displacement %s, HostageClamped %d; freed: i-frames %s, spent %s")
+				:format(tostring(IFrames), F2(Spent), F2(Disp), Clamped(), tostring(CIFrames), F2(CSpent)))
+			T.True(Held, "setup: the hold was on through the dash (" .. tostring(HK.Result()) .. ")")
+			T.Eq(IFrames, false, "no dash i-frames while Holding")
+			T.True(Spent < NO_CHARGE, "no dash stamina spent while Holding (" .. F2(Spent) .. ")")
+			T.Eq(CIFrames, true, "control: freed, the dash gets its i-frames")
+			T.True(CSpent >= CHARGED, "control: freed, the dash costs its stamina (" .. F2(CSpent) .. ")")
+		end)
+	end,
+
 	-- the captor's own client sprints the pair: the server clamps it
 	ClientSprintClamped = function(T)
 		Case(function()

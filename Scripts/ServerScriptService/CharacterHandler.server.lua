@@ -165,6 +165,9 @@ ReplicatedStorage.Remotes.StateRemote.OnServerEvent:Connect(function(Player,Stat
 				Character:SetAttribute("Crouching", nil)
 			end
 		elseif typeof(Duration) == "number" and Duration == Duration and Duration > 0 then
+			-- (hostages Task 10 fix round 1, spec section 2) a captor can't dash, and a hostage can't act: no dash i-frames
+			-- and no stamina spent (the dash's movement is the client's own; the server's lead clamp bounds it)
+			if StateName == "IFrame" and (Character:GetAttribute("Holding") or Character:GetAttribute("HeldBy")) then continue end
 			local Now = os.clock()
 			local MinInterval = Rule.MinInterval and Rule.MinInterval * (Rule.IntervalMod and SkillMods.Mult(Character, Rule.IntervalMod) or 1)
 			local MaxDuration = Rule.MaxDuration + (Rule.ExtraMax and SkillMods.Get(Character, Rule.ExtraMax) or 0)

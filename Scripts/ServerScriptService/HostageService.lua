@@ -110,12 +110,13 @@
 --        root is the owning client's stale echo of the spot before the move: put back to the rebased spot, neither
 --        counted nor a "teleport" (DownedManager's fix round 3 saw the same echo). (Task 10, Task 6 re-review m2) only a
 --        root back at the spot BEFORE the move (within a walk's allowance + RiseSlack of the lead Rebase replaced,
---        S.Lead.EchoOf) is taken for that echo: put back to the rebased spot, uncounted, with no ray. Any other root
---        gets every check (the wall ray and the teleport break too; a put-back in the window still isn't counted), and
---        the lead never follows an echo, so a Rebase opens no window to pass a wall or go anywhere new. Every server
---        move of a player's character that rebases the crawl clamp (StationService, RoadService, TravelService,
---        AdminService: their Rebased helpers) calls Rebase too (Task 6 re-review m7); a class skill's latch or grab never
---        moves either side of a led pair (Requests.ClassSkill).
+--        S.Lead.EchoOf; fix round 1, m3: a second Rebase inside the grace keeps the earlier spots too) is taken for
+--        that echo: put back to the rebased spot, uncounted, with no ray. Any other root gets every check (the wall ray
+--        and the teleport break too; a put-back in the window still isn't counted), and the lead never follows an echo,
+--        so a Rebase opens no window to pass a wall or go anywhere new. Every server move of a player's character calls
+--        DownedManager.MovedOnPurpose, which calls Rebase (Task 6 re-review m7; fix round 1, m4: StationService,
+--        RoadService, TravelService and AdminService); a class skill's latch or grab never moves either side of a led
+--        pair (Requests.ClassSkill).
 --     2. the pair: the weld gone (no DownedWeld on the captor's root, or its Part1 not the hostage's root), or the
 --        hostage's root more than PairSlack from the captor's root x Hostage.Offset -> "broken";
 --     3. ownership: the hostage's root's network owner kept to the captor's Player (nil, the server, for a stand-in
@@ -774,10 +775,15 @@ local function LeadCheck(S)
 	-- Rebase never opens a window to walk through a wall or anywhere new, however often a server move (a gate's
 	-- Touched, say) calls it. (Not D > TeleportBreak alone: the echo of a short or a vertical move -- a pair lifted onto
 	-- a ledge, pushed back from a gate -- is under TeleportBreak and may lie through the floor or wall it was moved past.)
-	local Was = Echo and L.EchoOf
-	if Was and Len >= STILL and (Pos - Was.Pos).Magnitude <= Hostage.LeadAllowance(Now - Was.T) + Hostage.RiseSlack then
-		PutBack(S, CR, L, Now, true)
-		return nil
+	-- (fix round 1, review m3) L.EchoOf lists every spot a move replaced inside this grace (a second Rebase keeps the
+	-- first's), so the stale echo of the ORIGINAL spot is still an echo
+	if Echo and Len >= STILL then
+		for _, Was in ipairs(L.EchoOf or {}) do
+			if (Pos - Was.Pos).Magnitude <= Hostage.LeadAllowance(Now - Was.T) + Hostage.RiseSlack then
+				PutBack(S, CR, L, Now, true)
+				return nil
+			end
+		end
 	end
 	-- (Task 7, m1) the path ray clamped before it is cast: a huge move is checked along its first MAX_RAY studs
 	local Ray = Len > MAX_RAY and Moved * (MAX_RAY / Len) or Moved
@@ -881,7 +887,15 @@ function HostageService.Rebase(Character)
 			local Old = S.Lead -- (Task 10, m2) the lead the move replaced: where the client's stale echo would be
 			S.Lead = NewLead(CR)
 			S.Lead.Rebased = os.clock()
-			S.Lead.EchoOf = Old and {Pos = Old.Pos, T = Old.T} or nil
+			-- (fix round 1, review m3) and the spots earlier moves replaced while their grace is still open
+			local Echoes = {}
+			if Old then
+				table.insert(Echoes, {Pos = Old.Pos, T = Old.T})
+				if Old.Rebased and S.Lead.Rebased - Old.Rebased < REBASE_GRACE then
+					for _, E in ipairs(Old.EchoOf or {}) do table.insert(Echoes, E) end
+				end
+			end
+			S.Lead.EchoOf = Echoes
 			return true
 		end
 	end

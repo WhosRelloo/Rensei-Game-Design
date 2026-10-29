@@ -287,6 +287,23 @@ function DownedManager.RebaseCrawl(Model)
 	RebasedAt[Model] = os.clock()
 end
 
+-- (hostages Task 10 fix round 1, review m4) THE call for a deliberate server move of a player's character (server only;
+-- call it AFTER the move): the knocked crawl's clamp (RebaseCrawl) and, when the character is either side of a led
+-- hostage pair, that pair's lead clamp (HostageService.Rebase; Task 6 re-review m7: else the move ends the hold as a
+-- blink and leaves the hostage at the last lead) start again from the new spot. StationService, RoadService,
+-- TravelService and AdminService call it (it replaces their four copied Rebased helpers). Each half runs in its own
+-- pcall and warns if it fails; HostageService is optional (a place without it skips that half).
+function DownedManager.MovedOnPurpose(Model)
+	if not Model or not IsServer then return end
+	local Ok, Err = pcall(DownedManager.RebaseCrawl, Model)
+	if not Ok then warn("DownedManager.MovedOnPurpose: RebaseCrawl failed:", Err) end
+	local HS = game:GetService("ServerScriptService"):FindFirstChild("HostageService")
+	if HS then
+		local HOk, HErr = pcall(function() require(HS).Rebase(Model) end)
+		if not HOk then warn("DownedManager.MovedOnPurpose: HostageService.Rebase failed:", HErr) end
+	end
+end
+
 -- weld Target's root onto Holder's root (shared root, as the grip animations expect). Offset (a carry only:
 -- TuningConfig.Downed.CarryOffset) moves the Target's root in the Holder's root space: the Carried animation (owner's id,
 -- 2026-10-27) lays the body across a shoulder line through the shared root, which buried the carrier's head in it; the

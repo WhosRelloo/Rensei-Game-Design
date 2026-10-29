@@ -188,6 +188,8 @@ WCS.DefineMessage(Heavy.DownkickLand,{
 function Heavy:OnStartClient()
 	local Player = Players.LocalPlayer
 	local Character = self.Character
+	-- (hostages Task 10 fix round 1, review m5) the server refuses a captor's heavy: no client movers or animation either
+	if Character.Instance:GetAttribute("Holding") or Character.Instance:GetAttribute("HeldBy") then return end
 	local Root = Character.Instance.HumanoidRootPart
 	local Humanoid = Character.Humanoid
 	

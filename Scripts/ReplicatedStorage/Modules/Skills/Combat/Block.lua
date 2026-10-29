@@ -148,6 +148,9 @@ end
 function Block:OnStartClient()
 	local Character = self.Character
 	local Humanoid = Character.Humanoid
+	-- (hostages Task 10 fix round 1, review m5) the server refuses a captor's or a hostage's block: no guard pose here
+	-- either, and the hold's poses (Hostage_Hold, the held pose) aren't stopped
+	if Character.Instance:GetAttribute("Holding") or Character.Instance:GetAttribute("HeldBy") then return end
 	-- a hit-parry keeps the hit reaction; the guard pose comes once the stun is over (if still held).
 	-- A whiffed parry (ParryWhiffUntil) holds the guard pose back the same way.
 	while self:GetState().IsActive and (self.Character:HasStatusEffects({Stun})

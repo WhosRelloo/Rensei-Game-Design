@@ -25,6 +25,10 @@
 --   so those cases answer HostageService.InSafeZone false while they run (put back after), and the papers verdict
 --   (StationService.Gate) "Pass" (Wanted 0, whatever the loaded profile's Heat). Written by hand: the gate is 1 stud
 --   thick and pushes 4 studs clear (StationService.GatePush), so the pushed root is at most -4.5 + 0.5 studs from it.
+-- * Task 10 fix round 1: GateRefusesCaptor pushes 12 studs (past any lead allowance) and spies Rebase, so it proves m7;
+--   a hostage at the gate is judged as the pair (m7 of the review); a light attack leaves the captor at LeadSpeed (m6);
+--   a second Rebase keeps the first's echo (m3); the no-wall-window case goes through the wall ray (m8); the heavy works
+--   again after Free (m1). The captor's dash (no i-frames, no stamina) is a real-client check in client_checks.lua.
 local DM = require(game.ReplicatedStorage.Modules.Managers.DownedManager)
 local ServerStorage = game:GetService("ServerStorage")
 local SSS = game:GetService("ServerScriptService")
@@ -93,17 +97,21 @@ local function MovePair(T, CF)
 	CRoot().AssemblyLinearVelocity = Vector3.zero
 	T.Eq(Svc().Rebase(C), true, "setup: the moved pair rebased")
 end
--- (Task 10) Body with HostageService.InSafeZone answering false and StationService.Gate answering "Pass", both put back
--- after (even when Body fails)
-local function AtStation(Body)
+-- (Task 10) Body with HostageService.InSafeZone answering false and StationService.Gate answering Papers.Verdict ("Pass"
+-- unless the case sets another; fix round 1), both put back after (even when Body fails)
+local function AtStation(Body, Papers)
+	Papers = Papers or {Verdict = "Pass"}
 	local HS, SS = Svc(), require(SSS.StationService)
 	local RealSafe, RealGate = HS.InSafeZone, SS.Gate
 	HS.InSafeZone = function() return false end
-	SS.Gate = function() return "Pass" end
+	SS.Gate = function() return Papers.Verdict end
 	local Ok, Err = pcall(Body)
 	HS.InSafeZone, SS.Gate = RealSafe, RealGate
 	if not Ok then error(Err, 0) end
 end
+-- (fix round 1, review I1) the gate's push for the m7 case, by hand: 12 studs (StationService.GatePush is 4), past any
+-- lead allowance in the window (LeadAllowance(<= 0.3 s) <= 6.15 studs) and under TeleportBreak 40
+local GATE_PUSH = 12
 local function TheGate() return CollectionService:GetTagged("RenseiStationGate")[1] end
 local function HallSide(Gate) return (CRoot().Position - Gate.Position):Dot(Gate.CFrame.LookVector) end
 local function BoardZone() -- a 3rd-class BoardZone inside the platform train (as Play_Station's Zone finds one)
@@ -696,9 +704,10 @@ return {
 
 	-- ===== Task 10: hands full; a hostage can't act =====
 
-	-- the player's own WCS Heavy started on the server while Holding: no CombatAttack within 0.3 s. The control runs FIRST,
-	-- free (it starts), and plays out before the hold. Heavy is a holdable skill: started by the server it stays active
-	-- until it is ended (a key release, here Heavy:End()), and a Start while active does nothing (the RED session,
+	-- the player's own WCS Heavy started on the server while Holding: no CombatAttack within 0.3 s. A control runs first,
+	-- free (it starts), and plays out before the hold; (fix round 1, review m1) and the refused start, ended, leaves the
+	-- Heavy usable once freed (it starts again after Free). Heavy is a holdable skill: started by the server it stays
+	-- active until it is ended (a key release, here Heavy:End()), and a Start while active does nothing (the RED session,
 	-- 2026-10-28, saw a control after the refused start do nothing for that reason)
 	CaptorNoHeavy = function(T)
 		HK.Guard(function()
@@ -724,7 +733,15 @@ return {
 				Heavy:Start()
 				local Started = WaitFor(0.3, function() return C:GetAttribute("CombatAttack") ~= nil end)
 				T.True(not Started, "no heavy while Holding (" .. tostring(C:GetAttribute("CombatAttack")) .. ")")
-				WaitFor(5, Idle)
+				T.True(WaitFor(5, Idle) and Release(), "the refused start ended (the key let go)")
+				Svc().Free(Player, "a")
+				TK.PutPlayer(At(20, 20) + Vector3.new(0, 3, 0)) -- (clear of the freed stand-in)
+				task.wait(0.5)
+				C:SetAttribute("HeavyReadyAt", nil)
+				Heavy:Start()
+				T.True(WaitFor(0.3, function() return C:GetAttribute("CombatAttack") ~= nil end),
+					"control: after Free, the heavy starts again")
+				T.True(WaitFor(5, Idle) and Release(), "control: it plays out")
 			end)
 			if Heavy and Heavy:GetState().IsActive then Heavy:End() end -- (never left held down)
 			C:SetAttribute("HeavyReadyAt", nil)
@@ -889,19 +906,23 @@ return {
 
 	-- the captor (the client owning the pair) moved up to the papers gate at Wanted 0: GateTouch is "Refuse", no Heat, and
 	-- 0.3 s later the captor is on the hall side (pushed clear) with the hold still on and the stand-in in front (pre-flight
-	-- P6 / Task 6 re-review m7: the push rebases the pair; without it the clamp puts the root back, or the hold ends).
-	-- Control: freed, the same touch is "Pass".
+	-- P6 / Task 6 re-review m7: the push rebases the pair). Control: freed, the same touch is "Pass".
+	-- (fix round 1, review I1) the push is made GATE_PUSH (12, put back after) so it is past any lead allowance in the
+	-- window: without the gate's DownedManager.MovedOnPurpose -> HostageService.Rebase the clamp would put the captor back
+	-- by the gate. A spy (put back after) also counts the Rebase calls GateTouch made for the captor.
 	GateRefusesCaptor = function(T)
 		HK.Guard(function()
 			local SS, HeatS = require(SSS.StationService), require(SSS.HeatService)
 			local Gate = TheGate()
 			T.True(Gate ~= nil, "setup: a RenseiStationGate")
-			local R = {}
+			local R = {Rebased = 0}
+			local HS = Svc()
+			local RealPush, RealRebase = SS.GatePush, HS.Rebase
 			local Ok, Err = pcall(AtStation, function()
 				local Rig, _, S = HK.Held()
 				HK.Loose()
 				local N = Gate.CFrame.LookVector
-				local Spot = (Gate.CFrame * CFrame.new(0, -0.5, 1.7)).Position -- (1.7 studs hall-side of its middle)
+				local Spot = (Gate.CFrame * CFrame.new(0, -0.5, 0.2)).Position -- (0.2 studs hall-side of its middle)
 				local Heat0 = HeatS.Value(Player, "State")
 				R.Toasts = HK.Toasts(function()
 					MovePair(T, CFrame.lookAt(Spot, Spot + N)) -- (facing the platform: the stand-in 1.5 studs nearer it)
@@ -909,7 +930,14 @@ return {
 					Fresh() -- (1.5 studs back in honest steps: the lead's time is fresh, so the push is measured against a tick)
 					CRoot().AssemblyLinearVelocity = Vector3.zero
 					SS.ResetGate(Player)
+					SS.GatePush = GATE_PUSH
+					HS.Rebase = function(M, ...)
+						if M == C then R.Rebased += 1 end
+						return RealRebase(M, ...)
+					end
 					R.Verdict = SS.GateTouch(Player, Gate)
+					HS.Rebase = RealRebase
+					SS.GatePush = RealPush
 					task.wait(0.3)
 				end)
 				R.Heat = HeatS.Value(Player, "State") - Heat0
@@ -923,12 +951,15 @@ return {
 				task.wait(0.1)
 				R.Control = SS.GateTouch(Player, Gate)
 			end)
+			HS.Rebase, SS.GatePush = RealRebase, RealPush
 			SS.ResetGate(Player)
 			if not Ok then error(Err, 0) end
 			T.Eq(R.Verdict, "Refuse", "a captor is refused at Wanted 0")
 			T.Near(R.Heat, 0, 0.01, "no Heat")
 			T.True(table.find(R.Toasts, NO_GATE) ~= nil, "the guard's line")
-			T.True(R.Side <= -4.0, "pushed to the hall side (" .. F2(R.Side) .. ")")
+			T.True(R.Rebased >= 1, "the push rebased the pair (" .. R.Rebased .. " Rebase calls)")
+			-- (by hand: the gate is 1 stud thick, so a root pushed GATE_PUSH 12 clear is at -12.5; 0.5 of slack)
+			T.True(R.Side <= -12.0, "pushed 12 studs clear to the hall side (" .. F2(R.Side) .. ")")
 			T.True(R.On, "the hold is still on after the push (" .. tostring(R.Result) .. ")")
 			T.True(R.Gap <= 1.5, "the stand-in came with the pair (" .. F2(R.Gap) .. " studs off)")
 			T.Eq(R.Control, "Pass", "control: freed, Wanted 0 walks through")
@@ -964,22 +995,96 @@ return {
 		end)
 	end,
 
-	-- (Task 6 re-review m2) a Rebase opens no window to walk through a wall: 0.2 s after a Rebase (inside its echo grace),
-	-- the captor's root stepped 3.5 studs (within a led walk's allowance by then) through a TEMP wall 2 studs off ends up
-	-- back on this side 0.6 s later, the stand-in too
+	-- (fix round 1, review m7) the real player as the HOSTAGE (both roots anchored), the pair moved to the gate: GateTouch
+	-- judges the hostage as part of the pair, never on their own papers. With a Wanted 3+ verdict: "Refuse", no Heat, no
+	-- "poster" line; with a bribe verdict: "Refuse", no offer. Heat a RED run raised is taken back (HeatService.Reduce).
+	HostageAtGateIsPartOfThePair = function(T)
+		HK.Guard(function()
+			local SS, HeatS = require(SSS.StationService), require(SSS.HeatService)
+			local Gate = TheGate()
+			T.True(Gate ~= nil, "setup: a RenseiStationGate")
+			local R = {}
+			local Papers = {Verdict = "Refuse"}
+			local Heat0 = HeatS.Value(Player, "State")
+			local Ok, Err = pcall(AtStation, function()
+				local Cap = HK.Captive()
+				local N = Gate.CFrame.LookVector
+				local Spot = (Gate.CFrame * CFrame.new(0, -0.5, 1.7)).Position
+				local CapCF = CFrame.lookAt(Spot, Spot + N) -- (the hostage 1.5 studs in front, by the gate)
+				Cap.HumanoidRootPart.CFrame = CapCF
+				CRoot().CFrame = CapCF * OFFSET
+				T.Eq(Svc().Rebase(Cap), true, "setup: the moved pair rebased")
+				SS.ResetGate(Player)
+				R.Toasts = HK.Toasts(function() R.Refused = SS.GateTouch(Player, Gate) end)
+				R.Heat = HeatS.Value(Player, "State") - Heat0
+				SS.ResetGate(Player)
+				Papers.Verdict = "Bribe"
+				R.Bribe = SS.GateTouch(Player, Gate)
+			end, Papers)
+			local Raised = HeatS.Value(Player, "State") - Heat0
+			if Raised > 0 then HeatS.Reduce(Player, "State", Raised) end
+			SS.ResetGate(Player)
+			if not Ok then error(Err, 0) end
+			T.Eq(R.Refused, "Refuse", "Wanted 3+ papers: refused as the pair")
+			T.Near(R.Heat, 0, 0.01, "no Heat for the hostage")
+			T.True(table.find(R.Toasts, "Guard: \"Your face is on a poster. Not on my platform.\"") == nil, "not the poster line")
+			T.Eq(R.Bribe, "Refuse", "bribe-level papers: refused, no offer")
+		end)
+	end,
+
+	-- (fix round 1, review m6; spec section 2: the captor walks at LeadSpeed 12) a light attack while Holding (its strike
+	-- stubbed: nothing is hit) ends with MoverManager handing the walk back: the server's WalkSpeed is still 12, JumpHeight 0
+	MoverKeepsTheLeadWalk = function(T)
+		HK.Guard(function()
+			local AR = require(game.ReplicatedStorage.Modules.Managers.AttackRunner)
+			local Tuning = require(game.ReplicatedStorage.Modules.Data.Rensei.TuningConfig)
+			HK.Held()
+			local H = C.Humanoid
+			T.Eq(H.WalkSpeed, 12, "setup: the captor walks at 12")
+			C:SetAttribute("CombatMode", nil)
+			local WC = WCS.Character.GetCharacterFromInstance(C)
+			task.spawn(AR.Run, WC, Tuning.Light.Hits[1], "Light1", {Strike = function() return {} end})
+			T.True(WaitFor(0.3, function() return C:GetAttribute("CombatState") ~= nil end), "setup: the light runs")
+			T.True(WaitFor(3, function() return C:GetAttribute("CombatState") == nil and (C:GetAttribute("Movement") or 0) == 0 end),
+				"setup: the light and its movement change are over")
+			task.wait(0.1)
+			T.Eq(H.WalkSpeed, 12, "the captor still walks at 12")
+			T.Eq(H.JumpHeight, 0, "and can't jump")
+		end)
+	end,
+
+	-- (fix round 1, review m3) two server moves of 25 studs in a row (each rebased; the root anchored, so only the server
+	-- moves it), then the root back at the ORIGINAL spot (the client's stale echo of the first move, 50 studs off, past
+	-- TeleportBreak 40): still an echo, put back to the newest spot, the hold on (not "teleport")
+	SecondRebaseKeepsTheEcho = function(T)
+		HK.Guard(function()
+			local _, _, S = HK.Held()
+			local P0 = CRoot().CFrame
+			MovePair(T, P0 + Vector3.new(25, 0, 0))
+			MovePair(T, P0 + Vector3.new(50, 0, 0))
+			CRoot().CFrame = P0
+			task.wait(0.3)
+			local Off = Ground(CRoot().Position, P0.Position + Vector3.new(50, 0, 0))
+			T.True(On(S), "the hold is still on (" .. tostring(HK.Result()) .. ")")
+			T.True(Off <= 1, "put back at the newest spot (" .. F2(Off) .. " studs off)")
+		end)
+	end,
+
+	-- (Task 6 re-review m2; fix round 1, review m8: the wall ray itself) a Rebase opens no window to walk through a wall:
+	-- the pair moved 30 studs and rebased (past the echo's reach of the old spot: at most LeadAllowance(1) 20.5 +
+	-- RiseSlack 3), then 0.2 s on, inside the grace, stepped 3.5 studs through a TEMP wall 2 studs off the new spot: the
+	-- wall ray ends it "teleport", and the stand-in is put back on this side
 	RebaseOpensNoWallWindow = function(T)
 		HK.Guard(function()
 			local Rig = Led(T)
-			local Good = CRoot().CFrame
-			Block(Vector3.new(0.4, 12, 12), CFrame.new(Good.Position + Vector3.new(2, 0, 0)))
-			T.Eq(Svc().Rebase(C), true, "setup: rebased where it stands")
+			local New = CRoot().CFrame + Vector3.new(30, 0, 0)
+			MovePair(T, New)
+			Block(Vector3.new(0.4, 12, 12), CFrame.new(New.Position + Vector3.new(2, 0, 0)))
 			task.wait(0.2)
-			CRoot().CFrame = Good + Vector3.new(3.5, 0, 0)
-			task.wait(0.6)
-			local CX = CRoot().Position.X - Good.Position.X
-			local HX = Rig.HumanoidRootPart.Position.X - Good.Position.X
-			T.True(CX < 2, "the captor isn't past the wall (" .. F2(CX) .. " studs along, " .. tostring(HK.Result()) .. ")")
-			T.True(HX < 2, "nor the stand-in (" .. F2(HX) .. ")")
+			CRoot().CFrame = New + Vector3.new(3.5, 0, 0)
+			T.True(Ended("Bind:teleport", 0.6), "\"teleport\" within 0.6 s (" .. tostring(HK.Result()) .. ")")
+			local HX = Rig.HumanoidRootPart.Position.X - New.Position.X
+			T.True(HX < 2, "the stand-in is back on this side of the wall (" .. F2(HX) .. ")")
 		end)
 	end,
 }

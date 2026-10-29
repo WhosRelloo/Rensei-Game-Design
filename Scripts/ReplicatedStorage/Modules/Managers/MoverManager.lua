@@ -48,9 +48,14 @@ function MoverManager.Movement(Character,Info)
 		if not Humanoid then return end
 		Character:SetAttribute("Movement",(Character:GetAttribute("Movement") or 1) - 1)
 		if Character:GetAttribute("Movement") == 0 then
-			-- knocked / gripping / carrying own the walk speed (DownedManager); don't hand it back
-			if Character:GetAttribute("Gripping") or Frozen(Character) then
+			-- knocked / gripping / carrying own the walk speed (DownedManager); don't hand it back. (hostages Task 10 fix
+			-- round 1, review m6) nor a hostage's (HeldBy: still) or a captor's (Holding: the lead's walk, no jump; spec
+			-- section 2: the captor walks at LeadSpeed) -- HostageService locked both at the hold
+			if Character:GetAttribute("Gripping") or Character:GetAttribute("HeldBy") or Frozen(Character) then
 				Character.Humanoid.WalkSpeed = 0
+				Character.Humanoid.JumpHeight = 0
+			elseif Character:GetAttribute("Holding") then
+				Character.Humanoid.WalkSpeed = require(ReplicatedStorage.Modules.Data.Rensei.Hostage).LeadSpeed
 				Character.Humanoid.JumpHeight = 0
 			elseif Character:GetAttribute("Knocked") then
 				-- a knocked player crawls (DownedManager.KnockedSpeed, owner 2026-10-27); anyone else stays still

@@ -122,18 +122,11 @@ local SEAT_TEXT = {ThirdClass = "3rd class", DiningCar = "Dining car", SecondCla
 -- character attributes: can't sit down, nor board ((hostages Task 10) a captor, Holding, or a hostage, HeldBy)
 local DOWN = {"Knocked", "GrippedBy", "CarriedBy", "Gripping", "Carrying", "Holding", "HeldBy"}
 
--- (downed crawl fix round 2, 2026-10-27) a deliberate move of a player's character: DownedManager's crawl clamp starts
--- again from the new spot, else it would put a knocked player back where they were. (Hostages Task 10, Task 6 re-review
--- m7) so does a led hostage pair's lead clamp (HostageService.Rebase, either side of the pair; false and nothing done
--- when the character leads none), else the move ends the hold as a blink and leaves the hostage at the last lead. Both
--- optional: a place without HostageService skips it.
+-- (downed crawl fix round 2, 2026-10-27; hostages Task 10 fix round 1, review m4) a deliberate move of a player's
+-- character: DownedManager.MovedOnPurpose starts the knocked crawl's clamp and a led hostage pair's lead clamp again from
+-- the new spot (one shared call, read through the module at call time)
 local function Rebased(C)
-	if not C then return end
-	pcall(function() require(game:GetService("ReplicatedStorage").Modules.Managers.DownedManager).RebaseCrawl(C) end)
-	pcall(function()
-		local HS = game:GetService("ServerScriptService"):FindFirstChild("HostageService")
-		if HS then require(HS).Rebase(C) end
-	end)
+	require(game:GetService("ReplicatedStorage").Modules.Managers.DownedManager).MovedOnPurpose(C)
 end
 
 local function Notify(P, Text) UIService.Notify(P, "Toast", {Text = Text}) end
@@ -416,9 +409,11 @@ function StationService.GateTouch(P, Gate)
 	local Root = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
 	if not Root then return nil end
 	-- (hostages Task 10, ruling R5) a captor is refused whatever their papers: pushed back like Wanted 3+, the guard's own
-	-- line, and no Heat (holding someone isn't resisting the checkpoint)
+	-- line, and no Heat (holding someone isn't resisting the checkpoint). (Fix round 1, review m7) so is a hostage
+	-- (HeldBy), judged as part of the pair and never on their own papers: no Heat, no bribe offer, no line of their own
 	local Captor = P.Character:GetAttribute("Holding") ~= nil
-	local Verdict = Captor and "Refuse" or StationService.Gate(P)
+	local Pair = Captor or P.Character:GetAttribute("HeldBy") ~= nil
+	local Verdict = Pair and "Refuse" or StationService.Gate(P)
 	if Verdict == "Pass" or (Verdict == "Bribe" and Cleared(P)) then return "Pass" end
 	local N = Gate.CFrame.LookVector
 	if Root.AssemblyLinearVelocity:Dot(N) < -1 then return "Leaving" end -- walking off the platform: never stopped
@@ -430,8 +425,8 @@ function StationService.GateTouch(P, Gate)
 	local Now = os.clock()
 	if LastGate[P] and Now - LastGate[P] < StationService.GateAskGap then return Verdict end
 	LastGate[P] = Now
-	if Captor then
-		Notify(P, GATE_HOSTAGE)
+	if Pair then
+		if Captor then Notify(P, GATE_HOSTAGE) end
 	elseif Verdict == "Bribe" then
 		local RouteId = GateRoute(Gate)
 		local Cost = RouteId and Travel.Bribe(RouteId, "Third", StationService.Season()) or 0
