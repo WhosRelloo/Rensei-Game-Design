@@ -42,6 +42,8 @@
 --   changes nothing; the ex-captor's party counts as the ex-captor. Finish is refused mid-attack, and a grip that
 --   fails at once gives the knock back. A "hit" is DownedManager.Damage then ProgressionService.RecordHit (KnockingHit),
 --   the pipeline's own two steps.
+-- * Task 8 fix round 2 (ruling on review m2): a stun-cancelled Finish opens the same window, paying nothing; the
+--   captor's own grip that kills the still-knocked hostage inside it is killed_hostage, once.
 local SSS = game:GetService("ServerScriptService")
 local CollectionService = game:GetService("CollectionService")
 local DM = require(game.ReplicatedStorage.Modules.Managers.DownedManager)
@@ -1211,6 +1213,35 @@ return {
 			T.True(WaitFor(0.5, function() return DeedCount("killed_hostage") - Killed0 == 1 end), "killed_hostage +1")
 			T.Eq(C:GetAttribute("Gripping"), nil, "the grip is over")
 		end) end)
+	end,
+
+	-- (fix round 2, ruling on review m2) a Finish cancelled by a stun (window 5 s here) opens the harm window with no
+	-- payout: once the stun is over, the captor's own grip (B) that kills the still-knocked stand-in records
+	-- killed_hostage once, and the window's end pays no Mercy
+	FinishCancelledThenKillIsAKill = function(T)
+		HK.Guard(function() KeepHeat(function() WithGrace(5, function()
+			local HS = Svc()
+			local Rig = Held(T)
+			local Killed0, Released0 = DeedCount("killed_hostage"), DeedCount("released_hostage")
+			local Ok, Err = pcall(function()
+				T.Eq(HS.Menu(Player, "Finish"), true, "the choice acted")
+				task.wait(0.3)
+				T.Eq(Rig:GetAttribute("GrippedBy"), Player.Name, "setup: gripping")
+				StunPlayer(0.5)
+				T.True(WaitFor(0.5, function() return Rig:GetAttribute("GrippedBy") == nil end), "setup: the stun cancels the grip")
+				T.True(WaitFor(1.5, function() return not Stunned(C) end), "setup: the stun is over")
+				T.True(DM.IsKnocked(Rig) and Rig.Humanoid.Health > 0, "setup: still knocked and alive")
+				T.Eq(DeedCount("killed_hostage") - Killed0, 0, "setup: no kill recorded yet")
+				T.Eq(DM.Request(C, "Grip"), "Gripped", "B: the player's own grip finished it")
+				T.True(Rig.Humanoid.Health <= 0, "dead")
+				T.True(WaitFor(0.5, function() return DeedCount("killed_hostage") - Killed0 == 1 end), "killed_hostage +1")
+				task.wait(0.5)
+				T.Eq(DeedCount("killed_hostage") - Killed0, 1, "recorded once")
+				T.Eq(DeedCount("released_hostage") - Released0, 0, "no Mercy")
+			end)
+			WaitFor(2, function() return not Stunned(C) end)
+			if not Ok then error(Err, 0) end
+		end) end) end)
 	end,
 
 	-- (fix round 1, I2) a captor mid-attack can't Finish (AttackRunner.IsRunning swapped to say so, put back after): the

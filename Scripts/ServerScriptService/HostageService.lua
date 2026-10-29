@@ -188,7 +188,9 @@
 --       (no "free" toast); DownedManager.Knock(HC) (the hostage's HP kept: Knock only sets the state); then, on its own
 --       thread, the NORMAL GRIP, DownedManager.Grip(CC, HC): its styles, its stun cancel (a rescue that stuns the captor
 --       mid-grip leaves the hostage knocked and alive), the ragdoll, its listeners. Done -> killed_hostage recorded
---       (witnessed). A grip that fails otherwise gives the knock back (EndKnock at the hostage's own HP). The grip's own
+--       (witnessed). A grip that fails otherwise gives the knock back (EndKnock at the hostage's own HP); one cancelled
+--       (a stun) leaves the hostage knocked and opens the release window with no payout (fix round 2: a kill by the
+--       captor's side inside it is still killed_hostage). The grip's own
 --       marks (Gripping / GrippedBy) keep every take, grip, carry and takedown off both of them while it runs (Task 4's
 --       exclusion, both ways).
 -- * Free(PL, Outcome) -> bool: that PL's session (either side) released. SessionOf(PL) -> S | nil. Forget(PL, Only):
@@ -1307,9 +1309,11 @@ local function OnGrip(Kind, Gripper, Target)
 	end
 end
 
-local function StartPending(S)
+-- NoPay (fix round 2, controller ruling on review m2): a window that never pays out (a cancelled Finish's), only
+-- watching for a kill by the captor's side
+local function StartPending(S, NoPay)
 	local P = {Captor = S.Captor, Hostage = S.Hostage, HC = S.HC, TookHeat = S.TookHeat or {}, Ends = os.clock() + GraceTime(),
-		Harmed = nil, Over = false, Conns = {}}
+		Harmed = nil, NoPay = NoPay == true, Over = false, Conns = {}}
 	Pending[P] = true
 	table.insert(P.Conns, P.HC:GetAttributeChangedSignal("GrippedBy"):Connect(function()
 		if not P.Over and os.clock() < P.Ends and CaptorSide(P, P.HC:GetAttribute("GrippedBy")) then
@@ -1321,7 +1325,7 @@ local function StartPending(S)
 		local T0 = os.clock()
 		while not P.Over and P.HC.Parent and P.HC:GetAttribute("GrippedBy") and os.clock() - T0 < GRIP_WAIT do task.wait(0.1) end
 		if P.Over then return end
-		if P.Harmed then EndPending(P) else PayRelease(P) end
+		if P.Harmed or P.NoPay then EndPending(P) else PayRelease(P) end
 	end)
 end
 
@@ -1355,6 +1359,11 @@ local function MenuFinish(S)
 			Record(Captor, "killed_hostage", {Witness = true})
 		elseif Alive(CC) and Alive(HC) and not Stunned(CC) and not HC:GetAttribute("GrippedBy") then
 			Step("giving the knock back", DownedManager.EndKnock, HC, 0)
+		elseif Alive(HC) and DownedManager.IsKnocked(HC) then
+			-- (fix round 2, ruling on review m2) cancelled (a stun): the hostage stays knocked, as for any grip, and the
+			-- same harm window opens, paying nothing -- a grip of the captor's side that kills them inside it is still
+			-- killed_hostage, so a friend's stun can't turn a Finish into a deed-free kill
+			Step("opening the cancelled Finish's window", StartPending, S, true)
 		end
 	end)
 	return true
