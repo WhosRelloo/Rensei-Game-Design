@@ -68,7 +68,7 @@ Hostage.MissingShare = 0.10 -- "goes missing" (a money sink)
 Hostage.RansomWait = 60
 Hostage.BountyShare = 0.5 -- of a fine actually paid
 Hostage.DeskRange = 12 -- studs from a State desk's root
-Hostage.DeskRefresh = 30 -- seconds between HostageService's desk scans (Task 11; pre-flight P26)
+Hostage.DeskRefresh = 30 -- seconds between HostageService's desk scans (PROPOSAL; Task 11, pre-flight P26)
 -- safe zones (ruling R6)
 Hostage.SafeTag = "RenseiSafeZone"
 -- studs from a ticket clerk or station gate. PROPOSAL (controller ruling T1-1), not a measurement: Task 1 measured

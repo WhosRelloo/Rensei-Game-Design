@@ -137,7 +137,8 @@ end
 -- ===== the desk (ruling R7, pre-flight P23 / ruling T1-2) =====
 -- the first desk HostageService finds, or (no desk in this place: the Foundry) a temp model carrying Brask's DialogueId
 -- on the kit floor 20 studs -Z of the spot, facing +Z, the service's desks refreshed (_RefreshDesks). Body(Desk) runs;
--- the temp desk is removed after and the desks refreshed again.
+-- the temp desk is removed after and the desks refreshed again, or a real desk's NPC reset to Unaware
+-- (PerceptionService.Reset, as TakedownKit.Spawn resets its rigs).
 local function WithDesk(Body)
 	local HS = Svc()
 	local Desk = HS.Desks()[1]
@@ -160,6 +161,14 @@ local function WithDesk(Body)
 		assert(Desk == Temp, "WithDesk: the temp desk is found (" .. tostring(Desk) .. ")")
 	end
 	local Ok, Err = pcall(Body, Desk)
+	-- the hold ended here, at the desk, and HostageService's hand-back of the player's root to its client (OWNER_BACK,
+	-- 0.25 s after a release) waited out BEFORE the kit puts the player back: a put-back inside that window is undone
+	-- when the client gets the root back with its stale spot (seen: the player left beside Brask after the suite)
+	pcall(HS.Free, Player, "error")
+	task.wait(0.5)
+	-- a real desk's NPC (Brask, an Authority carrier) is put back to Unaware: with the kit holding PerceptionService's
+	-- loop, it would otherwise go on perceiving the player, and a later suite's take on the kit floor would be witnessed
+	if not Temp then pcall(require(SSS.PerceptionService).Reset, Desk) end
 	if Temp then
 		Temp:Destroy()
 		pcall(HS._RefreshDesks)

@@ -2,7 +2,8 @@
 -- 2026-10-25): the server side of a player-on-player hostage. The client only asks (Requests.Hostage); every rule is
 -- checked here, with the server's own positions. Numbers and the gate maths: Rensei.Hostage (every number a PROPOSAL
 -- unless it says it was measured). Tasks 6-11 extend it (the pair policed -- Task 6, done --, the grab and the struggle
--- -- Task 7, done --, the captor menu -- Task 8, done --, the shield and rescue -- Task 9, done --, ransom and turn-in).
+-- -- Task 7, done --, the captor menu -- Task 8, done --, the shield and rescue -- Task 9, done --, ransom and turn-in
+-- -- Task 11 --).
 --
 -- PvP ONLY (owner rule): a hostage and a captor are always players. IsNpc (EnemyType, TownsfolkId, DialogueId or an
 -- EnemyService entry; pre-flight P25) is asked FIRST, before a character is ever looked up as a player: PlayerOf never
@@ -145,7 +146,7 @@
 --   sets ImmuneUntil (and GrabImmuneUntil); Context.Immune refuses both kinds while it lasts.
 -- * Release(S, Outcome): THE ONE EXIT of a session (lesson: TakedownService's Release). Guarded by S.Over and the
 --   session's identity (ByCaptor[Key(Captor)] == S); every step in its own pcall, so one failing never skips the rest:
---     1. S.Over; unindexed; its connections dropped;
+--     1. S.Over; unindexed; its connections dropped; (Task 11) a live ransom demand voided, its unanswered popups closed;
 --     2. the weld let go (DownedManager.Detach: PlatformStand off), then the hostage settled (Settle: at rest, put back
 --        after a blink or a clamp fight, its old owner back OWNER_BACK later: fix round I1 / I2), only when
 --        this session welded the pair (S.Attached; Task 5 fix, review I1: a Detach of a pair never attached would set
@@ -163,7 +164,6 @@
 --     6. Notify both ({State = "Free", Outcome, Role}; the captor's with Options, Task 8) and a toast (none for
 --        "finished": the grip that follows is no freedom);
 --     7. the Released listeners (S, Outcome), each in a pcall;
---     8. (Task 11) a running ransom demand of this session is voided.
 --   A bind slower than BindTime + SLOW_PAST, or a release whose steps 1-6 take longer than SLOW_RELEASE (the
 --   listeners, which may yield, aren't timed), warns its phase timings once.
 -- * EXITS (Start): Players.PlayerRemoving -> _Left(P) ("left"); each session's characters' Humanoid.Died and Destroying
@@ -173,13 +173,17 @@
 --   clamp started again from the captor's root's spot now (see THE PAIR POLICED); false when it leads no pair.
 -- * THE CAPTOR MENU (Task 8, spec §3). MenuOptions(Captor) -> {{Id, Text, Locked, Why}}, only while that PL is the
 --   captor of a Held session (else {}), in this order: Release ("Let them go"), Finish ("Finish them"), Ransom ("Demand
---   ransom": locked "They have no party here" when PartyOf(hostage) is the hostage alone, else, until Task 11, locked
---   "Not yet"); TurnIn is absent until Task 11. Every "Hostage" Notify to the captor carries Options = MenuOptions
---   (Grabbing and Free: {}), so HostageUI (Task 12) draws the wheel from it; it is sent at Held and whenever an option's
---   lock changes (Task 11). Menu(Captor, Choice, Arg) -> bool (true when the choice acted; Requests.Hostage ignores
+--   ransom"), then (Task 11) TurnIn ("Turn them in") while it is offered. Every "Hostage" Notify to the captor carries
+--   Options = MenuOptions (Grabbing and Free: {}), so HostageUI (Task 12) draws the wheel from it; it is sent at Held
+--   and whenever an option's lock changes (Task 11). Menu(Captor, Choice, Arg) -> bool (true when the choice acted; Requests.Hostage ignores
 --   it): every choice re-checks that the caller is the captor of a Held session (a hostage, a grab, a released or
---   unknown session, a non-string or unknown choice: ignored). Arg is unused by Release and Finish (review M7's range
---   check belongs to Task 11's ransom tier).
+--   unknown session, a non-string or unknown choice: ignored). Arg is unused by Release, Finish and TurnIn; Ransom's is
+--   the tier index, range-checked (review M7, menu half: an integer inside RansomTiers, else refused).
+--   (Task 11) Ransom is open while Held with another member of the hostage's party present here (not the captor) and no
+--   demand made yet this session; it carries Tiers = Rensei.Hostage.RansomTiers(the hostage's level). Locked: "They
+--   have no party here", "Waiting for an answer" (a live demand), "Already asked" (one demand per session, pre-flight
+--   P14). TurnIn ("Turn them in") is listed only while it is offered (see THE TURN-IN). The captor is sent the Options
+--   again (a Held notify) whenever they change (Tick compares them every WatchTick).
 --     - "Release": Release(S, "released") at once; what it earns waits (fix round 1, controller ruling I1): a RELEASE
 --       WINDOW of Hostage.ReleaseGrace (30 s; HostageService._ReleaseGrace shortens it in tests, read only while
 --       SeamOpen). If the released player is knocked (a landed hit, ProgressionService.HitListeners) or gripped by the
@@ -234,6 +238,45 @@
 --       none spawn yet) that rescues raises the captor's Heat ONCE by took_hostage's Crime through Rensei.Heat.Raised
 --       (heard by the guard's faction where the captor stands) and HeatService.Add; no deed is recorded (fix round 1,
 --       ruling I1: no Count, Conduct or cap slot).
+-- * MONEY BETWEEN SAVES (Task 11, rulings R9-R11; the owner, 2026-10-27: "one server-side capped transfer ($5,000
+--   max), refund on failure, no save-layer changes"). Nothing here touches the save layer: only Data.Money, through
+--   ProgressionService's own SpendMoney / GrantMoney.
+--     - The money adapter (module functions, so a test can stub them): _Spend(PL, n) / _Grant(PL, n) -> bool. A real
+--       player: ProgressionService.SpendMoney / GrantMoney. A stand-in (registered, seam open): its Data.Money with the
+--       same all-or-nothing rule (a finite n above 0, floored; a spend only when the money covers it).
+--     - Transfer(Payer, Captor, Amount, DemandId) -> ok, NetOrWhy, in ONE server step with no yield (Task 1(d): SpendMoney
+--       and GrantMoney don't yield; TransferNoYield pins it), on two profiles loaded in this server: "amount" unless a
+--       whole number from RansomMin to RansomCap; "self" when Payer is Captor; "gone" unless both are present with a
+--       profile; "travelling" while either real player is mid-teleport (FlowTeleport.Busy / InGroup: their saves may be
+--       released; an error asking is "travelling" too); "afford" when the debit fails; then the credit of
+--       Hostage.Net(Amount), and if it fails the payer is refunded the whole Amount in the same step ("gone"). Every call
+--       prints ONE audit line (pre-flight P14): the demand Id, payer and captor UserIds, amount, net and the result.
+--     - THE DEMAND, Menu(Captor, "Ransom", TierIndex): needs Ransom open (above) and TierIndex an integer within
+--       #RansomTiers(level). S.Demand = {Id (a GUID), Amount (that tier), Until (os.clock() + RansomWait), Asked
+--       ({[Key] = {PL, Popup, Answered}}), Paid = false}; S.Asked = true (one per session). Each asked member: a real
+--       player gets DialogueService.Ask(Member, their own character, the captor's name, "<Captor> holds <Hostage>. Pay
+--       $<n>?", {"Pay", "Refuse"}), whose answer runs Answer; a stand-in (tests) is answered through
+--       HostageService._Answer(S, PL, Index) (read only while SeamOpen), the same Answer.
+--     - Answer(S, Member, Index): nothing when stale (S.Over, no demand, another demand's Id, already paid), when Member
+--       wasn't asked (pre-flight P14) or has already answered. Pay (1): Paid = true FIRST, then Transfer; on failure Paid
+--       = false, the payer told why, and counted as a refusal; on success Release(S, "ransomed") FIRST, then
+--       paid_ransom (payer) and took_ransom (captor, witnessed) each in its own pcall (P14: a throwing Record never
+--       leaves a paid hostage held). Refuse, a closed popup (nil) or any other index: a refusal. Everyone refused: the
+--       captor is told "Nobody will pay." and the demand ends.
+--     - Tick: at Until with nothing paid, the captor is told "Nobody paid." and the demand ends; the hold goes on.
+--     - A demand that ends (refused, timed out) or is voided (Release step 1) closes every popup still unanswered
+--       (DialogueService.Close; P14).
+-- * THE TURN-IN (Task 11, ruling R7, pre-flight P12 / P13). Desks() -> {Model}: the models in workspace with a DialogueId
+--   whose definition (Rensei.Dialogues) has a PayFine choice, each with that choice's Action.Jurisdiction (P12: the
+--   desk's own law, "State" for Brask). Scanned at Start and every Hostage.DeskRefresh seconds while Allowed();
+--   _RefreshDesks() scans now (a test's temp desk, P23). TurnIn is offered while Held, the hostage a real player, the
+--   captor's root within DeskRange of a desk's root and HeatService.Wanted(hostage, that desk's J) >= 1 (the region's
+--   own jurisdiction isn't asked, P12). Menu(Captor, "TurnIn") re-checks all of that, then, with no yield: the fine --
+--   Wanted <= FineMaxWanted: HeatService.Fine (its own rule: the cost, the Heat cleared); Wanted 3+ (P13, the spec
+--   literally): Heat.FinePerLevel x Data.Level through SpendMoney when it can be paid -- then HeatService.Clear when any
+--   Heat is left (a broke fugitive: cleared, nothing paid, decision 8); the fine PAID is the hostage's Data.Money before
+--   less after (P12, never a formula); Release(S, "turned_in"); the bounty Hostage.Bounty(paid) granted to the captor
+--   (_Grant; nothing for an unpaid fine); turned_in_fugitive recorded for the captor; the hostage told.
 -- * Free(PL, Outcome) -> bool: that PL's session (either side) released. SessionOf(PL) -> S | nil. Forget(PL, Only):
 --   the PL's cooldown (NextAt), immunity (ImmuneUntil), re-take times (Taken) and (Task 7) struggle messages and rate
 --   window (Sends) forgotten; Only (a set, e.g. {ImmuneUntil = true}) forgets just those. Released: listeners (S, Outcome).
@@ -314,6 +357,7 @@ local Sends = {} -- (Task 7, pre-flight P9) [Key] = Struggle messages received f
 local Presses = {} -- (Task 7) [Key] = {os.clock() of each counted struggle press in the last second}
 local Pending = {} -- (Task 8 fix round 1) [P] = true: the release windows running (see the captor menu, below)
 local CaptorSide, EndPending -- (fix round 1; defined with the release windows)
+local VoidDemand, DemandTick, OptionsTick -- (Task 11; defined with the ransom, below)
 
 -- ===== the player-like helpers (the only places that tell a Player from a stand-in) =====
 local function Hum(M) return M and M:FindFirstChildOfClass("Humanoid") end
@@ -570,6 +614,13 @@ end
 
 local function Toast(PL, Text) Notify(PL, "Toast", {Text = Text}) end
 
+-- (Task 11) the captor's options as one string: Tick sends them again when it changes
+local function OptionsKey(O)
+	local Bits = {}
+	for _, X in ipairs(O or {}) do table.insert(Bits, tostring(X.Id) .. ":" .. tostring(X.Locked) .. ":" .. tostring(X.Why)) end
+	return table.concat(Bits, "|")
+end
+
 -- (fix round I1 / I2; Release step 2) the hostage just let go: the server takes it, every part at rest (no fling from
 -- the captor client's last velocity), put back at the lead's last checked spot x Offset after a "teleport" or within
 -- FIGHT_WINDOW of a counted put-back (a client fighting the clamp never chooses where the hostage is left), and its
@@ -610,6 +661,9 @@ local function Release(S, Outcome)
 		for _, Conn in ipairs(S.Conns) do Conn:Disconnect() end
 		table.clear(S.Conns)
 	end)
+	-- 1b. (Task 11) a live ransom demand of this session voided, its unanswered popups closed (before anything here can
+	-- yield; Answer refuses an over session anyway)
+	if S.Demand then Step("voiding the ransom demand", VoidDemand, S) end
 	local CC, HC = S.CC, S.HC
 	local NowServer = workspace:GetServerTimeNow()
 	-- 2. the weld let go
@@ -674,7 +728,6 @@ local function Release(S, Outcome)
 	local R6 = os.clock() -- (steps 1-6: the listeners below may yield, so they aren't timed)
 	-- 7. the listeners
 	for _, Fn in ipairs(HostageService.Released) do Step("a Released listener", Fn, S, Outcome) end
-	-- 8. (Task 11) a running ransom demand of this session is voided here
 	-- phase timings of a slow bind or a slow release
 	local Now = os.clock()
 	if (S.State == "Binding" and Now - S.T0 > Hostage.BindTime + SLOW_PAST) or R6 - R0 > SLOW_RELEASE then
@@ -1027,6 +1080,11 @@ local function Tick(S)
 	elseif S.Posing and Now >= (S.PoseUntil or 0) then
 		Step("the held pose", Pose, S, false)
 	end
+	-- (Task 11) a demand past its Until ends; the captor's options sent again when they changed
+	if S.State == "Held" and not S.Over then
+		if S.Demand then Step("the ransom demand's clock", DemandTick, S) end
+		if not S.Over then Step("the captor's options", OptionsTick, S) end
+	end
 end
 
 local function Watch(S)
@@ -1138,9 +1196,11 @@ end
 -- listeners, HeatService's OnRecorded among them, run before Record returns) is kept per jurisdiction in S.TookHeat, so
 -- a release unharmed can halve it.
 local function Announce(S, UntilServer)
+	local Options = HostageService.MenuOptions(S.Captor)
+	S.OptionsKey = OptionsKey(Options) -- (Task 11: Tick sends them again when they change)
 	for _, X in ipairs({{S.Captor, "Captor"}, {S.Hostage, "Hostage"}}) do
 		Notify(X[1], "Hostage", {State = "Held", Role = X[2], Captor = S.Captor.Name, Hostage = S.Hostage.Name, Until = UntilServer,
-			Options = X[2] == "Captor" and HostageService.MenuOptions(S.Captor) or nil})
+			Options = X[2] == "Captor" and Options or nil})
 	end
 	local Before = HeatNow(S.Captor)
 	Record(S.Captor, "took_hostage", {Witness = true})
@@ -1302,17 +1362,333 @@ local function CaptorSession(Captor)
 	return S
 end
 
+-- ===== money between saves (Task 11, rulings R9-R11; see MONEY BETWEEN SAVES in the header) =====
+-- the owner (2026-10-27): "one server-side capped transfer ($5,000 max), refund on failure, no save-layer changes"
+local function MoneyStep(N)
+	return type(N) == "number" and N == N and N > 0 and N < math.huge
+end
+
+-- the money adapter: a real player through ProgressionService (all or nothing), a registered stand-in through its Data
+function HostageService._Spend(PL, N)
+	if IsPlayer(PL) then return require(ServerScriptService.ProgressionService).SpendMoney(PL, N) == true end
+	if not IsPL(PL) or type(PL.Data) ~= "table" or not MoneyStep(N) then return false end
+	N = math.floor(N)
+	if (tonumber(PL.Data.Money) or 0) < N then return false end
+	PL.Data.Money -= N
+	return true
+end
+function HostageService._Grant(PL, N)
+	if IsPlayer(PL) then return require(ServerScriptService.ProgressionService).GrantMoney(PL, N) == true end
+	if not IsPL(PL) or type(PL.Data) ~= "table" or not MoneyStep(N) then return false end
+	PL.Data.Money = (tonumber(PL.Data.Money) or 0) + math.floor(N)
+	return true
+end
+
+-- one money step through the adapter (module fields, so a test's stub is seen), in a pcall: true when it went through.
+-- A step that errored after the money had already moved (a Sync failing after the debit) counts as done, so a refund
+-- or a credit is never skipped for it.
+local function Apply(Fn, PL, N)
+	local D = DataOf(PL)
+	local Before = type(D) == "table" and tonumber(D.Money) or nil
+	local Ok, Done = pcall(Fn, PL, N)
+	if Ok then return Done == true end
+	warn("HostageService: a money step failed:", Done)
+	local After = type(D) == "table" and tonumber(D.Money) or nil
+	return Before ~= nil and After ~= nil and After ~= Before
+end
+
+-- a real player mid-teleport (FlowTeleport.Busy / InGroup: their save may be released); fails closed on an error
+local function Moving(PL)
+	if not IsPlayer(PL) then return false end
+	local FT = ServerScriptService:FindFirstChild("FlowTeleport")
+	if not FT then return false end -- (no teleports in this place)
+	local Ok, Busy = pcall(function()
+		local M = require(FT)
+		return M.Busy(PL) or M.InGroup(PL)
+	end)
+	return not Ok or Busy == true
+end
+
+local function DoTransfer(Payer, Captor, Amount)
+	if type(Amount) ~= "number" or Amount ~= math.floor(Amount) or Amount < Hostage.RansomMin or Amount > Hostage.RansomCap then
+		return false, "amount"
+	end
+	if Payer ~= nil and Payer == Captor then return false, "self" end
+	if not (IsPL(Payer) and IsPL(Captor)) or not (Present(Payer) and Present(Captor))
+		or not (DataOf(Payer) and DataOf(Captor)) then
+		return false, "gone"
+	end
+	if Moving(Payer) or Moving(Captor) then return false, "travelling" end
+	if not Apply(HostageService._Spend, Payer, Amount) then return false, "afford" end
+	local Net = Hostage.Net(Amount)
+	if not Apply(HostageService._Grant, Captor, Net) then
+		if not Apply(HostageService._Grant, Payer, Amount) then -- refunded in the same step
+			warn(("HostageService: a ransom REFUND FAILED: payer %s, $%d"):format(tostring(Payer.UserId), Amount))
+		end
+		return false, "gone"
+	end
+	return true, Net
+end
+
+local function Uid(PL)
+	local Ok, U = pcall(function() return PL.UserId end)
+	return Ok and tostring(U) or "?"
+end
+
+-- (hostages Task 11, rulings R9-R11) one server step on two loaded profiles: debit, then credit, refund on failure. No
+-- yield. One audit line per call (pre-flight P14).
+function HostageService.Transfer(Payer, Captor, Amount, DemandId)
+	local Ok, NetOrWhy = DoTransfer(Payer, Captor, Amount)
+	print(("HostageService: ransom transfer demand=%s payer=%s captor=%s amount=%s net=%s result=%s"):format(
+		tostring(DemandId), Uid(Payer), Uid(Captor), tostring(Amount), Ok and tostring(NetOrWhy) or "0",
+		Ok and "ok" or tostring(NetOrWhy)))
+	return Ok, NetOrWhy
+end
+
+-- the hostage's party members present here who could pay: never the hostage, never the captor
+local function Payers(S)
+	local Out = {}
+	for _, X in ipairs(HostageService.PartyOf(S.Hostage)) do
+		if X ~= S.Hostage and X ~= S.Captor and IsPL(X) and Present(X) then table.insert(Out, X) end
+	end
+	return Out
+end
+
+-- why Ransom is locked, or nil (one demand per session, pre-flight P14)
+local function RansomLock(S)
+	if S.Demand then return "Waiting for an answer" end -- PROPOSAL (text)
+	if S.Asked then return "Already asked" end
+	if #Payers(S) == 0 then return "They have no party here" end
+	return nil
+end
+
+-- the payer's toast when the transfer refused (PROPOSAL texts)
+local TRANSFER_WHY = {
+	afford = "You can't pay that.",
+	travelling = "Not while travelling.",
+}
+
+-- the demand ends (refused by all, timed out) or is voided (Release): gone first, so the answers its closing popups
+-- send are stale, then every popup still open closed (pre-flight P14)
+local function EndDemand(S)
+	local D = S.Demand
+	if not D then return end
+	S.Demand = nil
+	local DS = require(ServerScriptService.DialogueService)
+	for _, E in pairs(D.Asked) do
+		if E.Popup then
+			E.Popup = false
+			if IsPlayer(E.PL) then Step("closing a ransom popup", DS.Close, E.PL) end
+		end
+	end
+end
+VoidDemand = EndDemand
+
+-- a member's answer (the popup's, or a test's through _Answer): see the header
+local function Answer(S, Id, Member, Index)
+	local D = S.Demand
+	if S.Over or not D or Id == nil or D.Id ~= Id or D.Paid then return false end
+	local E = Member ~= nil and Member.UserId ~= nil and D.Asked[Key(Member)] or nil
+	if not E or E.PL ~= Member or E.Answered then return false end -- (only an asked member, once: P14)
+	E.Answered = true
+	if Index == 1 then
+		D.Paid = true -- (first: a second answer in the same frame finds it paid)
+		local Ok, NetOrWhy = HostageService.Transfer(Member, S.Captor, D.Amount, D.Id)
+		if Ok then
+			Release(S, "ransomed") -- (first: a throwing Record can't leave a paid hostage held, P14)
+			Step("recording paid_ransom", Record, Member, "paid_ransom", {})
+			Step("recording took_ransom", Record, S.Captor, "took_ransom", {Witness = true})
+			Toast(Member, ("You paid $%d. %s is free."):format(D.Amount, S.Hostage.DisplayName or S.Hostage.Name)) -- PROPOSAL (text)
+			Toast(S.Captor, ("Ransom paid: $%d."):format(NetOrWhy)) -- PROPOSAL (text)
+			return true
+		end
+		D.Paid = false
+		Toast(Member, TRANSFER_WHY[NetOrWhy] or "The ransom didn't go through.") -- PROPOSAL (text)
+	end
+	-- a refusal (Refuse, a closed popup, a failed payment): when nobody is left to answer, the demand ends
+	for _, X in pairs(D.Asked) do
+		if not X.Answered then return false end
+	end
+	Toast(S.Captor, "Nobody will pay.")
+	EndDemand(S)
+	return false
+end
+
+-- (tests only, read while SeamOpen) a stand-in's answer to the live demand: the same Answer the popup's answer runs
+function HostageService._Answer(S, PL, Index)
+	if not SeamOpen() or type(S) ~= "table" then return false end
+	return Answer(S, S.Demand and S.Demand.Id, PL, Index)
+end
+
+-- Tick: a demand past its Until, nothing paid, ends; the hold goes on
+function DemandTick(S)
+	local D = S.Demand
+	if D and not D.Paid and os.clock() >= D.Until then
+		Toast(S.Captor, "Nobody paid.")
+		EndDemand(S)
+	end
+end
+
+-- the demand (Menu "Ransom"): see the header. TierIndex an integer inside the tiers (review M7, menu half)
+local function MenuRansom(S, TierIndex)
+	if RansomLock(S) then return false end
+	local Tiers = Hostage.RansomTiers(LevelOf(S.Hostage))
+	if type(TierIndex) ~= "number" or TierIndex ~= TierIndex or TierIndex % 1 ~= 0 or TierIndex < 1 or TierIndex > #Tiers then
+		return false
+	end
+	local Members = Payers(S)
+	if #Members == 0 then return false end
+	local D = {Id = HttpService:GenerateGUID(false), Amount = Tiers[TierIndex], Until = os.clock() + Hostage.RansomWait,
+		Asked = {}, Paid = false}
+	S.Demand, S.Asked = D, true
+	for _, M in ipairs(Members) do D.Asked[Key(M)] = {PL = M, Popup = false, Answered = false} end
+	local CaptorName = S.Captor.DisplayName or S.Captor.Name
+	local Text = ("%s holds %s. Pay $%d?"):format(CaptorName, S.Hostage.DisplayName or S.Hostage.Name, D.Amount)
+	for _, M in ipairs(Members) do
+		local E = D.Asked[Key(M)]
+		if IsPlayer(M) then
+			E.Popup = true
+			local Ok, Err = pcall(function()
+				require(ServerScriptService.DialogueService).Ask(M, Char(M), CaptorName, Text, {"Pay", "Refuse"}, function(Index)
+					E.Popup = false
+					Answer(S, D.Id, M, Index)
+				end)
+			end)
+			if not Ok then
+				warn("HostageService: couldn't ask", M.Name, Err)
+				E.Popup = false
+			end
+		end
+	end
+	return true
+end
+
+-- ===== the turn-in (Task 11, ruling R7, pre-flight P12 / P13; see THE TURN-IN in the header) =====
+local DeskList = {} -- {{Model, J}}: the desks the last scan found
+local PayFineOf = {} -- [DialogueId] = the PayFine choice's jurisdiction, or false (none)
+
+local function PayFineJ(Defs, Id)
+	if PayFineOf[Id] ~= nil then return PayFineOf[Id] end
+	local Def, J = Defs[Id], false
+	if type(Def) == "table" and type(Def.Nodes) == "table" then
+		for _, Node in pairs(Def.Nodes) do
+			for _, Choice in ipairs(type(Node) == "table" and type(Node.Choices) == "table" and Node.Choices or {}) do
+				for _, A in ipairs(type(Choice) == "table" and (Choice.Actions or {Choice.Action}) or {}) do
+					if not J and type(A) == "table" and A.Kind == "PayFine" then J = A.Jurisdiction or "State" end
+				end
+			end
+		end
+	end
+	PayFineOf[Id] = J
+	return J
+end
+
+-- the models in workspace with a DialogueId whose definition has a PayFine choice; returns how many
+function HostageService._RefreshDesks()
+	local Defs = require(Rensei.Dialogues)
+	local Out = {}
+	for _, X in ipairs(workspace:GetDescendants()) do
+		if X:IsA("Model") then
+			local Id = X:GetAttribute("DialogueId")
+			local J = Id ~= nil and PayFineJ(Defs, Id) or nil
+			if J then table.insert(Out, {Model = X, J = J}) end
+		end
+	end
+	DeskList = Out
+	return #Out
+end
+
+function HostageService.Desks()
+	local Out = {}
+	for _, X in ipairs(DeskList) do
+		if X.Model:IsDescendantOf(workspace) then table.insert(Out, X.Model) end
+	end
+	return Out
+end
+
+-- the desk a Held session's captor stands within DeskRange of, its hostage (a real player) Wanted in that desk's own
+-- jurisdiction (P12), or nil
+local function TurnInDesk(S)
+	if S.State ~= "Held" or not IsPlayer(S.Hostage) then return nil end
+	local CR = Root(S.CC)
+	if not CR then return nil end
+	local HeatService = require(ServerScriptService.HeatService)
+	for _, X in ipairs(DeskList) do
+		local M = X.Model
+		if M:IsDescendantOf(workspace) then
+			local R = M:FindFirstChild("HumanoidRootPart") or M.PrimaryPart
+			local At = R and R.Position or M:GetPivot().Position
+			if (At - CR.Position).Magnitude <= Hostage.DeskRange then
+				local Ok, W = pcall(HeatService.Wanted, S.Hostage, X.J)
+				if Ok and type(W) == "number" and W >= 1 then return X end
+			end
+		end
+	end
+	return nil
+end
+
+-- turn in (Menu "TurnIn"): see the header. No yield from the re-check to the release.
+local function MenuTurnIn(S)
+	local Desk = TurnInDesk(S)
+	if not Desk then return false end
+	local H, Captor, J = S.Hostage, S.Captor, Desk.J
+	local D = DataOf(H)
+	if type(D) ~= "table" then return false end
+	local HeatService = require(ServerScriptService.HeatService)
+	local Before = tonumber(D.Money) or 0
+	local Said = nil
+	local Ok, Err = pcall(function()
+		if HeatService.Wanted(H, J) <= Heat.FineMaxWanted then
+			local _, Msg = HeatService.Fine(H, J) -- (its own rule: the cost, the money, the Heat cleared)
+			Said = Msg
+		else
+			-- (P13, the spec literally) past a desk fine: the same fine (HeatService.Fine's cost, which it refuses above
+			-- FineMaxWanted) charged when it can be paid
+			local Cost = Heat.FinePerLevel * math.max(1, tonumber(D.Level) or 1)
+			if require(ServerScriptService.ProgressionService).SpendMoney(H, Cost) then
+				Said = ("Paid a fine of %d."):format(Cost)
+			end
+		end
+	end)
+	if not Ok then warn("HostageService: the turn-in's fine failed:", Err) end
+	-- the Heat cleared whatever was paid (decision 8: a broke fugitive's too)
+	Step("clearing the fugitive's Heat", function()
+		if HeatService.Value(H, J) > 0 then HeatService.Clear(H, J) end
+	end)
+	local Paid = math.max(0, Before - (tonumber(D.Money) or 0)) -- (P12: what the fine really took)
+	Release(S, "turned_in")
+	local Bounty = Hostage.Bounty(Paid)
+	if Bounty > 0 and not Apply(HostageService._Grant, Captor, Bounty) then
+		warn(("HostageService: the turn-in's bounty ($%d) wasn't granted"):format(Bounty))
+	end
+	Step("recording turned_in_fugitive", Record, Captor, "turned_in_fugitive", {})
+	Toast(H, "You were turned in. " .. (Said or "Your Heat is cleared.")) -- PROPOSAL (text)
+	Toast(Captor, Bounty > 0 and ("Bounty: $%d."):format(Bounty) or "No bounty: they couldn't pay the fine.") -- PROPOSAL (text)
+	return true
+end
+
 function HostageService.MenuOptions(Captor)
 	local S = CaptorSession(Captor)
 	if not S then return {} end
-	local Alone = #HostageService.PartyOf(S.Hostage) <= 1
-	return {
+	local Why = RansomLock(S)
+	local Out = {
 		{Id = "Release", Text = "Let them go", Locked = false},
 		{Id = "Finish", Text = "Finish them", Locked = false},
-		-- (Task 11 builds the demand; until then it stays locked)
-		{Id = "Ransom", Text = "Demand ransom", Locked = true, Why = Alone and "They have no party here" or "Not yet"},
-		-- (TurnIn: offered near a desk with a Wanted hostage, Task 11; absent until then)
+		{Id = "Ransom", Text = "Demand ransom", Locked = Why ~= nil, Why = Why, Tiers = Hostage.RansomTiers(LevelOf(S.Hostage))},
 	}
+	if TurnInDesk(S) then table.insert(Out, {Id = "TurnIn", Text = "Turn them in", Locked = false}) end -- PROPOSAL (text)
+	return Out
+end
+
+-- Tick: the captor sent their options again (a Held notify) when they changed (a stand-in captor is never told)
+function OptionsTick(S)
+	if not IsPlayer(S.Captor) then return end
+	local O = HostageService.MenuOptions(S.Captor)
+	local K = OptionsKey(O)
+	if K == S.OptionsKey then return end
+	S.OptionsKey = K
+	Notify(S.Captor, "Hostage", {State = "Held", Role = "Captor", Captor = S.Captor.Name, Hostage = S.Hostage.Name,
+		Until = S.CC:GetAttribute("HostageUntil"), Options = O})
 end
 
 -- ===== a release's unharmed window (Task 8 fix round 1, controller ruling I1) =====
@@ -1465,12 +1841,14 @@ local function MenuFinish(S)
 	return true
 end
 
-function HostageService.Menu(Captor, Choice, _Arg)
+function HostageService.Menu(Captor, Choice, Arg)
 	if type(Choice) ~= "string" then return false end
 	local S = CaptorSession(Captor)
 	if not S then return false end
 	if Choice == "Release" then return MenuRelease(S) end
 	if Choice == "Finish" then return MenuFinish(S) end
+	if Choice == "Ransom" then return MenuRansom(S, Arg) end -- (Task 11)
+	if Choice == "TurnIn" then return MenuTurnIn(S) end -- (Task 11)
 	return false
 end
 
@@ -1637,6 +2015,14 @@ function HostageService.Start()
 	table.insert(DownedManager.Listeners, OnGrip)
 	-- (Task 9) the rescue: a rear or side hit on a captor, a parry of the captor's attack
 	table.insert(require(ServerScriptService.ProgressionService).HitListeners, OnRescueHit)
+	-- (Task 11) the State desks, scanned now and every DeskRefresh seconds while hostages may start (none on a live
+	-- server until Task 14 switches them on)
+	task.spawn(function()
+		while true do
+			if HostageService.Allowed() then Step("scanning for desks", HostageService._RefreshDesks) end
+			task.wait(Hostage.DeskRefresh)
+		end
+	end)
 end
 
 return HostageService
