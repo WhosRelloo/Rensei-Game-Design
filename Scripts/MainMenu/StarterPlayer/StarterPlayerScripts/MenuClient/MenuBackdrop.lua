@@ -4,7 +4,8 @@
 -- the dusk lighting, embers and ash, haze over the platform, smoke from the far stacks, the lantern's sway and flicker,
 -- the niche lamps, the train's run across the viaduct, and the alchemy reaction's arcs over the chalk circles (rebuilt
 -- every few frames; Surge makes it flare when a slot is picked). Built-in particle textures only: nothing uploaded.
--- MenuBackdrop.Start(Stage, Markers, Art) -> the controller: :SetAlcoves(Owned, EmptySlots), :Surge(Circle, Amount), :Stop()
+-- MenuBackdrop.Start(Stage, Markers, Art) -> the controller: :SetAlcoves(Alcoves, EmptySlots), :Surge(Circle, Amount),
+-- :Platform(On), :Stop()
 
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
@@ -221,6 +222,13 @@ function MenuBackdrop.Start(Stage, Markers, Art)
 		local R = self.Reactions[Key]
 		if R then R.Surge = Amount end
 		if Key ~= "Platform" and self.Reactions.Platform then self.Reactions.Platform.Surge = Amount * 0.6 end
+	end
+
+	-- the platform circle's reaction on or off (menu audit 2026-10-29: off while the creator is open, since the circle
+	-- lies between the alcove camera and the character and its arcs crossed the character's legs)
+	function Ctl:Platform(On)
+		local R = self.Reactions.Platform
+		if R then R.On = On end
 	end
 
 	function Ctl:Stop()

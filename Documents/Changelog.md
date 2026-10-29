@@ -59,7 +59,46 @@ Nothing to post: no player-facing change.
   - A Studio-only preview switch, `ReplicatedStorage`'s `MenuPhonePreview` (a Vector2, e.g. 844, 390), lays the menu out as that phone would, magnified to fill the viewport (its height exactly; its width is the Studio viewport's). Live servers never read it.
   - Fixed on the way: the slot cards could be built twice at once (a layout change while the list loaded doubled them); the newest build now wins.
   - **Tested** (Play, TestNoSave proven first): the 844 × 390 phone layout by eye (title, cards, the creator in Edit mode on both steps, the Clan Index), then the preview off: the desktop layout back exactly (two columns, the 470 × 540 panel). The narrowest common phone (667 × 375, 765 layout pixels wide) checked by the numbers (nothing overlaps). The real records unchanged; TestNoSave cleared. **Not tested on a real phone.**
-- **Seen during the audit:** the owner's records changed between 17:41 and 17:48 (the account rewritten with the same content at 17:43:52, slot 1 re-saved unchanged at 17:44:16, slot 2 loaded, saved and released 17:45:56–17:46:02): a Main Menu session with TestNoSave off, which lists the slots and opens slot 2. No test of this session was running then; most likely the owner's own Studio Play of the menu, which saves normally by design.
+- **Seen during the audit:** the owner's records changed between 17:41 and 17:48 (the account rewritten with the same content at 17:43:52, slot 1 re-saved unchanged at 17:44:16, slot 2 loaded, saved and released 17:45:56–17:46:02): a Main Menu session with TestNoSave off, which lists the slots and opens slot 2. No test of this session was running then; most likely the owner's own Studio Play of the menu, which saves normally by design. A second one at 18:21:56 moved the chosen slot and the star from 2 to 1. The owner confirmed both were their own tests ("Yes, that was me testing the menu. Leave the slots as they are."); nothing was restored.
+
+**Full audit and bug fixes (2026-10-29; owner: "Completely audit and bugfix the menu"):** every menu script read through (by this session, plus a separate read-only review), then every flow clicked through in Play. Studio matched the repo before the work began. Backups: `ServerStorage.RenseiBackups["Pre-MenuAudit_2026-10-29"]` (MenuData, MenuServer, MenuClient, MenuBackdrop).
+- **`MenuServer`:**
+  - **"Slots" throttled.** In this ProfileService a slot list views every slot through `UpdateAsync`, which spends the server's shared DataStore budget, and the call had no limit. A list asked for again within 2 s now gets the one just built. Any write call or slot purchase drops it.
+  - **"Hair" throttled.** Each unseen id builds and replicates an accessory to every client, so each player gets 12 new ids a minute, and the server's hair cache stops growing at 400. Ids already built stay free.
+  - **Deleting the starred slot clears the star.** The list no longer leads with a blank card.
+  - **The wait for the old `MenuStage.Dais` is bounded** (10 s). Without that stage the remote was never answered.
+- **`MenuData`:** Open and Delete are refused while the player is released for a teleport. Picking another slot in that window pointed the account at a different slot than the one sent to the next place.
+- **`MenuClient`, the painted menu:**
+  - **Studio, or a failed teleport:** opening a made slot left the title without its cards. They come back now, and "Heading to the …" resets to "Pick a save slot to begin.".
+  - **FINISH in Studio** pans back out of the alcove; it used to snap. The surge resets and the platform's reaction comes back.
+  - **The toast** sat over the top-right cards; while they show it now sits bottom centre, above the tip line.
+  - **Stale cards:** a click while the list reloads waits, and a list that arrives after the player has gone into an alcove no longer rebuilds the figures. That had put the slot's figure back over the creator rig.
+  - **One request at a time:** SAVE LOOK (with BACK held off while it runs, so two camera pans can't fight), FINISH, delete, star and redeem.
+  - **Departing:** once a live Play has gone through, no more slot picks or PLAY.
+  - **Leaving the creator** closes the Clan Index and the reroll shop too.
+  - **A deleted slot's pity** no longer shows in the Clan Index.
+  - **EDIT previews the outfit the character really keeps.** The look tools (undo, random, reset, saved looks) used to dress the rig in the nation's starter outfit.
+  - **The platform circle's reaction rests while the creator is open:** its arcs crossed the character in the body view. The slot's own circle still crackles.
+  - **Picked face tiles and swatches stand out:** the frames not picked are dimmed.
+- **Layout:**
+  - **Card lines are cut short with "…"** instead of running into the next piece. Level, clan and nation share one line on desktop too, so a long clan name no longer runs into the nation.
+  - **Narrow desktops** (layout under 1240 px wide, e.g. 4:3 and iPads) stack the cards in one column; two columns ran over the logo's right end.
+  - **On phones** the Clan Index, reroll shop and saved-looks windows are 350 tall and sit lower, so their title plates stay on screen and the close X clears Roblox's top bar.
+  - The cards are rebuilt only when their layout changes, not on every resize.
+- **Tested** (Play, TestNoSave proven first; a third slot granted in memory through the Studio receipt hook, so create and delete ran on a slot with no real save):
+  - a made slot opened, with the cards back afterwards;
+  - the full create flow on slot 3 (pan in, four steps, roll, name, FINISH; a double click sent one request; the pan back);
+  - EDIT on it, with SAVE LOOK double-clicked plus BACK (one save, one pan);
+  - the star, then delete (double-clicked: one request);
+  - the Clan Index on desktop and in a 568 × 320 phone preview;
+  - no errors from the menu scripts.
+- **Records and final state:** the owner's account and slots 1–5 were byte-identical (length, hash, DataStore version) before and after both test runs. Studio == repo for the menu scripts afterwards, and TestNoSave is cleared.
+- **Left for the owner (not changed):**
+  - **Reroll-pack receipts are recorded per slot.** If a grant isn't confirmed and the player switches slots before Roblox retries, the retry could add the rolls again. A fix belongs on the account record (SlotAccount), which other places share.
+  - **A slot bought at the cap** (two devices at once) is reported granted with nothing given; the client hides NEW SLOT at the cap.
+  - **TestNoSave stays opt-in, as approved.** A Studio Play without it saves for real.
+  - **Portrait phones get the desktop layout.**
+  - **Not tested on a real phone.**
 
 ### Discord announcement
 

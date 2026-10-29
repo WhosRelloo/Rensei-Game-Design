@@ -164,6 +164,9 @@ function MenuData.Open(Player, Slot)
 	local Account = MenuData.Account(Player)
 	if not Account then return nil, "Still loading your account." end
 	if type(Slot) ~= "number" or Slot < 1 or Slot > Account.Owned or Slot ~= math.floor(Slot) then return nil, "You don't own that slot." end
+	-- (menu audit 2026-10-29) released for a teleport: picking another slot now would point the account at a slot
+	-- other than the one the next place was sent (Reload clears Leaving before it opens the slot again)
+	if Leaving[Player] then return nil, "You're on your way. One moment..." end
 	if OpenSlot[Player] == Slot and Sessions[Player] then return Sessions[Player] end
 	local Old = Sessions[Player]
 	Sessions[Player], OpenSlot[Player] = nil, nil
@@ -198,6 +201,7 @@ function MenuData.Delete(Player, Slot)
 	local Account = MenuData.Account(Player)
 	if not Account then return false, "Still loading your account." end
 	if type(Slot) ~= "number" or Slot < 1 or Slot > Account.Owned or Slot ~= math.floor(Slot) then return false, "You don't own that slot." end
+	if Leaving[Player] then return false, "You're on your way. One moment..." end -- (as in Open)
 	if OpenSlot[Player] == Slot then
 		local Profile = Sessions[Player]
 		Sessions[Player], OpenSlot[Player] = nil, nil

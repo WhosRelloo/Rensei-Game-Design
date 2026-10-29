@@ -49,12 +49,34 @@ MenuData.Start()
 
 -- The place streams (StreamingEnabled) and nobody has a character, so stream the scenery around the
 -- dais to each player: the menu camera's background ("Map thing") would never load otherwise.
-local Dais = workspace:WaitForChild("MenuStage"):WaitForChild("Dais")
-local function Focus(Player) Player.ReplicationFocus = Dais end
+-- (bounded waits, menu audit 2026-10-29: a place without the old stage must still answer MenuRemote below)
+local OldStage = workspace:WaitForChild("MenuStage", 10)
+local Dais = OldStage and OldStage:WaitForChild("Dais", 10)
+local function Focus(Player) if Dais then Player.ReplicationFocus = Dais end end
 Players.PlayerAdded:Connect(Focus)
 for _, P in ipairs(Players:GetPlayers()) do Focus(P) end
 
 local Busy = {} -- [Player] = true while a call that writes is running
+
+-- Throttles (menu audit 2026-10-29). "Slots" views every owned slot, and in this ProfileService a view goes through
+-- UpdateAsync, which spends the server's shared DataStore budget: a list asked for again within SLOTS_REUSE seconds
+-- gets the one just built, and any write call (or a purchase) drops it. "Hair" builds and replicates a new accessory
+-- per unseen id: each player gets HAIR_NEW of those per HAIR_WINDOW seconds, and the cache stops growing at HAIR_CAP.
+local SLOTS_REUSE = 2
+local HAIR_NEW, HAIR_WINDOW, HAIR_CAP = 12, 60, 400
+local SlotCache = {} -- [Player] = {At, Info}
+local HairLog = {} -- [Player] = {os.clock() of each new id}
+local function HairAllowed(Player, Id)
+	local Cache = ReplicatedStorage:FindFirstChild("HairCache")
+	if Cache and Cache:FindFirstChild(tostring(Id)) then return true end -- (already built: free)
+	if Cache and #Cache:GetChildren() >= HAIR_CAP then return false, "Too many custom hairs on this server right now. Try a preset." end
+	local Log, Now = HairLog[Player] or {}, os.clock()
+	for I = #Log, 1, -1 do if Now - Log[I] > HAIR_WINDOW then table.remove(Log, I) end end
+	if #Log >= HAIR_NEW then return false, "Slow down a little: try that hair again in a minute." end
+	table.insert(Log, Now)
+	HairLog[Player] = Log
+	return true
+end
 
 -- Creator Plus ownership (cached per player; a purchase in this server sets it at once)
 local PlusOwned = {}
@@ -120,14 +142,18 @@ local function State(Player)
 end
 
 local function SlotList(Player)
+	local Hit = SlotCache[Player]
+	if Hit and os.clock() - Hit.At < SLOTS_REUSE then return Hit.Info end
 	local Account = MenuData.Account(Player)
 	local List = MenuData.Summaries(Player)
 	if not Account or not List then return nil end
 	for _, S in ipairs(List) do
 		if S.Appearance then S.Appearance = Customization.Clean(S.Origin, S.Appearance) end -- (as State sends it)
 	end
-	return {Owned = Account.Owned, Max = Slots.Max, Price = Slots.Price, CanBuy = Slots.ProductId ~= 0,
+	local Info = {Owned = Account.Owned, Max = Slots.Max, Price = Slots.Price, CanBuy = Slots.ProductId ~= 0,
 		Favorite = Account.Favorite or 0, List = List}
+	SlotCache[Player] = {At = os.clock(), Info = Info}
+	return Info
 end
 
 local function RollClan(Player)
@@ -272,11 +298,14 @@ ReplicatedStorage.Remotes.MenuRemote.OnServerInvoke = function(Player, Call, Arg
 	if Call == "Hair" then
 		local Id = Customization.ParseHairId(tostring(Arg))
 		if not Id then return false, "That isn't a Roblox ID." end
+		local Allowed, Wait = HairAllowed(Player, Id)
+		if not Allowed then return false, Wait end
 		local Template, Why = AppearanceService.LoadHair(Id)
 		return Template ~= nil, Why
 	end
 	if Busy[Player] then return false, "One moment..." end
 	Busy[Player] = true
+	SlotCache[Player] = nil -- (a write may change the list: the next "Slots" reads it again)
 	local Ok, A, B, C = pcall(function()
 		if Call == "Open" then
 			local Profile, Why = MenuData.Open(Player, Arg)
@@ -292,7 +321,13 @@ ReplicatedStorage.Remotes.MenuRemote.OnServerInvoke = function(Player, Call, Arg
 			Account.Favorite = Slot
 			return true
 		end
-		if Call == "Delete" then return MenuData.Delete(Player, Arg) end
+		if Call == "Delete" then
+			local Done, Why = MenuData.Delete(Player, Arg)
+			-- (an emptied slot keeps no star: the list would lead with a blank card)
+			local Account = Done and MenuData.Account(Player)
+			if Account and Account.Favorite == Arg and MenuData.SetFavorite(Player, 0) then Account.Favorite = 0 end
+			return Done, Why
+		end
 		if Call == "Redeem" then return Redeem(Player, Arg) end
 		if Call == "Create" then return Create(Player, Arg) end
 		if Call == "Edit" then return Edit(Player, Arg) end
@@ -305,6 +340,7 @@ ReplicatedStorage.Remotes.MenuRemote.OnServerInvoke = function(Player, Call, Arg
 		return false, "Unknown request."
 	end)
 	Busy[Player] = nil
+	SlotCache[Player] = nil
 	if not Ok then
 		warn("MenuRemote", Call, "failed:", A)
 		return false, "Something went wrong."
@@ -370,7 +406,7 @@ local function ProcessReceipt(Info)
 	if not Result then return Enum.ProductPurchaseDecision.NotProcessedYet end
 	if Result == "Full" then warn("Slot purchase past the max for", Info.PlayerId, Info.PurchaseId) end
 	local Player = Players:GetPlayerByUserId(Info.PlayerId)
-	if Player then MenuData.Account(Player, true) end
+	if Player then SlotCache[Player] = nil MenuData.Account(Player, true) end
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end
 MarketplaceService.ProcessReceipt = ProcessReceipt
@@ -382,4 +418,4 @@ if game:GetService("RunService"):IsStudio() then
 	Hook.Parent = script
 end
 
-Players.PlayerRemoving:Connect(function(Player) Busy[Player] = nil PlusOwned[Player] = nil end)
+Players.PlayerRemoving:Connect(function(Player) Busy[Player] = nil PlusOwned[Player] = nil SlotCache[Player] = nil HairLog[Player] = nil end)
