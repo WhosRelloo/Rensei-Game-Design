@@ -188,7 +188,10 @@
 --     6b. (final fix round, review I1) a release of a pair that was welded (Held or Grabbing) that leaves the hostage
 --        knocked (the "knocked" end: the captor's own light hits, or a friend's front hit, beat them down) opens the
 --        harm window with no payout (StartPending(S, true), the cancelled Finish's): a grip by the captor's side that
---        kills them inside it is killed_hostage, so beating a hostage down and pressing B is no deed-free kill;
+--        kills them inside it is killed_hostage, so beating a hostage down and pressing B is no deed-free kill. (Residual
+--        fix, re-review NB2) never for a "finished" end: Finish records its own kill. (NB1) A re-take by the captor's
+--        side marks the target's open windows unpaid at the take and ends them only when the new hold begins
+--        (BeginHeld), so an interrupted re-bind keeps the window watching for the kill;
 --     7. the Released listeners (S, Outcome), each in a pcall;
 --   A bind slower than BindTime + SLOW_PAST, or a release whose steps 1-6 take longer than SLOW_RELEASE (the
 --   listeners, which may yield, aren't timed), warns its phase timings once.
@@ -832,9 +835,10 @@ local function Release(S, Outcome)
 			Toast(S.Hostage, "You're free.") -- PROPOSAL (text)
 		end
 	end)
-	-- 6b. (final fix round, review I1) a welded pair's hostage left knocked: the harm window, paying nothing (a Finish
-	-- knocks only after its Release, so its own window is MenuFinish's)
-	if WasLed then
+	-- 6b. (final fix round, review I1) a welded pair's hostage left knocked: the harm window, paying nothing. (Residual
+	-- fix, re-review NB2) never for "finished": MenuFinish records its own kill, and a hostage already knocked when it
+	-- released (a hit in the same step) would otherwise be charged twice
+	if WasLed and Outcome ~= "finished" then
 		Step("opening the knocked hostage's window", function()
 			if HC.Parent and Alive(HC) and DownedManager.IsKnocked(HC) then StartPending(S, true) end
 		end)
@@ -1319,6 +1323,9 @@ local function BeginHeld(S, Time)
 	local HKey = Key(S.Hostage)
 	Retakes(HKey)
 	table.insert(Taken[HKey], Now)
+	-- (final fix round residual, NB1) the captor side's windows this take marked unpaid end now that the hold has begun
+	for _, P in ipairs(S.Retaken or {}) do EndPending(P) end
+	S.Retaken = nil
 	return UntilServer
 end
 
@@ -1467,10 +1474,16 @@ function HostageService.Take(Captor, TargetModel)
 		Kind = Kind, State = "Binding", T0 = os.clock(), Until = nil, Struggle = 0, Over = false, Conns = {}, Saved = {}}
 	ByCaptor[Key(Captor)] = S
 	ByHostage[Key(Target)] = S
-	-- (Task 8 fix round 1) taken again by the captor's side inside a release window: that window ends unpaid (the new
-	-- hold has its own deeds)
+	-- (Task 8 fix round 1) taken again by the captor's side inside a release window: that window pays nothing from here
+	-- (the new hold has its own deeds). (Final fix round residual, re-review NB1) it is only marked unpaid now, and ENDS
+	-- when the new hold begins (BeginHeld): a re-take that never becomes a hold (a bind interrupted, a grab shoved off)
+	-- leaves it watching, so a grip by the captor's side after it is still killed_hostage
+	S.Retaken = {}
 	for P in pairs(Pending) do
-		if P.HC == TargetModel and CaptorSide(P, CC) then EndPending(P) end
+		if not P.Over and P.HC == TargetModel and CaptorSide(P, CC) then
+			P.NoPay = true
+			table.insert(S.Retaken, P)
+		end
 	end
 	Connect(S)
 	if Kind == "Grab" then

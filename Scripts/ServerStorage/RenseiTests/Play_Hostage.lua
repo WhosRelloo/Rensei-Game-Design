@@ -1958,4 +1958,74 @@ return {
 			T.Eq(Heard, 3, "each hit still reached the listeners, on the caller's victim")
 		end)
 	end,
+
+	-- ===== the final fix round's residual fix (re-review NB1 / NB2) =====
+	-- (NB1) a cancelled re-take doesn't close the knocked end's harm window. The captor's own hit knocks the hostage and
+	-- the hold ends "knocked" (the window opens); the immunity is forgotten (as if 5 s had passed); the stand-in is bound
+	-- again -- by the player, then (a second case) by a party member (HostageService._PartyOf stubbed, put back after) --
+	-- and the binder steps 2 studs back, so the bind ends "interrupted" before any hold; then a grip by the captor's side
+	-- finishes them: killed_hostage +1, no Mercy. RED before: the take had ended the window, so +0.
+	RebindInterruptedThenGripIsAKill = function(T)
+		local function Case(ByFriend)
+			local What = ByFriend and "a party member's re-bind" or "the captor's re-bind"
+			HK.Guard(function() KeepHeat(function()
+				local HS = Svc()
+				local Rig, PL = Held(T)
+				local Friend, FriendPL
+				if ByFriend then
+					Friend, FriendPL = HK.StandIn(At(-3, 0))
+					Friend.HumanoidRootPart.Anchored = true
+				end
+				local Killed0, Released0 = DeedCount("killed_hostage"), DeedCount("released_hostage")
+				local function Body()
+					T.Eq(Hit(C, Rig, {Damage = Rig.Humanoid.Health + 50, StunTime = 0}), "Hit", What .. ": setup: the captor's hit lands")
+					T.True(Ended("Bind:knocked", 0.5), What .. ": setup: the hold ends knocked (" .. tostring(HK.Result()) .. ")")
+					HS.Forget(PL, {ImmuneUntil = true})
+					HS.Forget(Player, {NextAt = true})
+					local Binder, BinderPL = C, Player
+					if ByFriend then Binder, BinderPL = Friend, FriendPL end
+					local Ok, Why = HS.Take(BinderPL, Rig)
+					T.Eq(Ok, true, What .. ": setup: the re-bind starts (" .. tostring(Why) .. ")")
+					local BR = Binder.HumanoidRootPart
+					BR.CFrame += BR.CFrame.LookVector * -2
+					T.True(WaitFor(0.5, function() return HK.Result(Binder) == "Bind:interrupted" end),
+						What .. ": setup: interrupted (" .. tostring(HK.Result(Binder)) .. ")")
+					T.True(DM.IsKnocked(Rig), What .. ": setup: still knocked")
+					T.Eq(DM.Grip(Binder, Rig), true, What .. ": the grip finished them")
+					T.True(WaitFor(0.5, function() return DeedCount("killed_hostage") - Killed0 == 1 end),
+						What .. ": killed_hostage +1 (" .. (DeedCount("killed_hostage") - Killed0) .. ")")
+					task.wait(0.3)
+					T.Eq(DeedCount("killed_hostage") - Killed0, 1, What .. ": recorded once")
+					T.Eq(DeedCount("released_hostage") - Released0, 0, What .. ": no Mercy")
+				end
+				if ByFriend then
+					Swap(HS, "_PartyOf", function(X) if X == Player then return {FriendPL} end return nil end, Body)
+				else
+					Body()
+				end
+			end) end)
+		end
+		Case(false)
+		Case(true)
+	end,
+
+	-- (NB2) a Finish in the same server step as a third party's knocking front hit (before the watch's next tick sees the
+	-- knock): the grip that finishes them is killed_hostage ONCE. RED before: the release opened the knocked-end window
+	-- too, so MenuFinish and the window's OnGrip both recorded it (+2).
+	FinishRightAfterAKnockChargesOnce = function(T)
+		HK.Guard(function() KeepHeat(function()
+			local HS = Svc()
+			local Rig = Held(T)
+			local Atk = Attacker(0, 4)
+			local Killed0 = DeedCount("killed_hostage")
+			Hit(Atk, C, {Damage = Rig.Humanoid.Health + 50, StunTime = 0})
+			local Knocked = DM.IsKnocked(Rig)
+			local Acted = HS.Menu(Player, "Finish") -- (the same step: no yield since the hit)
+			T.True(Knocked, "setup: the front hit knocked the hostage")
+			T.Eq(Acted, true, "setup: the Finish acted")
+			T.True(WaitFor(3, function() return Rig.Humanoid.Health <= 0 end), "dead within GripTime 2 + 1 s")
+			task.wait(0.5)
+			T.Eq(DeedCount("killed_hostage") - Killed0, 1, "killed_hostage recorded once")
+		end) end)
+	end,
 }
