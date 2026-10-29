@@ -1156,6 +1156,22 @@ for Name, Over in pairs({
 	TuningConfig.Enemies[Name] = D
 end
 
+-- State guards (stealth missions Plan 1 Task 2, 2026-10-29; spec §3; all PROPOSALS): the Authority's own. Their
+-- faction makes a takedown of one the assassinated_guard deed (TakedownService.DeedFor). No spawn uses them yet:
+-- a later plan places them (compounds), Art/Studio/Stealth/demo.lua spawns them in Play.
+for Name, Over in pairs({
+	StateGuard = {Base = "Grunt", DisplayName = "State Guard", Level = 4, Health = 500},
+	StateSentry = {Base = "Grunt", DisplayName = "State Sentry", Level = 4, Health = 450},
+	StateOfficer = {Base = "Elite", DisplayName = "State Officer", Level = 6, Health = 950},
+}) do
+	local D = table.clone(TuningConfig.Enemies[Over.Base])
+	for K, V in pairs(Over) do if K ~= "Base" then D[K] = V end end
+	D.Faction = "Authority" -- Heat.Law.State
+	D.Nation = "Amestrian"
+	D.LeashRange = 120 -- room for a patrol route around the spawn
+	TuningConfig.Enemies[Name] = D
+end
+
 -- Weapon dash attacks (owner 2026-10-15: "dash attacks for weapons to make them feel more custom").
 -- Running + LMB with a weapon drawn uses its class's dash attack instead of the fist one; each entry
 -- overrides TuningConfig.DashAttack (anything left out is inherited). ALL numbers are PROPOSALS.

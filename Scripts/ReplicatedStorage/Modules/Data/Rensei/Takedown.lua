@@ -51,7 +51,8 @@ Takedown.SpeedClamp = {0.6, 1.6} -- animation speed = length / time, clamped (as
 
 Takedown.Kinds = {Knockout = true, Assassinate = true}
 Takedown.Phases = {Unaware = true, Suspicious = true, Cautious = true} -- Alert: never
-Takedown.ClassByPerception = {Grunt = "Full", Agent = "Full", Elite = "Chunk", Hunter = "Chunk"}
+-- Sentry and Officer (stealth missions Plan 1 Task 2, decision D4, PROPOSAL): guards are people, not bosses, so a knockout works on them
+Takedown.ClassByPerception = {Grunt = "Full", Agent = "Full", Elite = "Chunk", Hunter = "Chunk", Sentry = "Full", Officer = "Full"}
 
 -- slots (Assets.Animations.Shared.Takedown, Task 3). Task 3 fills the slots with the owner's ids above (owner update,
 -- 2026-10-25); a slot left empty plays the fallback. No id is ever invented.

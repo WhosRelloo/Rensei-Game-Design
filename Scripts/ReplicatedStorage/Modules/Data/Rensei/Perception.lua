@@ -33,6 +33,8 @@ Perception.Types = {
 	Agent = {Range = 40, Fill = 1.4}, -- State alchemists / enforcers (they hear alchemy x2 in Plan 2)
 	Hunter = {Range = 50, Fill = 1.8},
 	Witness = {Range = 30, Fill = 1.0}, -- townsfolk and other watchers (tag RenseiWatcher)
+	Sentry = {Range = 60, Fill = 0.6}, -- (stealth missions Plan 1 Task 2, PROPOSAL) look-outs: long sight, slow to fill
+	Officer = {Range = 40, Fill = 1.2}, -- (stealth missions Plan 1 Task 2, PROPOSAL) reads disguises faster (Plan 2)
 }
 
 -- TuningConfig.Enemies type -> perception type (unlisted: Grunt)
@@ -40,6 +42,7 @@ Perception.EnemyTypes = {
 	Grunt = "Grunt", AditScavenger = "Grunt", Elite = "Elite",
 	FieldAlchemist = "Agent", FrostAlchemist = "Agent", GaleAlchemist = "Agent",
 	StoneAlchemist = "Agent", WardAlchemist = "Agent",
+	StateGuard = "Grunt", StateSentry = "Sentry", StateOfficer = "Officer", -- (stealth missions Plan 1 Task 2, PROPOSAL)
 }
 
 -- arena / trial foes keep the old distance aggro (spec: "always aware")
