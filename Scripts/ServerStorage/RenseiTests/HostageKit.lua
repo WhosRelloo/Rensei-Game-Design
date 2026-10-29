@@ -24,7 +24,8 @@
 --   * (Task 5) Kit.StandIn(At, Opts) -> Rig, PL: a stand-in player (the stand-in seam, HostageService.StandIn): a clone
 --     of StarterPlayer.StarterCharacter named "HostageStandIn<n>" in workspace.World.Live, standing at At (a CFrame on
 --     the floor: where and which way it faces; its root 3 studs above), its root anchored for 0.2 s to settle, then
---     free; an Animator; a WCS character; Knockable and a full Stamina (pre-flight P4); registered with UserId
+--     free (final fix round: then up to 0.5 s for its humanoid to see the floor, since a grab refuses a target in the
+--     air); an Animator; a WCS character; Knockable and a full Stamina (pre-flight P4); registered with UserId
 --     -(1000 + n), Level Opts.Level or 20, Money Opts.Money or 1000, Stats {Strength = Opts.Strength or 5} (P1) and
 --     Party Opts.Party. Only inside Guard; Kit.Clean removes it.
 --   * Kit.KnockPlayer(): the player knocked (DownedManager.Knock) with a 60 s knock (KnockedTime 60, SecondWindUsed),
@@ -43,6 +44,9 @@
 --     studs measured, near the bind's 1-stud slack).
 --   * (Task 10) Kit.Toasts(Body) -> {text}: the "Toast" texts UIService.Notify sends while Body runs (the real Notify
 --     still runs; put back after, even when Body fails, and Body's error re-raised).
+--   * (final fix round) Kit.DeedCount(Id): that deed's lifetime count on the player's (mock) profile, 0 when never
+--     recorded. Kit.KeepHeat(Body): Body run with the player's Heat (the mock save's Morality.Heat) put back after it,
+--     failed or not (Body's error re-raised), and the Heat attributes published again.
 --   * Kit.Clean(): (Task 8 fix round 1) every release window dropped unpaid (HostageService._ClearPending); every
 --     session of the player and of each stand-in freed with "error"; HostageService.ClearStandIns;
 --     every stand-in's WCS character and rig destroyed; the player recovered if knocked; Holding, HeldBy, HostageUntil,
@@ -154,6 +158,8 @@ function Kit.StandIn(At, Opts)
 	RM.Set(Rig, "Stamina", RM.Max(Rig, "Stamina"))
 	task.wait(0.2)
 	Root.Anchored = false
+	-- (final fix round, review M6: a grab refuses a target in the air) up to 0.5 s for the humanoid to see the floor
+	TakedownKit.WaitFor(0.5, function() return H.FloorMaterial ~= Enum.Material.Air end)
 	local PL, Why = HS().StandIn(Rig, {Name = Rig.Name, UserId = -(1000 + Count), Level = Opts.Level or LEVEL,
 		Money = Opts.Money or 1000, Stats = {Strength = Opts.Strength or STRENGTH}, Party = Opts.Party})
 	assert(PL, "HostageKit.StandIn: the seam refused the rig (" .. tostring(Why) .. ")")
@@ -230,6 +236,28 @@ function Kit.Toasts(Body)
 	US.Notify = Real
 	if not Ok then error(Err, 0) end
 	return Got
+end
+
+function Kit.DeedCount(Id)
+	local M = Progression().GetData(Player()).Morality
+	local E = M and M.Deeds and M.Deeds[Id]
+	return E and E.Count or 0
+end
+
+local function Copy(X)
+	if type(X) ~= "table" then return X end
+	local O = {}
+	for K, V in pairs(X) do O[K] = Copy(V) end
+	return O
+end
+function Kit.KeepHeat(Body)
+	local D = Progression().GetData(Player())
+	D.Morality = D.Morality or {}
+	local Was = Copy(D.Morality.Heat)
+	local Ok, Err = pcall(Body)
+	D.Morality.Heat = Was
+	pcall(require(SSS.HeatService).Publish, Player(), true)
+	if not Ok then error(Err, 0) end
 end
 
 function Kit.Loose()

@@ -264,4 +264,32 @@ return {
 			Struggle = {Name = "Hostage_Struggle", Fallback = "Takedown_ChokeVictim"},
 		}, "the four slots and their fallbacks")
 	end,
+
+	-- (hostages final fix round, the parked Task 2 finding) CheckTake fails closed on a non-finite number: a NaN or
+	-- infinite target level is "level_low", a NaN or infinite captor level "level_gap", and a NaN or infinite Range reads
+	-- the Kind's own range (a grab's 4 studs, by hand), so 10 studs is "far". The control: every gate passes. RED
+	-- before: NaN levels and a NaN Range passed.
+	NonFiniteRefused = function(T)
+		local H = Load()
+		local function With(Key, Value, Dist)
+			local Ctx = Good()
+			Ctx[Key] = Value
+			if Dist then Ctx.Dist = Dist end
+			return Ctx
+		end
+		for _, V in ipairs({0 / 0, math.huge, -math.huge}) do
+			local Ok, Why = H.CheckTake(With("TargetLevel", V))
+			T.Eq(Ok, false, "target level " .. tostring(V) .. " refused")
+			T.Eq(Why, "level_low", "target level " .. tostring(V) .. ": the reason")
+			Ok, Why = H.CheckTake(With("CaptorLevel", V))
+			T.Eq(Ok, false, "captor level " .. tostring(V) .. " refused")
+			T.Eq(Why, "level_gap", "captor level " .. tostring(V) .. ": the reason")
+		end
+		for _, V in ipairs({0 / 0, math.huge}) do
+			local Ok, Why = H.CheckTake(With("Range", V, 10))
+			T.Eq(Ok, false, "Range " .. tostring(V) .. " at 10 studs refused")
+			T.Eq(Why, "far", "Range " .. tostring(V) .. ": the reason")
+		end
+		T.Eq(H.CheckTake(Good()), true, "control: every gate passes")
+	end,
 }

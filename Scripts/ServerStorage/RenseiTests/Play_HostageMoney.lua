@@ -24,8 +24,8 @@
 -- * The turn-in (Menu "TurnIn", ruling R7, P12, P13): offered only within the desk range of a desk
 --   (HostageService.Desks: Brask in Ye; the Foundry has none, so a temp model carrying Brask's DialogueId on the kit floor
 --   and HostageService._RefreshDesks, pre-flight P23 / ruling T1-2) with the hostage Wanted in the desk's jurisdiction;
---   the fine charged (Wanted 3+ too, P13), the Heat cleared, half the fine paid as the bounty; a broke fugitive: Heat
---   cleared, no bounty. The pair is bound AT the desk (pre-flight P6: moving a held pair into town is a "teleport"): the
+--   the fine charged (Wanted 3+ too, P13), the Heat cleared, half the fine paid as the bounty; (final fix round, I2) a
+--   broke fugitive, Wanted 1 or 3: refused, the Heat kept, the hold on. Desks are indexed when added (I4). The pair is bound AT the desk (pre-flight P6: moving a held pair into town is a "teleport"): the
 --   player knocked 6 studs in front of the desk (as TestKit.Beside puts a character), the stand-in captor 3 studs
 --   further out, facing it; SmokeKit.Guarded puts the player back after.
 local SSS = game:GetService("ServerScriptService")
@@ -148,24 +148,30 @@ end
 -- on the kit floor 20 studs -Z of the spot, facing +Z, the service's desks refreshed (_RefreshDesks). Body(Desk) runs;
 -- the temp desk is removed after and the desks refreshed again, or a real desk's NPC reset to Unaware
 -- (PerceptionService.Reset, as TakedownKit.Spawn resets its rigs).
+-- (final fix round: shared with DeskIndexedWhenAdded) the temp desk: a model carrying Brask's DialogueId on the kit floor
+-- 20 studs from the spot, its invisible root facing +Z, put in workspace
+local function TempDesk()
+	local Temp = Instance.new("Model")
+	Temp.Name = "HostageTempDesk"
+	local P = Instance.new("Part")
+	P.Name = "HumanoidRootPart"
+	P.Size = Vector3.new(2, 2, 1)
+	P.Anchored, P.CanCollide, P.CanQuery, P.CanTouch, P.Transparency = true, false, false, false, 1
+	local Pos = At(0, -20).Position + Vector3.new(0, 3, 0)
+	P.CFrame = CFrame.lookAt(Pos, Pos + Vector3.new(0, 0, 1))
+	P.Parent = Temp
+	Temp.PrimaryPart = P
+	Temp:SetAttribute("DialogueId", "foundry_brask")
+	Temp.Parent = workspace
+	return Temp
+end
 local function WithDesk(Body)
 	local HS = Svc()
 	HS._RefreshDesks() -- (fix round 1, review m6) never on the 30 s scan having run
 	local Desk = HS.Desks()[1]
 	local Temp = nil
 	if not Desk then
-		Temp = Instance.new("Model")
-		Temp.Name = "HostageTempDesk"
-		local P = Instance.new("Part")
-		P.Name = "HumanoidRootPart"
-		P.Size = Vector3.new(2, 2, 1)
-		P.Anchored, P.CanCollide, P.CanQuery, P.CanTouch, P.Transparency = true, false, false, false, 1
-		local Pos = At(0, -20).Position + Vector3.new(0, 3, 0)
-		P.CFrame = CFrame.lookAt(Pos, Pos + Vector3.new(0, 0, 1))
-		P.Parent = Temp
-		Temp.PrimaryPart = P
-		Temp:SetAttribute("DialogueId", "foundry_brask")
-		Temp.Parent = workspace
+		Temp = TempDesk()
 		HS._RefreshDesks()
 		Desk = HS.Desks()[1]
 		assert(Desk == Temp, "WithDesk: the temp desk is found (" .. tostring(Desk) .. ")")
@@ -227,6 +233,26 @@ end
 local function SetHeat(Amount)
 	HeatSvc().Clear(Player, J)
 	if Amount > 0 then HeatSvc().Add(Player, J, Amount) end
+end
+
+-- (final fix round, review I2) a broke fugitive's turn-in at Wanted Want (Heat Amount, by hand), refused: see the cases
+local function BrokeTurnIn(T, Amount, Want)
+	Case(0, function() KeepHeat(function() WithDesk(function(Desk)
+		local HS = Svc()
+		SetHeat(Amount)
+		T.Eq(HeatSvc().Wanted(Player, J), Want, "setup: Wanted " .. Want)
+		local Heat0 = HeatSvc().Value(Player, J)
+		local _, CapPL, S = CaptiveAtDesk(Desk, 6)
+		T.True(table.find(Ids(HS.MenuOptions(CapPL)), "TurnIn") ~= nil, "TurnIn is offered")
+		local Toasts = HK.Toasts(function()
+			T.Eq(HS.Menu(CapPL, "TurnIn"), false, "refused: nothing could be paid")
+		end)
+		T.Eq(S.Over, false, "the hold goes on")
+		T.Near(HeatSvc().Value(Player, J), Heat0, 0.05, "the Heat kept")
+		T.Eq(Money(), 0, "nothing charged")
+		T.Eq(CapPL.Data.Money, 1000, "no bounty")
+		T.Eq(#Toasts, 0, "the fugitive is told nothing (" .. table.concat(Toasts, " | ") .. ")")
+	end) end) end)
 end
 
 return {
@@ -644,25 +670,27 @@ return {
 		end) end) end)
 	end,
 
-	-- a broke fugitive: the Heat cleared, nothing charged, no bounty (decision 8)
-	TurnInClearsWhenBroke = function(T)
-		Case(0, function() KeepHeat(function() WithDesk(function(Desk)
+	-- (final fix round, review I2, the controller's conservative default; was TurnInClearsWhenBroke, decision 8) a broke
+	-- fugitive is no free Heat wipe: at Wanted 1 (below) and at Wanted 3, past a desk fine (the next case), with $0,
+	-- TurnIn is still offered but choosing it is refused -- nothing charged, the Heat kept, no bounty, the hold goes on,
+	-- and the fugitive is told nothing (no "turned in", no desk refusal). The captor's own line ("They can't pay the
+	-- fine.") goes to a real player only, so with a stand-in captor it isn't seen here. RED before: turned in, Heat
+	-- cleared.
+	TurnInRefusedWhenBroke = function(T) BrokeTurnIn(T, 30, 1) end,
+	TurnInRefusedWhenBrokeWanted3 = function(T) BrokeTurnIn(T, 120, 3) end,
+
+	-- (final fix round, review I4) desks are indexed, never scanned per tick: the temp desk put in workspace is one of
+	-- HostageService.Desks() within 0.5 s with no _RefreshDesks call, and once removed it isn't. RED before: only the
+	-- 30 s workspace scan found it.
+	DeskIndexedWhenAdded = function(T)
+		HK.Guard(function()
 			local HS = Svc()
-			SetHeat(30)
-			local _, CapPL, S = CaptiveAtDesk(Desk, 6)
-			local Toasts = HK.Toasts(function()
-				T.Eq(HS.Menu(CapPL, "TurnIn"), true, "turned in")
-			end)
-			for _, X in ipairs(Toasts) do
-				-- (fix round 1, review m3) the desk's refusal isn't shown: the Heat was cleared anyway
-				T.True(not tostring(X):find("You don't have it", 1, true), "no fine refusal shown (" .. tostring(X) .. ")")
-			end
-			T.True(#Toasts > 0, "the hostage is told")
-			T.Eq(HeatSvc().Value(Player, J), 0, "the Heat cleared")
-			T.Eq(Money(), 0, "the player's money still 0")
-			T.Eq(CapPL.Data.Money, 1000, "no bounty")
-			T.Eq(S.Outcome, "turned_in", "turned_in")
-		end) end) end)
+			local Temp = TempDesk()
+			local Found = WaitFor(0.5, function() return table.find(HS.Desks(), Temp) ~= nil end)
+			Temp:Destroy()
+			T.True(Found, "the new desk is indexed")
+			T.Eq(table.find(HS.Desks(), Temp), nil, "removed: no longer a desk")
+		end)
 	end,
 
 	-- Wanted 0: not offered, and the choice does nothing

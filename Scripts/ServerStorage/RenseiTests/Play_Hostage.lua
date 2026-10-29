@@ -11,9 +11,10 @@
 --   at release, the held pair untakeable).
 -- * Task 5 fix round 1 (review I1, I2, K1, M2, M3, M8, M10): an exit before the weld leaves the hostage's parts as they
 --   were (no Detach of a pair never attached); the bound target untakeable mid-bind, each refusal reached by the hostage
---   rule itself, with controls; hostages switched off (Rensei.Hostage.Enabled = false until Task 14): a live-shaped
---   request or take is refused, the test bypass closed by HostageService._TestBypass (a seam that can only make it
---   stricter). ReleaseErrorStillRestores warns twice by design ("Broken failed" and its own error text).
+--   rule itself, with controls; hostages switched off (Rensei.Hostage.Enabled = false until the owner's go-live step,
+--   Changelog 2026-10-29): a live-shaped request or take is refused, the test bypass closed by
+--   HostageService._TestBypass (a seam that can only make it stricter; final fix round, I3: the case follows the
+--   switch, so it holds on either side of the go-live step). ReleaseErrorStillRestores warns twice by design ("Broken failed" and its own error text).
 -- * Task 7: the stealth grab (a standing stand-in, the player behind it, TakedownKit.PutBehind), its struggle from 40%
 --   and its 3 s window; the hostage's struggle (HostageService.Struggle: rate limit, stamina, drain, a break free);
 --   re-takes counted only once Held (pre-flight P22); immunity refusing a grab too; the grab's refusals (seen, far, a
@@ -61,6 +62,12 @@
 --   .Fire); an NPC in front circles to the captor's flank and its hit rescues; one swing through the real
 --   HitboxManager.Sweep hits the hostage once; the Task 8 release window sees a knock through a shield; the HitListeners
 --   hear a shielded hit as a hit on the hostage; a HostageService error in DamageManager or CombatDirector is warned.
+-- * Final fix round (the final review's C1, I1, I3 and the parked fix-nows): a led hostage's death with no hit prints
+--   an audit line, and is charged to the captor as killed_hostage only while HostageService.ChargeUnexplainedDeaths is
+--   true (false as shipped: see HostageService's Release step 5c); a hold ended
+--   "knocked" by the captor's own hits, then B, is killed_hostage; a gun knock by the captor's side cancels the release
+--   payout; Finish's give-back clears SecondWindActive; a failing HostageService.HitVictim is warned once per 5 s
+--   (PROPOSAL); DisabledRefusesLiveCall reads the switch.
 local SSS = game:GetService("ServerScriptService")
 local CollectionService = game:GetService("CollectionService")
 local DM = require(game.ReplicatedStorage.Modules.Managers.DownedManager)
@@ -117,11 +124,7 @@ local function SafeZone()
 	return P
 end
 -- (Task 7) a deed's lifetime count on the player's (mock) profile, 0 when never recorded
-local function DeedCount(Id)
-	local M = require(SSS.ProgressionService).GetData(Player).Morality
-	local E = M and M.Deeds[Id]
-	return E and E.Count or 0
-end
+local function DeedCount(Id) return HK.DeedCount(Id) end -- (final fix round: the kit's, shared with the client checks)
 -- (Task 7) a WCS Stun on the character, not the crouch's (TakedownService.Stunned, called, never copied)
 local function Stunned(Character) return require(SSS.TakedownService).Stunned(Character) end
 -- (Task 7) seconds from now until that Stun is over, polled every frame (at most Max): a stun's length measured, so a
@@ -702,13 +705,16 @@ return {
 		end)
 	end,
 
-	-- (review K1) hostages are switched off until Task 14 (Rensei.Hostage.Enabled = false, written by hand here). Only
-	-- the test bypass (Studio AND TestNoSave AND HostageService._TestBypass) lets a take through; with the bypass shut, a
-	-- live-shaped request and a direct Take are refused and nothing is marked. The control: the bypass open again.
+	-- (review K1; final fix round, review I3) the case FOLLOWS THE SWITCH (Rensei.Hostage.Enabled, read here), so it holds
+	-- on either side of the owner's go-live step and needs no edit then. The tests' bypass is shut for it
+	-- (HostageService._TestBypass -> false: what a live server sees). Switched OFF (as shipped): a live-shaped request and
+	-- a direct Take are refused ("disabled") and nothing is marked; the control, the bypass open again, takes. Switched
+	-- ON: the same live-shaped request takes with the bypass shut (a session, the target marked).
 	DisabledRefusesLiveCall = function(T)
 		HK.Guard(function()
 			local Hostage = require(game.ReplicatedStorage.Modules.Data.Rensei.Hostage)
-			T.Eq(Hostage.Enabled, false, "setup: hostages are switched off")
+			local On = Hostage.Enabled
+			T.True(On == true or On == false, "setup: the switch is a boolean (" .. tostring(On) .. ")")
 			local Handler = SSS:FindFirstChild("ServerHandler")
 			local Module = Handler and Handler:FindFirstChild("Requests") and Handler.Requests:FindFirstChild("Hostage")
 			T.True(Module ~= nil, "setup: Requests.Hostage exists")
@@ -720,17 +726,24 @@ return {
 			HS._TestBypass = function() return false end
 			local Ok, Err = pcall(function()
 				Request(Player, "Take", Rig)
-				T.Eq(Svc().SessionOf(Player), nil, "a request while switched off starts nothing")
-				T.Eq(Rig:GetAttribute("HeldBy"), nil, "the target isn't marked")
-				local TakeOk, Why = HS.Take(Player, Rig)
-				T.Eq(TakeOk, false, "a direct Take is refused too")
-				T.Eq(Why, "disabled", "the reason")
-				T.Eq(C:GetAttribute("Holding"), nil, "the player isn't marked")
+				if On then
+					T.Eq(Rig:GetAttribute("HeldBy"), Player.Name, "switched on: a live-shaped request takes")
+					T.True(Svc().SessionOf(Player) ~= nil, "switched on: a session started")
+				else
+					T.Eq(Svc().SessionOf(Player), nil, "a request while switched off starts nothing")
+					T.Eq(Rig:GetAttribute("HeldBy"), nil, "the target isn't marked")
+					local TakeOk, Why = HS.Take(Player, Rig)
+					T.Eq(TakeOk, false, "a direct Take is refused too")
+					T.Eq(Why, "disabled", "the reason")
+					T.Eq(C:GetAttribute("Holding"), nil, "the player isn't marked")
+				end
 			end)
 			HS._TestBypass = Real
 			if not Ok then error(Err, 0) end
-			Request(Player, "Take", Rig)
-			T.Eq(Rig:GetAttribute("HeldBy"), Player.Name, "control: the bypass open, the request takes")
+			if not On then
+				Request(Player, "Take", Rig)
+				T.Eq(Rig:GetAttribute("HeldBy"), Player.Name, "control: the bypass open, the request takes")
+			end
 		end)
 	end,
 
@@ -1792,5 +1805,157 @@ return {
 			Conn:Disconnect()
 			if not Ok then error(Err, 0) end
 		end) end)
+	end,
+
+	-- ===== the final fix round =====
+	-- (C1) a led hostage's death with no hit -- here the server's own Health = 0 on the led stand-in, standing in for a
+	-- death that reaches the server from a client (the final fix round's Play measured a held player's own client doing
+	-- it; the captor's client couldn't) -- ends the hold "died" and prints ONE audit line. As shipped
+	-- (HostageService.ChargeUnexplainedDeaths false, PROPOSAL) it isn't charged: killed_hostage +0 and the line says "not
+	-- charged". With the switch true (swapped, put back after) the captor is charged: killed_hostage +1. For a bind's hold
+	-- and for a grab. Controls (no audit line): the same death just after the hold was let go (not led), and a stand-in
+	-- captor's own death with the player its hostage, alive. RED before: no audit line, no switch.
+	UnexplainedDeathIsAudited = function(T)
+		local AUDIT = "HostageService: AUDIT a held hostage died with no server-side hit" -- (by hand)
+		local function Audits(Body)
+			local Lines = {}
+			local Conn = game:GetService("LogService").MessageOut:Connect(function(Msg)
+				if Msg:find(AUDIT, 1, true) then table.insert(Lines, Msg) end
+			end)
+			local Ok, Err = pcall(Body)
+			task.wait(0.2)
+			Conn:Disconnect()
+			if not Ok then error(Err, 0) end
+			return Lines
+		end
+		local HS = Svc()
+		local Shipped = HS.ChargeUnexplainedDeaths
+		for _, X in ipairs({{"Bind", false, 0, "(not charged)"}, {"Grab", false, 0, "(not charged)"},
+			{"Bind", true, 1, "(charged to the captor as killed_hostage)"}}) do
+			local Kind, Charge, Want, Says = X[1], X[2], X[3], X[4]
+			local What = Kind .. (Charge and ", charging" or "")
+			HK.Guard(function() KeepHeat(function() Swap(HS, "ChargeUnexplainedDeaths", Charge, function()
+				local Killed0 = DeedCount("killed_hostage")
+				local Lines = Audits(function()
+					local Rig = Kind == "Bind" and Held(T) or HK.Grabbed()
+					Rig.Humanoid.Health = 0
+					T.True(Ended(Kind .. ":died", 0.5), What .. ": the hold ends died (" .. tostring(HK.Result()) .. ")")
+				end)
+				T.Eq(#Lines, 1, What .. ": one audit line")
+				T.True(Lines[1]:find(Says, 1, true) ~= nil, What .. ": the line says " .. Says .. " (" .. Lines[1] .. ")")
+				T.True(Lines[1]:find("captor=" .. Player.UserId, 1, true) ~= nil, What .. ": the line names the captor's UserId")
+				task.wait(0.3)
+				T.Eq(DeedCount("killed_hostage") - Killed0, Want, What .. ": killed_hostage +" .. Want)
+			end) end) end)
+		end
+		HK.Guard(function() KeepHeat(function()
+			local Killed0 = DeedCount("killed_hostage")
+			local Lines = Audits(function()
+				local Rig = Held(T)
+				Svc().Free(Player, "released")
+				Rig.Humanoid.Health = 0
+				task.wait(0.3)
+			end)
+			T.Eq(#Lines, 0, "control: no audit line after the hold")
+			T.Eq(DeedCount("killed_hostage") - Killed0, 0, "control: nothing charged after the hold")
+		end) end)
+		HK.Guard(function() KeepHeat(function()
+			local Lines = Audits(function()
+				local Cap = Captive(T)
+				Cap.Humanoid.Health = 0
+				T.True(WaitFor(0.5, function() return Svc().SessionOf(Player) == nil end), "control: the captor's death ends it")
+				T.True(C.Humanoid.Health > 0, "control: the player (the hostage) is alive")
+			end)
+			T.Eq(#Lines, 0, "control: a captor's own death is no hostage's death (no audit line)")
+		end) end)
+		T.Eq(Shipped, false, "as shipped, an unexplained death isn't charged (HostageService.ChargeUnexplainedDeaths)")
+	end,
+
+	-- (review I1) the captor's own light hits always land on the hostage (HostageNotShieldedFromCaptor): a lethal one
+	-- knocks it and ends the hold "knocked" (decision 5); the captor's B right after finishes them. That is a hostage
+	-- killed: killed_hostage +1 and no Mercy (the knocked end opened the harm window, paying nothing). RED before: 0.
+	KnockedHoldThenGripIsAKill = function(T)
+		HK.Guard(function() KeepHeat(function()
+			local Rig = Held(T)
+			local Killed0, Released0 = DeedCount("killed_hostage"), DeedCount("released_hostage")
+			T.Eq(Hit(C, Rig, {Damage = Rig.Humanoid.Health + 50, StunTime = 0}), "Hit", "setup: the captor's own hit lands")
+			T.True(DM.IsKnocked(Rig), "setup: the hostage is knocked")
+			T.True(Ended("Bind:knocked", 0.5), "setup: the hold ends knocked (" .. tostring(HK.Result()) .. ")")
+			T.Eq(DM.Request(C, "Grip"), "Gripped", "B: the captor's grip finished them")
+			T.True(Rig.Humanoid.Health <= 0, "dead")
+			T.True(WaitFor(0.5, function() return DeedCount("killed_hostage") - Killed0 == 1 end),
+				"killed_hostage +1 (" .. (DeedCount("killed_hostage") - Killed0) .. ")")
+			task.wait(0.3)
+			T.Eq(DeedCount("killed_hostage") - Killed0, 1, "recorded once")
+			T.Eq(DeedCount("released_hostage") - Released0, 0, "no Mercy")
+		end) end)
+	end,
+
+	-- (the parked Task 9 ruling: guns count in the release window) released (the window 2 s here), the ex-captor's party
+	-- member (HostageService._PartyOf stubbed, put back after) shoots the released stand-in down through WeaponManager.Fire
+	-- (its health set to 5 first, so one revolver shot knocks it): no Mercy at the window's end, as for a melee knock
+	-- (PartyKnockCancelsPayout). RED before: a shot fed nothing, so released_hostage +1.
+	GunKnockCancelsPayout = function(T)
+		HK.Guard(function() KeepHeat(function() WithGrace(2, function()
+			local HS = Svc()
+			local Rig = Held(T)
+			local Released0 = DeedCount("released_hostage")
+			T.Eq(HS.Menu(Player, "Release"), true, "the choice acted")
+			local Friend = Gunman(0, 6)
+			local FriendPL = HS.PlayerOf(Friend)
+			Swap(HS, "_PartyOf", function(PL) if PL == Player then return {FriendPL} end return nil end, function()
+				Rig.Humanoid.Health = 5
+				local Results = Shoot(Friend, Rig.HumanoidRootPart.Position)
+				T.True(#Results == 1 and Results[1].Victim == Rig,
+					"setup: the shot hits the released stand-in (" .. tostring(Results[1] and Results[1].Victim) .. ")")
+				T.True(DM.IsKnocked(Rig), "setup: the shot knocked it")
+				task.wait(2.5)
+				T.Eq(DeedCount("released_hostage") - Released0, 0, "a gun knock by the captor's side: no Mercy")
+			end)
+		end) end) end)
+	end,
+
+	-- (the parked Task 8 n2, its SecondWindActive half) a Finish whose grip fails at once gives the knock back and clears
+	-- Second Wind's mark with it (the swapped Grip sets the mark, as the hostage's own Second Wind would at Finish's
+	-- knock, then fails; put back after). RED before: the mark stayed, so the next knock would recover at 30%.
+	FinishGiveBackClearsSecondWind = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local Rig = Held(T)
+			Swap(DM, "Grip", function(_, Target) Target:SetAttribute("SecondWindActive", true) return false end, function()
+				T.Eq(HS.Menu(Player, "Finish"), true, "the choice acted")
+			end)
+			task.wait(0.2)
+			T.Eq(DM.IsKnocked(Rig), false, "setup: the knock was given back")
+			T.Eq(Rig:GetAttribute("SecondWindActive"), nil, "Second Wind's mark cleared with it")
+		end)
+	end,
+
+	-- (the parked Task 9 n2) ProgressionService.RecordHit asks HostageService.HitVictim on every hit; when it fails
+	-- (swapped to throw, put back after) the warning comes at most once in 5 s (PROPOSAL): three failing hits in a row
+	-- warn once, and each still reaches the listeners on the caller's victim. RED before: three warnings.
+	HitVictimWarnRateLimited = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local Other = HK.StandIn(At(6, 0))
+			local N, Heard = 0, 0
+			local Conn = game:GetService("LogService").MessageOut:Connect(function(Msg)
+				if Msg:find("hostage test: HitVictim", 1, true) then N += 1 end
+			end)
+			local Listeners = require(SSS.ProgressionService).HitListeners
+			local function L(A, V) if A == Other and V == C then Heard += 1 end end
+			table.insert(Listeners, L)
+			local Ok, Err = pcall(function()
+				Swap(HS, "HitVictim", function() error("hostage test: HitVictim") end, function()
+					for _ = 1, 3 do require(SSS.ProgressionService).RecordHit(Other, C, "Miss") end
+				end)
+				task.wait(0.3)
+			end)
+			table.remove(Listeners, table.find(Listeners, L))
+			Conn:Disconnect()
+			if not Ok then error(Err, 0) end
+			T.Eq(N, 1, "three failing hits in a row: one warning")
+			T.Eq(Heard, 3, "each hit still reached the listeners, on the caller's victim")
+		end)
 	end,
 }

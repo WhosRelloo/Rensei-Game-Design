@@ -61,8 +61,9 @@
 --   * PromptInCombatMode (P8): the same with the player in Combat Mode -> "Take hostage" (CheckTake has no calm gate).
 --   * PromptGrabBehindOnly: a standing stand-in with the player 3 studs behind -> "Grab"; in front -> none; behind again
 --     but the rig GrabImmuneUntil 5 s from now -> none.
---   * PromptHiddenWhileOff: a knocked stand-in in reach, the client's own copy of ReplicatedStorage's TestNoSave set
---     false (as a live game, where Rensei.Hostage.Enabled is false, sees it) -> no prompt; put back -> the prompt.
+--   * PromptHiddenWhileOff (final fix round, review I3: it follows the switch, Rensei.Hostage.Enabled, read by the
+--     server half): a knocked stand-in in reach, the client's own copy of ReplicatedStorage's TestNoSave set false (as a
+--     live game sees it) -> switched off, no prompt; switched on, the prompt; put back -> the prompt.
 --   * EnemyWins: a kit Grunt with the player 3 studs behind it AND a knocked stand-in 3 studs from the player -> the
 --     prompt sits on the Grunt (its takedown text), none on the stand-in.
 --   * TriggerTakes: Prompt:InputHoldBegin(), InputHoldEnd() -> within BindTime + 1 = 2.5 s the character has Holding.
@@ -101,6 +102,14 @@
 --   * TouchButtons (P19): the Player attribute ForceMobileControls = true. Free: neither HOSTAGE nor STRUGGLE. The
 --     captor: HOSTAGE (GRIP hidden); a real click on it opens the wheel. The hostage in Combat Mode: STRUGGLE, BLOCK
 --     hidden; a real click on STRUGGLE sends one Struggle message.
+-- (hostages final fix round, the final review's C1)
+--   * CaptorClientKillsHostage: the player the captor of a stand-in, its root let go so the player's client owns the
+--     pair (the stand-in's root's network owner checked). The client kills the held stand-in on ITS copy -- once
+--     Humanoid:ChangeState(Dead), once (a second hold) Health = 0, once (a third) PlatformStand off first and then both
+--     -- and the server reads the stand-in 1 s later. When
+--     the server sees it dead, the hold must end "Bind:died", audited and (as shipped, ChargeUnexplainedDeaths false)
+--     not charged (HostageService's Release step 5c); when it doesn't -- what the final fix round measured for all
+--     three -- the stand-in must be alive and still held. The measurement is noted either way.
 -- ONLY: "" runs every check; else a comma list of check names.
 local ONLY = ""
 
@@ -160,21 +169,49 @@ function Checks.SprintStop()
 	return {WalkSpeed = Seen}
 end
 
--- the captor's client breaks the pair: its own copy of the weld destroyed, the stand-in's root moved 5 studs
-function Checks.BreakWeld()
-	local Root = Char().HumanoidRootPart
-	local W = Root:FindFirstChild("DownedWeld")
-	if W then W:Destroy() end
+-- the rig in World.Live this player holds (HeldBy is the player's name), as the client sees it
+local function HeldRig()
 	local Live = workspace:FindFirstChild("World") and workspace.World:FindFirstChild("Live")
 	local Rig = nil
 	for _, M in ipairs(Live and Live:GetChildren() or {}) do
 		if M:IsA("Model") and M:GetAttribute("HeldBy") == Player.Name then Rig = M end
 	end
+	return Rig
+end
+
+-- the captor's client breaks the pair: its own copy of the weld destroyed, the stand-in's root moved 5 studs
+function Checks.BreakWeld()
+	local Root = Char().HumanoidRootPart
+	local W = Root:FindFirstChild("DownedWeld")
+	if W then W:Destroy() end
+	local Rig = HeldRig()
 	local HR = Rig and Rig:FindFirstChild("HumanoidRootPart")
 	if not HR then return {Destroyed = W ~= nil, Moved = false, Dist = 0} end
 	local P0 = HR.Position
 	HR.CFrame += Vector3.new(5, 0, 0)
 	return {Destroyed = W ~= nil, Moved = true, Dist = (HR.Position - P0).Magnitude}
+end
+
+-- (final fix round, C1) the captor's client kills the stand-in it holds, on its own copy: Args.How "State"
+-- (Humanoid:ChangeState(Dead)), "Health" (Health = 0) or "Unstand" (PlatformStand off first, then both); returns what
+-- the client then sees
+function Checks.KillHeld(Args)
+	local Rig = HeldRig()
+	local H = Rig and Rig:FindFirstChildOfClass("Humanoid")
+	if not H then return {Found = false} end
+	if Args.How == "Unstand" then
+		-- (the thorough attempt) the server holds it PlatformStanding: the client lets go of that first, then both kills
+		H.PlatformStand = false
+		task.wait(0.2)
+		H:ChangeState(Enum.HumanoidStateType.Dead)
+		H.Health = 0
+	elseif Args.How == "State" then
+		H:ChangeState(Enum.HumanoidStateType.Dead)
+	else
+		H.Health = 0
+	end
+	task.wait(0.1)
+	return {Found = true, Health = H.Health, State = H:GetState().Name}
 end
 
 -- the held client tries to get away: its root 10 studs off, PlatformStand off (W is the runner's)
@@ -821,13 +858,55 @@ local Suite = {
 
 	PromptHiddenWhileOff = function(T)
 		Case(function()
+			-- (final fix round, review I3) the switch read, never written: the case holds on either side of the go-live step
+			local On = require(ReplicatedStorage.Modules.Data.Rensei.Hostage).Enabled
+			T.True(On == true or On == false, "setup: the switch is a boolean (" .. tostring(On) .. ")")
 			local Rig = KnockedNear()
 			T.True(Prompt(Rig, true, "Take hostage").Ok, "setup: the prompt shows in this TestNoSave session")
 			T.Eq(Ask("HostagesOff", {Off = true}), false, "setup: the client's TestNoSave reads false")
-			T.True(Prompt(Rig, false).Ok, "hostages off (as in a live game): no prompt")
+			if On then
+				T.True(Prompt(Rig, true, "Take hostage").Ok, "switched on: the prompt shows with TestNoSave false (a live game)")
+			else
+				T.True(Prompt(Rig, false).Ok, "switched off (as in a live game): no prompt")
+			end
 			Ask("HostagesOff", {Off = false})
 			T.True(Prompt(Rig, true, "Take hostage").Ok, "put back: the prompt again")
 		end)
+	end,
+
+	-- (final fix round, C1) see the file's header. Three holds, one per kill method.
+	CaptorClientKillsHostage = function(T)
+		for _, How in ipairs({"State", "Health", "Unstand"}) do
+			Case(function() HK.KeepHeat(function()
+				local Rig, _, S = HK.Held()
+				HK.Loose()
+				task.wait(SETTLE)
+				local HR = Rig.HumanoidRootPart
+				local OwnOk, Owner = pcall(function() return HR:GetNetworkOwner() end)
+				T.Eq(OwnOk and Owner or nil, Player, How .. ": setup: the player's client owns the held stand-in's root")
+				local Killed0 = HK.DeedCount("killed_hostage")
+				local K = Ask("KillHeld", {How = How})
+				T.True(K.Found, How .. ": setup: the client found the held stand-in")
+				task.wait(1)
+				local H = Rig:FindFirstChildOfClass("Humanoid")
+				local SH, SState = H and H.Health, H and H:GetState().Name
+				local Dead = H == nil or H.Health <= 0 or H:GetState() == Enum.HumanoidStateType.Dead
+				local Killed = HK.DeedCount("killed_hostage") - Killed0
+				Note("CaptorClientKillsHostage", ("%s: client saw health %s state %s; server health %s state %s; dead %s; held %s; result %s; killed_hostage +%d")
+					:format(How, tostring(K.Health), tostring(K.State), tostring(SH), tostring(SState), tostring(Dead),
+						tostring(On(S)), tostring(HK.Result()), Killed))
+				if Dead then
+					-- (as shipped the unexplained death is audited, not charged: HostageService.ChargeUnexplainedDeaths false)
+					T.Eq(S.Over, true, How .. ": the server saw the death: the hold is over")
+					T.Eq(HK.Result(), "Bind:died", How .. ": it ended died")
+					T.Eq(Svc().ChargeUnexplainedDeaths, false, How .. ": as shipped, not charged")
+					T.Eq(Killed, 0, How .. ": killed_hostage +0 (audited only)")
+				else
+					T.True(On(S), How .. ": the server saw no death: still held (" .. tostring(HK.Result()) .. ")")
+					T.True(SH ~= nil and SH > 0, How .. ": the stand-in is alive on the server")
+				end
+			end) end)
+		end
 	end,
 
 	EnemyWins = function(T)

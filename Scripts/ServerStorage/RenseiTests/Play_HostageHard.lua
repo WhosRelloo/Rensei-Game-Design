@@ -1252,4 +1252,201 @@ return {
 			T.True(HX < 2, "the stand-in is back on this side of the wall (" .. F2(HX) .. ")")
 		end)
 	end,
+
+	-- ===== the final fix round =====
+	-- (parked T5) DownedManager.Lock(C, false) for a character with no Humanoid left drops its lock entry. A rig locked
+	-- then stripped of its Humanoid and unlocked keeps none; and a stand-in captor destroyed mid-hold (the player its
+	-- hostage) ends the hold and leaves none on the destroyed rig (HostageService's Release step 4). RED before: kept.
+	LockEntryGoesWithADestroyedCharacter = function(T)
+		HK.Guard(function()
+			local Rig = HK.StandIn(At(-6, 0))
+			DM.Lock(Rig, true)
+			T.Eq(DM.IsLocked(Rig), true, "setup: locked")
+			Rig.Humanoid:Destroy()
+			DM.Lock(Rig, false)
+			T.Eq(DM.IsLocked(Rig), false, "no Humanoid left: the entry still goes")
+			local Cap = HK.Captive()
+			T.Eq(DM.IsLocked(Cap), true, "setup: the stand-in captor's walk is locked")
+			Cap:Destroy()
+			T.True(WaitFor(0.5, function() return Svc().SessionOf(Player) == nil end), "the destroyed captor's hold ends")
+			T.Eq(DM.IsLocked(Cap), false, "no lock entry left on the destroyed captor")
+		end)
+	end,
+
+	-- (review M1; live whatever the switch) StationService's move helper -- RoadService's, TravelService's and
+	-- AdminService's are the same guarded code -- survives a DownedManager without MovedOnPurpose (an out-of-step
+	-- package): the gate's push still happens and nothing throws. The player is marked Holding by hand (refused whatever
+	-- the papers: no Heat, no bribe); DownedManager.MovedOnPurpose is nil only around the call, put back after. RED
+	-- before: GateTouch threw.
+	MoveSurvivesAnOldDownedManager = function(T)
+		HK.Guard(function()
+			local SS = require(SSS.StationService)
+			local Gate = TheGate()
+			T.True(Gate ~= nil, "setup: a RenseiStationGate")
+			local N = Gate.CFrame.LookVector
+			local Spot = (Gate.CFrame * CFrame.new(0, -0.5, 0.2)).Position -- (0.2 studs hall-side of its middle)
+			local Real = DM.MovedOnPurpose
+			local R = {}
+			local Ok, Err = pcall(function()
+				C:SetAttribute("Holding", "HostageHard_Nobody")
+				SS.ResetGate(Player)
+				CRoot().CFrame = CFrame.lookAt(Spot, Spot + N)
+				CRoot().AssemblyLinearVelocity = Vector3.zero
+				DM.MovedOnPurpose = nil
+				R.Ok, R.Verdict = pcall(SS.GateTouch, Player, Gate)
+				DM.MovedOnPurpose = Real
+				R.Side = HallSide(Gate)
+			end)
+			DM.MovedOnPurpose = Real
+			C:SetAttribute("Holding", nil)
+			SS.ResetGate(Player)
+			if not Ok then error(Err, 0) end
+			T.Eq(R.Ok, true, "no throw with MovedOnPurpose missing (" .. tostring(R.Verdict) .. ")")
+			T.Eq(R.Verdict, "Refuse", "the captor's verdict")
+			-- (by hand: the gate is 1 stud thick and pushes GatePush 4 clear, so the root is at -4.5; 0.5 of slack)
+			T.True(R.Side <= -4.0, "pushed to the hall side (" .. F2(R.Side) .. ")")
+		end)
+	end,
+
+	-- (review M3) the take spot is checked against walls. A GRAB from the stand-in's rear arc, the player turned to face
+	-- a thin wall 1 stud off (0.5 thick: the weld's spot 1.5 ahead is past it): refused "blocked", nothing marked; the
+	-- control, the wall gone, grabs. RED before: the grab started and welded the stand-in into the wall.
+	TakeSpotBehindAWallRefused = function(T)
+		HK.Guard(function()
+			local Rig = HK.StandIn(At(0, 0))
+			TK.PutBehind(Rig, 3)
+			local CR = CRoot()
+			CR.CFrame = CFrame.lookAt(CR.Position, CR.Position + Vector3.xAxis) -- (turned to face +X, in place)
+			local Wall = Block(Vector3.new(0.5, 8, 2), CFrame.new(CR.Position + Vector3.new(1.25, 0, 0)))
+			T.True(Svc().Context(Player, Rig, "Grab").Behind, "setup: the player is in the stand-in's rear arc")
+			local Ok, Why = Svc().Take(Player, Rig)
+			T.Eq(Ok, false, "the grab is refused")
+			T.Eq(Why, "blocked", "the reason")
+			T.Eq(Rig:GetAttribute("HeldBy"), nil, "nothing marked")
+			Wall:Destroy()
+			Svc().Forget(Player, {NextAt = true})
+			local Again, AgainWhy = Svc().Take(Player, Rig)
+			T.Eq(Again, true, "control: the wall gone, the grab starts (" .. tostring(AgainWhy) .. ")")
+		end)
+	end,
+
+	-- (review M3) a BIND whose captor turns in place to face a thin wall during the 1.5 s bind: the hold's own spot
+	-- check ends it "blocked" before the knock is ended -- the stand-in still knocked, never welded. RED before: welded.
+	BindTurnedToAWallEnds = function(T)
+		HK.Guard(function()
+			local Rig = HK.StandIn(At(0, 0))
+			DM.Knock(Rig)
+			TK.PutPlayer(HK.FRONT)
+			T.Eq(Svc().Take(Player, Rig), true, "setup: the bind starts")
+			local CR = CRoot()
+			CR.CFrame = CFrame.lookAt(CR.Position, CR.Position + Vector3.xAxis) -- (turned to face +X, in place)
+			Block(Vector3.new(0.5, 8, 2), CFrame.new(CR.Position + Vector3.new(1.25, 0, 0)))
+			T.True(Ended("Bind:blocked", 2.5), "the hold ends blocked (" .. tostring(HK.Result()) .. ")")
+			T.Eq(CR:FindFirstChild("DownedWeld"), nil, "never welded")
+			T.True(DM.IsKnocked(Rig), "the stand-in is still knocked")
+		end)
+	end,
+
+	-- (review M4) a guard already up is dropped at the take, on the server: the stand-in (to be grabbed) and the player
+	-- (the captor) both run WCS's Blocking status; once the grab has started, neither does. RED before: both kept it.
+	BlockDroppedAtTake = function(T)
+		local Blocking = require(game.ReplicatedStorage.Modules.Skills.States.Blocking)
+		local function Guarding(M)
+			local WC = WCS.Character.GetCharacterFromInstance(M)
+			for _, X in ipairs(WC and WC:GetAllActiveStatusEffects() or {}) do
+				if X.Name == "Blocking" then return true end
+			end
+			return false
+		end
+		local function Drop(M) -- (the case's own clean-up: no block left on the player whatever happened)
+			local WC = WCS.Character.GetCharacterFromInstance(M)
+			for _, X in ipairs(WC and WC:GetAllActiveStatusEffects() or {}) do
+				if X.Name == "Blocking" then pcall(function() X:Stop() end) end
+			end
+		end
+		HK.Guard(function()
+			local Rig = HK.StandIn(At(0, 0))
+			TK.PutBehind(Rig, 3)
+			local Ok, Err = pcall(function()
+				Blocking.new(WCS.Character.GetCharacterFromInstance(Rig)):Start()
+				Blocking.new(WCS.Character.GetCharacterFromInstance(C)):Start()
+				T.True(Guarding(Rig) and Guarding(C), "setup: both are blocking")
+				local TakeOk, Why = Svc().Take(Player, Rig)
+				T.Eq(TakeOk, true, "setup: the grab starts (" .. tostring(Why) .. ")")
+				T.Eq(Guarding(Rig), false, "the hostage's block is dropped")
+				T.Eq(Guarding(C), false, "the captor's block is dropped")
+			end)
+			Drop(C)
+			if not Ok then error(Err, 0) end
+		end)
+	end,
+
+	-- (review M5) a movement change that ends mid-bind hands the binding captor no walk back (MoverManager reads
+	-- HostageBinding): WalkSpeed 0 and the bind goes on; once Held the captor walks at the lead's 12. RED before: 12
+	-- mid-bind.
+	MoverKeepsTheBindStill = function(T)
+		HK.Guard(function()
+			local Mover = require(game.ReplicatedStorage.Modules.Managers.MoverManager)
+			local Rig = HK.StandIn(At(0, 0))
+			DM.Knock(Rig)
+			TK.PutPlayer(HK.FRONT)
+			T.Eq(Svc().Take(Player, Rig), true, "setup: the bind starts")
+			Mover.Movement(C, {WS = 8, JH = 0, D = 0.2})
+			task.wait(0.45)
+			local S = Svc().SessionOf(Player)
+			T.True(S ~= nil and S.State == "Binding", "setup: still binding (" .. tostring(S and S.State) .. ")")
+			T.Eq(C.Humanoid.WalkSpeed, 0, "mid-bind: no walk handed back")
+			T.True(WaitFor(2, function()
+				local X = Svc().SessionOf(Player)
+				return X ~= nil and X.State == "Held"
+			end), "Held (" .. tostring(HK.Result()) .. ")")
+			T.Eq(C.Humanoid.WalkSpeed, 12, "held: the lead's walk")
+		end)
+	end,
+
+	-- (review M6, PROPOSAL) a grab takes a target standing on the ground: one mid-traversal (Traversal "Climb", set by
+	-- hand) or in the air (dropped from 10 studs up) isn't free to grab; standing on the floor, it is (the control).
+	-- RED before: climbing and airborne targets were free.
+	GrabRefusesAirborneOrClimbing = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local Rig = HK.StandIn(At(0, 0))
+			TK.PutBehind(Rig, 3)
+			T.True(WaitFor(1, function() return Rig.Humanoid.FloorMaterial ~= Enum.Material.Air end), "setup: standing")
+			T.Eq(HS.Context(Player, Rig, "Grab").TargetFree, true, "control: standing on the floor, free to grab")
+			Rig:SetAttribute("Traversal", "Climb")
+			T.Eq(HS.Context(Player, Rig, "Grab").TargetFree, false, "climbing: not free to grab")
+			local Ok, Why = HS.Take(Player, Rig)
+			T.Eq(Ok, false, "climbing: the grab is refused")
+			T.Eq(Why, "target_busy", "the reason")
+			Rig:SetAttribute("Traversal", nil)
+			Rig:PivotTo(Rig:GetPivot() + Vector3.new(0, 10, 0))
+			T.True(WaitFor(0.5, function() return Rig.Humanoid.FloorMaterial == Enum.Material.Air end), "setup: in the air")
+			T.Eq(HS.Context(Player, Rig, "Grab").TargetFree, false, "in the air: not free to grab")
+		end)
+	end,
+
+	-- (review M8) per-player tables are pruned when a PL leaves (HostageService._Left): its struggle messages and press
+	-- window go at once; its immunity and re-take times stay while they run (a quick rejoin keeps the rules), and go
+	-- once run out (_Prune as of 700 s later, by hand: past ImmuneAfter 5 and RetakeWindow 600). RED before: no prune.
+	LeaveForgetsSpentTimes = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local _, PL = HK.Held()
+			T.Eq(HS.Struggle(PL, 1), true, "setup: the stand-in's press counted")
+			HS.Free(Player, "released")
+			local K0 = HS._Kept(PL)
+			T.True(K0 ~= nil and K0.Sends and K0.Presses and K0.ImmuneUntil and K0.Taken,
+				"setup: the stand-in is in each table")
+			HS._Left(PL)
+			local K1 = HS._Kept(PL)
+			T.Eq(K1.Sends, false, "left: its struggle messages gone")
+			T.Eq(K1.Presses, false, "left: its press window gone")
+			T.Eq(K1.ImmuneUntil, true, "its immunity kept while it runs")
+			T.Eq(K1.Taken, true, "its re-take times kept while they count")
+			HS._Prune(PL, os.clock() + 700)
+			local K2 = HS._Kept(PL)
+			T.True(not (K2.NextAt or K2.ImmuneUntil or K2.Taken), "run out: nothing kept")
+		end)
+	end,
 }
