@@ -124,6 +124,10 @@ require(ServerScriptService.RankService).Start() -- public rank / title / clan f
 require(ServerScriptService.SwimService).Start() -- deep water: the Swim traversal state (no fighting / alchemy)
 require(ServerScriptService.CombatDirector).Start() -- enemy squads: encounters, the attack token, surround positions
 require(ServerScriptService.TakedownService).Start() -- stealth takedowns (assassinations), PvE only
+do -- stealth Plan 1 Task 4: guards on radio nets (patrols, posts, look-outs), in a pcall like HostageService
+	local Ok, Err = pcall(function() require(ServerScriptService.GuardService).Start() end)
+	if not Ok then warn("[ServerHandler] GuardService.Start failed: " .. tostring(Err)) end
+end
 do -- hostages Task 5 (pre-flight P21: in a pcall, so an error can't stop the services after it)
 	local Ok, Err = pcall(function() require(ServerScriptService.HostageService).Start() end) -- hostages (player on player), PvP only
 	if not Ok then warn("[ServerHandler] HostageService.Start failed: " .. tostring(Err)) end

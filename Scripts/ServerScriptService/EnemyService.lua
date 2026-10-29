@@ -82,6 +82,22 @@ end
 
 local SPAWN_TAG = "RenseiEnemySpawn"
 local function Alchemy() return require(game:GetService("ServerScriptService").AlchemyService) end -- (lazy: it requires us)
+-- (stealth Plan 1 Task 4) GuardService, required on first use: it requires this service (Task 5), as PerceptionService
+-- reaches SwimService. If it can't load, every enemy is no guard (a stub answers), so enemies without a net are untouched.
+local GuardMod = nil
+local NO_GUARDS = {Guards = {}, Idle = function() return nil end, Interrupt = function() end,
+	Track = function() return nil end, RouteFor = function() return nil end}
+local function Guard()
+	if not GuardMod then
+		local M = game:GetService("ServerScriptService"):FindFirstChild("GuardService")
+		local Ok, G = pcall(function() return M and require(M) end)
+		if Ok and G then GuardMod = G else
+			GuardMod = NO_GUARDS
+			warn("EnemyService: GuardService didn't load, no enemy is a guard:", Ok and "missing" or G)
+		end
+	end
+	return GuardMod
+end
 local SightParams = RaycastParams.new()
 SightParams.FilterType = Enum.RaycastFilterType.Include
 local CORPSE_SECONDS = 4 -- a takedown's body (attribute TakenDownBy) stays Takedown.BodySeconds instead (assassinations Task 5),
@@ -346,6 +362,7 @@ local function Brain(E)
 			-- investigating a noise / sighting, or sweeping where it lost a player (inside the leash)
 			local Goal = PerceptionService.Goal(Rig)
 			if Goal and (Flat(Goal - E.Home.Position)).Magnitude <= Def.LeashRange then
+				Guard().Interrupt(Rig) -- (stealth Plan 1 Task 4) a guard's routine walk stops before this MoveTo (A4: one walker at a time)
 				if (Flat(Goal - Root.Position)).Magnitude > 3 then
 					Humanoid:MoveTo(Goal)
 					SetWalking(true)
@@ -355,6 +372,8 @@ local function Brain(E)
 				end
 				continue
 			end
+			local Routine = Guard().Idle(Rig) -- (stealth Plan 1 Task 4) a guard on a net keeps its routine; nil = not a guard
+			if Routine then SetWalking(Routine == "walking") continue end
 			-- leash: walk home and recover
 			local Home = E.Home.Position
 			if Flat(Home - Root.Position).Magnitude > 4 then
@@ -366,6 +385,7 @@ local function Brain(E)
 			end
 			continue
 		end
+		if Guard().Guards[Rig] then Guard().Interrupt(Rig) end -- (stealth Plan 1 Task 4) a target: the routine walk stops, the def's speed back
 
 		local TRoot = Target.HumanoidRootPart
 		local Dist = (TRoot.Position - Root.Position).Magnitude
@@ -570,6 +590,20 @@ function Spawn(Part)
 	-- notices players through sight and alert phases (PerceptionService); arena / trial foes keep distance aggro
 	if not Perception.AlwaysAware[Type] then
 		PerceptionService.Register(Rig, {Type = Perception.EnemyTypes[Type] or "Grunt", Faction = Def.Faction, Combat = true})
+	end
+	-- (stealth Plan 1 Task 4) a spawn on a radio net makes a guard (GuardService: its patrol route, post or look-out). Net,
+	-- Route and Lookout are read off RenseiEnemySpawn parts only (travel parts carry an unrelated Route attribute). No Post:
+	-- Track takes the root where BuildRig stood it on the part. A spawn without a Net is untouched.
+	local Net = CollectionService:HasTag(Part, SPAWN_TAG) and Part:GetAttribute("Net")
+	if type(Net) == "string" and Net ~= "" then
+		local Ok, Err = pcall(function()
+			local RouteName = Part:GetAttribute("Route")
+			local R = Guard().RouteFor(RouteName)
+			if RouteName ~= nil and not R then warn("EnemyService: spawn", Part:GetFullName(), "names an unknown patrol route", RouteName) end
+			Guard().Track(Rig, {Net = Net, Route = R and R.Points, Pauses = R and R.Pauses, Loop = R and R.Loop,
+				Lookout = Part:GetAttribute("Lookout") == true, Speed = Def.WalkSpeed})
+		end)
+		if not Ok then warn("EnemyService: couldn't make", Rig.Name, "a guard on", Net, Err) end
 	end
 	task.spawn(Brain, E)
 	return Rig

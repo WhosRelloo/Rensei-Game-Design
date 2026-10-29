@@ -153,5 +153,8 @@
   {"Label": "RenseiServer.RitualService", "Studio": "ServerStorage/RenseiServer/RitualService", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/RitualService.lua", "Places": ["ye", "foundry"], "Create": false},
   {"Label": "Rensei.Guard", "Studio": "ReplicatedStorage/Modules/Data/Rensei/Guard", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/Data/Rensei/Guard.lua", "Places": ["ye", "foundry"], "Create": true},
   {"Label": "RenseiTests.Test_Guard", "Studio": "ServerStorage/RenseiTests/Test_Guard", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_Guard.lua", "Places": ["ye", "foundry"], "Create": true},
-  {"Label": "RenseiTests.Play_GuardSense", "Studio": "ServerStorage/RenseiTests/Play_GuardSense", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_GuardSense.lua", "Places": ["ye", "foundry"], "Create": true}
+  {"Label": "RenseiTests.Play_GuardSense", "Studio": "ServerStorage/RenseiTests/Play_GuardSense", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_GuardSense.lua", "Places": ["ye", "foundry"], "Create": true},
+  {"Label": "RenseiServer.GuardService", "Studio": "ServerStorage/RenseiServer/GuardService", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/GuardService.lua", "Places": ["ye", "foundry"], "Create": true},
+  {"Label": "RenseiTests.GuardKit", "Studio": "ServerStorage/RenseiTests/GuardKit", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/GuardKit.lua", "Places": ["ye", "foundry"], "Create": true},
+  {"Label": "RenseiTests.Play_Guard", "Studio": "ServerStorage/RenseiTests/Play_Guard", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Guard.lua", "Places": ["ye", "foundry"], "Create": true}
 ]}
