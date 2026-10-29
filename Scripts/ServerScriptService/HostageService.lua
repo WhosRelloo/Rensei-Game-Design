@@ -176,7 +176,8 @@
 --       WINDOW of Hostage.ReleaseGrace (30 s; HostageService._ReleaseGrace shortens it in tests, read only while
 --       SeamOpen). If the released player is knocked (a landed hit, ProgressionService.HitListeners) or gripped by the
 --       ex-captor or their party inside it, nothing is paid; a grip of theirs that finishes (DownedManager.Listeners)
---       records killed_hostage, as Finish would. Someone else hurting them changes nothing. Taken again by the captor's
+--       records killed_hostage, as Finish would; a harmed window whose hostage is still knocked at its end stays open,
+--       paying nothing, until that knock ends (fix round 3, re-review N1). Someone else hurting them changes nothing. Taken again by the captor's
 --       side, the window ends unpaid (the new hold has its own deeds). Either side leaving, or a shutdown, ends it unpaid
 --       (a captor who left has no profile to record on). When it runs out unharmed: released_hostage recorded
 --       (witnessed), then THE RELEASE HEAT (ruling, spec §3 "its Heat is only half that of the original crime"): the
@@ -257,6 +258,8 @@ local MAX_RAY = 1000
 local PUT_BACK_ENDS = {teleport = true, broken = true, error = true}
 -- (Task 8 fix round 1) PROPOSAL: seconds a release window waits, at its end, for a grip still running on the released player
 local GRIP_WAIT = 10
+-- (fix round 3, re-review N1) PROPOSAL: the longest a harmed window stays open past its end while the hostage is knocked
+local KNOCK_WAIT = 120
 
 local StandIns = {} -- [Model] = PL (tests only; read only while SeamOpen)
 local ByCaptor = {} -- [Key] = S
@@ -1321,17 +1324,41 @@ local function StartPending(S, NoPay)
 		end
 	end))
 	task.delay(P.Ends - os.clock(), function()
+		local function WaitWhile(Cond, Max)
+			local T0 = os.clock()
+			while not P.Over and P.HC.Parent and Cond() and os.clock() - T0 < Max do task.wait(0.1) end
+		end
 		-- a grip running at the window's end is waited out (its own finish decides a kill); then paid unless harmed
-		local T0 = os.clock()
-		while not P.Over and P.HC.Parent and P.HC:GetAttribute("GrippedBy") and os.clock() - T0 < GRIP_WAIT do task.wait(0.1) end
+		WaitWhile(function() return P.HC:GetAttribute("GrippedBy") ~= nil end, GRIP_WAIT)
 		if P.Over then return end
-		if P.Harmed or P.NoPay then EndPending(P) else PayRelease(P) end
+		if not (P.Harmed or P.NoPay) then PayRelease(P) return end
+		-- (fix round 3, re-review N1) harmed, or a cancelled Finish's, with the hostage still knocked: the window stays open,
+		-- paying nothing, until that knock ends (a recovery, a grip's end, death), so a knock late in the window can't be
+		-- finished after it as a deed-free kill; a grip by the captor's side that kills inside it is killed_hostage (OnGrip)
+		if Alive(P.HC) and DownedManager.IsKnocked(P.HC) then
+			P.NoPay, P.Ends = true, math.huge
+			WaitWhile(function()
+				return Alive(P.HC) and (DownedManager.IsKnocked(P.HC) or P.HC:GetAttribute("GrippedBy") ~= nil)
+			end, KNOCK_WAIT)
+		end
+		EndPending(P)
 	end)
 end
 
--- (tests only) every release window dropped, nothing paid (HostageKit.Clean)
-function HostageService._ClearPending()
+local function ClearAllPending()
 	for P in pairs(Pending) do EndPending(P) end
+end
+
+-- (tests only, read while SeamOpen: fix round 3, re-review n4) every release window dropped, nothing paid
+-- (HostageKit.Clean); _PendingCount() the windows still open
+function HostageService._ClearPending()
+	if SeamOpen() then ClearAllPending() end
+end
+function HostageService._PendingCount()
+	if not SeamOpen() then return 0 end
+	local N = 0
+	for _ in pairs(Pending) do N += 1 end
+	return N
 end
 
 -- release: the hold ends at once; what it earns waits for the window
@@ -1394,7 +1421,7 @@ end
 -- the BindToClose handler (a test seam): every session released as "shutdown"
 function HostageService._Shutdown()
 	Each(function(S) Release(S, "shutdown") end)
-	HostageService._ClearPending() -- (fix round 1) release windows end unpaid
+	ClearAllPending() -- (fix round 1) release windows end unpaid
 end
 
 local Started = false

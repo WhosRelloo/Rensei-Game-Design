@@ -44,6 +44,8 @@
 --   the pipeline's own two steps.
 -- * Task 8 fix round 2 (ruling on review m2): a stun-cancelled Finish opens the same window, paying nothing; the
 --   captor's own grip that kills the still-knocked hostage inside it is killed_hostage, once.
+-- * Task 8 fix round 3 (re-review N1): a harmed window whose hostage is still knocked at its end stays open until the
+--   knock ends, so a late knock finished after the window is still killed_hostage; _PendingCount checks nothing is left.
 local SSS = game:GetService("ServerScriptService")
 local CollectionService = game:GetService("CollectionService")
 local DM = require(game.ReplicatedStorage.Modules.Managers.DownedManager)
@@ -1071,6 +1073,7 @@ return {
 				"the window ran out unharmed: released_hostage +1")
 			task.wait(0.3)
 			T.Eq(DeedCount("released_hostage") - Released0, 1, "paid once")
+			T.Eq(HS._PendingCount(), 0, "the window is gone once paid")
 			T.Near(HeatSvc().Value(Player, J), Heat0, 0.05, J .. " Heat unchanged")
 			T.Near(Player:GetAttribute("Heat_" .. J) or 0, Attr0 or 0, 0.1, "the Heat_" .. J .. " attribute unchanged")
 		end) end)
@@ -1127,6 +1130,31 @@ return {
 			T.Eq(DeedCount("killed_hostage") - Killed0, 1, "killed once")
 			T.Near(HeatSvc().Value(Player, J), Heat1, 0.5, "no Heat halving at the window's end")
 		end) end)
+	end,
+
+	-- (fix round 3, re-review N1) the ex-captor knocks the released stand-in at 60% of the window (2 s here) and grips it
+	-- after the window would have ended: the harmed window stayed open while it was down, so the kill is killed_hostage,
+	-- once, with no Mercy; then no window is left open
+	LateKnockThenKillIsAKill = function(T)
+		HK.Guard(function() KeepHeat(function() WithGrace(2, function()
+			local HS = Svc()
+			local Rig = Held(T)
+			local Killed0, Released0 = DeedCount("killed_hostage"), DeedCount("released_hostage")
+			local T0 = os.clock()
+			T.Eq(HS.Menu(Player, "Release"), true, "the choice acted")
+			task.wait(1.2)
+			KnockingHit(C, Rig)
+			T.True(DM.IsKnocked(Rig), "setup: the player's hit knocked the released stand-in at 1.2 s")
+			task.wait(math.max(0, 2.3 - (os.clock() - T0)))
+			T.True(DM.IsKnocked(Rig), "setup: still knocked after the window's 2 s")
+			T.Eq(DM.Request(C, "Grip"), "Gripped", "B after the window: the player's grip finished it")
+			T.True(Rig.Humanoid.Health <= 0, "dead")
+			T.True(WaitFor(0.5, function() return DeedCount("killed_hostage") - Killed0 == 1 end), "killed_hostage +1")
+			task.wait(0.5)
+			T.Eq(DeedCount("killed_hostage") - Killed0, 1, "recorded once")
+			T.Eq(DeedCount("released_hostage") - Released0, 0, "no Mercy")
+			T.True(WaitFor(0.5, function() return HS._PendingCount() == 0 end), "no window left open")
+		end) end) end)
 	end,
 
 	-- (fix round 1, ruling I1) someone else knocking the released player in the window changes nothing: paid at its end
