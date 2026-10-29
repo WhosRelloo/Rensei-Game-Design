@@ -19,7 +19,8 @@
 --   * Kit.Wall(At, Size): an anchored test part (SmokeKit.TempPart), removed when Guard ends.
 --   * Kit.Run(Seconds): SmokeKit.Run (PerceptionService.Step(0.2) repeated; Guard holds SetAuto(false)).
 --   * Kit.Guard(Body): saves the character's CombatMode, Crouching and Exposure (SmokeKit.Guarded saves its pivot and
---     Anchored); PerceptionService and LightService SetAuto(false); lays the floor; runs Body in a pcall; then Kit.Clean
+--     Anchored); PerceptionService and LightService SetAuto(false); (hostages Task 13) every NPC that perceives the
+--     player at that moment reset calm, so no sighting from before the case witnesses it; lays the floor; runs Body in a pcall; then Kit.Clean
 --     and the put-back. Re-raises Body's error. (Final fix F8) It refuses, with an error and before anything runs, while
 --     Kit.SnapshotArmed() is false: no hook save snapshot for the test player (see Kit.SnapshotArmed below).
 --   * Kit.Clean(): Guard's clean-up (Guard calls it; SmokeKit.Guarded then removes the parts and puts the character
@@ -211,6 +212,11 @@ function Kit.Guard(Body)
 		Saved = {}
 		for _, K in ipairs(SAVED) do Saved[K] = C:GetAttribute(K) end
 		PS.SetAuto(false); LS.SetAuto(false)
+		-- (hostages Task 13) the loop held here also holds PerceptionService's clock, so an NPC that saw the player just
+		-- before the case (the GateGuard at the station rest spot, Tobin after Play_Assault) would stay a fresh witness
+		-- of every deed on the floor: each NPC that perceives the player now starts the case calm (PerceptionService.Reset,
+		-- as Kit.Spawn does for the kit's own rigs). No rig of the case exists yet.
+		for _, S in ipairs(PS.Perceived(Kit.Player())) do PS.Reset(S.Rig) end
 		SmokeKit.TempPart({Name = "Takedown_Floor", Size = FLOOR, CFrame = CFrame.new(Kit.Spot() - Vector3.new(0, FLOOR.Y / 2, 0))})
 	end, Kit.Clean)
 end

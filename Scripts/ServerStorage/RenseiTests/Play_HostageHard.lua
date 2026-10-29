@@ -29,6 +29,9 @@
 --   a hostage at the gate is judged as the pair (m7 of the review); a light attack leaves the captor at LeadSpeed (m6);
 --   a second Rebase keeps the first's echo (m3); the no-wall-window case goes through the wall ray (m8); the heavy works
 --   again after Free (m1). The captor's dash (no i-frames, no stamina) is a real-client check in client_checks.lua.
+-- * Task 13 (the sweep's perception leak): an NPC off the floor that saw the player just before a case doesn't carry
+--   that sighting into it (TakedownKit.Guard holds PerceptionService's clock, so a fresh sighting would otherwise stay
+--   fresh for the whole case and witness kit-floor deeds: the GateGuard at the station rest spot, Tobin after Play_Assault).
 local DM = require(game.ReplicatedStorage.Modules.Managers.DownedManager)
 local ServerStorage = game:GetService("ServerStorage")
 local SSS = game:GetService("ServerScriptService")
@@ -326,6 +329,50 @@ return {
 		T.True(tostring(Err):find("snapshot", 1, true) ~= nil, "it says why: " .. tostring(Err))
 		HK.Guard(function() Ran = true end)
 		T.Eq(Ran, true, "control: both true, the case runs")
+	end,
+
+	-- (Task 13) a real watcher (RenseiWatcher, tracked by PerceptionService, not one of the kit's rigs) glimpses the
+	-- player from a few studs in front just before a case; inside HostageKit.Guard nobody perceives the player any more
+	-- (PerceptionService.Perceived: what WitnessService.Capture reads), so no deed on the floor is witnessed from town.
+	-- The watcher is reset and the player put back after.
+	GuardForgetsRealSightings = function(T)
+		local PS = require(SSS.PerceptionService)
+		local Home = C:GetPivot()
+		local W
+		local function Sees()
+			for _, S in ipairs(PS.Perceived(Player)) do if S.Rig == W then return true end end
+			return false
+		end
+		local Inside
+		local Ok, Err = pcall(function()
+			-- the first watcher that sees the player from a few studs in front (a crate or a wall can block one)
+			for _, M in ipairs(CollectionService:GetTagged("RenseiWatcher")) do
+				if M:IsDescendantOf(workspace) and PS.Tracks(M) and M:FindFirstChild("Head") and M:FindFirstChild("HumanoidRootPart") then
+					W = M
+					local R = M.HumanoidRootPart
+					for _, D in ipairs({4, 6, 8, 3}) do
+						local Pos = R.Position + R.CFrame.LookVector * D
+						C:PivotTo(CFrame.lookAt(Pos, Vector3.new(R.Position.X, Pos.Y, R.Position.Z)))
+						task.wait(0.3)
+						PS.Glimpse(Player)
+						if Sees() then break end
+					end
+					if Sees() then break end
+					PS.Reset(M)
+					W = nil
+				end
+			end
+			T.True(W ~= nil and Sees(), "setup: a real watcher saw the player just before the case")
+			HK.Guard(function()
+				Inside = {}
+				for _, S in ipairs(PS.Perceived(Player)) do table.insert(Inside, S.Rig.Name) end
+			end)
+		end)
+		PS.Reset(W)
+		C:PivotTo(Home)
+		C.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
+		T.True(Ok, tostring(Err))
+		T.Eq(#Inside, 0, "nobody perceives the player inside the case (" .. table.concat(Inside, ", ") .. ")")
 	end,
 
 	-- ===== Task 6: the led pair policed (R1) =====
