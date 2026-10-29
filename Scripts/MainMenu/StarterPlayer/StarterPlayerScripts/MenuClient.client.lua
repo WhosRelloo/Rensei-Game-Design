@@ -55,7 +55,14 @@ local KIT = {
 	Knob = Asset(128415338450308), -- settings slider knob
 	Popup = Asset(113461270613481), -- party invite frame
 	Notice = Asset(77443838607606), -- notification bar
-	Close = Asset(74304540828981), -- round X
+	Close = Asset(74304540828981), -- round X (also: delete)
+	Add = Asset(95124452394131), -- round plus (HUD2.Infos.Search.AddButton)
+	Eye = Asset(123791308611610), -- round eye (Stats.Left.Head.EyeButton): edit a look
+	Box = Asset(82831116484275), -- quest task status box (Templates.QuestTask.Status): the favourite toggle
+	Tick = Asset(131162468888379), -- its checkmark (QuestTask.Status.Checkmark)
+	Chevron = Asset(93094632665405), -- quest header arrow, pointing up (Templates.QuestHeader.Arrows.Top)
+	BarFrame = Asset(115089601400579), -- level bar (Stats.MainFrame.LevelBar)
+	BarFill = Asset(120303756099496), -- its fill (LevelBar.Bar)
 	Frame = { -- item rarity frames
 		Common = Asset(107439985664209), Rare = Asset(103069874398717), Epic = Asset(135582023783036), Legendary = Asset(85590690711772),
 	},
@@ -77,6 +84,7 @@ local GOLD = Color3.fromRGB(230, 205, 120)
 local TEXT = Color3.fromRGB(225, 220, 210)
 local DIM = Color3.fromRGB(150, 142, 130)
 local LINE = Color3.fromRGB(90, 80, 62)
+local MIN_TEXT = 15 -- (owner 2026-10-28, the menu audit: no words smaller than this)
 local IDLE = "rbxassetid://99650759123617" -- RSEI Animations.Shared.Movement.Default.Idle
 local CLAP = "rbxassetid://115558611088872" -- RSEI Animations.Shared.Alchemy.Alchemy_Clap
 
@@ -92,6 +100,7 @@ local function Label(Text, Props)
 	local L = New("TextLabel", {BackgroundTransparency = 1, Text = Text, FontFace = FONT, TextColor3 = TEXT, TextSize = 18,
 		TextXAlignment = Enum.TextXAlignment.Left, Size = UDim2.new(1, 0, 0, 22), TextWrapped = true})
 	for K, V in pairs(Props or {}) do L[K] = V end
+	if not L.TextScaled and L.TextSize < MIN_TEXT then L.TextSize = MIN_TEXT end
 	return L
 end
 
@@ -108,13 +117,27 @@ local function Button(Text, Image, Props)
 	Label(Text, {Name = "Label", FontFace = FONT_B, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Center,
 		Size = UDim2.fromScale(1, 1), TextWrapped = false, Parent = B})
 	for K, V in pairs(Props or {}) do
-		if K == "TextSize" or K == "TextColor3" then B.Label[K] = V else B[K] = V end
+		if K == "TextSize" then B.Label.TextSize = math.max(V, MIN_TEXT)
+		elseif K == "TextColor3" then B.Label[K] = V else B[K] = V end
 	end
 	B.MouseEnter:Connect(function() if not B:GetAttribute("On") then B.ImageColor3 = Color3.fromRGB(255, 240, 210) B.Label.TextColor3 = GOLD end end)
 	B.MouseLeave:Connect(function() if not B:GetAttribute("On") then B.ImageColor3 = Color3.new(1, 1, 1) B.Label.TextColor3 = B:GetAttribute("Color") or TEXT end end)
 	return B
 end
 local function SetText(B, Text) B.Label.Text = Text end
+
+-- one of the kit's round icons as a button (gold on hover); Tick = the checkmark drawn in it (the favourite box)
+local function IconButton(Image, Props, Tick)
+	local B = New("ImageButton", {BackgroundTransparency = 1, Image = Image, ScaleType = Enum.ScaleType.Fit, AutoButtonColor = false})
+	for K, V in pairs(Props) do B[K] = V end
+	if Tick then
+		New("ImageLabel", {Name = "Tick", BackgroundTransparency = 1, Image = KIT.Tick, ScaleType = Enum.ScaleType.Fit, Size = UDim2.fromScale(0.8, 0.8),
+			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.55, 0.45), ZIndex = B.ZIndex + 1, Parent = B})
+	end
+	B.MouseEnter:Connect(function() B.ImageColor3 = Color3.fromRGB(255, 220, 150) end)
+	B.MouseLeave:Connect(function() B.ImageColor3 = Color3.new(1, 1, 1) end)
+	return B
+end
 
 local function SetOn(B, On)
 	B:SetAttribute("On", On)
@@ -478,8 +501,10 @@ local BackBtn = Button("BACK", KIT.Plate, {Name = "Back", TextSize = 16, Size = 
 -- turn buttons under the rig (while creating)
 local TurnBar = New("Frame", {Name = "Turn", BackgroundTransparency = 1, Size = UDim2.new(0, 300, 0, 40), AnchorPoint = Vector2.new(0.5, 1),
 	Position = UDim2.new(0.56, 0, 1, -40), Visible = false, Parent = Gui})
-for _, T in ipairs({{"TurnLeft", "<", 1, 0}, {"TurnRight", ">", -1, 1}}) do
-	local B = Button(T[2], KIT.Plate, {Name = T[1], TextSize = 22, Size = UDim2.new(0, 60, 1, 0), Position = UDim2.new(T[4], T[4] == 1 and -60 or 0, 0, 0), Parent = TurnBar})
+for _, T in ipairs({{"TurnLeft", -90, 1, 0}, {"TurnRight", 90, -1, 1}}) do
+	local B = Button("", KIT.Plate, {Name = T[1], Size = UDim2.new(0, 60, 1, 0), Position = UDim2.new(T[4], T[4] == 1 and -60 or 0, 0, 0), Parent = TurnBar})
+	New("ImageLabel", {Name = "Arrow", BackgroundTransparency = 1, Image = KIT.Chevron, ScaleType = Enum.ScaleType.Fit, Rotation = T[2],
+		Size = UDim2.fromOffset(24, 24), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Parent = B})
 	B.MouseButton1Down:Connect(function() Spin = T[3] end)
 	B.MouseButton1Up:Connect(function() Spin = 0 end)
 	B.MouseLeave:Connect(function() Spin = 0 end)
@@ -583,11 +608,13 @@ end
 
 -- colour swatches
 local function Swatches(Parent, Order, OrderList, Colors, Field, OnPick)
-	local G = Grid(Parent, Order, UDim2.fromOffset(40, 40))
+	local G = Grid(Parent, Order, UDim2.fromOffset(46, 46))
 	local Tiles = {}
 	for I, Id in ipairs(OrderList) do
-		local T = New("TextButton", {Name = Id, Text = "", BackgroundColor3 = Colors[Id], AutoButtonColor = false, LayoutOrder = I, Parent = G},
-			{Corner(3), New("UIStroke", {Color = LINE, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border})})
+		local T = New("ImageButton", {Name = Id, BackgroundTransparency = 1, Image = KIT.Frame.Common, ScaleType = Enum.ScaleType.Stretch,
+			AutoButtonColor = false, LayoutOrder = I, Parent = G})
+		New("Frame", {Name = "Swatch", BackgroundColor3 = Colors[Id], BorderSizePixel = 0, Size = UDim2.fromScale(0.62, 0.62),
+			Position = UDim2.fromScale(0.19, 0.19), ZIndex = 0, Parent = T}, {Corner(3)})
 		Tiles[Id] = T
 		T.Activated:Connect(function()
 			Choice.Appearance[Field] = Id
@@ -598,9 +625,7 @@ local function Swatches(Parent, Order, OrderList, Colors, Field, OnPick)
 	end
 	return function()
 		for Id, T in pairs(Tiles) do
-			local On = Choice.Appearance[Field] == Id
-			T.UIStroke.Color = On and GOLD or LINE
-			T.UIStroke.Thickness = On and 3 or 1
+			T.Image = Choice.Appearance[Field] == Id and KIT.Frame.Legendary or KIT.Frame.Common
 		end
 	end
 end
@@ -715,8 +740,9 @@ local function ColorWheel(Parent, Order, Field, ColorOf)
 	-- the colour + the ID-hair option
 	local Side = New("Frame", {BackgroundTransparency = 1, Size = UDim2.new(1, -(R * 2 + 24), 1, 0), Position = UDim2.fromOffset(R * 2 + 20, 0), Parent = Row})
 	List(Side, 8)
-	local Chip = New("Frame", {Size = UDim2.fromOffset(64, 40), BorderSizePixel = 0, LayoutOrder = 1, Parent = Side}, {Corner(3),
-		New("UIStroke", {Color = GOLD, Thickness = 1, Transparency = 0.3})})
+	-- the picked colour, in the kit's item frame (as the swatches are)
+	local ChipFrame = Plate(KIT.Frame.Legendary, {Size = UDim2.fromOffset(58, 58), LayoutOrder = 1, Parent = Side})
+	local Chip = New("Frame", {BorderSizePixel = 0, Size = UDim2.fromScale(0.62, 0.62), Position = UDim2.fromScale(0.19, 0.19), ZIndex = 0, Parent = ChipFrame}, {Corner(3)})
 	local Hex = Label("", {TextColor3 = DIM, TextSize = 14, LayoutOrder = 2, Parent = Side})
 	local Own = Button("", KIT.Plate, {Name = "OwnColors", TextSize = 13, Size = UDim2.new(1, 0, 0, 34), LayoutOrder = 3, Visible = IsHair, Parent = Side})
 	Label(IsHair and "ID hairs: tinted with this colour, or kept in their own colours." or "Any skin colour. Pick a swatch above to go back to a preset.",
@@ -851,16 +877,14 @@ do
 	local Kind = Label("", {TextColor3 = DIM, TextSize = 14, Size = UDim2.new(1, 0, 0, 16), LayoutOrder = 2, Parent = WCard})
 	local Desc = Label("", {TextSize = 15, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 3, Parent = WCard})
 	local function Bar(Order, Text)
-		local Row = New("Frame", {BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 18), LayoutOrder = Order, Parent = WCard})
+		local Row = New("Frame", {BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 20), LayoutOrder = Order, Parent = WCard})
 		Label(Text, {Size = UDim2.new(0.28, 0, 1, 0), TextColor3 = DIM, TextSize = 14, Parent = Row})
-		local Track = New("Frame", {BackgroundColor3 = Color3.fromRGB(20, 18, 16), BorderSizePixel = 0, Size = UDim2.new(0.44, 0, 0, 8),
-			Position = UDim2.new(0.28, 0, 0.5, -4), Parent = Row}, {Corner(4), New("UIStroke", {Color = LINE, Thickness = 1})})
-		local Fill = New("Frame", {BackgroundColor3 = GOLD, BackgroundTransparency = 0.1, BorderSizePixel = 0, Size = UDim2.new(0, 0, 0, 4),
-			Position = UDim2.new(0, 2, 0.5, -2), Parent = Track}, {Corner(2)})
+		local Track = Plate(KIT.BarFrame, {Size = UDim2.new(0.44, 0, 0, 14), Position = UDim2.new(0.28, 0, 0.5, -7), Parent = Row})
+		local Fill = Plate(KIT.BarFill, {Size = UDim2.new(0, 0, 1, -6), Position = UDim2.new(0, 3, 0, 3), ScaleType = Enum.ScaleType.Stretch, Parent = Track})
 		local Value = Label("", {Size = UDim2.new(0.28, -6, 1, 0), Position = UDim2.new(0.72, 6, 0, 0), TextSize = 14,
 			TextXAlignment = Enum.TextXAlignment.Right, Parent = Row})
 		return function(Frac, Txt)
-			TweenService:Create(Fill, TweenInfo.new(0.2), {Size = UDim2.new(math.clamp(Frac, 0.04, 1), -4, 0, 4)}):Play()
+			TweenService:Create(Fill, TweenInfo.new(0.2), {Size = UDim2.new(math.clamp(Frac, 0.04, 1), -6, 1, -6)}):Play()
 			Value.Text = Txt
 		end
 	end
@@ -1389,13 +1413,10 @@ local function SlotCard(Order, Tier, Title, Lines, OnClick)
 end
 
 -- small round icon button in a slot card's corner (star / trash)
-local function CardIcon(Holder, Name, Glyph, Color, Right, OnClick)
-	local B = New("TextButton", {Name = Name, Text = Glyph, FontFace = Font.new("rbxasset://fonts/families/BuilderSans.json", Enum.FontWeight.Bold),
-		TextSize = 16, TextColor3 = Color, BackgroundColor3 = Color3.fromRGB(12, 11, 10), BackgroundTransparency = 0.15, AutoButtonColor = false,
-		Size = UDim2.fromOffset(24, 24), AnchorPoint = Vector2.new(Right and 1 or 0, 0), Position = UDim2.new(Right and 1 or 0, Right and -20 or 20, 0, 20),
-		ZIndex = 8, Parent = Holder}, {New("UICorner", {CornerRadius = UDim.new(1, 0)}), New("UIStroke", {Color = LINE, Thickness = 1})})
-	B.MouseEnter:Connect(function() B.UIStroke.Color = GOLD end)
-	B.MouseLeave:Connect(function() B.UIStroke.Color = LINE end)
+-- (Image = a kit icon; Ticked: the favourite box with its checkmark)
+local function CardIcon(Holder, Name, Image, Ticked, Right, OnClick)
+	local B = IconButton(Image, {Name = Name, Size = UDim2.fromOffset(26, 26), AnchorPoint = Vector2.new(Right and 1 or 0, 0),
+		Position = UDim2.new(Right and 1 or 0, Right and -18 or 18, 0, 18), ZIndex = 8, Parent = Holder}, Ticked)
 	B.Activated:Connect(OnClick)
 	return B
 end
@@ -1591,13 +1612,10 @@ local function CardText(B, Text, Props)
 	return L
 end
 
-local function SmallIcon(B, Name, Glyph, Color, Index, OnClick)
-	local I = New("TextButton", {Name = Name, Text = Glyph, FontFace = Font.new("rbxasset://fonts/families/BuilderSans.json", Enum.FontWeight.Bold),
-		TextSize = 13, TextColor3 = Color, BackgroundColor3 = Color3.fromRGB(12, 11, 10), BackgroundTransparency = 0.2, AutoButtonColor = false,
-		Size = UDim2.fromOffset(18, 18), AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -16 - (Index - 1) * 22, 1, -6), ZIndex = 9, Parent = B},
-		{New("UICorner", {CornerRadius = UDim.new(1, 0)}), New("UIStroke", {Color = LINE, Thickness = 1})})
-	I.MouseEnter:Connect(function() I.UIStroke.Color = GOLD end)
-	I.MouseLeave:Connect(function() I.UIStroke.Color = LINE end)
+-- a card's kit icon (bottom right, right to left): delete, edit, favourite
+local function SmallIcon(B, Name, Image, Index, OnClick, Ticked)
+	local I = IconButton(Image, {Name = Name, Size = UDim2.fromOffset(22, 22), AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -14 - (Index - 1) * 25, 1, -4), ZIndex = 9, Parent = B}, Ticked)
 	I.Activated:Connect(OnClick)
 	return I
 end
@@ -1687,18 +1705,18 @@ local function ShowPainted()
 			local Tier = Clan and Clan.Rarity
 			CardText(B, S.Name, {FontFace = FONT_B, TextSize = 17, TextColor3 = Color3.fromRGB(232, 226, 214), Size = UDim2.new(0, 170, 0, 20), Position = UDim2.fromOffset(76, 10)})
 			CardText(B, ("Lv %d%s"):format(S.Level, Tier and (" · <font color='#%s'>%s</font>"):format(RARITY_HEX[Tier] or "e0d8c8", Clan.Name) or ""),
-				{TextSize = 13, TextColor3 = DIM, Size = UDim2.new(0, 170, 0, 16), Position = UDim2.fromOffset(76, 32)})
+				{TextSize = 15, TextColor3 = DIM, Size = UDim2.new(0, 160, 0, 18), Position = UDim2.fromOffset(76, 33)})
 			local Region = RegionNames[S.Region] and RegionNames[S.Region].Name or (S.Region ~= "" and S.Region or "")
-			CardText(B, Region, {TextSize = 13, TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Right, Size = UDim2.new(0, 120, 0, 16), Position = UDim2.new(1, -136, 0, 10)})
-			CardText(B, Customization.Nations[S.Origin] and Customization.Nations[S.Origin].Name or "", {TextSize = 12, TextColor3 = DIM,
-				TextXAlignment = Enum.TextXAlignment.Right, Size = UDim2.new(0, 120, 0, 14), Position = UDim2.new(1, -136, 0, 27)})
+			CardText(B, Region, {TextSize = 15, TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Right, Size = UDim2.new(0, 110, 0, 18), Position = UDim2.new(1, -124, 0, 8)})
+			CardText(B, Customization.Nations[S.Origin] and Customization.Nations[S.Origin].Name or "", {TextSize = 15, TextColor3 = DIM,
+				TextXAlignment = Enum.TextXAlignment.Right, Size = UDim2.new(0, 84, 0, 18), Position = UDim2.new(1, -176, 0, 33)})
 			local Fav = S.Slot == Info.Favorite
-			SmallIcon(B, "Trash", "✕", Color3.fromRGB(220, 110, 100), 1, function()
+			SmallIcon(B, "Trash", KIT.Close, 1, function()
 				Pending = S.Slot
 				ConfirmText.Text = ("Delete <b>%s</b> in slot %d?\nThis can't be undone."):format(S.Name, S.Slot)
 				Confirm.Visible = true
 			end)
-			SmallIcon(B, "Edit", "✎", TEXT, 2, function()
+			SmallIcon(B, "Edit", KIT.Eye, 2, function()
 				if Opening then return end
 				Opening = true
 				local Ok, Msg, State = Remote:InvokeServer("Open", S.Slot)
@@ -1707,11 +1725,11 @@ local function ShowPainted()
 				Adopt(State)
 				EnterCreator(S.Slot, State.Identity.CharacterCreated == true)
 			end)
-			SmallIcon(B, "Star", Fav and "★" or "☆", Fav and GOLD or DIM, 3, function()
+			SmallIcon(B, "Star", KIT.Box, 3, function()
 				local Ok, Msg = Remote:InvokeServer("Favorite", S.Slot)
 				if not Ok then Say(Msg or "Couldn't star that slot.") end
 				ShowSlots()
-			end)
+			end, Fav)
 		else
 			table.insert(Empty, S.Slot)
 			B = PaintedCard(Order, function()
@@ -1724,7 +1742,7 @@ local function ShowPainted()
 				EnterCreator(S.Slot, false)
 			end)
 			CardText(B, "CREATE CHARACTER", {FontFace = FONT_B, TextSize = 17, TextColor3 = TEXT, Size = UDim2.new(0, 220, 0, 22), Position = UDim2.fromOffset(28, 21)})
-			CardText(B, "Slot " .. S.Slot, {TextSize = 12, TextColor3 = DIM, TextXAlignment = Enum.TextXAlignment.Right, Size = UDim2.new(0, 80, 0, 16), Position = UDim2.new(1, -96, 0, 24)})
+			CardText(B, "Slot " .. S.Slot, {TextSize = 15, TextColor3 = DIM, TextXAlignment = Enum.TextXAlignment.Right, Size = UDim2.new(0, 80, 0, 18), Position = UDim2.new(1, -96, 0, 23)})
 		end
 	end
 	if Backdrop then Backdrop:SetAlcoves(Markers.alcoves, Empty) end
@@ -1733,7 +1751,9 @@ local function ShowPainted()
 			if not Info.CanBuy then Say("Slot purchases aren't set up yet.") return end
 			MarketplaceService:PromptProductPurchase(Player, Slots.ProductId)
 		end)
-		CardText(B, "NEW SLOT", {FontFace = FONT_B, TextSize = 17, TextColor3 = DIM, Size = UDim2.new(0, 160, 0, 22), Position = UDim2.fromOffset(28, 21)})
+		New("ImageLabel", {Name = "Add", BackgroundTransparency = 1, Image = KIT.Add, ScaleType = Enum.ScaleType.Fit, Size = UDim2.fromOffset(28, 28),
+			Position = UDim2.fromOffset(24, 18), ZIndex = 8, Parent = B})
+		CardText(B, "NEW SLOT", {FontFace = FONT_B, TextSize = 17, TextColor3 = DIM, Size = UDim2.new(0, 160, 0, 22), Position = UDim2.fromOffset(60, 21)})
 		CardText(B, ("R$ %d"):format(PriceOf(Slots.ProductId, Info.Price)), {FontFace = FONT_B, TextSize = 16, TextColor3 = GOLD,
 			TextXAlignment = Enum.TextXAlignment.Right, Size = UDim2.new(0, 90, 0, 20), Position = UDim2.new(1, -106, 0, 22)})
 	end
@@ -1776,12 +1796,12 @@ ShowSlots = function()
 		end)
 		SlotB.Name = "Slot" .. S.Slot
 		local Fav = S.Slot == Info.Favorite
-		CardIcon(SlotB, "Star", Fav and "★" or "☆", Fav and GOLD or DIM, false, function()
+		CardIcon(SlotB, "Star", KIT.Box, Fav, false, function()
 			local Ok, Msg = Remote:InvokeServer("Favorite", S.Slot)
 			if not Ok then Say(Msg or "Couldn't star that slot.") end
 			ShowSlots()
 		end)
-		CardIcon(SlotB, "Trash", "🗑", S.Created and Color3.fromRGB(220, 110, 100) or DIM, true, function()
+		CardIcon(SlotB, "Trash", KIT.Close, false, true, function()
 			if not S.Created then Say("That slot is already empty.") return end
 			Pending = S.Slot
 			ConfirmText.Text = ("Delete <b>%s</b> in slot %d?\nThis can't be undone."):format(S.Name, S.Slot)
