@@ -21,6 +21,14 @@
 --     [{"action": "keyDown", "key_code": "W"}, {"action": "wait", "wait_time_ms": <HoldMs>}, {"action": "keyUp", "key_code": "W"}]}'
 -- (poll ReplicatedStorage.HostageChecks_TEMP_Remote:GetAttribute("KeySeq") in the Server data model about once a second
 -- while this file runs). With no press in KEY_WAIT seconds the case fails, saying no press arrived.
+-- (hostages Task 12) OTHER REAL INPUT: when the Remote's attribute Input is set (JSON {"kind": "keyboard" | "mouse",
+-- "actions": [...]}) as KeySeq rises, the runner sends those actions instead of the W hold, through user_keyboard_input
+-- or user_mouse_input (datamodel Client; a mouse action may name an instance_path such as
+-- "LocalPlayer.PlayerGui.Uis.EmoteWheel.Slot1"), and then sets the Remote's attribute InputDone to that KeySeq (the
+-- runner sets InputDone after a W hold too). A case waits for InputDone, up to KEY_WAIT.
+-- (hostages Task 12) STAND-IN PLAYERS FOR THE PROMPT: the server half registers each stand-in rig's name in the
+-- ReplicatedStorage StringValue HostageTestPlayers (comma list; made and removed by this file), which the client half
+-- copies into TakedownUI.TestPlayers (read in Studio only), so the player prompt sees the rig as a player.
 -- The cases:
 --   * ClientSprintClamped (the player the captor of a stand-in): the client writes its own WalkSpeed 24 every frame and
 --     W is held 2 s. The server reads the captor's ground displacement <= 42 studs (LeadAllowance(1) x 2 + 1) AND
@@ -46,6 +54,33 @@
 --     charges the stamina and grants them). Holding: the server grants no IFrame status and spends no stamina (the
 --     dash's movement itself is the client's, bounded by the lead clamp; its displacement is noted). Control: freed,
 --     the same dash gets its IFrame and costs its stamina (TuningConfig.Dash.Stamina 20, written by hand).
+-- (hostages Task 12: the client -- TakedownUI's player prompt, HostageUI, EmoteWheelUI.Menu, MobileControls; pre-flight
+-- P7, P8, P19, P26. Every expectation is written by hand: BindRange 6, GrabRange 4, BindTime 1.5 s, the texts.)
+--   * PromptOnKnockedPlayer: a knocked stand-in 3 studs away -> a TakedownPrompt on the takedown key with ActionText
+--     "Take hostage", ObjectText the rig's name and HoldDuration 0 within 0.5 s; the player moved 9 studs away -> gone.
+--   * PromptInCombatMode (P8): the same with the player in Combat Mode -> "Take hostage" (CheckTake has no calm gate).
+--   * PromptGrabBehindOnly: a standing stand-in with the player 3 studs behind -> "Grab"; in front -> none; behind again
+--     but the rig GrabImmuneUntil 5 s from now -> none.
+--   * PromptHiddenWhileOff: a knocked stand-in in reach, the client's own copy of ReplicatedStorage's TestNoSave set
+--     false (as a live game, where Rensei.Hostage.Enabled is false, sees it) -> no prompt; put back -> the prompt.
+--   * EnemyWins: a kit Grunt with the player 3 studs behind it AND a knocked stand-in 3 studs from the player -> the
+--     prompt sits on the Grunt (its takedown text), none on the stand-in.
+--   * TriggerTakes: Prompt:InputHoldBegin(), InputHoldEnd() -> within BindTime + 1 = 2.5 s the character has Holding.
+--   * BarsShow: the captor: HostageTime visible, Head "Holding", its fill in (0, 1]; no struggle bar. The hostage:
+--     HostageTime Head "Held", HostageStruggle visible (Head "Struggle", its fill the Struggle attribute's), the plate
+--     "Held by <rig name>".
+--   * CaptorWheel: a real press of the takedown key while Held -> the wheel open as "Hostage" with Release, Finish and
+--     Ransom (Ransom locked: no party); the pointer on Release shows "Let them go" (gold, never "Your hands are full",
+--     P7); a real click on it -> the hold ends "released" (LastHostageResult "Bind:released").
+--   * CaptorWheelInCombat (P7): the same with the player in Combat Mode: the wheel stays open and the click releases.
+--   * CaptorRansomTiers: a stand-in of the hostage's party present -> Ransom open; a real click on it -> a second wheel
+--     "Ransom" of "$50", "$500", "$1000", "$2000" (level 20); a real click on "$500" -> the server's demand is $500.
+--   * StrugglePresses (the real player as the hostage): ten real F presses within 2 s (the runner sends them 40 ms
+--     apart; the client's own clock must see all ten within 2 s, a setup check) -> the server's Struggle grew
+--     and it received at least 1 and at most 8 Struggle messages (HostageService._Sends, read only; P9), fewer than 10.
+--   * TouchButtons (P19): the Player attribute ForceMobileControls = true. Free: neither HOSTAGE nor STRUGGLE. The
+--     captor: HOSTAGE (GRIP hidden); a real click on it opens the wheel. The hostage in Combat Mode: STRUGGLE, BLOCK
+--     hidden; a real click on STRUGGLE sends one Struggle message.
 -- ONLY: "" runs every check; else a comma list of check names.
 local ONLY = ""
 
@@ -62,10 +97,28 @@ local Down, Up = 0, 0 -- W presses seen since this script started (the runner's,
 local DownAt, HeldFor = 0, 0 -- when the last W went down, and how long the last one was held (client clock)
 UIS.InputBegan:Connect(function(Input) if Input.KeyCode == Enum.KeyCode.W then Down += 1 DownAt = os.clock() end end)
 UIS.InputEnded:Connect(function(Input) if Input.KeyCode == Enum.KeyCode.W then Up += 1 HeldFor = os.clock() - DownAt end end)
+-- (Task 12) the Block key's presses as the client saw them (client clock): StrugglePresses reads how many and their span
+local Presses = {}
+UIS.InputBegan:Connect(function(Input)
+	if Input.KeyCode == require(ReplicatedStorage.Modules.Managers.Keybinds).Get("Block") then table.insert(Presses, os.clock()) end
+end)
 
 local function Char() return Player.Character end
 local function Hum() return Char():FindFirstChildOfClass("Humanoid") end
 local SprintConn, WasWS = nil, nil
+
+-- (Task 12) the client's own UI modules (the tables UIHandler started); nil before they exist (RED)
+local function UI(Name)
+	local M = ReplicatedStorage.Modules.UI:FindFirstChild(Name)
+	return M and require(M) or nil
+end
+local function Need(Name) return assert(UI(Name), "no " .. Name .. " module") end
+local OffWas = nil -- the TestNoSave attribute's replicated value, while HostagesOff has the client's copy set false
+local function PromptOf(Rig)
+	local Root = Rig and Rig:FindFirstChild("HumanoidRootPart")
+	local P = Root and Root:FindFirstChild("TakedownPrompt")
+	return P and P:IsA("ProximityPrompt") and P or nil
+end
 
 local Checks = {}
 function Checks.Ping() return true end
@@ -132,8 +185,133 @@ function Checks.Dash()
 	return true
 end
 
+-- (Task 12) the stand-in names the server half registered, copied into TakedownUI.TestPlayers
+function Checks.TestPlayers()
+	local TD = Need("TakedownUI")
+	local V = ReplicatedStorage:FindFirstChild("HostageTestPlayers")
+	local Set = {}
+	for Name in ((V and V.Value) or ""):gmatch("[^,]+") do Set[Name] = true end
+	TD.TestPlayers = Set
+	return true
+end
+function Checks.KeyName()
+	return Need("TakedownUI").Key().Name
+end
+-- Args: Rig, Want (true: a TakedownPrompt under its root whose ActionText is Action when given; false: none), Within s
+function Checks.Prompt(Args)
+	local T0 = os.clock()
+	local function Met()
+		local P = PromptOf(Args.Rig)
+		if not Args.Want then return P == nil end
+		return P ~= nil and (Args.Action == nil or P.ActionText == Args.Action)
+	end
+	while not Met() and os.clock() - T0 < Args.Within do RunService.RenderStepped:Wait() end
+	local P = PromptOf(Args.Rig)
+	return {Ok = Met(), After = os.clock() - T0, ObjectText = P and P.ObjectText, ActionText = P and P.ActionText,
+		Key = P and P.KeyboardKeyCode.Name, Hold = P and P.HoldDuration, Style = P and P.Style.Name}
+end
+-- Args: Rig: its prompt pressed as a key would press it, then let go
+function Checks.Press(Args)
+	local P = PromptOf(Args.Rig)
+	assert(P, "no TakedownPrompt under the rig to press")
+	P:InputHoldBegin()
+	task.wait(0.05)
+	P:InputHoldEnd()
+	return true
+end
+-- Args: Off: the client's own copy of ReplicatedStorage's TestNoSave set false (true), or put back (false)
+function Checks.HostagesOff(Args)
+	if Args.Off then
+		if OffWas == nil then OffWas = ReplicatedStorage:GetAttribute("TestNoSave") end
+		ReplicatedStorage:SetAttribute("TestNoSave", false)
+	elseif OffWas ~= nil then
+		ReplicatedStorage:SetAttribute("TestNoSave", OffWas)
+		OffWas = nil
+	end
+	return ReplicatedStorage:GetAttribute("TestNoSave")
+end
+-- Args: State, Within: HostageUI's last payload reaches that State
+function Checks.Hostage(Args)
+	local H = Need("HostageUI")
+	local T0 = os.clock()
+	while H.Now.State ~= Args.State and os.clock() - T0 < (Args.Within or 0) do task.wait() end
+	return {State = H.Now.State, Role = H.Now.Role, Options = #(H.Now.Options or {})}
+end
+-- the bars and the plate as drawn now (Args.Within: wait that long for the time bar to show)
+function Checks.Bars(Args)
+	local HUD = Player.PlayerGui.Uis.HUD
+	local T0 = os.clock()
+	local function Bar(Name)
+		local B = HUD:FindFirstChild(Name)
+		local Head = B and B:FindFirstChild("Head")
+		return {Exists = B ~= nil, Visible = B ~= nil and B.Visible, Head = Head and Head.Text, Fill = B and B:GetAttribute("Fill")}
+	end
+	while not Bar("HostageTime").Visible and os.clock() - T0 < (Args.Within or 0) do RunService.RenderStepped:Wait() end
+	RunService.RenderStepped:Wait()
+	return {Time = Bar("HostageTime"), Struggle = Bar("HostageStruggle"), Plate = Bar("HostagePlate")}
+end
+-- Args: Title, Within: the wheel's open menu (EmoteWheelUI.MenuOpen) once it has that Title
+function Checks.Menu(Args)
+	local W = Need("EmoteWheelUI")
+	assert(W.MenuOpen, "EmoteWheelUI has no menu mode")
+	local T0 = os.clock()
+	local function Got()
+		local M = W.MenuOpen()
+		return M ~= nil and (Args.Title == nil or M.Title == Args.Title) and M or nil
+	end
+	while not Got() and os.clock() - T0 < (Args.Within or 0) do RunService.RenderStepped:Wait() end
+	local M = Got()
+	if not M then return {Open = false, Title = W.MenuOpen() and W.MenuOpen().Title} end
+	local Ids, Texts, Locked, Slots = {}, {}, {}, {}
+	for _, It in ipairs(M.Items) do
+		table.insert(Ids, tostring(It.Id))
+		table.insert(Texts, It.Text)
+		Locked[tostring(It.Id)] = It.Locked
+		Slots[tostring(It.Id)] = "LocalPlayer.PlayerGui.Uis.EmoteWheel.Slot" .. It.Slot
+	end
+	return {Open = true, Title = M.Title, Ids = table.concat(Ids, ","), Texts = table.concat(Texts, ","), Locked = Locked,
+		Slots = Slots, Hover = M.Hover, HoverRed = M.HoverRed}
+end
+function Checks.CloseMenu()
+	local W = UI("EmoteWheelUI")
+	if W and W.CloseMenu then W.CloseMenu() end
+	return true
+end
+function Checks.Sent()
+	return Need("HostageUI")._Sent
+end
+function Checks.Presses(Args)
+	if Args.Clear then table.clear(Presses) end
+	return {N = #Presses, Span = #Presses > 1 and Presses[#Presses] - Presses[1] or 0}
+end
+function Checks.BlockKey()
+	return require(ReplicatedStorage.Modules.Managers.Keybinds).Get("Block").Name
+end
+-- Args: Names: each MobileControls button's visibility (and whether the cluster shows), Within: wait that long for the
+-- cluster to show
+function Checks.Touch(Args)
+	local G = Player.PlayerGui:FindFirstChild("MobileControls")
+	local T0 = os.clock()
+	while not (G and G.Enabled) and os.clock() - T0 < (Args.Within or 0) do
+		RunService.RenderStepped:Wait()
+		G = Player.PlayerGui:FindFirstChild("MobileControls")
+	end
+	RunService.RenderStepped:Wait()
+	RunService.RenderStepped:Wait()
+	local Out = {Enabled = G ~= nil and G.Enabled}
+	for _, N in ipairs(Args.Names) do
+		local B = G and G.Cluster:FindFirstChild(N)
+		Out[N] = B ~= nil and B.Visible
+	end
+	return Out
+end
+
 function Checks.Reset()
 	Checks.SprintStop()
+	Checks.CloseMenu()
+	Checks.HostagesOff({Off = false})
+	local TD = UI("TakedownUI")
+	if TD then TD.TestPlayers = {} end
 	return true
 end
 
@@ -168,6 +346,12 @@ local Player = Kit.Player()
 local C = Player.Character
 
 local SPRINT_BOUND, SPRINT_MS, WRIGGLE_MS = 42, 2000, 1000
+-- (Task 12) written by hand: BindTime 1.5 + 1 s; a prompt within 0.5 s; F presses 140 ms apart; at most 8 messages
+-- (SendsPerSecond 4 over the presses' ~1.4 s, plus one); the level-20 tiers; the menu's texts
+local TAKE_WITHIN, PROMPT_WITHIN, PRESS_GAP, MAX_SENDS = 2.5, 0.5, 40, 8
+local TIERS_20 = "$50,$500,$1000,$2000"
+local HttpService = game:GetService("HttpService")
+local Tested = ReplicatedStorage:WaitForChild("HostageTestPlayers")
 local INERT_WATCH, PAIR_SLACK, OFFSET = 2.5, 1.5, CFrame.new(0, 0, -1.5)
 local KEY_WAIT, SETTLE = 30, 0.3
 local LEAD_MIN = 18 -- studs: LeadSpeed 12 x 2 s = 24, less the start and the stop
@@ -236,14 +420,83 @@ local function Sample(Fn)
 	return function() Stop = true return Max end
 end
 
+-- (Task 12) one real input from the runner (the file's header): Kind "keyboard" | "mouse", its actions; true once the
+-- runner says it was sent
+local function Input(Kind, Actions)
+	local Seq = (Remote:GetAttribute("KeySeq") or 0) + 1
+	Remote:SetAttribute("Input", HttpService:JSONEncode({kind = Kind, actions = Actions}))
+	Remote:SetAttribute("KeySeq", Seq)
+	local T0 = os.clock()
+	while (Remote:GetAttribute("InputDone") or 0) < Seq and os.clock() - T0 < KEY_WAIT do task.wait(0.1) end
+	Remote:SetAttribute("Input", nil)
+	return (Remote:GetAttribute("InputDone") or 0) >= Seq
+end
+local function PressKey(Name, Times, GapMs)
+	local A = {}
+	for I = 1, Times or 1 do
+		if I > 1 then table.insert(A, {action = "wait", wait_time_ms = GapMs or 100}) end
+		table.insert(A, {action = "keyPress", key_code = Name})
+	end
+	return Input("keyboard", A)
+end
+local function Point(Path) return Input("mouse", {{action = "moveTo", instance_path = Path}, {action = "wait", wait_time_ms = 300}}) end
+local function Click(Path)
+	return Input("mouse", {{action = "moveTo", instance_path = Path}, {action = "wait", wait_time_ms = 300},
+		{action = "mouseButtonClick", mouse_button = "left"}})
+end
+-- (Task 12) a rig registered as a stand-in player for the client's prompt (HostageTestPlayers -> TakedownUI.TestPlayers)
+local function Register(Rig)
+	Tested.Value = Tested.Value == "" and Rig.Name or (Tested.Value .. "," .. Rig.Name)
+	Ask("TestPlayers")
+	return Rig
+end
+
 -- HostageKit.Guard, the client connected; Body(); the client put back
 local function Case(Body)
 	HK.Guard(function()
 		Connect()
 		local Ok, Err = pcall(Body)
+		Tested.Value = ""
 		Send("Reset", nil, 2)
 		if not Ok then error(Err, 0) end
 	end)
+end
+
+-- (Task 12) a knocked stand-in at the spot, registered, the player 3 studs from it (HostageKit.FRONT)
+local function KnockedNear()
+	local Rig, PL = HK.StandIn(Kit.At(0, 0))
+	DM.Knock(Rig)
+	Register(Rig)
+	Kit.PutPlayer(HK.FRONT)
+	return Rig, PL
+end
+local function Prompt(Rig, Want, Action, Within)
+	return Ask("Prompt", {Rig = Rig, Want = Want, Action = Action, Within = Within or PROMPT_WITHIN})
+end
+-- (Task 12) the captor's menu opened by a real press of the takedown key, once the client has the Held payload
+local function OpenWheel(T)
+	local H = Ask("Hostage", {State = "Held", Within = 2})
+	T.Eq(H.State, "Held", "setup: the client has the Held payload (role " .. tostring(H.Role) .. ", " .. tostring(H.Options) .. " options)")
+	T.True(PressKey(Ask("KeyName")), "the runner's press of the takedown key arrived")
+	return Ask("Menu", {Title = "Hostage", Within = 1})
+end
+-- (Task 12) the shared body of CaptorWheel and CaptorWheelInCombat
+local function WheelReleases(T, Fight)
+	local _, _, S = HK.Held()
+	if Fight then C:SetAttribute("CombatMode", true) end
+	local M = OpenWheel(T)
+	T.True(M.Open, "the wheel is open as the captor menu (" .. tostring(M.Title) .. ")")
+	T.Eq(M.Ids, "Release,Finish,Ransom", "its items")
+	T.Eq(M.Locked and M.Locked.Ransom, true, "Ransom locked (no party here)")
+	T.True(Point(M.Slots.Release), "the runner's pointer move arrived")
+	local Hov = Ask("Menu", {Title = "Hostage"})
+	T.Eq(Hov.Hover, "Let them go", "pointing at Release shows its text (never Emotes.Blocked's reason)")
+	T.Eq(Hov.HoverRed, false, "in gold, not as a refusal")
+	if Fight then T.Eq(C:GetAttribute("CombatMode"), true, "setup: still in Combat Mode with the wheel open") end
+	T.True(Click(M.Slots.Release), "the runner's click arrived")
+	T.True(Kit.WaitFor(2, function() return S.Over end), "the hold ended (" .. tostring(HK.Result()) .. ")")
+	T.Eq(HK.Result(), "Bind:released", "released through the menu")
+	T.Eq(Ask("Menu", {}).Open, false, "the wheel closed")
 end
 
 -- (Task 10 fix round 1) the client's real dash: whether the server granted the IFrame status (sampled from before it
@@ -262,6 +515,188 @@ local function Dash()
 end
 
 local Suite = {
+	-- ===== (Task 12) the client =====
+	PromptOnKnockedPlayer = function(T)
+		Case(function()
+			local Rig = KnockedNear()
+			local P = Prompt(Rig, true, "Take hostage")
+			T.True(P.Ok, ("a 'Take hostage' prompt within 0.5 s (%s, %s)"):format(tostring(P.ActionText), tostring(P.After)))
+			T.Eq(P.ObjectText, Rig.Name, "its ObjectText is the target's name")
+			T.Eq(P.Key, Ask("KeyName"), "on the takedown key")
+			T.Eq(P.Hold, 0, "HoldDuration 0")
+			T.Eq(P.Style, "Custom", "PromptUI's custom style")
+			Kit.PutPlayer(Kit.At(0, 9) + Vector3.new(0, 3, 0))
+			T.True(Prompt(Rig, false).Ok, "9 studs away: no prompt")
+		end)
+	end,
+
+	PromptInCombatMode = function(T)
+		Case(function()
+			local Rig = KnockedNear()
+			C:SetAttribute("CombatMode", true)
+			local P = Prompt(Rig, true, "Take hostage")
+			T.True(P.Ok, "in Combat Mode: 'Take hostage' (" .. tostring(P.ActionText) .. ")")
+		end)
+	end,
+
+	PromptGrabBehindOnly = function(T)
+		Case(function()
+			local Rig = Register((HK.StandIn(Kit.At(0, 0))))
+			Kit.PutBehind(Rig, 3)
+			local P = Prompt(Rig, true, "Grab")
+			T.True(P.Ok, "3 studs behind: 'Grab' (" .. tostring(P.ActionText) .. ")")
+			Kit.PutInFront(Rig, 3)
+			T.True(Prompt(Rig, false).Ok, "in front: no prompt")
+			Kit.PutBehind(Rig, 3)
+			T.True(Prompt(Rig, true, "Grab").Ok, "setup: behind again, 'Grab'")
+			Rig:SetAttribute("GrabImmuneUntil", workspace:GetServerTimeNow() + 5)
+			T.True(Prompt(Rig, false).Ok, "grab-immune: no prompt")
+		end)
+	end,
+
+	PromptHiddenWhileOff = function(T)
+		Case(function()
+			local Rig = KnockedNear()
+			T.True(Prompt(Rig, true, "Take hostage").Ok, "setup: the prompt shows in this TestNoSave session")
+			T.Eq(Ask("HostagesOff", {Off = true}), false, "setup: the client's TestNoSave reads false")
+			T.True(Prompt(Rig, false).Ok, "hostages off (as in a live game): no prompt")
+			Ask("HostagesOff", {Off = false})
+			T.True(Prompt(Rig, true, "Take hostage").Ok, "put back: the prompt again")
+		end)
+	end,
+
+	EnemyWins = function(T)
+		Case(function()
+			local Grunt = Kit.Behind()
+			local Rig = HK.StandIn(Kit.At(3, 3))
+			DM.Knock(Rig)
+			Register(Rig)
+			local P = Prompt(Grunt, true)
+			T.True(P.Ok, "a prompt on the Grunt (" .. tostring(P.ActionText) .. ")")
+			T.Eq(P.ActionText, "Knock out · hold to kill", "the takedown's text")
+			T.True(Prompt(Rig, false, nil, 0).Ok, "none on the knocked stand-in")
+		end)
+	end,
+
+	TriggerTakes = function(T)
+		Case(function()
+			local Rig = KnockedNear()
+			T.True(Prompt(Rig, true, "Take hostage").Ok, "setup: the prompt")
+			Ask("Press", {Rig = Rig})
+			T.True(Kit.WaitFor(TAKE_WITHIN, function() return C:GetAttribute("Holding") ~= nil end),
+				"the character has Holding within 2.5 s (" .. tostring(HK.Result()) .. ")")
+			T.Eq(C:GetAttribute("Holding"), Rig.Name, "holding the stand-in")
+		end)
+	end,
+
+	BarsShow = function(T)
+		Case(function()
+			HK.Held()
+			local B = Ask("Bars", {Within = 1})
+			T.True(B.Time.Visible, "captor: HostageTime visible")
+			T.Eq(B.Time.Head, "Holding", "captor: its head")
+			T.True(type(B.Time.Fill) == "number" and B.Time.Fill > 0 and B.Time.Fill <= 1, "captor: fill in (0, 1]: " .. tostring(B.Time.Fill))
+			T.Eq(B.Struggle.Visible, false, "captor: no struggle bar")
+			T.Eq(B.Plate.Visible, false, "captor: no held-by plate")
+			Svc().Free(Player, "a")
+			HK.Clean()
+			local Cap = HK.Captive()
+			local H = Ask("Bars", {Within = 1})
+			T.True(H.Time.Visible, "hostage: HostageTime visible")
+			T.Eq(H.Time.Head, "Held", "hostage: its head")
+			T.True(type(H.Time.Fill) == "number" and H.Time.Fill > 0 and H.Time.Fill <= 1, "hostage: fill in (0, 1]: " .. tostring(H.Time.Fill))
+			T.True(H.Struggle.Visible, "hostage: HostageStruggle visible")
+			T.Eq(H.Struggle.Head, "Struggle", "hostage: its head")
+			T.True(type(H.Struggle.Fill) == "number" and H.Struggle.Fill >= 0 and H.Struggle.Fill <= 1, "hostage: struggle fill in [0, 1]: " .. tostring(H.Struggle.Fill))
+			T.True(H.Plate.Visible, "hostage: the plate shows")
+			T.Eq(H.Plate.Head, "Held by " .. Cap.Name, "hostage: 'Held by <name>'")
+		end)
+	end,
+
+	CaptorWheel = function(T)
+		Case(function() WheelReleases(T, false) end)
+	end,
+
+	CaptorWheelInCombat = function(T)
+		Case(function() WheelReleases(T, true) end)
+	end,
+
+	CaptorRansomTiers = function(T)
+		Case(function()
+			local _, Payer = HK.StandIn(Kit.At(12, 0))
+			local _, _, S = HK.Held({Party = {Payer}})
+			local M = OpenWheel(T)
+			T.True(M.Open, "the captor menu is open")
+			T.Eq(M.Locked and M.Locked.Ransom, false, "Ransom open (a party member here)")
+			T.True(Click(M.Slots.Ransom), "the runner's click on Ransom arrived")
+			local R = Ask("Menu", {Title = "Ransom", Within = 1})
+			T.True(R.Open, "a second wheel: the tiers (" .. tostring(R.Title) .. ")")
+			T.Eq(R.Texts, TIERS_20, "the level-20 tiers")
+			T.True(Click(R.Slots["2"]), "the runner's click on $500 arrived")
+			T.True(Kit.WaitFor(2, function() return S.Demand ~= nil end), "a demand was made")
+			T.Eq(S.Demand and S.Demand.Amount, 500, "for tier 2, $500")
+		end)
+	end,
+
+	StrugglePresses = function(T)
+		Case(function()
+			local _, _, S = HK.Captive()
+			local RM = require(ReplicatedStorage.Modules.Managers.ResourceManager)
+			RM.Set(C, "Stamina", RM.Max(C, "Stamina"))
+			Ask("Hostage", {State = "Held", Within = 2})
+			local Bar0, Sends0 = S.Struggle, Svc()._Sends(Player)
+			local Key = Ask("BlockKey")
+			Ask("Presses", {Clear = true})
+			T.True(PressKey(Key, 10, PRESS_GAP), "the runner's ten presses of " .. Key .. " arrived")
+			task.wait(0.8) -- (the last batch's send, at most 1 / SendsPerSecond later, and its arrival)
+			local Sends = Svc()._Sends(Player) - Sends0
+			local Seen = Ask("Presses", {})
+			Note("StrugglePresses", ("messages %d, bar %s -> %s, client sent %s, client saw %d presses over %s s")
+				:format(Sends, F2(Bar0), F2(S.Struggle), tostring(Ask("Sent")), Seen.N, F2(Seen.Span)))
+			T.Eq(Seen.N, 10, "setup: the client saw the ten presses")
+			T.True(Seen.Span <= 2, "setup: the ten presses came within 2 s (" .. F2(Seen.Span) .. " s)")
+			T.True(not S.Over, "setup: still held (" .. tostring(HK.Result()) .. ")")
+			T.True(S.Struggle > Bar0, ("the server's Struggle grew: %s -> %s"):format(F2(Bar0), F2(S.Struggle)))
+			T.True(Sends >= 1 and Sends <= MAX_SENDS, ("1 to 8 Struggle messages received: %d"):format(Sends))
+			T.True(Sends < 10, "fewer messages than presses (batched): " .. Sends)
+		end)
+	end,
+
+	TouchButtons = function(T)
+		Case(function()
+			local Names = {"Hostage", "Struggle", "Grip", "Block"}
+			Player:SetAttribute("ForceMobileControls", true)
+			local Ok, Err = pcall(function()
+				local F = Ask("Touch", {Names = Names, Within = 2})
+				T.True(F.Enabled, "setup: the touch controls show")
+				T.Eq(F.Hostage, false, "free: no HOSTAGE")
+				T.Eq(F.Struggle, false, "free: no STRUGGLE")
+				HK.Held()
+				Ask("Hostage", {State = "Held", Within = 2})
+				local Cap = Ask("Touch", {Names = Names})
+				T.Eq(Cap.Hostage, true, "captor: HOSTAGE")
+				T.Eq(Cap.Grip, false, "captor: no GRIP")
+				T.Eq(Cap.Struggle, false, "captor: no STRUGGLE")
+				T.True(Click("LocalPlayer.PlayerGui.MobileControls.Cluster.Hostage"), "the runner's click on HOSTAGE arrived")
+				T.True(Ask("Menu", {Title = "Hostage", Within = 1}).Open, "HOSTAGE opens the captor menu")
+				Ask("CloseMenu")
+				Svc().Free(Player, "a")
+				HK.Clean()
+				HK.Captive()
+				C:SetAttribute("CombatMode", true)
+				Ask("Hostage", {State = "Held", Within = 2})
+				local Hos = Ask("Touch", {Names = Names})
+				T.Eq(Hos.Struggle, true, "hostage: STRUGGLE")
+				T.Eq(Hos.Block, false, "hostage in Combat Mode: no BLOCK (P19)")
+				T.Eq(Hos.Hostage, false, "hostage: no HOSTAGE")
+				local Sends0 = Svc()._Sends(Player)
+				T.True(Click("LocalPlayer.PlayerGui.MobileControls.Cluster.Struggle"), "the runner's click on STRUGGLE arrived")
+				T.True(Kit.WaitFor(1, function() return Svc()._Sends(Player) > Sends0 end), "STRUGGLE sends a Struggle message")
+			end)
+			Player:SetAttribute("ForceMobileControls", nil)
+			if not Ok then error(Err, 0) end
+		end)
+	end,
 	-- (Task 10 fix round 1) the captor's own dash: no i-frames and no stamina while Holding; freed, both
 	CaptorNoDash = function(T)
 		Case(function()
@@ -365,11 +800,18 @@ local Suite = {
 			T.True(HK.KnockPlayer(), "setup: the player is knocked")
 			HK.Loose()
 			local Ok, Why = Svc().Take(PL, C)
+			-- (hostages Task 12) the stand-in's root held still through the bind only, as HostageKit.Captive does (Task 10:
+			-- a rig just let go still settles up to 0.85 studs, near the bind's 1-stud slack; in the longer Task 12 run
+			-- that ended the setup's bind "interrupted" 3 times in 5), then let go again, so the held pair the client
+			-- tries to move is a free, server-owned assembly as before
+			Rig.HumanoidRootPart.Anchored = true
 			T.Eq(Ok, true, "setup: the stand-in's take starts (" .. tostring(Why) .. ")")
 			T.True(Kit.WaitFor(2.0, function()
 				local X = Svc().SessionOf(Player)
 				return X ~= nil and X.State == "Held"
 			end), "setup: held within 2 s (" .. tostring(HK.Result(Rig)) .. ")")
+			Rig.HumanoidRootPart.Anchored = false
+			task.wait(SETTLE)
 			local S = Svc().SessionOf(Player)
 			local SR, PR = Rig.HumanoidRootPart, C.HumanoidRootPart
 			local Gap = Sample(function()
@@ -424,6 +866,7 @@ if not (P and P.Character) then return "REFUSED: no test player character" end
 
 local function Clear()
 	for _, X in ipairs({ReplicatedStorage:FindFirstChild("HostageChecks_TEMP_Remote"),
+		ReplicatedStorage:FindFirstChild("HostageTestPlayers"),
 		ServerStorage.RenseiTests:FindFirstChild("HostageChecks_TEMP_Suite"),
 		P:FindFirstChild("PlayerGui") and P.PlayerGui:FindFirstChild("HostageChecks_TEMP")}) do
 		if X then X:Destroy() end
@@ -435,6 +878,9 @@ Remote.Name = "HostageChecks_TEMP_Remote"
 Remote:SetAttribute("Only", ONLY)
 Remote:SetAttribute("KeySeq", 0)
 Remote.Parent = ReplicatedStorage
+local Tested = Instance.new("StringValue") -- (Task 12) the stand-in names for TakedownUI.TestPlayers
+Tested.Name = "HostageTestPlayers"
+Tested.Parent = ReplicatedStorage
 local Suite = Instance.new("ModuleScript")
 Suite.Name = "HostageChecks_TEMP_Suite"
 Suite.Source = SERVER

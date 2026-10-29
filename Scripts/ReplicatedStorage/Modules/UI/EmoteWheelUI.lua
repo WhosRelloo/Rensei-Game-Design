@@ -3,6 +3,20 @@
 -- closes it). The mouse wheel turns to the next ring of emotes. On touch, the Emote button opens
 -- it and a tap on a name performs it (tap the centre to close). The wheel is the game's transmutation circle; the server checks
 -- every emote (Requests.Emote). Moving, jumping, attacking or Combat Mode ends a running emote.
+-- (hostages plan Task 12, 2026-10-28; spec section 3 "a radial built from the existing emote wheel art"; pre-flight P7)
+-- MENU MODE: EmoteWheelUI.Menu(Title, Items, OnPick) opens the same wheel (its own drawing code, no new art) with Items
+-- ({Id, Text, Locked, Why}, at most 8, spread evenly round the circle) in its slots, the Title on the centre plate.
+--   * A locked item is greyed as DialogueUI greys a locked choice (its text at 0.55 transparency); hovering it shows its
+--     Why in red, and picking it does nothing. An open item shows its Text in gold. Emotes.Blocked is never asked (after
+--     hostages Task 10 it says "Your hands are full" for every captor), there is no Combat Mode auto-close (a captor
+--     fighting with light attacks is in Combat Mode) and no mouse-wheel paging.
+--   * Desktop: point and click (as the emote wheel's click mode); touch (the last input was a touch, or the touch
+--     controls show): tap an item. A pick closes the wheel, then calls OnPick(Id).
+--   * Esc, a right click, or the centre plate on touch close it with OnPick(nil); the caller's own key (HostageUI's)
+--     closes it through EmoteWheelUI.CloseMenu(), also OnPick(nil). H toggles only the emote wheel: it does nothing while
+--     a menu is open. A new Menu over an open one replaces it (the old one's OnPick(nil) first).
+--   * EmoteWheelUI.MenuOpen() -> nil, or {Title, Items = {{Id, Text, Locked, Slot}}, Hover, HoverRed} (the client checks
+--     read it).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -33,6 +47,8 @@ local IsOpen, Mode, Page, Hover = false, nil, 1, nil
 local OpenedAt = 0
 local TAP_TIME = 0.3 -- a shorter press of H leaves the wheel open for clicking
 local SavedMouse, SavedIcon
+local Menu = nil -- (hostages Task 12) the open menu: {Title, Items, OnPick}, or nil (the emote wheel)
+local MENU_GREY = 0.55 -- a locked item's text transparency (DialogueUI's locked choice)
 
 local function Make(Class, Props, Parent)
 	local O = Instance.new(Class)
@@ -53,16 +69,41 @@ local function Blocked()
 	return Emotes.Blocked(Player.Character)
 end
 
+-- (Task 12) the slot each of N menu items sits in: spread evenly round the circle from the top
+local function MenuSlots(N)
+	local Out = {}
+	local Step = math.max(1, math.floor(SLOTS / math.max(N, 1)))
+	for I = 1, math.min(N, SLOTS) do Out[1 + (I - 1) * Step] = I end
+	return Out
+end
+
 local function Fill()
+	if Menu then
+		Title.Text = string.upper(Menu.Title)
+		local At = MenuSlots(#Menu.Items)
+		for I, S in ipairs(Slots) do
+			local Item = At[I] and Menu.Items[At[I]]
+			S.Id, S.Item = Item and Item.Id, Item
+			S.Button.Visible = Item ~= nil
+			S.Label.Text = Item and tostring(Item.Text) or ""
+			S.Label.TextTransparency = Item and Item.Locked and MENU_GREY or 0
+		end
+		for _, D in ipairs(Dots) do D.Visible = false end
+		return
+	end
 	local Def = Emotes.Pages[Page]
 	Title.Text = string.upper(Def.Name)
 	for I, S in ipairs(Slots) do
 		local Id = Def.Emotes[I]
-		S.Id = Id
+		S.Id, S.Item = Id, nil
 		S.Button.Visible = Id ~= nil
 		S.Label.Text = Id and Emotes.List[Id].Name or ""
+		S.Label.TextTransparency = 0
 	end
-	for I, D in ipairs(Dots) do D.BackgroundColor3 = I == Page and GOLD or Color3.fromRGB(90, 80, 60) end
+	for I, D in ipairs(Dots) do
+		D.Visible = true
+		D.BackgroundColor3 = I == Page and GOLD or Color3.fromRGB(90, 80, 60)
+	end
 end
 
 local function SetHover(Index)
@@ -81,6 +122,16 @@ local function SetHover(Index)
 		local Now = Pointer.Rotation
 		TweenService:Create(Pointer, TweenInfo.new(0.1), {Rotation = Now + ((Goal - Now + 180) % 360 - 180)}):Play()
 	end
+	if Menu then
+		-- (Task 12, P7) the item's own text, or a locked item's reason; never Emotes.Blocked
+		local Item = Index and Slots[Index].Item
+		if Item and Item.Locked then
+			NameLabel.Text, NameLabel.TextColor3 = tostring(Item.Why or "Not now"), RED
+		else
+			NameLabel.Text, NameLabel.TextColor3 = Item and tostring(Item.Text) or "", GOLD
+		end
+		return
+	end
 	local Why = Blocked()
 	if Why then
 		NameLabel.Text, NameLabel.TextColor3 = Why ~= "" and Why or "Not now", RED
@@ -89,16 +140,20 @@ local function SetHover(Index)
 	end
 end
 
-local function Close()
+-- (Task 12) Picked: a menu item's Id (or nil); the menu's OnPick is called with it once the wheel has closed
+local function Close(Picked)
 	if not IsOpen then return end
+	local Was = Menu
 	IsOpen, Mode = false, nil
 	SetHover(nil)
+	Menu = nil
 	TweenService:Create(Scale, TweenInfo.new(0.12), {Scale = 0.85}):Play()
 	TweenService:Create(Root, TweenInfo.new(0.12), {GroupTransparency = 1}):Play()
 	task.delay(0.12, function() if not IsOpen then Root.Visible = false end end)
 	if SavedMouse then UserInputService.MouseBehavior = SavedMouse end
 	if SavedIcon ~= nil then UserInputService.MouseIconEnabled = SavedIcon end
 	SavedMouse, SavedIcon = nil, nil
+	if Was and Was.OnPick then task.spawn(Was.OnPick, Picked) end
 end
 
 local function Perform(Id)
@@ -107,16 +162,34 @@ local function Perform(Id)
 	UIState.Request("Emote", "Play", Id)
 end
 
-local function Open(NewMode)
-	if IsOpen then return end
+-- (Task 12) the slot under the pointer (or tapped) was chosen: a menu item is picked (a locked one does nothing), an
+-- emote performed
+local function Choose(Index)
+	local S = Index and Slots[Index]
+	if not S or not S.Id then return end
+	if Menu then
+		if S.Item and not S.Item.Locked then Close(S.Item.Id) end
+		return
+	end
+	local Id = S.Id
+	Close()
+	Perform(Id)
+end
+
+local function Open(NewMode, NewMenu)
+	if IsOpen then return false end
 	-- not over a menu, the dialogue box or a minigame
-	if UIState.Gui:FindFirstChild("bg") and UIState.Gui.bg.Visible then return end
-	if UIState.Gui:FindFirstChild("Dialogue") and UIState.Gui.Dialogue.Visible then return end
-	IsOpen, Mode, Hover = true, NewMode, nil
+	if UIState.Gui:FindFirstChild("bg") and UIState.Gui.bg.Visible then return false end
+	if UIState.Gui:FindFirstChild("Dialogue") and UIState.Gui.Dialogue.Visible then return false end
+	IsOpen, Mode, Hover, Menu = true, NewMode, nil, NewMenu
 	Fill()
 	SetHover(nil)
 	OpenedAt = os.clock()
-	Hint.Text = Mode == "Tap" and "Tap an emote. Tap here to close." or "Point and release H, or click. Scroll for more."
+	if Menu then
+		Hint.Text = Mode == "Tap" and "Tap a choice. Tap here to close." or "Click a choice. Right click or Esc closes."
+	else
+		Hint.Text = Mode == "Tap" and "Tap an emote. Tap here to close." or "Point and release H, or click. Scroll for more."
+	end
 	Root.Visible = true
 	Root.GroupTransparency = 1
 	Scale.Scale = 0.85
@@ -125,6 +198,36 @@ local function Open(NewMode)
 	-- a free cursor while the wheel is up (shift lock / first person lock it to the centre)
 	SavedMouse, SavedIcon = UserInputService.MouseBehavior, UserInputService.MouseIconEnabled
 	UserInputService.MouseIconEnabled = true
+	return true
+end
+
+-- (Task 12) the wheel as a menu (see MENU MODE in the header); false when it can't open now (a menu, the dialogue box)
+function EmoteWheelUI.Menu(TitleText, Items, OnPick)
+	if IsOpen then Close() end -- (an open menu's OnPick(nil); an open emote wheel just closes)
+	local Touch = UserInputService:GetLastInputType() == Enum.UserInputType.Touch or Player:GetAttribute("MobileControls") == true
+	local List = {}
+	for _, It in ipairs(type(Items) == "table" and Items or {}) do
+		if type(It) == "table" and It.Id ~= nil then
+			table.insert(List, {Id = It.Id, Text = It.Text or tostring(It.Id), Locked = It.Locked == true, Why = It.Why})
+		end
+	end
+	return Open(Touch and "Tap" or "Click", {Title = tostring(TitleText or ""), Items = List, OnPick = OnPick})
+end
+
+-- (Task 12) an open menu closed, its OnPick(nil); nothing when the wheel shows emotes or is shut
+function EmoteWheelUI.CloseMenu()
+	if IsOpen and Menu then Close() end
+end
+
+-- (Task 12) the open menu, for the client checks: nil, or {Title, Items = {{Id, Text, Locked, Slot}}, Hover (the centre
+-- plate's text now), HoverRed (shown as a refusal)}
+function EmoteWheelUI.MenuOpen()
+	if not (IsOpen and Menu) then return nil end
+	local Out = {Title = Menu.Title, Items = {}, Hover = NameLabel.Text, HoverRed = NameLabel.TextColor3 == RED}
+	for I, S in ipairs(Slots) do
+		if S.Item then table.insert(Out.Items, {Id = S.Item.Id, Text = S.Item.Text, Locked = S.Item.Locked, Slot = I}) end
+	end
+	return Out
 end
 
 local function Build()
@@ -158,8 +261,7 @@ local function Build()
 		Button.MouseEnter:Connect(function() if IsOpen then SetHover(I) end end)
 		Button.Activated:Connect(function()
 			if not IsOpen or not S.Id or Mode == "Click" then return end -- desktop clicks: see InputBegan
-			Perform(S.Id)
-			Close()
+			Choose(I)
 		end)
 	end
 	-- the centre plate
@@ -167,7 +269,7 @@ local function Build()
 		BackgroundColor3 = Color3.fromRGB(24, 20, 16), BackgroundTransparency = 0.1, Text = "", AutoButtonColor = false}, Root)
 	Make("UICorner", {CornerRadius = UDim.new(1, 0)}, Plate)
 	Make("UIStroke", {Color = GOLD, Thickness = 1.5, Transparency = 0.3}, Plate)
-	Plate.Activated:Connect(function() if Mode == "Tap" then Close() end end)
+	Plate.Activated:Connect(function() if Mode == "Tap" then Close() end end) -- (a menu: OnPick(nil))
 	Title = Text(Plate, "", UDim2.fromScale(0.5, 0.25), UDim2.fromScale(0.8, 0.14), Color3.fromRGB(170, 150, 105), 16)
 	NameLabel = Text(Plate, "", UDim2.fromScale(0.5, 0.48), UDim2.fromScale(0.85, 0.24), GOLD, 30)
 	Hint = Text(Plate, "", UDim2.fromScale(0.5, 0.7), UDim2.fromScale(0.82, 0.14), Color3.fromRGB(150, 140, 120), 12)
@@ -188,18 +290,19 @@ function EmoteWheelUI.Start()
 	ContextActionService:BindAction("RenseiEmoteWheel", function(_, State, Input)
 		local Touch = Input and Input.UserInputType == Enum.UserInputType.Touch
 		if State == Enum.UserInputState.Begin then
-			if IsOpen then
+			if Menu then
+				-- (Task 12, P7) H toggles only the emote wheel: an open menu stays
+			elseif IsOpen then
 				Close() -- H (or the button) again closes an open wheel
 			else
 				Open(Touch and "Tap" or "Hold")
 			end
-		elseif State == Enum.UserInputState.End and Mode == "Hold" then
+		elseif State == Enum.UserInputState.End and Mode == "Hold" and not Menu then
 			local Id = Hover and Slots[Hover].Id
 			if os.clock() - OpenedAt < TAP_TIME then
 				Mode = "Click" -- a quick tap never performs: stay open, click a name
 			elseif Id then
-				Close()
-				Perform(Id)
+				Choose(Hover)
 			else
 				Close()
 			end
@@ -210,7 +313,7 @@ function EmoteWheelUI.Start()
 	ContextActionService:SetPosition("RenseiEmoteWheel", UDim2.new(1, -318, 0, 10))
 
 	UserInputService.InputChanged:Connect(function(Input)
-		if IsOpen and Input.UserInputType == Enum.UserInputType.MouseWheel then
+		if IsOpen and not Menu and Input.UserInputType == Enum.UserInputType.MouseWheel then
 			Page = (Page - 1 + (Input.Position.Z < 0 and 1 or -1)) % #Emotes.Pages + 1
 			Fill()
 			local H = Hover
@@ -222,13 +325,11 @@ function EmoteWheelUI.Start()
 		if not IsOpen then return end
 		if Input.UserInputType == Enum.UserInputType.MouseButton2 then
 			Close()
+		elseif Input.KeyCode == Enum.KeyCode.Escape and Menu then
+			Close() -- (Task 12) Esc closes a menu
 		elseif Input.UserInputType == Enum.UserInputType.MouseButton1 and Mode ~= "Tap" then
-			-- a click picks the emote the pointer is on (anywhere in its direction, not just its name)
-			local Id = Hover and Slots[Hover].Id
-			if Id then
-				Close()
-				Perform(Id)
-			end
+			-- a click picks the emote (or menu item) the pointer is on (anywhere in its direction, not just its name)
+			Choose(Hover)
 		end
 	end)
 
@@ -237,7 +338,7 @@ function EmoteWheelUI.Start()
 		if IsOpen then
 			UserInputService.MouseBehavior = Enum.MouseBehavior.Default
 			Ring.Rotation = (Ring.Rotation + Dt * 6) % 360
-			if Player.Character and Player.Character:GetAttribute("CombatMode") then Close() end
+			if not Menu and Player.Character and Player.Character:GetAttribute("CombatMode") then Close() end -- (P7: not a menu)
 			if Mode == "Hold" or Mode == "Click" then
 				-- point with the mouse: the direction from the wheel's centre picks the slot
 				local Mouse = UserInputService:GetMouseLocation() - GuiService:GetGuiInset()

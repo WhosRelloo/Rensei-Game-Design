@@ -5,7 +5,11 @@
 --                      Skill (weapon skill, when holding a weapon), Z / X / C / V alchemy (hold = keep
 --                      the clap), with cooldowns, once the player has an alchemy path
 --   out of combat:     Slide
---   near a knocked body: Grip (V carries: it's the V button)
+--   near a knocked body: Grip (V carries: it's the V button); not while holding a hostage
+--   (hostages Task 12, spec section 2 "mobile gets a button in the existing touch cluster"; pre-flight P19) holding a
+--                      hostage: HOSTAGE in Grip's spot (the captor menu, HostageUI); held: STRUGGLE in Block's spot (one
+--                      struggle press per tap; BLOCK hides while held, so the two never share the spot). Both only
+--                      while hostages are on (TakedownUI.HostagesOn).
 --   swimming (2026-10-18): SPRINT (hold) and RISE (hold; tap at a low ledge = climb out) in Dash's and Jump's spots,
 --                      and DIVE (swimming revamp 2026-10-26: tap at the surface = dive, hold underwater = sink) in
 --                      Slide's spot; the on-foot buttons that do nothing in water (Jump, Dash, Fight, Run, Slide)
@@ -23,6 +27,7 @@ local ClientActions = require(ReplicatedStorage.Modules.Managers.ClientActions)
 local Tuning = require(ReplicatedStorage.Modules.Data.Rensei.TuningConfig)
 local Registry = require(ReplicatedStorage.Modules.Data.Rensei.Alchemy)
 local ResourceManager = require(ReplicatedStorage.Modules.Managers.ResourceManager)
+local TakedownUI = require(script.Parent.TakedownUI) -- (hostages Task 12: HostagesOn)
 
 local Player = Players.LocalPlayer
 
@@ -53,6 +58,9 @@ local Layout = {
 	Sprint = {0.20, 0.62, 0.16, "RUN", "Always"},
 	Slide = {0.20, 0.88, 0.16, "SLIDE", "Calm"},
 	Grip = {0.62, 0.20, 0.16, "GRIP", "Knocked"},
+	-- hostages (Task 12): Grip's and Block's spots; Grip hides while Holding and Block while Held
+	Hostage = {0.62, 0.20, 0.16, "HOSTAGE", "Holding"},
+	Struggle = {0.62, 0.48, 0.21, "STRUGGLE", "Held"},
 	-- guns (2026-10-17): AIM toggles shooting mode (in Slide's spot, which is hidden in Combat Mode); FIRE
 	-- only shows while shooting. The ATTACK button stays the pistol whip.
 	Aim = {0.20, 0.88, 0.16, "AIM", "Gun"},
@@ -259,6 +267,9 @@ function MobileControls.Start()
 		local Shooting = Character ~= nil and Character:GetAttribute("ShootingMode") == true
 		local Knocked = KnockedNearby(Character)
 		local Swimming = Character ~= nil and Character:GetAttribute("Traversal") == "Swim"
+		local HostagesOn = Character ~= nil and TakedownUI.HostagesOn()
+		local Holding = HostagesOn and Character:GetAttribute("Holding") ~= nil
+		local Held = HostagesOn and Character:GetAttribute("HeldBy") ~= nil
 		if Affinity ~= ShownAffinity then
 			ShownAffinity = Affinity
 			local Color = ElementColor[Affinity or ""] or Color3.fromRGB(230, 200, 160)
@@ -281,8 +292,10 @@ function MobileControls.Start()
 			local Show = (B.Group == "Always" and not Swimming) or (B.Group == "Combat" and Combat) or (B.Group == "Calm" and not Combat and not Swimming)
 				or (B.Group == "Swim" and Swimming)
 				or (B.Group == "Weapon" and Combat and Weapon) or (B.Group == "Alchemy" and Combat and Affinity ~= nil)
-				or (B.Group == "Knocked" and Knocked)
+				or (B.Group == "Knocked" and Knocked and not Holding)
 				or (B.Group == "Gun" and Combat and Gun) or (B.Group == "Shooting" and Combat and Shooting)
+				or (B.Group == "Holding" and Holding) or (B.Group == "Held" and Held)
+			if Name == "Block" and Held then Show = false end -- (P19: STRUGGLE has Block's spot while held)
 			if B.Frame.Visible ~= Show then
 				B.Frame.Visible = Show
 				if not Show and B.Held then Press(Name, B, false) end

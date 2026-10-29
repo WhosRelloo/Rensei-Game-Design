@@ -108,6 +108,7 @@
   {"Label": "UI.CombatModeUI", "Studio": "ReplicatedStorage/Modules/UI/CombatModeUI", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/UI/CombatModeUI.lua", "Places": ["ye", "foundry"], "Create": false},
   {"Label": "UI.PromptUI", "Studio": "ReplicatedStorage/Modules/UI/PromptUI", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/UI/PromptUI.lua", "Places": ["ye", "foundry"], "Create": false},
   {"Label": "UI.TakedownUI", "Studio": "ReplicatedStorage/Modules/UI/TakedownUI", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/UI/TakedownUI.lua", "Places": ["ye", "foundry"], "Create": true},
+  {"Label": "UI.HostageUI", "Studio": "ReplicatedStorage/Modules/UI/HostageUI", "Class": "ModuleScript", "Repo": "Scripts/ReplicatedStorage/Modules/UI/HostageUI.lua", "Places": ["ye", "foundry"], "Create": true},
   {"Label": "SPScripts.UIHandler", "Studio": "StarterPlayer/StarterPlayerScripts/UIHandler", "Class": "LocalScript", "Repo": "Scripts/StarterPlayer/StarterPlayerScripts/UIHandler.client.lua", "Places": ["ye", "foundry"], "Create": false},
   {"Label": "RenseiTests.Play_Perception", "Studio": "ServerStorage/RenseiTests/Play_Perception", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Perception.lua", "Places": ["ye"], "Create": false},
   {"Label": "RenseiTests.Play_Morality", "Studio": "ServerStorage/RenseiTests/Play_Morality", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Play_Morality.lua", "Places": ["ye"], "Create": false},

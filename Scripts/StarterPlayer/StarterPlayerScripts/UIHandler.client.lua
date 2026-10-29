@@ -7,7 +7,7 @@ local ContextActionService = game:GetService("ContextActionService")
 local UI = ReplicatedStorage.Modules.UI
 local UIState = require(UI.UIState)
 
-for _, Name in ipairs({"HUDUI", "PopupUI", "PartyUI", "DialogueUI", "InventoryUI", "SettingsUI", "CombatModeUI", "CooldownUI", "AlchemyUI", "MobileControls", "PromptUI", "ChatUI", "IntroCutscene", "MasteryUI", "CombatLogUI", "CompassUI", "TruthUI", "AutomailUI", "AdminUI", "JournalUI", "PuzzleClient", "MinigameUI", "EmoteWheelUI", "FieldNotesUI", "WantedUI", "StealthUI", "TakedownUI"}) do -- EmoteWheelUI: hold H; FieldNotesUI: one-time hints; WantedUI / StealthUI: Plan 2 HUD (Wanted badge, eye sigil); TakedownUI: the takedown prompt on N (assassinations)
+for _, Name in ipairs({"HUDUI", "PopupUI", "PartyUI", "DialogueUI", "InventoryUI", "SettingsUI", "CombatModeUI", "CooldownUI", "AlchemyUI", "MobileControls", "PromptUI", "ChatUI", "IntroCutscene", "MasteryUI", "CombatLogUI", "CompassUI", "TruthUI", "AutomailUI", "AdminUI", "JournalUI", "PuzzleClient", "MinigameUI", "EmoteWheelUI", "FieldNotesUI", "WantedUI", "StealthUI", "TakedownUI", "HostageUI"}) do -- EmoteWheelUI: hold H; FieldNotesUI: one-time hints; WantedUI / StealthUI: Plan 2 HUD (Wanted badge, eye sigil); TakedownUI: the takedown prompt on N (assassinations); HostageUI: the hostage HUD, the captor menu and the struggle key (hostages Task 12)
 	require(UI[Name]).Start()
 end
 require(UI.StatsUI).Initiate()
