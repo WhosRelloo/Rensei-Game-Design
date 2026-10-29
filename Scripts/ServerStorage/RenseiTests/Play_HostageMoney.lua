@@ -17,6 +17,10 @@
 --   only an asked member can pay (P14); a release voids the demand; everyone refusing or RansomWait passing ends it, the
 --   hold going on, the popups closed (P14); one demand per session ("Already asked", P14); a server audit line per
 --   transfer (P14).
+-- * (fix round 1, review I1 / I2 / m1 / m5) a popup another conversation replaced is answered "not now", and the
+--   demand's end leaves that conversation open; a member fighting (Combat Mode) isn't asked, and a click in Combat Mode
+--   through the real popup (DialogueService.Choose) is "not now", never a refusal: they are asked again once free, and
+--   their Pay through the popup pays; a Transfer that throws ends the demand unpaid; a credit that throws is refunded.
 -- * The turn-in (Menu "TurnIn", ruling R7, P12, P13): offered only within the desk range of a desk
 --   (HostageService.Desks: Brask in Ye; the Foundry has none, so a temp model carrying Brask's DialogueId on the kit floor
 --   and HostageService._RefreshDesks, pre-flight P23 / ruling T1-2) with the hostage Wanted in the desk's jurisdiction;
@@ -100,6 +104,11 @@ local function Swap(Module, Field, Fn, Body)
 	Module[Field] = Real
 	if not Ok then error(Err, 0) end
 end
+-- (fix round 1) the player out of combat for a popup case (HostageKit.Guard puts CombatMode and InCombat back)
+local function Calm()
+	Player.Character:SetAttribute("CombatMode", nil)
+	Player.Character:SetAttribute("InCombat", nil)
+end
 local function Has(List, Text)
 	for _, X in ipairs(List) do if X == Text then return true end end
 	return false
@@ -135,12 +144,13 @@ local function HeldWithPayers(N, Money)
 end
 
 -- ===== the desk (ruling R7, pre-flight P23 / ruling T1-2) =====
--- the first desk HostageService finds, or (no desk in this place: the Foundry) a temp model carrying Brask's DialogueId
+-- (the desks scanned first, fix round 1 m6) the first desk HostageService finds, or (no desk in this place: the Foundry) a temp model carrying Brask's DialogueId
 -- on the kit floor 20 studs -Z of the spot, facing +Z, the service's desks refreshed (_RefreshDesks). Body(Desk) runs;
 -- the temp desk is removed after and the desks refreshed again, or a real desk's NPC reset to Unaware
 -- (PerceptionService.Reset, as TakedownKit.Spawn resets its rigs).
 local function WithDesk(Body)
 	local HS = Svc()
+	HS._RefreshDesks() -- (fix round 1, review m6) never on the 30 s scan having run
 	local Desk = HS.Desks()[1]
 	local Temp = nil
 	if not Desk then
@@ -289,6 +299,7 @@ return {
 	RansomPaidByParty = function(T)
 		Case(3000, function()
 			local HS = Svc()
+			Calm() -- (fix round 1: a member fighting isn't asked yet)
 			local Cap, CapPL, _, HosPL, S = StandInPair()
 			HosPL.Party = {HosPL, Player}
 			local Paid0 = DeedCount("paid_ransom")
@@ -405,6 +416,7 @@ return {
 	RansomTimeout = function(T)
 		Case(3000, function()
 			local HS = Svc()
+			Calm() -- (fix round 1: a member fighting isn't asked yet)
 			local _, CapPL, _, HosPL, S = StandInPair()
 			HosPL.Party = {Player}
 			T.Eq(HS.Menu(CapPL, "Ransom", 2), true, "the demand is made")
@@ -464,6 +476,117 @@ return {
 			T.Eq(O and O.Why, "Already asked", "the reason")
 			T.Eq(HS.Menu(Player, "Ransom", 2), false, "a second demand: refused")
 			T.Eq(S.Demand, nil, "no new demand")
+		end)
+	end,
+
+	-- (fix round 1, review I1) another conversation (DialogueService.Say) replacing the ransom popup answers it "not now";
+	-- the demand's end then leaves that conversation open
+	RansomPopupReplacedKeepsTalk = function(T)
+		Case(3000, function()
+			local HS, DS = Svc(), Dialogue()
+			Calm()
+			local _, CapPL, _, HosPL, S = StandInPair()
+			HosPL.Party = {Player}
+			T.Eq(HS.Menu(CapPL, "Ransom", 2), true, "the demand is made")
+			T.Eq(DS.IsOpen(Player), true, "the popup is open")
+			local Ok, Err = pcall(function()
+				T.Eq(DS.Say(Player, Player.Character, "Hostage test", "Another conversation."), true,
+					"another conversation replaces the popup")
+				task.wait(0.1)
+				S.Demand.Until = os.clock()
+				T.True(WaitFor(1.0, function() return S.Demand == nil end), "the demand ended")
+				T.Eq(DS.IsOpen(Player), true, "the other conversation is still open")
+				T.Eq(Money(), 3000, "nobody charged")
+			end)
+			pcall(DS.Close, Player)
+			if not Ok then error(Err, 0) end
+		end)
+	end,
+
+	-- (fix round 1, review I2) a member in Combat Mode isn't asked; once out of it they are, and Pay through the real
+	-- popup (DialogueService.Choose) pays
+	RansomBusyAskedLater = function(T)
+		Case(3000, function()
+			local HS, DS = Svc(), Dialogue()
+			Calm()
+			local _, CapPL, _, HosPL, S = StandInPair()
+			HosPL.Party = {Player}
+			Player.Character:SetAttribute("CombatMode", true)
+			T.Eq(HS.Menu(CapPL, "Ransom", 2), true, "the demand is made")
+			T.Eq(DS.IsOpen(Player), false, "a member in Combat Mode isn't asked yet")
+			task.wait(0.3)
+			T.Eq(DS.IsOpen(Player), false, "nor while still in Combat Mode")
+			Player.Character:SetAttribute("CombatMode", nil)
+			T.True(WaitFor(1.0, function() return DS.IsOpen(Player) end), "asked once out of Combat Mode")
+			T.Eq(DS.Choose(Player, 1), true, "Pay chosen through the popup")
+			T.True(WaitFor(0.5, function() return S.Over end), "the session ended")
+			T.Eq(S.Outcome, "ransomed", "ransomed")
+			T.Eq(Money(), 2500, "the player paid $500 (from $3,000)")
+			T.Eq(CapPL.Data.Money, 1450, "the captor +$450 (from $1,000)")
+		end)
+	end,
+
+	-- (fix round 1, review I2 / m5) a Pay clicked in Combat Mode through the real popup (DialogueService.Choose closes it:
+	-- a nil answer) is "not now", never a refusal: nobody charged, the demand stands, no new popup while fighting; once
+	-- free the member is asked again, and their Pay through the popup pays
+	RansomCombatClickIsNotARefusal = function(T)
+		Case(3000, function()
+			local HS, DS = Svc(), Dialogue()
+			Calm()
+			local _, CapPL, _, HosPL, S = StandInPair()
+			HosPL.Party = {Player}
+			T.Eq(HS.Menu(CapPL, "Ransom", 2), true, "the demand is made")
+			T.Eq(DS.IsOpen(Player), true, "the popup is open")
+			Player.Character:SetAttribute("CombatMode", true)
+			DS.Choose(Player, 1)
+			T.Eq(DS.IsOpen(Player), false, "the click in Combat Mode closed the popup")
+			task.wait(0.3)
+			T.Eq(Money(), 3000, "nobody charged")
+			T.True(S.Demand ~= nil, "the demand stands: the member didn't refuse")
+			T.Eq(S.Over, false, "the hold goes on")
+			T.Eq(DS.IsOpen(Player), false, "not asked again while in Combat Mode")
+			Player.Character:SetAttribute("CombatMode", nil)
+			T.True(WaitFor(1.0, function() return DS.IsOpen(Player) end), "asked again once free")
+			T.Eq(DS.Choose(Player, 1), true, "Pay chosen through the popup")
+			T.True(WaitFor(0.5, function() return S.Over end), "the session ended")
+			T.Eq(S.Outcome, "ransomed", "ransomed")
+			T.Eq(Money(), 2500, "the player paid $500 (from $3,000)")
+			T.Eq(CapPL.Data.Money, 1450, "the captor +$450 (from $1,000)")
+		end)
+	end,
+
+	-- (fix round 1, review m1) a Transfer that throws ends the demand unpaid (never left "paid"); the hold goes on
+	RansomTransferErrorEndsDemand = function(T)
+		Case(0, function()
+			local HS = Svc()
+			local _, _, S, Payers = HeldWithPayers(1)
+			T.Eq(HS.Menu(Player, "Ransom", 2), true, "the demand is made")
+			Swap(HS, "Transfer", function() error("hostage test: Transfer throws", 0) end, function()
+				HS._Answer(S, Payers[1], 1)
+			end)
+			T.Eq(S.Demand, nil, "the demand ended unpaid")
+			T.Eq(S.Over, false, "the hold goes on")
+			T.Eq(Payers[1].Data.Money, 1000, "nobody charged")
+			T.Eq(Money(), 0, "the captor got nothing")
+		end)
+	end,
+
+	-- (fix round 1, review m1: the money stays atomic) a credit that throws is refunded like one that fails
+	TransferCreditThrowRefunds = function(T)
+		Case(1000, function()
+			local HS = Svc()
+			local _, Cap = HK.StandIn(At(8, 0))
+			local Real = HS._Grant
+			Swap(HS, "_Grant", function(PL, N)
+				if PL == Cap then error("hostage test: the credit throws", 0) end
+				return Real(PL, N)
+			end, function()
+				local Ok, Why = HS.Transfer(Player, Cap, 500)
+				T.Eq(Ok, false, "refused")
+				T.Eq(Why, "gone", "the reason")
+				T.Eq(Money(), 1000, "the payer refunded: $1,000")
+				T.Eq(Cap.Data.Money, 1000, "the captor's money unchanged")
+			end)
 		end)
 	end,
 
@@ -527,7 +650,14 @@ return {
 			local HS = Svc()
 			SetHeat(30)
 			local _, CapPL, S = CaptiveAtDesk(Desk, 6)
-			T.Eq(HS.Menu(CapPL, "TurnIn"), true, "turned in")
+			local Toasts = HK.Toasts(function()
+				T.Eq(HS.Menu(CapPL, "TurnIn"), true, "turned in")
+			end)
+			for _, X in ipairs(Toasts) do
+				-- (fix round 1, review m3) the desk's refusal isn't shown: the Heat was cleared anyway
+				T.True(not tostring(X):find("You don't have it", 1, true), "no fine refusal shown (" .. tostring(X) .. ")")
+			end
+			T.True(#Toasts > 0, "the hostage is told")
 			T.Eq(HeatSvc().Value(Player, J), 0, "the Heat cleared")
 			T.Eq(Money(), 0, "the player's money still 0")
 			T.Eq(CapPL.Data.Money, 1000, "no bounty")
