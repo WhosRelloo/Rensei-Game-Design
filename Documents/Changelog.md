@@ -2,7 +2,190 @@
 
 What each phase built and how it was tested. Newest first. Work is in the Studio place **Ye** unless an entry says otherwise. In the entries from 2026-10-17 on, a place called **Rensei** is Ye (106992859583940, the Studio window's title) and **Main Menu** is Character Customization (123967384111466). Backups of every touched script are in `ServerStorage.RenseiBackups`.
 
-**Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### 2026-10-28 — The repo moved to E:/Rensei (no game change)
+**Discord announcements (owner, 2026-10-23).** From now on, every entry ends with a `### Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
+
+## 2026-10-29 — Hostages: take, hold, ransom and turn in other players (not live)
+
+The hostages plan (`Documents/plans/2026-10-27-hostages.md`, Tasks 1–14, run 2026-10-27 to 2026-10-29; spec `Documents/specs/2026-10-21-hostage-design.md`, **approved by the owner 2026-10-25**) answers the owner's Backlog item 2, "Hostages" (owner, 2026-10-25: "The hostage design is cool it should go after the assassinations"). All of it is in the Studio Edit sessions of **Ye** (106992859583940) and **Foundry Yard** (109591196441030), the same code in both; the Tutorial got only Task 4's DownedManager (below). **Nothing is saved or published**, and no real save was written: every Play session ran under `TestNoSave` with the save dump and deed probe equal before and after. This is the plan's only Changelog entry. The rules are in `Documents/COMBAT_SYSTEM.md`, "Hostages", and the keys in `Documents/Controls.md`, "Hostages (players only)".
+
+**Hostages ship switched off.** `Rensei.Hostage.Enabled = false`: a live server refuses every hostage request and shows no prompt; only a Studio session with `TestNoSave` can run them (the tests). Going live is the owner's step after the two-player playtest (see "The publish checkpoint"). A few changes outside the switch do go live with their packages: see "Live behaviour changes outside the kill switch".
+
+Every number is a **PROPOSAL** unless the owner chose it or it was measured. The numbers live in `Rensei.Hostage`.
+
+**What existed and what the spec assumed** (the plan's audit, read 2026-10-27; the ruling after each):
+- **H1** DownedManager had Knock, Grip, Carry, and Lock / Attach / Detach already exported, but no way to end a knock without Recover's heal: Task 4 adds `EndKnock(Victim, MinShare)` and makes Free, Takeable and CanCrawl refuse Holding and HeldBy.
+- **H2** `Attach` gives a welded pair to the holder's client, so a server walk lock is only advice: **R1**, the captor stays the holder, its client owns the pair, and the server polices it every 0.1 s (Task 6).
+- **H3** Grip and Carry use attributes: new `Holding`, `HeldBy`, `HostageUntil`, `Struggle`, `GrabImmuneUntil`, `LastHostageResult` and `HostageClamped`.
+- **H4** Takedowns didn't know about hostages, and TakedownUI skipped players: takedowns refuse Holding / HeldBy both ways (Task 4); TakedownUI is extended with a player candidate, not forked (Task 12); **R2**, the enemy wins when both are in reach.
+- **H5** No player has an awareness meter (perception only models NPCs): **R3**, "hasn't noticed you" is the takedowns' rear arc, 4 studs, a clear line.
+- **H6** Crimes raise Heat through Morality; a hit on a player is no assault: `took_hostage` is Crime 30 (2 × assault); lawless regions raise nothing.
+- **H7** Deeds covered enemies only for finishers: eight new deeds (Task 2), recorded only for real players.
+- **H8** Witnesses and rumours: no change; the deeds' text names "a hostage" / "a traveller".
+- **H9** PartyService is Studio-only (no repo copy): read only, through HostageService's own `PartyOf` seam; Task 1 recorded its API.
+- **H10** `SpendMoney` / `GrantMoney` write money in memory and DataManager has no save call: **R9–R11**, one server step on two loaded profiles, no save-layer change (Task 11).
+- **H11** Travel already refused anyone down, and a journey hands saves across servers: **R5**, journeys are a follow-up plan; here roads, trains and the papers gate refuse a pair and Depart drops one (Task 10).
+- **H12** The ride inspection and the stowaway route: unreachable (no hostage can board), so to the follow-up.
+- **H13** No region is Safe and no `RenseiSafeZone` tag existed: **R6**, safe is the region flag, a tagged part, near a clerk or gate, or a platform train's box.
+- **H14** No desk tag, and no guard NPCs spawn yet: **R7**, a desk is any model whose dialogue has a PayFine choice; turn-in at a guard waits for guards.
+- **H15** `DialogueService.Ask` already asks one question in the normal box: the ransom popup uses it.
+- **H16** The HUD bars, the NPC plate and the emote wheel's circle exist: HostageUI clones BossHealth and NpcTemplate; EmoteWheelUI gains a menu mode (Task 12).
+- **H17** No QTE bar exists: the struggle bar is a BossHealth clone and the struggle key is the Block key (F).
+- **H18** The spec's "Body" stat doesn't exist (Task 1: Strength, Intelligence, Speed, Vitality, Alchemy): `StruggleStat = "Strength"` (ruling P1 / T1-3).
+- **H19** The "hands full" checks list Carrying and Gripping in each place: Task 10 adds Holding / HeldBy to each; sprint and dash are held by the lead clamp.
+- **H20** The attack token and DamageManager decide who is hit: `LineBlocked` holds an NPC's attack, `Shield` redirects a front hit, a HitListener rescues (Task 9).
+- **H21** The touch cluster has a Grip button: two new buttons, HOSTAGE and STRUGGLE, in the existing art (Task 12).
+- **H22** The direct B bind checked only `Knocked()`: both binds skip while taking down, holding or held (client courtesy; the server refuses anyway).
+- **H23** The spec wanted save fields: **R8**, none; re-take times are kept in server memory; the `Trip` fields go to the follow-up.
+
+**What changed** (players only, both ways: an NPC is refused first as a hostage or a captor, and no takedown path accepts a player):
+- **Taking** (`HostageService`, request `Hostage`, key N, shared with takedowns; an enemy in reach wins): a knocked player is **bound** in 1.5 s (within 6 studs, interrupted by a 1-stud move or a stun); a standing player is **grabbed** from their rear arc (within 4 studs). Refused in safe zones, in a conversation, under level 5, 15 or more levels below the captor, on cooldown (4 s), while grab-immune (5 s after any release), and while either side is busy (knocked, gripping, carrying, taking down, holding or held). Both marks are set in the same step as the last check.
+- **The hold:** welded 1.5 studs in front of the captor, led at walk 12 with no jump; the hostage locked, stunned and its tools put away; one hostage per captor.
+- **The pair held for real (R1, Task 6):** the lead clamp (20.5 studs/s, 3 up, a free-fall limit down), the pair check (1.5 studs), the network-owner check, a 40-stud jump or a path through a wall ends it ("teleport"), deep water ends it; every server move of a held player re-bases it (`DownedManager.MovedOnPurpose`); every release settles the hostage at rest on the server's own spot.
+- **Getting free:** the struggle (the Block key, Strength against Strength; a grab starts at 0.4 with 3 s to shove off); a rescue (a hit from behind or the side, melee or gun; a parry; the captor knocked); the time limit (180 s, halved per re-take within 10 minutes, at least 20 s); the captor's menu; and every exit (leaving, dying, respawning, knocked, safe zone, teleport, water, error, shutdown), all through one Release that gives everything back.
+- **The captor menu** (N while holding, the emote wheel's circle): **Let them go** (Mercy +2 and the take's Heat halved, paid only after 30 s unharmed by the captor's side); **Finish them** (the normal Grip; refused while attacking or stunned); **Demand ransom**; **Turn them in**.
+- **Human shield and NPCs (Task 9):** a front hit lands on the hostage (damage only; one swing lands once; `used_human_shield` once a hold); an NPC in front holds its attack and circles to the flank; a law NPC's rescue raises Heat once, with no deed.
+- **Ransom (Task 11):** tiers $50, ¼, ½ and all of min(100 × the hostage's level, $5,000); the client sends only the tier's index; every free party member of the hostage in this server is asked in the normal dialogue box; the first Pay is one server step with no yield (debit, credit 90%, refund in full if the credit fails), with one audit line per transfer; one demand per hold, 60 s.
+- **Turn-in (Task 11):** at a State desk (Brask, Ye) with a Wanted hostage: the fine (Wanted 3+: 100 × level, if they can pay), their Heat cleared, a bounty of 50% of what was actually paid.
+- **Hands full (Task 10):** a captor gets light attacks only; a hostage can't act; roads, trains and the papers gate refuse a pair ("Let them go first."); Depart drops a held player.
+- **The client (Task 12):** the N prompt over a player (the takedowns' PromptUI art, the player's own takedown key, ButtonX on a gamepad; hidden while hostages are off); the HUD's time and struggle bars and a "Held by" plate (clones of the boss bar and the NPC plate); the captor wheel (usable in Combat Mode; its menu owns the mouse, so a pick or a close never swings or feints; Esc closes it); touch HOSTAGE and STRUGGLE buttons. Only existing UI assets.
+- **Deeds (Task 2):** `took_hostage`, `attempted_hostage`, `released_hostage`, `killed_hostage`, `used_human_shield`, `paid_ransom`, `took_ransom`, `turned_in_fugitive` (weights in `COMBAT_SYSTEM.md`, "Hostages").
+- **Animations (Task 3):** four empty slots in `Assets.Animations.Shared.Hostage` with fallbacks (`Animations.md`, "Hostages").
+- **The switch (Task 5 fix, ruling K1):** `Rensei.Hostage.Enabled = false`; `Requests.Hostage` and `HostageService.Take` refuse "disabled"; `HostageService.Allowed()` passes only in Studio with `TestNoSave`.
+- **Tooling:** 26 new sync pairs over the plan, plus the takedown-key side task's 2 (`sync.py --check` Ye 115 → **143**, Foundry 114 → **142**, SAME); `test_sync.py` 1338 → **1618 / 0**; the survey `Art/Studio/Hostage/survey_hostage.lua` (`survey_ye.json`, `survey_foundry.json`); `Art/Studio/Hostage/anim_slots.lua`; the real-input checks `Art/Studio/Hostage/client_checks.lua`; the suites `RenseiTests.HostageKit`, `Test_Hostage`, `Play_Hostage`, `Play_HostageHard`, `Play_HostageMoney`.
+
+**Live behaviour changes outside the kill switch.** These go live with the next publish of their package, even with hostages off:
+- **DialogueService** (RenseiServer; Task 11 fix): when another conversation (`Open` or `Say`) replaces an open question (`Ask`), that question is answered "nothing" at once. Today that means the **Alchemic Binding's consent** (the only other `Ask` caller in the repo), replaced by another conversation, now refuses at once ("did not consent", with its refuse cooldown) instead of waiting out its 25 s window, and the ritual no longer closes the conversation that replaced it. Checked in Ye Play through DialogueService (Task 13: answered in 1.05 s by `Say` and by `Open`); `RitualService.Perform` itself needs two players.
+- **StationService** (RenseiServer; Task 13 and its fix round): a papers-gate touch acts only when the player's root is at the gate: across and up or down within the gate's half-size + 3 (`GateTouchSlack`), and through it within its half-depth + 16 on the hall side (`GateReach`) and + 8 on the platform side (`GateTouchDepth`), all PROPOSAL (16.5 and 8.5 studs for today's 1-stud gate). **This fixes a World Plan 1 bug:** a late (lagged) client touch could push a player already in the train 20 studs out of the car. It was seen in the tests since 2026-10-23 as `PapersAreCheckedAtBoarding` and `ThirdClassCantSitInACabinSeat` failures. A sprinting Wanted player is still stopped (tested 14 studs short at 30 studs/s).
+- **RitualService** (RenseiServer; Task 13): `Busy()` now reads the shared `MovementState.Blocking` list plus `TakingDown`. Without hostages, the one live difference: a player in the middle of a takedown can't draw a circle, perform or be a Binding's target ("taking someone down"), once takedowns are live. Holding and HeldBy only matter once hostages are on.
+- **DownedManager.MovedOnPurpose** (Modules; Task 10 fix): StationService's, RoadService's, TravelService's and AdminService's own "rebased" helpers now all call this one function, which runs `RebaseCrawl` and then `HostageService.Rebase`, each in its own pcall that warns on failure. With no hostage the result is the same (Rebase returns false at once).
+- **Inert until someone is Holding or HeldBy** (live code paths, no effect while hostages are off, because only HostageService sets those attributes): MoverManager keeps a Holding captor's walk 12 and jump 0 through a movement hand-back (HeldBy: 0 / 0); CharacterHandler refuses dash i-frames to Holding / HeldBy; the hands-full checks (MovementState, Emotes, StyleService, AlchemyService, Shoot, WeaponSkill, ClassSkill, ItemService, Heavy, Block, FistSwing, the client's Run, Crouch and B / V binds); the travel refusals; DamageManager's shield and one-hit-per-swing; ProgressionService.RecordHit's `HitVictim`; WeaponManager.Fire's rescue check; CombatDirector / EnemyService's blocked line and circling; TakedownService's and DownedManager's refusals; TakedownUI's player prompt; MobileControls' two buttons; EmoteWheelUI's menu mode (the emote path is unchanged); `HeatService.Reduce` (new, with no live caller). Task 9's review read the no-hostage paths as identical, call for call.
+
+**The owner's rules kept:** **PvP only for hostages** (the first check refuses an NPC either side; tested, stand-ins included: `NpcNeverAHostage`) and **PvE only for takedowns** (`TakedownNeverAPlayer`, `StandInNeverATakedown`); **only existing UI assets** (PromptUI, BossHealth and NpcTemplate clones, the wheel's own circle, the Dialogue box, toasts; no new image, font, sound or ScreenGui, no StarterGui edit); **no invented asset id** (the four slots are empty); **no publishing** and no live player data touched.
+
+**Decisions taken without the owner** (each a PROPOSAL; where a ruling during the plan changed the plan's list, the current value is given):
+1. The captor's client owns the welded pair; the server polices it every 0.1 s (lead clamp 12 × 1.5 + 2.5 studs/s, pair slack 1.5, a jump over 40 studs or through a wall ends it).
+2. An enemy in reach wins over a player (takedown first).
+3. "Hasn't noticed you" = the takedowns' rear arc, 4 studs, a clear line.
+4. Safe zones: the region flag, `RenseiSafeZone` parts, **50 studs** around ticket clerks and station gates (ruling T1-1; Task 1 measured 285.7 to a train's far corner, which would cover much of Lindenmoor west), platform trains + 4 studs.
+5. A hostage knocked while held ends the hold; the captor may bind them again.
+6. A grab that never becomes a hold records `attempted_hostage` (Crime 15), once.
+7. **Changed:** a release halves the took_hostage Heat raised at the take (a new `HeatService.Reduce`), and pays out only after a 30 s unharmed window (`ReleaseGrace`; a harmed, still-knocked player keeps it open up to 120 s more). The plan's list had said "no Heat change".
+8. The bounty is 50% of a fine actually paid; a Wanted 3+ fugitive is charged 100 × level when they can pay (ruling P13); a broke one has their Heat cleared and earns the captor no money.
+9. **Changed:** animation stand-ins: the bind plays `Takedown_Choke` (the `Gripping` slot is empty in both places), leading `Carrying`, the hostage and the struggle `Takedown_ChokeVictim`.
+10. Re-take halving: 180 / 2^n s, at least 20 s, per hostage, in server memory.
+11. **Changed:** the struggle uses **Strength** (there is no "Body" stat): +0.06 a press × the clamped ratio (0.5–2), drain 0.05/s, 4 stamina a press, 8 presses/s counted, 4 messages/s sent.
+12. Ransom tiers: $50, then ¼, ½ and all of min(100 × level, $5,000), rounded to $10; 10% "goes missing"; one demand per hold, 60 s.
+13. The hostage isn't asked to pay; a party member who is busy (in combat or in another conversation) is asked again once free, and only "Refuse" counts as a refusal.
+14. A captor can't shoot, block, heavy, uppercut, use weapon or class skills, cast, emote, change style or use items; light attacks deal normal damage. A hostage's block is refused too (its F is the struggle).
+15. **Changed:** a rescue by a law-faction NPC raises the captor's Heat once (took_hostage's 30) through the normal Heat path, with no deed; townsfolk are never guards.
+16. "The party wipes the captor's party" is covered by the captor being knocked or dying.
+17. Deep water ends a hold ("water").
+18. The hostage's tools are put away at the take and every watch tick.
+19. One hostage per captor; neither side can grip, carry, take down or be taken by anyone else.
+20. The deed weights and caps (Task 2's table, cap 5 a day each).
+- **Rulings during the plan:** hostages switched off until the owner's go (K1); every grab and bind refused for an NPC first; the hostage's `SecondWindActive` cleared at the bind; Finish refused while the captor attacks or is stunned, and a failed grip gives the knock back; guns rescue like melee; NPCs circle for an angle; one swing lands once on the pair; the release snaps the hostage back after a blink or a clamp fight, at rest; a client-side weld break is inert (the server's weld stands); the dash is held by refusing its i-frames plus the lead clamp (no client Roll guard); the bars stack under the toast banner (gap 6 px, plate 0.6 × 0.42 of the boss bar); the ransom tiers read "$1000" (no thousands separator); the Binding consent refuses at once when replaced; the gate touch must be at the gate (above).
+
+**Owner action:**
+1. **The four animation uploads** (`Hostage_Bind`, `Hostage_Hold`, `Hostage_Held`, `Hostage_Struggle`): all empty, playing stand-ins; set each slot's `AnimationId` in both places. See `Animations.md`, "Hostages".
+2. **The go on R9–R11**, already given (owner, 2026-10-27): "Yes, build ransom as planned: one server-side capped transfer ($5,000 max), refund on failure, no save-layer changes." Built as given. The residual (R11): a server crash between the two profiles' own autosaves could save one side only, duplicating at most one capped ransom.
+3. **Questions** (what the code does today):
+   - (a) **Rumour Heat isn't halved.** A release halves only the took_hostage Heat raised at the take, per jurisdiction. Heat that rumours of the taking raise later, as word reaches other places, isn't touched. Halving that too would need a RumourService hook.
+   - (b) **Finish spends the hostage's Second Wind.** Finish's knock uses the hostage's once-per-life Second Wind. If the grip is then cancelled (a stun), they have lost it for that life, and the knock-back leaves `SecondWindActive` set, so their next knock recovers at the 30% share. Fix options: skip Second Wind on Finish's knock, or clear it in the undo step.
+   - (c) **Guns and the release window.** Guns rescue (a shot on the captor from behind or the side frees the hostage), and front shots hit the shield. But a gun hit doesn't feed the 30 s release window: if the ex-captor or their party knocks the released player with a gun inside it, "Let them go" still pays Mercy and halves the Heat (melee and alchemy knocks cancel it; a grip that kills is still `killed_hostage`). The controller ruled that guns should count too; it is parked for the final fix round.
+   - (d) **No "Take hostage" prompt while the captor is InCombat.** UIState turns every prompt off while the post-hit combat tag lasts, so right after a PvP knock the prompt waits until it clears, the same as takedowns. Combat Mode itself doesn't hide it. Changing it needs a UIState exemption.
+   - (e) **The 3-option captor wheel** now sits top / right / lower-left (slots spread evenly for any count) instead of top / right / bottom. Say if you prefer the old placement for three items.
+   - Also open: Strength or Vitality for the struggle (decision 11)? Is the hostage's stand-in pose right (decision 9)? Journeys as the next hostage plan ("Hostages 2: journeys"), once a private live test server can be used?
+4. **The two-player playtest.** Run it in **Studio Team Test with ServerStorage `TestNoSave = true`** set in Edit: `HostageService.Allowed()` already passes in Studio under TestNoSave, so the switch stays off. Before anything, check the server's output shows "[DataManager] TestNoSave: this Studio session will not save" (Team Test under TestNoSave hasn't been tried from here). Nothing saves in such a session, so read balances before anyone leaves.
+   1. Lead a real player 50 studs. Does the pose read? Is walk 12 comfortable? Does the hostage's camera stay free?
+   2. The captor sprints and dashes: is there no gain (the clamp)?
+   3. A real struggle with F, and with a touch tap.
+   4. A party member pays a ransom (two accounts, one server). Check both balances. (After both rejoin, as the list first said, needs a saving session; under TestNoSave a rejoin shows the unchanged save.)
+   5. A rescue from behind by a third player.
+   6. A front hit from a third player lands on the hostage.
+   7. A station: the conductor's and the gate's lines. (Expect the hold to end "safe" first, within 50 studs of the ticket clerk or the gate or on the platform: the tests reached those lines only with the safe-zone check stubbed off.)
+   8. A turn-in at Brask with a Wanted friend.
+   9. A real gamepad opens the captor menu with ButtonX (only the key code was tested).
+   10. Right after a PvP knock, the "Take hostage" prompt waits until InCombat clears (question d). Is that wanted?
+   11. With both players in a Transmutation Circle, a held player can't be offered the Binding, and a captor can't perform it (Task 13 made `Busy()` refuse both; the target side was only checked through `Busy()`).
+   12. Sprint at the papers gate as a Wanted player (and once with a laggy connection): Wanted 3 is stopped on the hall side with the guard's line and +10 Heat; Wanted 1–2 is offered the bribe.
+5. **The publish checkpoint and the go-live step** (below).
+
+**Tests** (hooked Play, one session at a time, every case inside `HostageKit.Guard`, which refuses to run unless the save snapshot is armed **and** `DataManager.IsNoSave()` is true; the save dump and deed probe were equal before and after every session; every two-player case uses a **stand-in player rig**, because Studio Play has one real player). RED first in every task; final GREEN counts, Ye and Foundry unless marked:
+- **Task 1** (parity and survey): 13 pairs, `sync.py --check` Ye 128 / Foundry 127 SAME; test_sync 1468/0. Play (Ye): R1 confirmed (a welded rig's root is owned by the player's client; a held player's root by the server, 0.00 studs of drift while its client pushed it).
+- **Task 2** (`Rensei.Hostage`, the deeds): `Test_Hostage` 0/14 → 14/0 (Ye Play); Test_Takedown 13/0, Play_Morality 3/0; 130 / 129, test_sync 1488/0.
+- **Task 3** (the slots): `anim_slots.lua` check 14/8 → **39/0** in both; `test` mode round trip equal; all four fallbacks play on the client.
+- **Task 4** (exclusion both ways, `EndKnock`): `Play_HostageHard` 2/8 → 10/0; Ye Downed 12/0, Takedown 60/0, TakedownHard 18/0, Classes 9/0; Foundry TakedownHard 18/0, Downed 12/0 (third run; two grace-timing flakes); 132 / 131, test_sync 1508/0. The Tutorial's DownedManager was synced (its copy matched Ye's).
+- **Task 5** (HostageService: the seam, the bind, the hold, one Release, every exit): `Play_Hostage` 0/26 → 26/0; fix round (detach only what was attached, a real HeldPairNotTakeable, the switch) 24/3 → **27/0**; HostageHard 10/0; Ye Downed 12/0, Takedown 60/0, TakedownHard 18/0, Stealth 9/0, Heat 8/0; 135 / 134, test_sync 1538/0.
+- **Task 6** (the pair held for real): HostageHard 11/7 → 18/0; real-client checks RED 1/2 (an unclamped sprint went 48.3 studs), then the sprint clamped to 12.63 and the client weld break made an inert control (the server's weld ignores it); fix round (snap back, velocity, wall and floor rays) 19/7 → **26/0**, Hostage 27/0, client checks 4/0; Ye Downed 12/0, TakedownHard 18/0, Takedown 60/0, Stealth 9/0; 137 / 136 (two pairs came from the takedown-key side task), test_sync 1558/0.
+- **Task 7** (grab, struggle, time limit, immunity): Hostage 26/12 → 38/0, HostageHard 27/3 → 30/0; fix round (`attempted_hostage` on every non-held grab end) 38/2 → **40/0**; Ye Downed 12/0, TakedownHard 18/0, Stealth 9/0, Heat 8/0.
+- **Task 8** (Release and Finish, the deeds, `HeatService.Reduce`): 40/8 → 48/0; fix rounds (the 30 s window, Finish refused mid-attack, the cancelled Finish, the knocked-window wait) 47/6 → 53/0, 53/1 → 54/0, 53/2 → **55/0**; HostageHard 30/0, Ye Takedown 60/0, TakedownHard 18/0, Morality 3/0, Heat 8/0, Downed 12/0, Test_Hostage 14/0.
+- **Task 9** (shield and rescue): 56/7 → 63/0; fix round (guards are law NPCs, guns rescue, NPCs circle, one hit per swing) 62/8 → **70/0**; Ye TownsfolkHurt 11/0, HostageHard 30/0, Downed 12/0, Takedown 60/0, TakedownHard 18/0, Stealth 9/0, GunKit 3/0, Guns 25/0, GunNpc 4/0, Heat 8/0; 138 / 137.
+- **Task 10** (hands full, travel refusals): HostageHard 30/11 → 41/0; fix round (gate push proves the Rebase, the captor's walk kept, no dash, one MovedOnPurpose) 41/3 → **44/0**, client CaptorNoDash 0/1 → client checks 5/0; Ye Hostage 70/0, TownsfolkHurt 11/0, Downed 12/0, Takedown 60/0, TakedownHard 18/0, Stealth 9/0, GunKit 3/0, Guns 25/0, Swim 9/0, Road 11/0, Station 20/0 and Travel 7/0 (the loaded slot's tickets set aside in memory), Arrive 5/0, Gate 13/0, Heat 8/0; Foundry Hostage 70/0, Downed 12/0, Station 20/0, Road 11/0, Gate 13/0; 140 / 139, test_sync 1588/0.
+- **Task 11** (ransom and turn-in): `Play_HostageMoney` 1/19 → 20/0; fix round (the replaced popup, "not now", a throwing transfer) 20/5 → **25/0**; Hostage 70/0, HostageHard 44/0, Downed 12/0, Test_Hostage 14/0; Ye Gate 13/0, Test_Heat 6/0, Morality 3/0; 141 / 140, test_sync 1598/0.
+- **Task 12** (the client): hostage client checks 1/11 → 17/0; fix round (the menu owns the mouse, Esc, the plate, even slots, the gamepad, a held block let go) 0/6 → **22/0**; takedown client checks 12/0; Hostage 70/0, HostageHard 44/0, HostageMoney 25/0, Takedown 60/0, TakedownHard 18/0; one Play check that a menu pick never swings (M1 0, M2 0, Feint 0); 142 / 141, test_sync 1608/0.
+- **Task 13** (the full sweep in both places, then three fixes): Ye Hostage 70/0, HostageMoney 25/0, Takedown 60/0, TakedownHard 18/0, Classes 9/0, Downed 12/0, Stealth 9/0, Morality 3/0, Heat 8/0, Rumours 3/0, GunKit 3/0, Guns 25/0, Swim 9/0, Assault 1/0, client checks 22/0 and 12/0; Foundry Boot 2/0, Test_Hostage 14/0, Hostage 70/0, HostageMoney 25/0, Takedown 60/0, Downed 12/0, client checks 22/0. Fixed: the test kit's NPC-perception leak (`GuardForgetsRealSightings` RED → green), the stale gate touch (`StaleGateTouchLeavesABoardedPlayer` and `GateChecksAHallSideApproach` RED → green), and `RitualService.Busy` (`RitualRefusesAPair`, `RitualPerformRefusesAPair` RED → green). Final: **HostageHard 47/0**, **Gate 15/0** (Ye 15/0, 15/0, 14/1, 15/0, the 1 being the parked `ThrownOffRiderIsPutBackOnThePlatform`; Foundry 15/0 ×3), the Bribe-then-Papers loop 8/8 (was 6/8), **Station 20/0** ×2 (tickets set aside); `anim_slots.lua` check 39/0 in both; **143 / 142 SAME, test_sync 1618/0**.
+- **Known flakes and test-order effects, not hostage code** (each passed on a rerun or in another order): `KnockGraceSnapsBack`, `RebaseGraceSnapsBack`, `HeldClientCantMove` and `RetakeHalves` once each; `Play_Gate.ThrownOffRiderIsPutBackOnThePlatform` straight after Play_Station (streaming); `Play_TownsfolkHurt.Gossip` after Play_Heat; Play_Road leaving the player at the road's end; `AStalledWatchAllowsNoBiggerJump` once. They are parked for the final review.
+
+**Not tested:**
+- **two real players:** every two-player case used a stand-in rig, and the Binding's target side was checked only through `Busy()`. The playtest list above covers it;
+- **touch on a real phone:** the HOSTAGE and STRUGGLE buttons were clicked in Studio with `ForceMobileControls`;
+- **a real gamepad:** only the ButtonX key code was sent;
+- **a live server:** hostages are switched off, and journeys (the cross-server handoff) aren't built;
+- the struggle pose itself (the stand-in is the same pose as Held), and a ransom's balances after both players rejoin.
+
+**Backups and rollback:**
+- **Backups:** `ServerStorage.RenseiBackups["Pre-Hostages_2026-10-27"]` in Ye and Foundry Yard (and the Tutorial, for DownedManager only). Each script was cloned once, before this plan's first change to it. Created scripts have no backup.
+- **The rollback order** (Edit, both places):
+  1. **Revert this plan's labels from that backup:** Rensei.Deeds, Rensei.Emotes, Managers.DownedManager, Managers.DamageManager, Managers.MovementState, Managers.MoverManager, Managers.AttackRunner, Managers.WeaponManager, Skills.Heavy, Skills.Block, Skills.FistSwing, UI.TakedownUI, UI.EmoteWheelUI, UI.MobileControls, RenseiServer.TakedownService, .CombatDirector, .EnemyService, .HeatService, .ProgressionService, .DialogueService, .StyleService, .AlchemyService, .ItemService, .CharacterHandler, .ServerHandler, .RitualService, Admin.AdminService, Travel.StationService, Travel.RoadService, Travel.TravelService, Requests.Shoot, Requests.WeaponSkill, Requests.ClassSkill, SPScripts.UIHandler, SPScripts.ClientHandler, ClientHandler.Run, ClientHandler.Crouch, RenseiTests.TakedownKit, RenseiTests.Play_Gate. In the Tutorial, DownedManager. Do this first: EnemyService, TakedownUI, MoverManager and other changed scripts now require `Rensei.Hostage` or call HostageService.
+  2. **Delete the scripts this plan created:** `Rensei.Hostage`, `HostageService`, `Requests.Hostage`, `UI.HostageUI`, and the tests `HostageKit`, `Test_Hostage`, `Play_Hostage`, `Play_HostageHard`, `Play_HostageMoney`.
+  3. **Run `Art/Studio/Hostage/anim_slots.lua` with MODE "undo"** (it refuses, naming the slot, if a slot's id was changed).
+- Each of the three live changes above can be undone alone the same way (its label in step 1): DialogueService holds only Task 11's change; reverting StationService or RitualService also takes out their hostage refusals, which is harmless only while hostages are off.
+- Never use older backup folders for these scripts: they predate later work (the assassinations, the takedown key).
+
+**The publish checkpoint** (for the owner; this plan publishes nothing). Hostages ship **switched off**. It follows `Documents/World Travel.md` §10, and may be published only together with whatever hold is then in force: the same packages still carry other unpublished work (the assassinations, the gun rework, the takedown key, the Lindenmoor and Foundry Yard publish hold).
+1. **Save** Ye and Foundry Yard in Studio.
+2. **Publish the packages from Ye:**
+   - **Modules:** `Rensei.Hostage` (new), `Rensei.Deeds`, `Rensei.Emotes`, `Managers.DownedManager`, `Managers.DamageManager`, `Managers.MovementState`, `Managers.MoverManager`, `Managers.AttackRunner`, `Managers.WeaponManager`, `Skills.Heavy`, `Skills.Block`, `Skills.FistSwing`, `UI.TakedownUI`, `UI.HostageUI` (new), `UI.EmoteWheelUI`, `UI.MobileControls` (and the takedown-key side task's `Rensei.Settings`, `Rensei.Takedown`, `Managers.Keybinds`, `UI.CombatModeUI`, not hostage code). `Rensei.Hostage` must go out with EnemyService, which now requires it;
+   - **RenseiServer:** `HostageService` (new), `ServerHandler`, `ServerHandler.Requests.Hostage` (new), `TakedownService`, `CombatDirector`, `EnemyService`, `HeatService`, `ProgressionService`, `DialogueService`, `StyleService`, `AlchemyService`, `ItemService`, `AdminService`, `CharacterHandler`, `RitualService`, `StationService`, `RoadService`, `TravelService`, `Requests.Shoot`, `Requests.WeaponSkill`, `Requests.ClassSkill`;
+   - **Assets:** `Animations.Shared.Hostage` (four empty slots with their fallbacks).
+3. **Update Foundry Yard's packages by hand** (Modules, RenseiServer, Assets), then check with `sync.py --check` (expect Ye 143 / 0 / 0, Foundry 142 / 0 / 0) and `Art/Studio/Hostage/anim_slots.lua` MODE "check" (39/0) in both.
+4. **Publish the places** Ye and Foundry Yard. The place scripts `StarterPlayerScripts.UIHandler` (starts HostageUI), `ClientHandler`, `ClientHandler.Run` and `ClientHandler.Crouch` go out with them, like the test suites (`HostageKit`, `Test_Hostage`, `Play_Hostage`, `Play_HostageHard`, `Play_HostageMoney`, and the changed `TakedownKit` and `Play_Gate`).
+5. **Last: Migrate to Latest Update** for both places.
+- **The Tutorial:** not a package consumer, and no hostage code reaches it. Its DownedManager copy (Task 4) goes out with its own place save, whenever that is.
+- **Going live (the owner's step, after the two-player playtest):** set `Rensei.Hostage.Enabled = true` in the repo and sync it into both places (`--backup Pre-Hostages_2026-10-27`), and **in the same step** change the hand-written expectation in `Play_Hostage.DisabledRefusesLiveCall` (`T.Eq(Hostage.Enabled, false, …)`, `Play_Hostage.lua:711`) to match, or that test fails. Then publish Modules (and the places, for the test file) in the order above.
+
+### Discord announcement
+
+Hold: not live yet. Post this when the owner publishes the hostages update.
+
+```md
+**Update: Hostages**
+
+**Take someone hostage**
+- Knock a player down, stand over them and press N to take them hostage.
+- Or sneak up behind someone who hasn't seen you and press N to grab them. They get a moment to shove you off.
+- An enemy in reach always means a takedown instead. Only players can be taken hostage.
+
+**Leading them**
+- You lead your hostage in front of you, slowly. No running, dashing, jumping or heavy attacks while your hands are full.
+- Your hostage can still look around, and can struggle free by mashing the block key (F). A stronger hostage breaks free faster.
+- A hold doesn't last forever, and it's shorter if the same person was taken recently.
+
+**Rescues**
+- Anyone can free a hostage by hitting the captor from behind or the side.
+- Hits from the front land on the hostage instead, so pick your angle.
+
+**What next**
+- Press N again for the captor menu: let them go, finish them, ask their party for a ransom, or hand a wanted one over to the State for a bounty.
+- Letting someone go unharmed counts in your favour. Finishing them doesn't.
+
+**It's a crime**
+- Witnesses talk, and towns are risky: word gets around and the law hears of it.
+- Never in stations or other safe places, and never on new players or anyone far below your level.
+- You can't take a hostage onto the roads or the train (yet).
+```
+
+## 2026-10-28 — The repo moved to E:/Rensei (no game change)
 
 **Owner:** "Any new files you make for the game, throw them on the E: drive since it has more space", then "Move the repo to E:/Rensei too, once no task is mid-edit." C: had 2.7 GB free.
 
@@ -14,8 +197,6 @@ What each phase built and how it was tested. Newest first. Work is in the Studio
 ### Discord announcement
 
 Nothing to post: no player-facing change.
-
-## Discord announcement` section: a ready-to-paste post for players. It is written in plain words about what players will notice in the game, with no file names, script names, test results or PROPOSAL tags, and stays under Discord's 2,000-character limit. An entry whose work isn't in the live game yet says so in the section (for example "Hold: not live yet") instead of announcing it, and its post is written when it ships.
 
 ## 2026-10-28 — The takedown key is rebindable (not live)
 

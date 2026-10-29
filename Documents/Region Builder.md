@@ -259,6 +259,10 @@ It still shows, and you can stand on it and bump into it. The server refuses a c
 
 Today, no tagged part is in any live map. The first ones arrive with the region imports.
 
+### Hostage-safe zones and `RenseiSafeZone` (hostages, 2026-10-29; not live)
+
+A part tagged **`RenseiSafeZone`** is a hostage-safe zone (ruling R6; the tag name is `Rensei.Hostage.SafeTag`). While either player's root is inside that part's box (its own size and rotation), nobody can be taken hostage, and a captor whose root goes in with a hostage ends the hold at once (released "safe"). Only a tagged **BasePart** counts: a tagged Model is ignored, so tag the parts. Make the part invisible, non-colliding and anchored, and size it to the hall, platform or room it protects. The game already treats every station as safe without the tag (50 studs around each ticket clerk and station gate, and each platform train's box plus 4 studs, PROPOSAL), and so is any region whose `Safe` flag is set (none is today). The Tutorial and the Menu run no hostage code. **No part carries the tag yet**, and the builder doesn't know it: `RenseiSafeZone` isn't in `MARKER_TAGS` (`schema.py`), so a marker with it is refused. Add it by hand in Studio (the Tag editor, or `CollectionService:AddTag(part, "RenseiSafeZone")`), or add it to `MARKER_TAGS` first if a region file should place one.
+
 ## 3. Export
 
 The export is `Art/Blender/lindenmoor/export.py`: `export(scene_name="Lindenmoor_Full", out_path=..., origin=(0, 4, -650))`. For a region, give all three:

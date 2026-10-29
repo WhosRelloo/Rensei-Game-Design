@@ -1,6 +1,6 @@
 # Rensei Controls (for testers)
 
-Checked against the game's input code on 2026-10-27: ClientHandler, Keybinds, Settings, UIHandler, HUDUI, CombatModeUI, JumpManager, SwimClient, DialogueUI, EmoteWheelUI and MobileControls (and GunAimUI, after the gun rework; TakedownUI and CombatModeUI's E-prompt rule, after the assassinations). Keys marked **(rebindable)** can be changed in Menu (P) > Keybinds.
+Checked against the game's input code on 2026-10-27: ClientHandler, Keybinds, Settings, UIHandler, HUDUI, CombatModeUI, JumpManager, SwimClient, DialogueUI, EmoteWheelUI and MobileControls (and GunAimUI, after the gun rework; TakedownUI and CombatModeUI's E-prompt rule, after the assassinations; HostageUI, TakedownUI's player prompt and EmoteWheelUI's menu, after hostages, 2026-10-29). Keys marked **(rebindable)** can be changed in Menu (P) > Keybinds.
 
 ## Moving
 | Key | Action |
@@ -58,6 +58,20 @@ Assassinations (2026-10-27, not live yet; the key and numbers are PROPOSAL). Onl
 
 N (rebindable): change it in Menu (P) > Keybinds > Takedown (2026-10-28, not live yet); the prompt shows the key you chose, at once. Tap and hold work the same on any key. A key left unbound (Unknown) shows no takedown prompt on keyboard and mouse; touch and gamepad still get it. B, V and H (the emote wheel) stay reserved. Players and townsfolk can never be taken down. Gamepad: the prompt's default button (ButtonX). Touch: tap or hold the prompt itself.
 
+## Hostages (players only)
+Hostages (2026-10-29, **not live**: built and tested, but switched off until the owner turns them on; every number is PROPOSAL). The same key as takedowns: **an enemy in reach is a takedown, a player is a hostage**, and when both are in reach the enemy wins. Never on a new player (under level 5) or anyone 15 or more levels below you, never in a station or other safe place, and never on an NPC.
+
+| Key | Action |
+|---|---|
+| N **(rebindable, the takedown key)** | Take a knocked player hostage (1.5 s bind), or grab one from behind who hasn't seen you (an enemy in reach is a takedown instead). Works in or out of Combat Mode |
+| N (holding) | The captor menu, on the emote wheel's circle: **Let them go**, **Finish them**, **Demand ransom** (then pick the amount), **Turn them in** (only at a State desk, with a Wanted hostage). N again, Esc or a right click closes it |
+| Block key (F, rebindable) | Held: struggle (press it fast; the Struggle bar fills, slower against a stronger captor, 4 stamina a press) |
+
+- **Holding someone:** you walk at 12 with no jump, sprint or dash, and only light attacks. No heavy, block, uppercut, weapon or class skill, gun, alchemy, emote, style change, item, climb or swim. No road crossing or train boarding with a hostage.
+- **Held:** you can't move, jump, fight, cast, sprint, climb or use items, and your drawn tool is put away. Your camera stays free. The bar at the top shows how long the hold has left (180 s, less if you've been taken recently).
+- **Gamepad:** the prompt's default button (ButtonX) takes a hostage and, while holding, opens the captor menu (tested with the key code only, not a real gamepad).
+- Right after a fight (`InCombat`) the "Take hostage" prompt waits, like every prompt, until the combat tag clears. Combat Mode itself doesn't hide it.
+
 ## Swimming
 Swimming revamp (2026-10-27, not live yet; the keys and numbers are PROPOSAL):
 
@@ -108,6 +122,7 @@ Every button does the same thing as its key. The fight buttons appear only in Co
 | V (Carry, otherwise Ultimate) | V |
 | Grip (near a knocked body) | B |
 | Takedown: tap or hold the prompt over the enemy (tap: knock out; hold: assassinate) | N (rebindable) |
+| Hostage: tap the prompt over the player (Take hostage / Grab); **HOSTAGE** (the captor menu, while holding); **STRUGGLE** (while held, in Block's place) (not live) | N (rebindable); N (holding); F (held) |
 | Bag, Stats, Menu, Mastery, Journal | `, M, P, K, J |
 
 On a wall, the thumbstick moves you the same way W A S D does.

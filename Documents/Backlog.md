@@ -48,14 +48,22 @@ In the owner's order:
      - [ ] **A touch carry button out of Combat Mode** (on touch, V is the alchemy button, so carrying a body there needs Combat Mode).
      - [ ] **Review the PROPOSAL decisions:** the spec's §16 list and the controller's rulings in the Changelog entry.
      - [ ] **Owner question:** is "HammerChoking" (132728216355683) the intended Assassination Victim animation?
-2. [ ] **Hostages** (owner, 2026-10-25: "The hostage design is cool it should go after the assassinations"). Design: `Documents/specs/2026-10-21-hostage-design.md`.
+2. [x] **Hostages** (owner, 2026-10-25: "The hostage design is cool it should go after the assassinations"). Design: `Documents/specs/2026-10-21-hostage-design.md`. *(Done 2026-10-29, hostages plan Tasks 1–14: take a knocked player or grab one from behind with N, lead them, struggle, rescue and the human shield, the time limit, and the captor menu's release, finish, ransom and turn-in, players only; in the Edit sessions of Ye and Foundry Yard; tested with stand-in players; **not live and switched off** (`Rensei.Hostage.Enabled = false`) until the owner's two-player playtest and go-live step. See `Documents/Changelog.md`, "2026-10-29 — Hostages: take, hold, ransom and turn in other players (not live)", for the owner actions, the publish checkpoint and the rollback.)*
    - The owner approved the design. Its numbers stay PROPOSAL.
    - Key: **N is shared with takedowns, and the target decides** (an enemy means a takedown, a player means a hostage). This is a controller ruling (PROPOSAL); the owner raised no objection.
    - Brask's desk stays in Ye's Foundry Yard model. Turn-ins use State desks there or later.
+   - **Follow-ups (not started):**
+     - [ ] **Hostages 2: journeys** (ruling R5): a held pair crossing a road or riding the train together. The road and train handoff (the hold written into both saves' `Trip` in the same `Depart` call, `Trip.Hold = {Role, With, Nonce, Left}`, then re-bound on arrival when both sides arrive with the same Nonce, PROPOSAL 20 s wait), the stowaway route for a pair, the ride inspection freeing the hostage (and fining the captor 3× the fare, PROPOSAL, with State Heat), and the `Trip` fields. The save half can be tested in Studio; the cross-server half needs a private live test server, which needs the owner. The design is in `Documents/plans/2026-10-27-hostages.md`, "Follow-up: journeys".
+     - [ ] **The four hostage animation uploads** (`Hostage_Bind`, `Hostage_Hold`, `Hostage_Held`, `Hostage_Struggle`): all empty, playing stand-ins. See `Animations.md`, "Hostages".
+     - [ ] **The owner's two-player playtest** (12 items, in the Changelog entry's "Owner action"), then the go-live step: `Rensei.Hostage.Enabled = true` in both places, with the `DisabledRefusesLiveCall` test's expectation changed in the same step.
+     - [ ] **Review the decisions list** ("Decisions taken without the owner" and the owner questions in the Changelog entry).
+     - [ ] **The CarDoor stale-touch gap** (World Plan 1's `StationService`, parked): the car door's touch pushes 4 studs with no check of where the player is now, the same lag risk the papers gate had before Task 13 fixed it (a late touch could throw a boarded player out). Nothing failed because of it.
+     - [ ] **The Tutorial's DownedManager needs `DownedManager.MovedOnPurpose`** when the Tutorial is brought up to date (item 3b): Task 4 synced it there without it (nothing in the Tutorial calls it yet).
 3. [ ] **Stealth missions.**
 3b. [ ] **Bring the Tutorial completely up to date** (owner, 2026-10-27: "Yes I want the tutorial completely up to date, but do that after stealth missions").
    - The Tutorial place (74257385894576) doesn't use the Modules or Assets packages, so it has fallen behind Ye.
    - Found 2026-10-27: an older `ClientHandler.Crouch` (no slide-into-sprint) and an older `TuningConfig`. Only the Downed section is synced.
+   - Found 2026-10-29 (hostages): the Tutorial's `DownedManager` was synced in hostages Task 4 (the Holding / HeldBy refusals and `EndKnock`) but has no `DownedManager.MovedOnPurpose` (Task 10). The update must add it.
    - The task: put it on the shared packages, or into the sync manifest, so it stays current; bring every shared script and asset up to Ye's; check its own Tutorial scripts still work; run its tests.
 4. [ ] **The main game quest system, with the lore** (owner, 2026-10-27: "After assassinations and hostages, and stealth missions, let's start the main game quest system w/ the lore, etc."). Starts from the main story concept draft `Documents/specs/2026-10-25-main-story-concept.md` (needs the owner's approval first) and the lore in `Documents/Lore Bible.md`.
    - **Owner direction (2026-10-27):**

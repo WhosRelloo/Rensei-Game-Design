@@ -130,6 +130,20 @@ The owner's takedown ids are on the general sheet's Misc. column ("Assassination
 - Every animation is in place (no root travel), so the victim's spacing is the code's `Takedown.Offset` (2.0 studs, PROPOSAL), not the animation's.
 - The `Fallback` targets `Gripping` and `Gripped` are Studio-only saves; with the owner ids loading, they are never reached.
 
+## Hostages (2026-10-29; not live)
+
+The owner's sheets have no hostage rows (Task 1 re-read "Animation ID's" and "Skill ID's" on 2026-10-27: nothing for hostage, restrain, struggle, bind or grab; the only "Hold" is the takedowns' 131914091661838). So the four slots are **empty** (`AnimationId = ""`) and play their fallback; no id was invented. They live in `Assets.Animations.Shared.Hostage` in Ye and Foundry Yard, made by `Art/Studio/Hostage/anim_slots.lua` (reversible: plan / apply / undo / check / test; flag `HostageAnimSlots` on `Assets.Animations`; each slot carries `HostageAdd` and `Fallback`). The code's slot and fallback names are in `Rensei.Hostage.Anims`, and `check` (39 assertions, PASS 39 / FAIL 0 in both places) fails if the `Fallback` attribute and the module disagree. To fill a slot, set its `AnimationId` to the uploaded id: `check` still passes, and `undo` then refuses and names that slot rather than delete an owner upload.
+
+| Slot | Plays | Fallback (what plays today) | Status |
+|---|---|---|---|
+| `Hostage_Bind` | the captor, the 1.5 s bind of a knocked player | `Takedown_Choke` (72960497872371, the owner's "Knock out"). The plan's `Gripping` stand-in is empty in both places, so the bind uses the choke (ruling T1-6) | empty: **needs the owner's upload** |
+| `Hostage_Hold` | the captor while leading (looped) | `Carrying` (70888533900445, a held pose with a raised left arm) | empty: **needs the owner's upload** |
+| `Hostage_Held` | the hostage, upright in front of the captor (looped) | `Takedown_ChokeVictim` (131914091661838, "Hold"). Not the spec's `Carried`, which lies over a shoulder (decision 9) | empty: **needs the owner's upload** |
+| `Hostage_Struggle` | the hostage, 0.3 s after each counted struggle press, then back to Held | `Takedown_ChokeVictim` (the same pose, so a struggle shows no movement today) | empty: **needs the owner's upload** |
+
+- The fallbacks depend on `Shared.Takedown` staying applied: undoing the takedown slots first makes this `check` fail, on purpose.
+- Possibly useful to the owner (not used): the sheet's NPC Idles "Prisoner" 89704594975684 (`NPC_Prisoner` below is listed as a broken upload) and the skill sheet's "Grab Whiff" 74141778302667.
+
 ## Emotes and NPC idles
 
 | Folder | Names | Used by |
