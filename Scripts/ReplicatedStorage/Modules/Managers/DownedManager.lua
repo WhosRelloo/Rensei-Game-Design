@@ -157,7 +157,12 @@ local function Alive(Model) local H = Hum(Model) return H ~= nil and Model.Paren
 
 local function Lock(Model, On, WalkSpeed)
 	local H = Hum(Model)
-	if not H then return end
+	if not H then
+		-- (hostages final fix round, parked T5) a character with no Humanoid left (destroyed) has nothing to give back,
+		-- but its lock entry still goes, so none is left behind
+		if not On then LockedFrom[Model] = nil end
+		return
+	end
 	if On then
 		LockedFrom[Model] = LockedFrom[Model] or {H.WalkSpeed, H.JumpHeight}
 		H.WalkSpeed = WalkSpeed or 0

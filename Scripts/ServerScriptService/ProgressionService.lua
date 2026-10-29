@@ -230,12 +230,19 @@ ProgressionService.HitListeners = {}
 -- redirected onto a hostage is reported here, by its caller, on the captor. HostageService.HitVictim (looked up at call
 -- time, in a pcall; an error is warned and the caller's victim kept) gives the hostage, so every listener and the
 -- training below name the one that was hit.
+-- (hostages final fix round, parked T9 n2) the failure is warned at most once per HITVICTIM_WARN_EVERY seconds
+-- (PROPOSAL, DamageManager's own 5): this runs on every landed hit
+local HITVICTIM_WARN_EVERY = 5
+local HitVictimWarnedAt = -math.huge
 local function HitVictim(Attacker, Victim)
 	local HS = Victim ~= nil and ServerScriptService:FindFirstChild("HostageService")
 	if not HS then return Victim end
 	local Ok, Real = pcall(function() return require(HS).HitVictim(Attacker, Victim) end)
 	if not Ok then
-		warn("ProgressionService: HostageService.HitVictim failed: " .. tostring(Real))
+		if os.clock() - HitVictimWarnedAt >= HITVICTIM_WARN_EVERY then
+			HitVictimWarnedAt = os.clock()
+			warn("ProgressionService: HostageService.HitVictim failed: " .. tostring(Real))
+		end
 		return Victim
 	end
 	return typeof(Real) == "Instance" and Real or Victim

@@ -50,8 +50,10 @@ function MoverManager.Movement(Character,Info)
 		if Character:GetAttribute("Movement") == 0 then
 			-- knocked / gripping / carrying own the walk speed (DownedManager); don't hand it back. (hostages Task 10 fix
 			-- round 1, review m6) nor a hostage's (HeldBy: still) or a captor's (Holding: the lead's walk, no jump; spec
-			-- section 2: the captor walks at LeadSpeed) -- HostageService locked both at the hold
-			if Character:GetAttribute("Gripping") or Character:GetAttribute("HeldBy") or Frozen(Character) then
+			-- section 2: the captor walks at LeadSpeed) -- HostageService locked both at the hold. (Hostages final fix round,
+			-- review M5) a captor still binding (HostageBinding) is held still: the bind's lock is 0, so no walk comes back
+			if Character:GetAttribute("Gripping") or Character:GetAttribute("HeldBy") or Character:GetAttribute("HostageBinding")
+				or Frozen(Character) then
 				Character.Humanoid.WalkSpeed = 0
 				Character.Humanoid.JumpHeight = 0
 			elseif Character:GetAttribute("Holding") then

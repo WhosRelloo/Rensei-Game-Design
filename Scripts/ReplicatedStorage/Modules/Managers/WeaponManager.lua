@@ -619,6 +619,16 @@ if IsServer then
 					if not Ok then warn("WeaponManager: HostageService.Rescue failed: " .. tostring(Err)) end
 				end
 			end
+			-- (hostages final fix round, the parked Task 9 ruling) a shot that knocks someone released from a hold
+			-- counts in their release window, as a melee knock does (HostageService.WindowHit, the HitListener's own
+			-- check). Only a character that was ever held carries GrabImmuneUntil, so any other shot asks nothing.
+			if Result == "Hit" and IsServer and Victim:GetAttribute("GrabImmuneUntil") ~= nil then
+				local HS = game:GetService("ServerScriptService"):FindFirstChild("HostageService")
+				if HS then
+					local Ok, Err = pcall(function() require(HS).WindowHit(Character, Victim, Result) end)
+					if not Ok then warn("WeaponManager: HostageService.WindowHit failed: " .. tostring(Err)) end
+				end
+			end
 			-- a GuardBroken shot shows as a Hit (gun rework Ruling 9 -- PROPOSAL: the guard broke, so the shot landed)
 			Shown = ((Result == "Hit" or Result == "GuardBroken") and "Hit")
 				or ((Result == "Blocked" or Result == "Shielded" or Result == "Countered") and "Blocked") or "Miss"

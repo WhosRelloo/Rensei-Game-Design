@@ -7,8 +7,9 @@ local Takedown = require(script.Parent.Takedown)
 
 local Hostage = {}
 
--- (Task 5 fix, controller ruling K1: publish safety) hostages are switched OFF until the plan is done: flipped by Task 14.
--- While false, Requests.Hostage and HostageService.Take refuse everything outside the Studio TestNoSave test bypass.
+-- (Task 5 fix, controller ruling K1: publish safety) hostages are switched OFF until the owner's go-live step
+-- (Changelog 2026-10-29, after the two-player playtest) sets this true. While false, Requests.Hostage and
+-- HostageService.Take refuse everything outside the Studio TestNoSave test bypass.
 Hostage.Enabled = false
 Hostage.Key = "N" -- shared with takedowns: an enemy target is a takedown, a player target a hostage (controller ruling)
 -- taking
@@ -68,7 +69,9 @@ Hostage.MissingShare = 0.10 -- "goes missing" (a money sink)
 Hostage.RansomWait = 60
 Hostage.BountyShare = 0.5 -- of a fine actually paid
 Hostage.DeskRange = 12 -- studs from a State desk's root
-Hostage.DeskRefresh = 30 -- seconds between HostageService's desk scans (PROPOSAL; Task 11, pre-flight P26)
+-- seconds between HostageService's prunes of its desk index (PROPOSAL; Task 11, pre-flight P26; final fix round, I4:
+-- the desks are indexed, never scanned per tick, and this only drops the gone ones)
+Hostage.DeskRefresh = 30
 -- safe zones (ruling R6)
 Hostage.SafeTag = "RenseiSafeZone"
 -- studs from a ticket clerk or station gate. PROPOSAL (controller ruling T1-1), not a measurement: Task 1 measured
@@ -150,7 +153,10 @@ function Hostage.Bounty(FinePaid) return math.floor(math.max(0, tonumber(FinePai
 -- IsNpc is the caller's NPC test (HostageService: EnemyType, TownsfolkId, DialogueId or an EnemyService entry;
 -- pre-flight P25). TargetLevel and CaptorLevel are each player's Data.Level, never the Level attribute, which
 -- ProgressionService.Sync rewrites (pre-flight P2). Range is BindRange or GrabRange (+ RangeSlack on the server); nil
--- reads the Kind's own range. Fails closed: a NaN or missing Dist or Height is "far".
+-- reads the Kind's own range. Fails closed: a NaN or missing Dist or Height is "far"; (hostages final fix round, the
+-- parked Task 2 finding) a NaN or infinite level is refused ("level_low" for the target's, "level_gap" for the
+-- captor's), and a NaN or infinite Range reads the Kind's own range.
+local function Finite(X) return type(X) == "number" and X == X and X > -math.huge and X < math.huge end
 function Hostage.CheckTake(Ctx)
 	if Ctx.IsNpc then return false, "not_player" end
 	if not Ctx.IsPlayer then return false, "not_player" end
@@ -158,14 +164,16 @@ function Hostage.CheckTake(Ctx)
 	if not Hostage.Kinds[Ctx.Kind] then return false, "kind" end
 	if Ctx.Safe then return false, "safe" end
 	if Ctx.InDialogue then return false, "dialogue" end
-	if (tonumber(Ctx.TargetLevel) or 0) < Hostage.MinLevel then return false, "level_low" end
-	if (tonumber(Ctx.CaptorLevel) or 0) - (tonumber(Ctx.TargetLevel) or 0) >= Hostage.MaxGap then return false, "level_gap" end
+	local TargetLevel, CaptorLevel = tonumber(Ctx.TargetLevel) or 0, tonumber(Ctx.CaptorLevel) or 0
+	if not Finite(TargetLevel) or TargetLevel < Hostage.MinLevel then return false, "level_low" end
+	if not Finite(CaptorLevel) or CaptorLevel - TargetLevel >= Hostage.MaxGap then return false, "level_gap" end
 	if not Ctx.Ready then return false, "cooldown" end
 	if Ctx.Immune then return false, "immune" end
 	if not Ctx.CaptorFree then return false, "busy" end
 	if not Ctx.TargetFree then return false, "target_busy" end
 	if (Ctx.Kind == "Bind") ~= (Ctx.TargetKnocked == true) then return false, "kind" end
-	local Range = tonumber(Ctx.Range) or (Ctx.Kind == "Bind" and Hostage.BindRange or Hostage.GrabRange)
+	local Range = tonumber(Ctx.Range)
+	if not Finite(Range) then Range = Ctx.Kind == "Bind" and Hostage.BindRange or Hostage.GrabRange end
 	local Dist, Height = tonumber(Ctx.Dist) or math.huge, tonumber(Ctx.Height) or math.huge
 	if Dist ~= Dist or Dist > Range then return false, "far" end
 	if Height ~= Height or math.abs(Height) > Hostage.Height then return false, "far" end

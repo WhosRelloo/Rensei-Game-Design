@@ -25,12 +25,16 @@
 --   (TakedownService.Stunned, called, never copied), on the ground, not swimming --; TargetFree -- alive, none of
 --   GrippedBy / CarriedBy / TakenDownBy / HeldBy / Holding / Gripping / Carrying / TakingDown, not swimming --;
 --   TargetKnocked; Dist on the ground plane, Height; Range = the Kind's range + RangeSlack; Behind (rear arc +
---   AngleSlack); Clear = one torso-to-torso ray). Check(Captor, TargetModel, Kind) -> ok, reason.
+--   AngleSlack); Clear = one torso-to-torso ray AND (final fix round, review M3) the take spot clear: no world geometry
+--   (WorldHit) from the captor's root to SPOT_REACH studs along Hostage.Offset, so the weld never snaps the hostage
+--   through a thin wall). (Final fix round, review M6) for a Grab, TargetFree also refuses a target in any traversal
+--   (the Traversal attribute: a climb, a wall run, a ledge) or off the ground (FloorMaterial Air). Check(Captor,
+--   TargetModel, Kind) -> ok, reason.
 -- * InSafeZone(Character) (ruling R6): the region's Safe flag; inside a part tagged Hostage.SafeTag (point in box); within
 --   StationSafeRadius (3D) of a RenseiTicketClerk / RenseiStationGate in workspace; inside a RenseiPlatformTrain's
 --   bounding box grown by TrainMargin.
--- * SWITCHED OFF (Task 5 fix, ruling K1: publish safety) until Task 14 flips Rensei.Hostage.Enabled. Allowed() is
---   Enabled, or else the tests' bypass: RunService:IsStudio() (asked first) AND DataManager.IsNoSave() AND
+-- * SWITCHED OFF (Task 5 fix, ruling K1: publish safety) until the owner's go-live step (Changelog 2026-10-29) sets
+--   Rensei.Hostage.Enabled. Allowed() is Enabled, or else the tests' bypass: RunService:IsStudio() (asked first) AND DataManager.IsNoSave() AND
 --   HostageService._TestBypass() (a test swaps it to shut the bypass; it can only make Allowed stricter). Take refuses
 --   "disabled" before anything else while not Allowed; Requests.Hostage refuses too. Nothing else starts a session.
 -- * Take(Captor, TargetModel) -> ok, reason. The kind is "Bind" for a knocked target, else "Grab". A non-player either
@@ -39,7 +43,9 @@
 --   next allowed time >= now + RefusedCooldown and LastHostageResult = "<Kind>:<reason>" on the captor's character.
 --   Accepted: in the SAME step, no yield, HeldBy on the target and Holding on the captor (one captor per hostage, one
 --   hostage per captor), the session made and indexed, its exits connected; then a Bind's Run on its own thread, or (Task
---   7) the GRAB in this same step; true, "started" (a grab whose step fails is released "error": false, "error").
+--   7) the GRAB in this same step; true, "started" (a grab whose step fails is released "error": false, "error"). A
+--   bind's captor carries HostageBinding = true until the hold (final fix round, review M5: MoverManager hands a binding
+--   captor no walk back).
 -- * THE GRAB (Task 7, spec §2): no bind time and no knock to end (EndKnock is never called for it). Restrained and welded
 --   at once (Restrain: the hostage locked, stunned for GrabWindow + its hold time + StunPad, tools away; Pair: the weld,
 --   the captor at LeadSpeed, the lead clamp; pre-flight P5, so the pair is policed while Grabbing too); State
@@ -61,7 +67,8 @@
 --        (PROPOSAL);
 --     2. every Heartbeat for BindTime: Broken, the hostage no longer knocked, the captor's root more than BIND_SLACK from
 --        S.BindAt, or the captor stunned -> "interrupted";
---     3. the HOLD, in one step: the knock ended at the hostage's own HP, at least MinHealthShare (DownedManager.EndKnock;
+--     3. the HOLD, in one step (final fix round, review M3: first the take spot is checked again -- the captor may have
+--        turned to a wall during the bind -- and a blocked one ends it "blocked" before the knock is ended): the knock ended at the hostage's own HP, at least MinHealthShare (DownedManager.EndKnock;
 --        HeldBy was set at the take, so neither the knock's timer nor a carry's Drop can Recover-heal it first: Task 4
 --        review hand-off 1), SecondWindActive cleared (ruling: a bind isn't a recovery); the hostage locked
 --        (DownedManager.Lock), stunned (WCS) for its hold time + StunPad, tools unequipped; the pair welded at once
@@ -73,7 +80,7 @@
 --        Watch started; Notify both; took_hostage recorded (a real captor, witnessed).
 -- * Broken(S) -> outcome | nil (public, a test seam; review M9: while the pair is led it also ACTS -- it puts the pair
 --   back, writes the owner and the hostage's humanoid, puts tools away -- so a test calling it directly moves things): "left" (either not Present), "died" (either character dead or
---   replaced), "knocked" (the captor knocked; while the pair is led, the hostage knocked: decision 5); then, while the
+--   replaced; final fix round, C1: a humanoid in the Dead state counts as dead whatever its Health), "knocked" (the captor knocked; while the pair is led, the hostage knocked: decision 5); then, while the
 --   pair is LED (welded, S.Attached, and Held or -- Task 7 -- Grabbing: pre-flight P5), THE PAIR POLICED (below):
 --   "teleport", "broken", "water"; then "safe" (the captor in a safe zone), "timeout" (Held and os.clock() >= S.Until).
 --   The struggle is the watch's own Tick, after Broken (Task 7; Broken stays a pure seam a test can replace).
@@ -156,13 +163,32 @@
 --        immune for ImmuneAfter (GrabImmuneUntil, server time, and ImmuneUntil). A hostage still knocked whose
 --        KnockedUntil has passed is recovered (DownedManager.Recover: its timer found HeldBy and waited), as Grip does:
 --        a knocked player is never left stuck (hand-off 3);
---     4. the captor: the lock given back (also for a character already gone: the entry goes, as TakedownService's F7;
---        not while knocked, as for the hostage); animations stopped; Holding and HostageUntil cleared;
+--     4. the captor: the lock given back (also for a character already gone: the entry goes, as TakedownService's F7 --
+--        final fix round: DownedManager.Lock(C, false) now drops the entry of a character with no Humanoid left, so this
+--        holds for both sides; not while knocked, as for the hostage); animations stopped; Holding, HostageUntil and
+--        HostageBinding cleared;
 --     5. the captor's cooldown (now + Cooldown) and LastHostageResult = "<Kind>:<Outcome>"; (5b, Task 7 fix round 1) a
 --        grab that never became Held records attempted_hostage for the captor, witnessed, unless the captor's own
---        Player is gone;
+--        Player is gone; (5c, final fix round, C1) THE UNEXPLAINED DEATH: a "died" end of a LED pair (welded, Held or
+--        Grabbing) whose hostage is dead always prints one audit line (the session Id, both UserIds, and whether it was
+--        charged). No server-side lethal hit can reach a held player (DownedManager.Damage knocks a player at 1 HP
+--        instead of killing, and Finish's grip runs only after the release), so every such death is unexplained. It is
+--        charged to the captor as killed_hostage (witnessed, unless the captor's Player is gone) only while
+--        HostageService.ChargeUnexplainedDeaths is true -- FALSE as shipped (PROPOSAL, for the controller and the
+--        owner). WHY OFF: the final fix round's Studio Play measured the two sides. The captor's client, which owns the
+--        hostage's assembly (ruling R1), could NOT kill a held stand-in: Humanoid:ChangeState(Dead), Health = 0, and
+--        PlatformStand off first then both, all left the server's stand-in at full health, PlatformStanding and held
+--        (client_checks.lua CaptorClientKillsHostage keeps that as a guard). But a held player's OWN client killing its
+--        own character -- what Roblox's reset does -- DID reach the server (Health 0, Dead, the hold ended "died"). So
+--        the only unexplained death seen is the hostage's own, and charging it would let a hostage frame their captor
+--        (Mercy -8, Order -5, Crime 90) by resetting. (The review's LastHitAt window wasn't used for the charge either:
+--        the captor's own light hits always land on the hostage, so it would open a window for any kill inside it.);
 --     6. Notify both ({State = "Free", Outcome, Role}; the captor's with Options, Task 8) and a toast (none for
 --        "finished": the grip that follows is no freedom);
+--     6b. (final fix round, review I1) a release of a pair that was welded (Held or Grabbing) that leaves the hostage
+--        knocked (the "knocked" end: the captor's own light hits, or a friend's front hit, beat them down) opens the
+--        harm window with no payout (StartPending(S, true), the cancelled Finish's): a grip by the captor's side that
+--        kills them inside it is killed_hostage, so beating a hostage down and pressing B is no deed-free kill;
 --     7. the Released listeners (S, Outcome), each in a pcall;
 --   A bind slower than BindTime + SLOW_PAST, or a release whose steps 1-6 take longer than SLOW_RELEASE (the
 --   listeners, which may yield, aren't timed), warns its phase timings once.
@@ -187,7 +213,8 @@
 --     - "Release": Release(S, "released") at once; what it earns waits (fix round 1, controller ruling I1): a RELEASE
 --       WINDOW of Hostage.ReleaseGrace (30 s; HostageService._ReleaseGrace shortens it in tests, read only while
 --       SeamOpen). If the released player is knocked (a landed hit, ProgressionService.HitListeners) or gripped by the
---       ex-captor or their party inside it, nothing is paid; a grip of theirs that finishes (DownedManager.Listeners)
+--       ex-captor or their party inside it, nothing is paid (final fix round: a gun shot that knocks them counts too --
+--       WeaponManager.Fire calls HostageService.WindowHit, the melee hits' OnHit, since guns record no hit); a grip of theirs that finishes (DownedManager.Listeners)
 --       records killed_hostage, as Finish would; a harmed window whose hostage is still knocked at its end stays open,
 --       paying nothing, until that knock ends (fix round 3, re-review N1). Someone else hurting them changes nothing. Taken again by the captor's
 --       side, the window ends unpaid (the new hold has its own deeds). Either side leaving, or a shutdown, ends it unpaid
@@ -203,7 +230,8 @@
 --       mid-grip leaves the hostage knocked and alive), the ragdoll, its listeners. Done -> killed_hostage recorded
 --       (witnessed). A grip that fails otherwise gives the knock back (EndKnock at the hostage's own HP); one cancelled
 --       (a stun) leaves the hostage knocked and opens the release window with no payout (fix round 2: a kill by the
---       captor's side inside it is still killed_hostage). The grip's own
+--       captor's side inside it is still killed_hostage). (Final fix round, parked T8 n2) the knock given back also
+--       clears SecondWindActive, so the hostage's next knock doesn't recover at Second Wind's share. The grip's own
 --       marks (Gripping / GrippedBy) keep every take, grip, carry and takedown off both of them while it runs (Task 4's
 --       exclusion, both ways).
 -- * THE HUMAN SHIELD AND THE RESCUE (Task 9, spec §3 / §4). One rule decides "in front" for all three: the other
@@ -276,20 +304,30 @@
 --       (DialogueService.Close; P14).
 -- * THE TURN-IN (Task 11, ruling R7, pre-flight P12 / P13). Desks() -> {Model}: the models in workspace with a DialogueId
 --   whose definition (Rensei.Dialogues) has a PayFine choice, each with that choice's Action.Jurisdiction (P12: the
---   desk's own law, "State" for Brask). Scanned at Start and every Hostage.DeskRefresh seconds while Allowed();
---   _RefreshDesks() scans now (a test's temp desk, P23). TurnIn is offered while Held, the hostage a real player, the
+--   desk's own law, "State" for Brask). (Final fix round, review I4) INDEXED, never scanned per tick: while Allowed() at
+--   Start, one workspace scan then and workspace.DescendantAdded after it (a Model checked once, deferred a frame, as
+--   DialogueService attaches its talk prompts); every Hostage.DeskRefresh seconds the index only drops desks no longer
+--   in workspace. _RefreshDesks() rebuilds it by a scan now (a test's temp desk, P23). TurnIn is offered while Held, the hostage a real player, the
 --   captor's root within DeskRange of a desk's root and HeatService.Wanted(hostage, that desk's J) >= 1 (the region's
 --   own jurisdiction isn't asked, P12). Menu(Captor, "TurnIn") re-checks all of that, then, with no yield: the fine --
 --   Wanted <= FineMaxWanted: HeatService.Fine (its own rule: the cost, the Heat cleared); Wanted 3+ (P13, the spec
---   literally): Heat.FinePerLevel x Data.Level through SpendMoney when it can be paid -- then HeatService.Clear when any
---   Heat is left (a broke fugitive: cleared, nothing paid, decision 8); the fine PAID is the hostage's Data.Money before
---   less after (P12, never a formula); Release(S, "turned_in"); the bounty Hostage.Bounty(paid) granted to the captor
---   (_Grant; nothing for an unpaid fine); turned_in_fugitive recorded for the captor; the hostage told.
+--   literally): Heat.FinePerLevel x Data.Level through SpendMoney when it can be paid; the fine PAID is the hostage's
+--   Data.Money before less after (P12, never a formula). (Final fix round, review I2, the controller's conservative
+--   default) NOTHING PAID -> REFUSED: no Heat cleared, no release, no bounty, no deed; the captor is told "They can't
+--   pay the fine." and the hold goes on (a broke fugitive's Heat is no free wipe, at any Wanted level; the owner may
+--   loosen it). Paid -> HeatService.Clear when any Heat is left; Release(S, "turned_in"); the bounty
+--   Hostage.Bounty(paid) granted to the captor (_Grant); turned_in_fugitive recorded for the captor; the hostage told.
 -- * Free(PL, Outcome) -> bool: that PL's session (either side) released. SessionOf(PL) -> S | nil. Forget(PL, Only):
 --   the PL's cooldown (NextAt), immunity (ImmuneUntil), re-take times (Taken) and (Task 7) struggle messages and rate
 --   window (Sends) forgotten; Only (a set, e.g. {ImmuneUntil = true}) forgets just those. Released: listeners (S, Outcome).
+-- * (Final fix round, review M8) A PL WHO LEAVES (_Left): its Sends and Presses go at once; its NextAt, ImmuneUntil and
+--   Taken entries go once they have run out (the cooldown, immunity and re-take rules still hold for a quick rejoin):
+--   the ones already out now, the rest by one delayed prune at the latest of their ends, unless the UserId is back in
+--   the server by then. _Prune(PL, Now) runs that prune as of Now and _Kept(PL) says which tables hold the PL (tests
+--   only, while SeamOpen).
 --
--- Attributes. Captor's character: Holding (the hostage's name), HostageUntil (server time, while Held),
+-- Attributes. Captor's character: Holding (the hostage's name), HostageUntil (server time, while Held), HostageBinding
+-- (final fix round, M5: true from a bind's take until its hold or release),
 -- LastHostageResult ("<Kind>:<reason or outcome>"; tests and logs), HostageClamped (Task 6: times the lead clamp put the
 -- pair back; tests and logs). Hostage's character: HeldBy (the captor's name),
 -- HostageUntil, Struggle (Task 7), GrabImmuneUntil (server time). Read: Knocked, KnockedUntil, GrippedBy, Gripping,
@@ -329,6 +367,10 @@ HostageService._PartyOf = nil
 -- (Task 5 fix, ruling K1) the tests' bypass of the switch, read only in Studio with IsNoSave; a test swaps it to false to
 -- see what a live server does. It can only shut the bypass, never open one.
 HostageService._TestBypass = function() return true end
+-- (final fix round, C1; PROPOSAL, for the controller and the owner) whether a led hostage's unexplained death (no
+-- server-side hit) is charged to the captor as killed_hostage. False: only audited, since the Play measurement found
+-- the hostage's own client is what can cause one (a reset), never the captor's (see Release step 5c in the header)
+HostageService.ChargeUnexplainedDeaths = false
 
 local BIND_SLACK = 1.0 -- PROPOSAL (the takedowns' HOLD_SLACK): studs the binding captor's root may move
 local SLOW_PAST = 0.5 -- PROPOSAL: seconds past BindTime before a bind's phase timings are warned
@@ -354,6 +396,9 @@ local PUT_BACK_ENDS = {teleport = true, broken = true, error = true}
 local GRIP_WAIT = 10
 -- (fix round 3, re-review N1) PROPOSAL: the longest a harmed window stays open past its end while the hostage is knocked
 local KNOCK_WAIT = 120
+-- (final fix round, review M3) PROPOSAL: studs the take spot is checked ahead of the captor's root: Hostage.Offset's 1.5
+-- plus half the hostage root's 1-stud depth
+local SPOT_REACH = 2.0
 
 local StandIns = {} -- [Model] = PL (tests only; read only while SeamOpen)
 local ByCaptor = {} -- [Key] = S
@@ -365,7 +410,9 @@ local Sends = {} -- (Task 7, pre-flight P9) [Key] = Struggle messages received f
 local Presses = {} -- (Task 7) [Key] = {os.clock() of each counted struggle press in the last second}
 local Pending = {} -- (Task 8 fix round 1) [P] = true: the release windows running (see the captor menu, below)
 local CaptorSide, EndPending -- (fix round 1; defined with the release windows)
+local StartPending -- (final fix round, review I1: Release opens a knocked hostage's window; defined with the windows)
 local VoidDemand, DemandTick, OptionsTick -- (Task 11; defined with the ransom, below)
+local SpotClear -- (final fix round, review M3; defined with the led pair's rays, below)
 
 -- ===== the player-like helpers (the only places that tell a Player from a stand-in) =====
 local function Hum(M) return M and M:FindFirstChildOfClass("Humanoid") end
@@ -374,6 +421,28 @@ local function Torso(M) return M:FindFirstChild("Torso") or M:FindFirstChild("Up
 local function Alive(M) local H = Hum(M) return H ~= nil and M.Parent ~= nil and H.Health > 0 end
 local function Flat(V) return Vector3.new(V.X, 0, V.Z) end
 local function IsPlayer(PL) return typeof(PL) == "Instance" and PL:IsA("Player") end
+-- (final fix round, C1) dead on the server: no Health left, or the humanoid in the Dead state (a state its owning client
+-- may have set, whatever the Health reads)
+local function DeadNow(M)
+	local H = Hum(M)
+	if not H then return false end
+	local Ok, State = pcall(function() return H:GetState() end)
+	return H.Health <= 0 or (Ok and State == Enum.HumanoidStateType.Dead)
+end
+-- a PL's UserId for an audit line ("?" when it can't be read)
+local function Uid(PL)
+	local Ok, U = pcall(function() return PL.UserId end)
+	return Ok and tostring(U) or "?"
+end
+-- (final fix round, review M4) a guard already up -- WCS's Blocking and PerfectParry statuses -- dropped, as
+-- DownedManager.Knock drops them at a knock
+local function DropGuard(M)
+	local WC = M and M.Parent and WCS.Character.GetCharacterFromInstance(M)
+	if not WC then return end
+	for _, X in ipairs(WC:GetAllActiveStatusEffects()) do
+		if X.Name == "Blocking" or X.Name == "PerfectParry" then pcall(function() X:Stop() end) end
+	end
+end
 
 local function SeamOpen()
 	if not RunService:IsStudio() then return false end
@@ -543,12 +612,20 @@ local function CaptorFree(C)
 	return H.FloorMaterial ~= Enum.Material.Air and C:GetAttribute("Traversal") ~= "Swim"
 end
 
-local function TargetFree(T)
+local function TargetFree(T, Kind)
 	if not Alive(T) then return false end
 	for _, A in ipairs({"GrippedBy", "CarriedBy", "TakenDownBy", "HeldBy", "Holding", "Gripping", "Carrying", "TakingDown"}) do
 		if T:GetAttribute(A) then return false end
 	end
-	return T:GetAttribute("Traversal") ~= "Swim"
+	if T:GetAttribute("Traversal") == "Swim" then return false end
+	-- (final fix round, review M6, PROPOSAL) a grab takes a target standing on the ground: none mid-traversal (a climb, a
+	-- wall run, a ledge: any Traversal) and none in the air, so nobody is pulled down off a ledge and welded mid-move
+	if Kind == "Grab" then
+		if T:GetAttribute("Traversal") ~= nil then return false end
+		local H = Hum(T)
+		if not H or H.FloorMaterial == Enum.Material.Air then return false end
+	end
+	return true
 end
 
 local function InDialogue(PL)
@@ -577,7 +654,7 @@ function HostageService.Context(Captor, TargetModel, Kind)
 	Ctx.Ready = Now >= (NextAt[Key(Captor)] or 0)
 	Ctx.Immune = Target ~= nil and Now < (ImmuneUntil[Key(Target)] or 0)
 	Ctx.CaptorFree = C ~= nil and CaptorFree(C)
-	Ctx.TargetFree = TargetFree(TargetModel)
+	Ctx.TargetFree = TargetFree(TargetModel, Kind)
 	Ctx.TargetKnocked = DownedManager.IsKnocked(TargetModel)
 	Ctx.Range = (Kind == "Bind" and Hostage.BindRange or Hostage.GrabRange) + Hostage.RangeSlack
 	local CR, TR = Root(C), Root(TargetModel)
@@ -587,7 +664,8 @@ function HostageService.Context(Captor, TargetModel, Kind)
 		Ctx.Behind = Hostage.Behind(TR.CFrame.LookVector, D, Hostage.AngleSlack)
 		ClearRays.FilterDescendantsInstances = {C, TargetModel}
 		local A, B = Torso(C).Position, Torso(TargetModel).Position
-		Ctx.Clear = workspace:Raycast(A, B - A, ClearRays) == nil
+		-- (final fix round, review M3) and the spot the weld will put the hostage on is on the captor's side of any wall
+		Ctx.Clear = workspace:Raycast(A, B - A, ClearRays) == nil and SpotClear(C, TargetModel)
 	end
 	return Ctx
 end
@@ -629,6 +707,11 @@ local function OptionsKey(O)
 	return table.concat(Bits, "|")
 end
 
+-- a welded pair being led: Held, or (Task 7) Grabbing (pre-flight P5). (Final fix round: above Release, which reads it)
+local function Led(S)
+	return S.Attached == true and (S.State == "Held" or S.State == "Grabbing")
+end
+
 -- (fix round I1 / I2; Release step 2) the hostage just let go: the server takes it, every part at rest (no fling from
 -- the captor client's last velocity), put back at the lead's last checked spot x Offset after a "teleport" or within
 -- FIGHT_WINDOW of a counted put-back (a client fighting the clamp never chooses where the hostage is left), and its
@@ -660,6 +743,11 @@ end
 local function Release(S, Outcome)
 	if S.Over or ByCaptor[Key(S.Captor)] ~= S then return false end
 	local R0 = os.clock()
+	-- (final fix round, C1) read before anything is let go: a led pair's hostage dead with no server-side lethal hit
+	-- (none can reach a held player: see step 5c in the header) -- the captor's client, which owns its assembly
+	local ClientKill = Outcome == "died" and Led(S) and DeadNow(S.HC)
+	-- (final fix round, review I1) a pair that was welded: its knocked hostage gets the harm window (step 6b)
+	local WasLed = S.Attached == true
 	-- 1. over, unindexed, its connections dropped
 	S.Over = true
 	S.Outcome = Outcome
@@ -710,6 +798,7 @@ local function Release(S, Outcome)
 	Step("clearing the captor", function()
 		CC:SetAttribute("Holding", nil)
 		CC:SetAttribute("HostageUntil", nil)
+		CC:SetAttribute("HostageBinding", nil) -- (final fix round, M5)
 	end)
 	-- 5. the cooldown and the result
 	NextAt[Key(S.Captor)] = os.clock() + Hostage.Cooldown
@@ -723,6 +812,16 @@ local function Release(S, Outcome)
 	if S.Kind == "Grab" and S.HeldAt == nil and IsPlayer(S.Captor) and S.Captor.Parent == Players then
 		Step("recording the failed grab", Record, S.Captor, "attempted_hostage", {Witness = true})
 	end
+	-- 5c. (final fix round, C1) the unexplained death: see the header
+	if ClientKill then
+		local Charge = HostageService.ChargeUnexplainedDeaths == true
+		print(("HostageService: AUDIT a held hostage died with no server-side hit (%s): session=%s captor=%s hostage=%s "
+			.. "kind=%s state=%s"):format(Charge and "charged to the captor as killed_hostage" or "not charged",
+			tostring(S.Id), Uid(S.Captor), Uid(S.Hostage), tostring(S.Kind), tostring(S.State)))
+		if Charge and IsPlayer(S.Captor) and S.Captor.Parent == Players then
+			Step("charging the death to the captor", Record, S.Captor, "killed_hostage", {Witness = true})
+		end
+	end
 	-- 6. both told (Task 8: the captor's with its Options, {} now the session is over; no "free" toast for a finish)
 	Step("notifying", function()
 		Notify(S.Captor, "Hostage", {State = "Free", Outcome = Outcome, Role = "Captor",
@@ -733,6 +832,13 @@ local function Release(S, Outcome)
 			Toast(S.Hostage, "You're free.") -- PROPOSAL (text)
 		end
 	end)
+	-- 6b. (final fix round, review I1) a welded pair's hostage left knocked: the harm window, paying nothing (a Finish
+	-- knocks only after its Release, so its own window is MenuFinish's)
+	if WasLed then
+		Step("opening the knocked hostage's window", function()
+			if HC.Parent and Alive(HC) and DownedManager.IsKnocked(HC) then StartPending(S, true) end
+		end)
+	end
 	local R6 = os.clock() -- (steps 1-6: the listeners below may yield, so they aren't timed)
 	-- 7. the listeners
 	for _, Fn in ipairs(HostageService.Released) do Step("a Released listener", Fn, S, Outcome) end
@@ -746,12 +852,7 @@ local function Release(S, Outcome)
 	return true
 end
 
--- ===== the led pair, policed (Task 6, ruling R1: see THE PAIR POLICED in the header) =====
--- a welded pair being led: Held, or (Task 7) Grabbing (pre-flight P5)
-local function Led(S)
-	return S.Attached == true and (S.State == "Held" or S.State == "Grabbing")
-end
-
+-- ===== the led pair, policed (Task 6, ruling R1: see THE PAIR POLICED in the header; Led is above Release) =====
 local WorldRays = RaycastParams.new()
 WorldRays.FilterType = Enum.RaycastFilterType.Exclude
 WorldRays.RespectCanCollide = true
@@ -792,6 +893,16 @@ local function WorldHit(S, From, Dir, Floor)
 	end
 	WorldRays.FilterDescendantsInstances = {} -- (review M6: no character kept after the call)
 	return Hit
+end
+
+-- (final fix round, review M3) the take spot: no world geometry from the captor's root SPOT_REACH studs along
+-- Hostage.Offset (where the weld puts the hostage), so a take never snaps the hostage through a thin wall
+function SpotClear(CC, HC)
+	local CR = Root(CC)
+	if not CR then return false end
+	local Ahead = (CR.CFrame * Hostage.Offset).Position - CR.Position
+	if Ahead.Magnitude < 1e-3 then return true end
+	return WorldHit({CC = CC, HC = HC}, CR.Position, Ahead.Unit * SPOT_REACH, false) == nil
 end
 
 -- the server sees world floor under the captor's legs (review I4: never a character, never a client's loose part)
@@ -932,6 +1043,7 @@ local function Pair(S)
 	S.OwnerWas = {Known = AutoOk and OwnerOk, Auto = Auto == true, Owner = Owner}
 	if not DownedManager.Attach(S.CC, S.HC, Hostage.Offset) then error("the weld failed") end
 	S.Attached = true
+	Step("dropping the captor's guard", DropGuard, S.CC) -- (final fix round, review M4: no hold entered guarding)
 	if S.CLocked then DownedManager.Lock(S.CC, false) end
 	DownedManager.Lock(S.CC, true, Hostage.LeadSpeed)
 	S.CLocked = true
@@ -966,7 +1078,10 @@ end
 -- the session's ends, a test seam: see the header
 function HostageService.Broken(S)
 	if not Present(S.Captor) or not Present(S.Hostage) then return "left" end
-	if not Alive(S.CC) or not Alive(S.HC) or Char(S.Captor) ~= S.CC or Char(S.Hostage) ~= S.HC then return "died" end
+	if not Alive(S.CC) or not Alive(S.HC) or DeadNow(S.CC) or DeadNow(S.HC) or Char(S.Captor) ~= S.CC
+		or Char(S.Hostage) ~= S.HC then
+		return "died" -- (final fix round, C1: a Dead state counts, whatever the Health)
+	end
 	if DownedManager.IsKnocked(S.CC) then return "knocked" end
 	if Led(S) and DownedManager.IsKnocked(S.HC) then return "knocked" end -- (Held, or Task 7: Grabbing)
 	if Led(S) then
@@ -1126,6 +1241,23 @@ local function Retakes(HKey)
 	return #Out
 end
 
+-- (final fix round, review M8) K's cooldown, immunity and re-take times that have run out by Now dropped; returns the
+-- os.clock() the last one still kept runs out, or nil when none is left
+local function Prune(K, Now)
+	local Last = nil
+	local function Keep(T) Last = math.max(Last or T, T) end
+	if NextAt[K] and NextAt[K] <= Now then NextAt[K] = nil elseif NextAt[K] then Keep(NextAt[K]) end
+	if ImmuneUntil[K] and ImmuneUntil[K] <= Now then ImmuneUntil[K] = nil elseif ImmuneUntil[K] then Keep(ImmuneUntil[K]) end
+	if Taken[K] then
+		local Out = {}
+		for _, T in ipairs(Taken[K]) do
+			if Now - T < Hostage.RetakeWindow then table.insert(Out, T) Keep(T + Hostage.RetakeWindow) end
+		end
+		Taken[K] = #Out > 0 and Out or nil
+	end
+	return Last
+end
+
 -- step 1: the bind starts
 local function BindStart(S)
 	DownedManager.Lock(S.CC, true)
@@ -1146,7 +1278,9 @@ local function BindBroken(S)
 end
 
 -- the hostage restrained and the pair welded, in one step (the bind's step 3; Task 7: the grab's, at once): the
--- hostage locked, stunned (WCS) for StunTime, its tools put away; the weld, the captor at LeadSpeed and the lead
+-- hostage locked, stunned (WCS) for StunTime, its tools put away, (final fix round, review M4) a guard it already had
+-- up (the Blocking / PerfectParry statuses) dropped, as Knock does, and the captor's too in Pair; the weld, the captor
+-- at LeadSpeed and the lead
 -- clamp's first point (Pair, Task 6); the hold / held animations looped at Action4
 local function Restrain(S, StunTime)
 	local CC, HC = S.CC, S.HC
@@ -1160,6 +1294,7 @@ local function Restrain(S, StunTime)
 		S.Stun:Start(StunTime)
 	end
 	Step("putting the hostage's tools away", function() H:UnequipTools() end)
+	Step("dropping the hostage's guard", DropGuard, HC) -- (final fix round, review M4: as Knock does)
 	Pair(S)
 	StopAnim(CC, Hostage.Anims.Bind)
 	Step("the hold animation", AnimationManager.Play, CC, Hostage.Anims.Hold.Name,
@@ -1223,7 +1358,11 @@ end
 -- step 3: the hold, in one step (no yield until Watch is running)
 local function Hold(S)
 	local HC = S.HC
+	-- (final fix round, review M3) the captor may have turned to a wall during the bind: the spot checked again, before
+	-- the knock is ended (a blocked hold leaves the hostage as the bind found them)
+	if not SpotClear(S.CC, HC) then Release(S, "blocked") return end
 	if not DownedManager.EndKnock(HC, Hostage.MinHealthShare) then error("the knock couldn't be ended") end
+	S.CC:SetAttribute("HostageBinding", nil) -- (final fix round, M5: the bind is over; the lead's walk from here)
 	if HC:GetAttribute("SecondWindActive") then HC:SetAttribute("SecondWindActive", nil) end
 	local Time = Hostage.HoldTimeFor(Retakes(Key(S.Hostage)))
 	Restrain(S, Time + Hostage.StunPad)
@@ -1297,7 +1436,8 @@ local function Connect(S)
 end
 
 function HostageService.Take(Captor, TargetModel)
-	if not HostageService.Allowed() then return false, "disabled" end -- (ruling K1: switched off until Task 14)
+	-- (ruling K1: switched off until the owner's go-live step, Changelog 2026-10-29)
+	if not HostageService.Allowed() then return false, "disabled" end
 	if not IsPL(Captor) then return false, "not_player" end
 	local CC = Char(Captor)
 	if not (Root(CC) and typeof(TargetModel) == "Instance" and TargetModel:IsA("Model")) then return false, "missing" end
@@ -1322,6 +1462,7 @@ function HostageService.Take(Captor, TargetModel)
 	-- the same step as the last check, no yield between: one captor per hostage, one hostage per captor
 	TargetModel:SetAttribute("HeldBy", Captor.Name)
 	CC:SetAttribute("Holding", Target.Name)
+	if Kind == "Bind" then CC:SetAttribute("HostageBinding", true) end -- (final fix round, M5: cleared at the hold)
 	local S = {Id = HttpService:GenerateGUID(false), Captor = Captor, Hostage = Target, CC = CC, HC = TargetModel,
 		Kind = Kind, State = "Binding", T0 = os.clock(), Until = nil, Struggle = 0, Over = false, Conns = {}, Saved = {}}
 	ByCaptor[Key(Captor)] = S
@@ -1439,11 +1580,6 @@ local function DoTransfer(Payer, Captor, Amount)
 		warn(("HostageService: a ransom REFUND FAILED: payer %s, $%d"):format(tostring(Payer.UserId), Amount))
 	end
 	return false, CreditOk and "gone" or "error"
-end
-
-local function Uid(PL)
-	local Ok, U = pcall(function() return PL.UserId end)
-	return Ok and tostring(U) or "?"
 end
 
 -- (hostages Task 11, rulings R9-R11) one server step on two loaded profiles: debit, then credit, refund on failure. No
@@ -1635,16 +1771,39 @@ local function PayFineJ(Defs, Id)
 	return J
 end
 
--- the models in workspace with a DialogueId whose definition has a PayFine choice; returns how many
+-- (final fix round, review I4) X's desk entry {Model, J} when it is a desk, else nil
+local function DeskOf(X, Defs)
+	if not X:IsA("Model") then return nil end
+	local Id = X:GetAttribute("DialogueId")
+	local J = Id ~= nil and PayFineJ(Defs, Id) or nil
+	return J and {Model = X, J = J} or nil
+end
+
+-- (final fix round, review I4) one model added to the index, once (workspace.DescendantAdded, deferred a frame)
+local function IndexDesk(X)
+	if not X:IsDescendantOf(workspace) then return end
+	for _, E in ipairs(DeskList) do if E.Model == X then return end end
+	local E = DeskOf(X, require(Rensei.Dialogues))
+	if E then table.insert(DeskList, E) end
+end
+
+-- (final fix round, review I4) the index without the desks no longer in workspace
+local function PruneDesks()
+	local Out = {}
+	for _, E in ipairs(DeskList) do
+		if E.Model:IsDescendantOf(workspace) then table.insert(Out, E) end
+	end
+	DeskList = Out
+end
+
+-- the models in workspace with a DialogueId whose definition has a PayFine choice, found by one scan now (Start, and
+-- the tests' temp desk); returns how many
 function HostageService._RefreshDesks()
 	local Defs = require(Rensei.Dialogues)
 	local Out = {}
 	for _, X in ipairs(workspace:GetDescendants()) do
-		if X:IsA("Model") then
-			local Id = X:GetAttribute("DialogueId")
-			local J = Id ~= nil and PayFineJ(Defs, Id) or nil
-			if J then table.insert(Out, {Model = X, J = J}) end
-		end
+		local E = DeskOf(X, Defs)
+		if E then table.insert(Out, E) end
 	end
 	DeskList = Out
 	return #Out
@@ -1703,11 +1862,17 @@ local function MenuTurnIn(S)
 		end
 	end)
 	if not Ok then warn("HostageService: the turn-in's fine failed:", Err) end
-	-- the Heat cleared whatever was paid (decision 8: a broke fugitive's too)
+	local Paid = math.max(0, Before - (tonumber(D.Money) or 0)) -- (P12: what the fine really took)
+	-- (final fix round, review I2, the controller's conservative default) nothing paid, nothing done: no Heat cleared, no
+	-- release, no bounty, no deed, and the hold goes on (a broke fugitive's Heat is no free wipe; the owner may loosen it)
+	if Paid <= 0 then
+		Toast(Captor, "They can't pay the fine.") -- PROPOSAL (text)
+		return false
+	end
+	-- the Heat cleared once the fine is paid (Wanted 3+: whatever the desk's own fine would leave)
 	Step("clearing the fugitive's Heat", function()
 		if HeatService.Value(H, J) > 0 then HeatService.Clear(H, J) end
 	end)
-	local Paid = math.max(0, Before - (tonumber(D.Money) or 0)) -- (P12: what the fine really took)
 	Release(S, "turned_in")
 	local Bounty = Hostage.Bounty(Paid)
 	if Bounty > 0 and not Apply(HostageService._Grant, Captor, Bounty) then
@@ -1715,7 +1880,7 @@ local function MenuTurnIn(S)
 	end
 	Step("recording turned_in_fugitive", Record, Captor, "turned_in_fugitive", {})
 	Toast(H, "You were turned in. " .. (Said or "Your Heat is cleared.")) -- PROPOSAL (text)
-	Toast(Captor, Bounty > 0 and ("Bounty: $%d."):format(Bounty) or "No bounty: they couldn't pay the fine.") -- PROPOSAL (text)
+	Toast(Captor, ("Bounty: $%d."):format(Bounty)) -- PROPOSAL (text)
 	return true
 end
 
@@ -1797,6 +1962,9 @@ local function OnHit(Attacker, Victim, Result)
 		end
 	end
 end
+-- (final fix round, the parked T9 ruling) the same check for a gun shot: WeaponManager.Fire calls it with the shot's
+-- result (guns record no hit, so the HitListeners never hear one)
+function HostageService.WindowHit(Attacker, Victim, Result) OnHit(Attacker, Victim, Result) end
 
 -- DownedManager.Listeners: a grip finished someone; a released player killed by the captor's side in their window
 local function OnGrip(Kind, Gripper, Target)
@@ -1810,8 +1978,9 @@ local function OnGrip(Kind, Gripper, Target)
 end
 
 -- NoPay (fix round 2, controller ruling on review m2): a window that never pays out (a cancelled Finish's), only
--- watching for a kill by the captor's side
-local function StartPending(S, NoPay)
+-- watching for a kill by the captor's side. (Final fix round, review I1) Release opens one for a welded pair's hostage it
+-- leaves knocked (forward-declared above Release)
+function StartPending(S, NoPay)
 	local P = {Captor = S.Captor, Hostage = S.Hostage, HC = S.HC, TookHeat = S.TookHeat or {}, Ends = os.clock() + GraceTime(),
 		Harmed = nil, NoPay = NoPay == true, Over = false, Conns = {}}
 	Pending[P] = true
@@ -1883,6 +2052,9 @@ local function MenuFinish(S)
 			Record(Captor, "killed_hostage", {Witness = true})
 		elseif Alive(CC) and Alive(HC) and not Stunned(CC) and not HC:GetAttribute("GrippedBy") then
 			Step("giving the knock back", DownedManager.EndKnock, HC, 0)
+			-- (final fix round, parked T8 n2) and Second Wind's mark with it: this knock's recovery never ran, so the next
+			-- knock mustn't recover at Second Wind's share (spending Second Wind itself stays an owner question)
+			Step("clearing Second Wind's mark", function() HC:SetAttribute("SecondWindActive", nil) end)
 		elseif Alive(HC) and DownedManager.IsKnocked(HC) then
 			-- (fix round 2, ruling on review m2) cancelled (a stun): the hostage stays knocked, as for any grip, and the
 			-- same harm window opens, paying nothing -- a grip of the captor's side that kills them inside it is still
@@ -2048,6 +2220,29 @@ function HostageService._Left(PL)
 	for P in pairs(Pending) do
 		if P.Captor == PL or P.Hostage == PL then EndPending(P) end
 	end
+	-- (final fix round, review M8) the per-player tables pruned: see A PL WHO LEAVES in the header
+	if PL ~= nil and PL.UserId ~= nil then
+		local K = Key(PL)
+		Sends[K], Presses[K] = nil, nil
+		local Last = Prune(K, os.clock())
+		if Last then
+			task.delay(Last - os.clock() + 0.1, function()
+				if not Players:GetPlayerByUserId(K) then Prune(K, os.clock()) end
+			end)
+		end
+	end
+end
+
+-- (tests only, while SeamOpen) the prune as of Now, and which tables hold PL now
+function HostageService._Prune(PL, Now)
+	if not SeamOpen() or PL == nil or PL.UserId == nil or type(Now) ~= "number" then return end
+	Prune(Key(PL), Now)
+end
+function HostageService._Kept(PL)
+	if not SeamOpen() or PL == nil or PL.UserId == nil then return nil end
+	local K = Key(PL)
+	return {NextAt = NextAt[K] ~= nil, ImmuneUntil = ImmuneUntil[K] ~= nil, Taken = Taken[K] ~= nil, Sends = Sends[K] ~= nil,
+		Presses = Presses[K] ~= nil}
 end
 
 -- the BindToClose handler (a test seam): every session released as "shutdown"
@@ -2067,14 +2262,22 @@ function HostageService.Start()
 	table.insert(DownedManager.Listeners, OnGrip)
 	-- (Task 9) the rescue: a rear or side hit on a captor, a parry of the captor's attack
 	table.insert(require(ServerScriptService.ProgressionService).HitListeners, OnRescueHit)
-	-- (Task 11) the State desks, scanned now and every DeskRefresh seconds while hostages may start (none on a live
-	-- server until Task 14 switches them on)
-	task.spawn(function()
-		while true do
-			if HostageService.Allowed() then Step("scanning for desks", HostageService._RefreshDesks) end
-			task.wait(Hostage.DeskRefresh)
-		end
-	end)
+	-- (Task 11; final fix round, review I4) the State desks, while hostages may start (on a live server, none until the
+	-- owner's go-live step sets Rensei.Hostage.Enabled): ONE workspace scan now, then each Model added to workspace
+	-- checked once (deferred a frame, as DialogueService attaches its talk prompts), and every DeskRefresh seconds only
+	-- the gone desks dropped from the index. No workspace scan runs per tick.
+	if HostageService.Allowed() then
+		Step("indexing the desks", HostageService._RefreshDesks)
+		workspace.DescendantAdded:Connect(function(X)
+			if X:IsA("Model") then task.defer(function() Step("indexing a desk", IndexDesk, X) end) end
+		end)
+		task.spawn(function()
+			while true do
+				task.wait(Hostage.DeskRefresh)
+				Step("pruning the desks", PruneDesks)
+			end
+		end)
+	end
 end
 
 return HostageService

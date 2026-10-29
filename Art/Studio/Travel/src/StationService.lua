@@ -132,9 +132,15 @@ local DOWN = {"Knocked", "GrippedBy", "CarriedBy", "Gripping", "Carrying", "Hold
 
 -- (downed crawl fix round 2, 2026-10-27; hostages Task 10 fix round 1, review m4) a deliberate move of a player's
 -- character: DownedManager.MovedOnPurpose starts the knocked crawl's clamp and a led hostage pair's lead clamp again from
--- the new spot (one shared call, read through the module at call time)
+-- the new spot (one shared call, read through the module at call time). (Hostages final fix round, review M1) guarded:
+-- this script and DownedManager ship in different packages (RenseiServer, Modules), so with an older DownedManager
+-- (no MovedOnPurpose) it falls back to RebaseCrawl, and any error is warned: the move itself never throws
 local function Rebased(C)
-	require(game:GetService("ReplicatedStorage").Modules.Managers.DownedManager).MovedOnPurpose(C)
+	local Ok, Err = pcall(function()
+		local DM = require(game:GetService("ReplicatedStorage").Modules.Managers.DownedManager)
+		if DM.MovedOnPurpose then DM.MovedOnPurpose(C) else DM.RebaseCrawl(C) end
+	end)
+	if not Ok then warn("StationService: rebasing a moved character failed: " .. tostring(Err)) end
 end
 
 local function Notify(P, Text) UIService.Notify(P, "Toast", {Text = Text}) end

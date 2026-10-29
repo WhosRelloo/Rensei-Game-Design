@@ -91,7 +91,8 @@ end
 
 -- (hostages Task 12) whether any hostage UI may show: the switch, or the Studio TestNoSave test bypass, as
 -- HostageService.Allowed() decides it on the server (IsStudio first; ReplicatedStorage's TestNoSave is DataManager's
--- copy of the no-save mode). A live game shows nothing until Task 14 flips Rensei.Hostage.Enabled.
+-- copy of the no-save mode). A live game shows nothing until the owner's go-live step (Changelog 2026-10-29) sets
+-- Rensei.Hostage.Enabled.
 function TakedownUI.HostagesOn()
 	if Hostage.Enabled == true then return true end
 	return RunService:IsStudio() and ReplicatedStorage:GetAttribute("TestNoSave") == true
