@@ -75,9 +75,29 @@
 --   * CaptorWheelInCombat (P7): the same with the player in Combat Mode: the wheel stays open and the click releases.
 --   * CaptorRansomTiers: a stand-in of the hostage's party present -> Ransom open; a real click on it -> a second wheel
 --     "Ransom" of "$50", "$500", "$1000", "$2000" (level 20); a real click on "$500" -> the server's demand is $500.
---   * StrugglePresses (the real player as the hostage): ten real F presses within 2 s (the runner sends them 40 ms
---     apart; the client's own clock must see all ten within 2 s, a setup check) -> the server's Struggle grew
+--   * StrugglePresses (the real player as the hostage): ten real F presses within 2 s (the runner asks for them 40 ms
+--     apart; MCP overhead spreads them to about 1.5 s, which the client's own clock must see within 2 s, a setup
+--     check) -> the server's Struggle grew
 --     and it received at least 1 and at most 8 Struggle messages (HostageService._Sends, read only; P9), fewer than 10.
+--   (hostages Task 12 fix round 1)
+--   * CaptorWheelDirectionClick (review I1): in Combat Mode, the pointer moved in Release's direction but OFF its label
+--     (inside the disc, a quarter of the wheel from its centre) and a real left click there: the hold ends "released",
+--     a spy bound on MouseButton1 / MouseButton2 just above ClientHandler's own binds (ContextActionService priority
+--     Default + 1, passing everything on) sees no press, and the server sees no light attack (the CombatState
+--     attribute never set) and no Feint request.
+--   * CaptorWheelCloses (review M3): in Combat Mode, four close paths, each with no Hostage request sent and the hold
+--     still on: a real right click on the disc off every label (and the spy sees no M2, the server no Feint); a real
+--     right click on an item's label (Finish: nothing picked); a real Esc (Roblox's own menu opens; a second Esc shuts
+--     it); a second real press of the takedown key.
+--   * MenuSlotsEven (review M6): EmoteWheelUI.Menu with 4, 5 and 6 items puts them in slots 1,3,5,7 / 1,2,4,5,7 /
+--     1,2,3,5,6,7 (floor((I - 1) x 8 / N) + 1, written by hand).
+--   * GamepadOpensMenu (review M7): the client's takedown key unbound (Keybinds.Set "Unknown", put back after): a real
+--     N press opens nothing; a real ButtonX press (the prompt's own default gamepad button) opens the captor menu.
+--   * BlockReleasedAtHold (review M8): in Combat Mode the Block key held down (a real keyDown), the player captured
+--     (knocked, a stand-in binds them), the key let go, the player freed: over the next 1.5 s the client's Block skill
+--     is never active (a stuck hold would raise it again by itself).
+--   * BarsShow also checks the plate (review M1): its bar hidden, its name one line (not wrapped, one line tall) at
+--     least as tall as the time bar's own name text, and its bottom above the player's head on screen.
 --   * TouchButtons (P19): the Player attribute ForceMobileControls = true. Free: neither HOSTAGE nor STRUGGLE. The
 --     captor: HOSTAGE (GRIP hidden); a real click on it opens the wheel. The hostage in Combat Mode: STRUGGLE, BLOCK
 --     hidden; a real click on STRUGGLE sends one Struggle message.
@@ -244,11 +264,20 @@ function Checks.Bars(Args)
 	local function Bar(Name)
 		local B = HUD:FindFirstChild(Name)
 		local Head = B and B:FindFirstChild("Head")
-		return {Exists = B ~= nil, Visible = B ~= nil and B.Visible, Head = Head and Head.Text, Fill = B and B:GetAttribute("Fill")}
+		local Sub = B and B:FindFirstChild("Text")
+		local Inner = B and B:FindFirstChild("Bar")
+		return {Exists = B ~= nil, Visible = B ~= nil and B.Visible, Head = Head and Head.Text, Fill = B and B:GetAttribute("Fill"),
+			BarShown = Inner ~= nil and Inner.Visible and Inner.AbsoluteSize.X > 1, Wrapped = Head and Head.TextWrapped,
+			TextH = Head and Head.TextBounds.Y, TextSize = Head and Head.TextSize, SubH = Sub and Sub.TextBounds.Y,
+			Bottom = B and (B.AbsolutePosition.Y + B.AbsoluteSize.Y)}
 	end
 	while not Bar("HostageTime").Visible and os.clock() - T0 < (Args.Within or 0) do RunService.RenderStepped:Wait() end
 	RunService.RenderStepped:Wait()
-	return {Time = Bar("HostageTime"), Struggle = Bar("HostageStruggle"), Plate = Bar("HostagePlate")}
+	-- the player's head on screen, in the HUD's coordinates (the viewport point less the gui inset)
+	local HeadPart = Char():FindFirstChild("Head")
+	local V = HeadPart and workspace.CurrentCamera:WorldToViewportPoint(HeadPart.Position + Vector3.new(0, HeadPart.Size.Y / 2, 0))
+	local HeadY = V and V.Y - game:GetService("GuiService"):GetGuiInset().Y
+	return {Time = Bar("HostageTime"), Struggle = Bar("HostageStruggle"), Plate = Bar("HostagePlate"), HeadY = HeadY}
 end
 -- Args: Title, Within: the wheel's open menu (EmoteWheelUI.MenuOpen) once it has that Title
 function Checks.Menu(Args)
@@ -271,6 +300,14 @@ function Checks.Menu(Args)
 	end
 	return {Open = true, Title = M.Title, Ids = table.concat(Ids, ","), Texts = table.concat(Texts, ","), Locked = Locked,
 		Slots = Slots, Hover = M.Hover, HoverRed = M.HoverRed}
+end
+-- (fix round 1) Args.Within: wait that long for no menu to be open (input reaches the client a little after the runner's
+-- call returns); true once none is
+function Checks.NoMenu(Args)
+	local W = Need("EmoteWheelUI")
+	local T0 = os.clock()
+	while W.MenuOpen() and os.clock() - T0 < (Args.Within or 0) do RunService.RenderStepped:Wait() end
+	return W.MenuOpen() == nil
 end
 function Checks.CloseMenu()
 	local W = UI("EmoteWheelUI")
@@ -306,10 +343,91 @@ function Checks.Touch(Args)
 	return Out
 end
 
+-- (fix round 1, I1 / M3) a spy on the mouse buttons just above ClientHandler's own ContextActionService binds (they
+-- use BindAction's Default priority): it counts each press it sees and passes it on. Args.On: bind (counts cleared) or
+-- unbind; returns the counts.
+local SpyCounts = {M1 = 0, M2 = 0}
+local SPY = "HostageChecks_TEMP_MouseSpy"
+function Checks.Spy(Args)
+	local CAS = game:GetService("ContextActionService")
+	CAS:UnbindAction(SPY)
+	if Args.On then
+		SpyCounts = {M1 = 0, M2 = 0}
+		CAS:BindActionAtPriority(SPY, function(_, State, Input)
+			if State == Enum.UserInputState.Begin then
+				local K = Input.UserInputType == Enum.UserInputType.MouseButton1 and "M1" or "M2"
+				SpyCounts[K] += 1
+			end
+			return Enum.ContextActionResult.Pass
+		end, false, Enum.ContextActionPriority.Default.Value + 1, Enum.UserInputType.MouseButton1,
+			Enum.UserInputType.MouseButton2)
+	end
+	return {M1 = SpyCounts.M1, M2 = SpyCounts.M2}
+end
+-- (fix round 1, I1) a point in slot Slot's direction, Frac of the wheel's size from its centre (inside the disc, off
+-- the slot's label), in user_mouse_input's coordinates: the HUD's own (measured: the tool adds the gui inset itself)
+function Checks.DiscPoint(Args)
+	local Root = Player.PlayerGui.Uis:FindFirstChild("EmoteWheel")
+	assert(Root and Root.Visible, "the wheel isn't open")
+	local A = math.rad((Args.Slot - 1) * 45)
+	local C = Root.AbsolutePosition + Root.AbsoluteSize / 2
+	local P = C + Vector2.new(math.sin(A), -math.cos(A)) * Args.Frac * Root.AbsoluteSize.Y
+	return {X = math.floor(P.X + 0.5), Y = math.floor(P.Y + 0.5)}
+end
+function Checks.Mouse()
+	local M = UIS:GetMouseLocation()
+	return {X = M.X, Y = M.Y}
+end
+-- (fix round 1, M6) a test menu of N items opened on the wheel: their slots, then closed
+function Checks.MenuSlots(Args)
+	local W = Need("EmoteWheelUI")
+	local Items = {}
+	for I = 1, Args.N do table.insert(Items, {Id = "T" .. I, Text = "Item " .. I}) end
+	local Opened = W.Menu("Slots test", Items, function() end)
+	local M = W.MenuOpen()
+	local Slots = {}
+	for _, It in ipairs(M and M.Items or {}) do table.insert(Slots, It.Slot) end
+	table.sort(Slots)
+	W.CloseMenu()
+	return {Opened = Opened, Slots = table.concat(Slots, ",")}
+end
+-- (fix round 1, M7) the takedown key bound to Key in the client's Keybinds, as Settings does; Reset puts it back
+local KeyWas = nil
+function Checks.BindTakedown(Args)
+	local K = require(ReplicatedStorage.Modules.Managers.Keybinds)
+	if KeyWas == nil then KeyWas = K.Keys.Takedown end
+	K.Set("Takedown", Args.Key)
+	return K.Keys.Takedown
+end
+-- (fix round 1, M8) whether the client's own Block skill is active now; Args.For: sample that long, true if it ever was
+function Checks.BlockActive(Args)
+	local WCS = require(ReplicatedStorage.Modules.Framework.WCS)
+	local T0, Ever = os.clock(), false
+	repeat
+		local WC = WCS.Character.GetCharacterFromInstance(Char())
+		local Skill = WC and WC:GetSkillFromString("Block")
+		if Skill and Skill:GetState().IsActive then Ever = true end
+		RunService.Heartbeat:Wait()
+	until os.clock() - T0 >= (Args.For or 0)
+	return Ever
+end
+-- (fix round 1) the input the client saw since Args.Clear, as "Type/processed" words (for the failure messages)
+local InputLog = {}
+UIS.InputBegan:Connect(function(I, Gp) table.insert(InputLog, I.UserInputType.Name .. (I.KeyCode ~= Enum.KeyCode.Unknown and (":" .. I.KeyCode.Name) or "") .. "/" .. tostring(Gp)) end)
+function Checks.InputLog(Args)
+	if Args.Clear then table.clear(InputLog) end
+	return table.concat(InputLog, " ")
+end
+function Checks.MenuIsOpen()
+	return game:GetService("GuiService").MenuIsOpen
+end
+
 function Checks.Reset()
 	Checks.SprintStop()
 	Checks.CloseMenu()
 	Checks.HostagesOff({Off = false})
+	Checks.Spy({On = false})
+	if KeyWas ~= nil then require(ReplicatedStorage.Modules.Managers.Keybinds).Set("Takedown", KeyWas) KeyWas = nil end
 	local TD = UI("TakedownUI")
 	if TD then TD.TestPlayers = {} end
 	return true
@@ -346,10 +464,23 @@ local Player = Kit.Player()
 local C = Player.Character
 
 local SPRINT_BOUND, SPRINT_MS, WRIGGLE_MS = 42, 2000, 1000
--- (Task 12) written by hand: BindTime 1.5 + 1 s; a prompt within 0.5 s; F presses 140 ms apart; at most 8 messages
--- (SendsPerSecond 4 over the presses' ~1.4 s, plus one); the level-20 tiers; the menu's texts
+-- (Task 12) written by hand: BindTime 1.5 + 1 s; a prompt within 0.5 s; F presses asked 40 ms apart (MCP overhead
+-- spreads ten of them to ~1.5 s, measured); at most 8 messages (SendsPerSecond 4 over those ~1.5 s, plus one); the
+-- level-20 tiers; the menu's texts. (fix round 1) DISC_FRAC: a quarter of the wheel's size from its centre -- outside the
+-- centre plate (0.18) and inside the slot labels (0.37 less half their height, 0.05)
 local TAKE_WITHIN, PROMPT_WITHIN, PRESS_GAP, MAX_SENDS = 2.5, 0.5, 40, 8
 local TIERS_20 = "$50,$500,$1000,$2000"
+local DISC_FRAC = 0.25
+-- (fix round 1) the player's RequestRemote messages the server receives, by first argument, while Watching (a listener
+-- beside the game's own; it changes nothing)
+local Heard, Watching = {}, false
+ReplicatedStorage.Remotes.RequestRemote.OnServerEvent:Connect(function(P, Kind, A)
+	if not Watching or P ~= Player then return end
+	local K = tostring(Kind) .. (Kind == "Hostage" and ("." .. tostring(A)) or "")
+	Heard[K] = (Heard[K] or 0) + 1
+end)
+local function Listen() table.clear(Heard) Watching = true end
+local function Count(K) return Heard[K] or 0 end
 local HttpService = game:GetService("HttpService")
 local Tested = ReplicatedStorage:WaitForChild("HostageTestPlayers")
 local INERT_WATCH, PAIR_SLACK, OFFSET = 2.5, 1.5, CFrame.new(0, 0, -1.5)
@@ -480,6 +611,20 @@ local function OpenWheel(T)
 	T.True(PressKey(Ask("KeyName")), "the runner's press of the takedown key arrived")
 	return Ask("Menu", {Title = "Hostage", Within = 1})
 end
+-- (fix round 1) the pointer to a screen point and, when Press, a real click of Button there
+local function MouseAt(P, Press, Button)
+	local A = {{action = "moveTo", x = P.X, y = P.Y}, {action = "wait", wait_time_ms = 300}}
+	if Press then table.insert(A, {action = "mouseButtonClick", mouse_button = Button or "left"}) end
+	return Input("mouse", A)
+end
+local function Fighting(T)
+	C:SetAttribute("CombatMode", true)
+	T.Eq(C:GetAttribute("CombatMode"), true, "setup: in Combat Mode")
+end
+local function NotAttacking()
+	return Sample(function() return C:GetAttribute("CombatState") ~= nil and 1 or 0 end)
+end
+
 -- (Task 12) the shared body of CaptorWheel and CaptorWheelInCombat
 local function WheelReleases(T, Fight)
 	local _, _, S = HK.Held()
@@ -515,6 +660,126 @@ local function Dash()
 end
 
 local Suite = {
+	-- ===== (Task 12 fix round 1) =====
+	CaptorWheelDirectionClick = function(T)
+		Case(function()
+			local _, _, S = HK.Held()
+			Fighting(T)
+			local M = OpenWheel(T)
+			T.True(M.Open, "setup: the captor menu is open")
+			local Slot = tonumber((M.Slots.Release or ""):match("Slot(%d+)$"))
+			local P = Ask("DiscPoint", {Slot = Slot, Frac = DISC_FRAC})
+			T.True(MouseAt(P), "the runner's pointer move arrived")
+			local Hov = Ask("Menu", {Title = "Hostage"})
+			T.Eq(Hov.Hover, "Let them go", ("setup: the pointer, off the label at (%d, %d), is in Release's direction"):format(P.X, P.Y))
+			Ask("Spy", {On = true})
+			Listen()
+			local Swing = NotAttacking()
+			T.True(MouseAt(P, true), "the runner's click arrived")
+			T.True(Kit.WaitFor(2, function() return S.Over end), "the click picked Release (" .. tostring(HK.Result()) .. ")")
+			task.wait(0.6)
+			local Swung, Spy = Swing(), Ask("Spy", {On = false})
+			Note("CaptorWheelDirectionClick", ("spy M1 %d M2 %d; CombatState seen %s; Feint %d; result %s")
+				:format(Spy.M1, Spy.M2, tostring(Swung == 1), Count("Feint"), tostring(HK.Result())))
+			T.Eq(HK.Result(), "Bind:released", "released through the menu")
+			T.Eq(Spy.M1, 0, "the click never reached the combat binds (M1)")
+			T.Eq(Swung, 0, "no light attack on the server (CombatState never set)")
+			T.Eq(Count("Feint"), 0, "no Feint")
+		end)
+	end,
+
+	CaptorWheelCloses = function(T)
+		Case(function()
+			local _, _, S = HK.Held()
+			Fighting(T)
+			Listen()
+			-- a right click inside the disc
+			local M = OpenWheel(T)
+			T.True(M.Open, "setup: the menu is open (1)")
+			-- (slot 2's direction: between Release and Finish, on the disc, no label there)
+			local P = Ask("DiscPoint", {Slot = 2, Frac = DISC_FRAC})
+			Ask("Spy", {On = true})
+			Ask("InputLog", {Clear = true})
+			T.True(MouseAt(P, true, "right"), "the runner's right click arrived")
+			T.True(Ask("NoMenu", {Within = 1}), ("a right click on the disc at (%d, %d) closed it (the client saw: %s)")
+				:format(P.X, P.Y, Ask("InputLog", {})))
+			local Spy = Ask("Spy", {On = false})
+			T.Eq(Spy.M2, 0, "the right click never reached the combat binds (M2)")
+			T.Eq(Count("Feint"), 0, "no Feint")
+			-- a right click on an item's own label
+			M = OpenWheel(T)
+			T.True(M.Open, "setup: the menu is open (1b)")
+			Ask("InputLog", {Clear = true})
+			T.True(Input("mouse", {{action = "moveTo", instance_path = M.Slots.Finish}, {action = "wait", wait_time_ms = 300},
+				{action = "mouseButtonClick", mouse_button = "right"}}), "the runner's right click on Finish's label arrived")
+			T.True(Ask("NoMenu", {Within = 1}), ("a right click on a label closed it and picked nothing (the client saw: %s; mouse %s)")
+				:format(Ask("InputLog", {}), tostring(Ask("Mouse").X) .. "," .. tostring(Ask("Mouse").Y)))
+			-- Esc
+			M = OpenWheel(T)
+			T.True(M.Open, "setup: the menu is open (2)")
+			T.True(PressKey("Escape"), "the runner's Esc arrived")
+			local Esc = Ask("NoMenu", {Within = 1})
+			local SysMenu = Ask("MenuIsOpen")
+			if SysMenu then PressKey("Escape") task.wait(0.3) end
+			T.True(Esc, "Esc closed it")
+			T.Eq(Ask("MenuIsOpen"), false, "setup: Roblox's own menu shut again")
+			-- the key again
+			M = OpenWheel(T)
+			T.True(M.Open, "setup: the menu is open (3)")
+			T.True(PressKey(Ask("KeyName")), "the runner's second press arrived")
+			T.True(Ask("NoMenu", {Within = 1}), "the key again closed it")
+			task.wait(0.3)
+			Note("CaptorWheelCloses", ("spy M2 %d; Hostage.Menu %d; Feint %d; held %s"):format(Spy.M2, Count("Hostage.Menu"),
+				Count("Feint"), tostring(not S.Over)))
+			T.Eq(Count("Hostage.Menu"), 0, "no close sent a menu request")
+			T.True(not S.Over, "the hold is still on (" .. tostring(HK.Result()) .. ")")
+		end)
+	end,
+
+	MenuSlotsEven = function(T)
+		Case(function()
+			for N, Want in pairs({[4] = "1,3,5,7", [5] = "1,2,4,5,7", [6] = "1,2,3,5,6,7"}) do
+				local R = Ask("MenuSlots", {N = N})
+				T.True(R.Opened, "setup: a " .. N .. "-item menu opened")
+				T.Eq(R.Slots, Want, N .. " items spread evenly")
+			end
+		end)
+	end,
+
+	GamepadOpensMenu = function(T)
+		Case(function()
+			HK.Held()
+			T.Eq(Ask("BindTakedown", {Key = "Unknown"}), "Unknown", "setup: the takedown key unbound")
+			Ask("Hostage", {State = "Held", Within = 2})
+			T.True(PressKey("N"), "the runner's N press arrived")
+			task.wait(0.3)
+			T.Eq(Ask("Menu", {}).Open, false, "unbound: N opens nothing")
+			T.True(PressKey("ButtonX"), "the runner's ButtonX press arrived")
+			local M = Ask("Menu", {Title = "Hostage", Within = 1})
+			T.True(M.Open, "the prompt's gamepad button opens the captor menu")
+		end)
+	end,
+
+	BlockReleasedAtHold = function(T)
+		Case(function()
+			Fighting(T)
+			local Key = Ask("BlockKey")
+			T.True(Input("keyboard", {{action = "keyDown", key_code = Key}}), "the runner's " .. Key .. " down arrived")
+			task.wait(0.4)
+			T.True(Ask("BlockActive", {For = 0.2}), "setup: blocking with the key held")
+			local _, _, S = HK.Captive()
+			Ask("Hostage", {State = "Held", Within = 2})
+			T.True(Input("keyboard", {{action = "keyUp", key_code = Key}}), "the runner's " .. Key .. " up arrived")
+			task.wait(0.3)
+			Svc().Free(Player, "a")
+			T.True(S.Over, "setup: freed")
+			Fighting(T)
+			local Stuck = Ask("BlockActive", {For = 1.5}, 5)
+			Note("BlockReleasedAtHold", "block active after the release: " .. tostring(Stuck))
+			T.Eq(Stuck, false, "no block raised by itself after the hold (the held key was let go)")
+		end)
+	end,
+
 	-- ===== (Task 12) the client =====
 	PromptOnKnockedPlayer = function(T)
 		Case(function()
@@ -610,6 +875,18 @@ local Suite = {
 			T.True(type(H.Struggle.Fill) == "number" and H.Struggle.Fill >= 0 and H.Struggle.Fill <= 1, "hostage: struggle fill in [0, 1]: " .. tostring(H.Struggle.Fill))
 			T.True(H.Plate.Visible, "hostage: the plate shows")
 			T.Eq(H.Plate.Head, "Held by " .. Cap.Name, "hostage: 'Held by <name>'")
+			-- (fix round 1, review M1) legible: no bar, one line, as tall as the time bar's own name text, above the head
+			Note("BarsShow", ("plate text %s px (size %s, wrapped %s), time bar name text %s px; plate bottom %s, head %s")
+				:format(tostring(H.Plate.TextH), tostring(H.Plate.TextSize), tostring(H.Plate.Wrapped), tostring(H.Time.SubH),
+				tostring(H.Plate.Bottom), tostring(H.HeadY)))
+			T.Eq(H.Plate.BarShown, false, "hostage: the plate has no bar")
+			T.Eq(H.Plate.Wrapped, false, "hostage: the plate's name isn't wrapped")
+			T.True(H.Plate.TextH ~= nil and H.Plate.TextSize ~= nil and H.Plate.TextH < H.Plate.TextSize * 1.6,
+				"hostage: the plate's name is one line")
+			T.True(H.Plate.TextH ~= nil and H.Time.SubH ~= nil and H.Plate.TextH >= H.Time.SubH,
+				"hostage: the plate's name is at least as tall as the time bar's name text")
+			T.True(H.HeadY ~= nil and H.Plate.Bottom ~= nil and H.Plate.Bottom < H.HeadY,
+				"hostage: the plate is above the player's head on screen")
 		end)
 	end,
 

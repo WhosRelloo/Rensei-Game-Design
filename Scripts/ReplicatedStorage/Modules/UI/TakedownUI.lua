@@ -72,7 +72,8 @@ TakedownUI.TapGrace = 0.1
 TakedownUI.Menus = {"Inventory", "Stats", "Settings", "Mastery", "Journal", "Minigame", "Admin"}
 -- (hostages Task 12) Studio only: rig names the client checks register as stand-in players ([Name] = true)
 TakedownUI.TestPlayers = {}
--- the player prompt's texts per kind (spec section 8: "Take hostage (N)"; PromptUI draws the key itself)
+-- the player prompt's texts per kind (spec section 8: "Take hostage (N)"; PromptUI draws the key itself; "Grab" is
+-- PROPOSAL, hostages fix round 1 M4)
 TakedownUI.HostageText = {Bind = "Take hostage", Grab = "Grab"}
 
 -- The player's takedown key now (an Enum.KeyCode): their Settings binding, N by default; Enum.KeyCode.Unknown when they

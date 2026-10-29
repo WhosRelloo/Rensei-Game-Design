@@ -12,9 +12,18 @@
 --     fighting with light attacks is in Combat Mode) and no mouse-wheel paging.
 --   * Desktop: point and click (as the emote wheel's click mode); touch (the last input was a touch, or the touch
 --     controls show): tap an item. A pick closes the wheel, then calls OnPick(Id).
---   * Esc, a right click, or the centre plate on touch close it with OnPick(nil); the caller's own key (HostageUI's)
---     closes it through EmoteWheelUI.CloseMenu(), also OnPick(nil). H toggles only the emote wheel: it does nothing while
---     a menu is open. A new Menu over an open one replaces it (the old one's OnPick(nil) first).
+--   * Esc (GuiService.MenuOpened: Roblox's own menu takes the Escape key itself), a right click, or the centre plate on
+--     touch close it with OnPick(nil); the caller's own key (HostageUI's) closes it through EmoteWheelUI.CloseMenu(),
+--     also OnPick(nil). H toggles only the emote wheel: it does nothing while a menu is open. A new Menu over an open
+--     one replaces it (the old one's OnPick(nil) first).
+--   * (fix round 1, review I1) THE MOUSE IS THE MENU'S: while a menu is open, a ContextActionService bind at High
+--     priority (MENU_MOUSE) takes MouseButton1 and MouseButton2 and sinks them, so a pick or a right-click close never
+--     also reaches ClientHandler's combat binds (a light attack, a Feint) -- the wheel picks by the pointer's direction,
+--     so most picking clicks land on its plain frames, which don't sink input. The pick and the close happen in that
+--     bind. It is let go on every close path: at once, or, when a mouse button is still down, at that button's release
+--     (so the release doesn't reach the combat binds either). A press on a slot's own label is GUI input, which never
+--     reaches ContextActionService (so no combat bind either): UserInputService's InputBegan acts on it a frame later
+--     unless MENU_MOUSE took it. Touch taps are GUI input too (the slot's Activated).
 --   * EmoteWheelUI.MenuOpen() -> nil, or {Title, Items = {{Id, Text, Locked, Slot}}, Hover, HoverRed} (the client checks
 --     read it).
 
@@ -49,6 +58,13 @@ local TAP_TIME = 0.3 -- a shorter press of H leaves the wheel open for clicking
 local SavedMouse, SavedIcon
 local Menu = nil -- (hostages Task 12) the open menu: {Title, Items, OnPick}, or nil (the emote wheel)
 local MENU_GREY = 0.55 -- a locked item's text transparency (DialogueUI's locked choice)
+local MENU_MOUSE = "RenseiWheelMenuMouse" -- (fix round 1, I1) the menu's own mouse bind
+local MouseBound = false
+-- when MENU_MOUSE last took a press, per mouse button (os.clock). By time, not by InputObject: Roblox reuses a mouse
+-- button's InputObject from one press to the next.
+local MouseTookAt = {}
+-- the menu's hints (PROPOSAL texts)
+local MENU_HINT_TAP, MENU_HINT_CLICK = "Tap a choice. Tap here to close.", "Click a choice. Right click or Esc closes."
 
 local function Make(Class, Props, Parent)
 	local O = Instance.new(Class)
@@ -69,11 +85,12 @@ local function Blocked()
 	return Emotes.Blocked(Player.Character)
 end
 
--- (Task 12) the slot each of N menu items sits in: spread evenly round the circle from the top
+-- (Task 12) the slot each of N menu items sits in: spread evenly round the circle from the top (fix round 1, M6: for
+-- any N up to SLOTS, item I at slot floor((I - 1) x SLOTS / N) + 1, so 5 to 7 items don't bunch)
 local function MenuSlots(N)
 	local Out = {}
-	local Step = math.max(1, math.floor(SLOTS / math.max(N, 1)))
-	for I = 1, math.min(N, SLOTS) do Out[1 + (I - 1) * Step] = I end
+	N = math.min(N, SLOTS)
+	for I = 1, N do Out[math.floor((I - 1) * SLOTS / N) + 1] = I end
 	return Out
 end
 
@@ -153,6 +170,12 @@ local function Close(Picked)
 	if SavedMouse then UserInputService.MouseBehavior = SavedMouse end
 	if SavedIcon ~= nil then UserInputService.MouseIconEnabled = SavedIcon end
 	SavedMouse, SavedIcon = nil, nil
+	-- (fix round 1, I1) the menu's mouse bind let go now, or at the held button's release (see MenuMouse)
+	if MouseBound and not (UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+		or UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)) then
+		ContextActionService:UnbindAction(MENU_MOUSE)
+		MouseBound = false
+	end
 	if Was and Was.OnPick then task.spawn(Was.OnPick, Picked) end
 end
 
@@ -176,6 +199,46 @@ local function Choose(Index)
 	Perform(Id)
 end
 
+-- (fix round 1, I1) the menu's mouse: a left click picks (desktop), a right click closes; both sunk. With no menu open
+-- any more (the bind outlived the menu until a button came up) it lets itself go at that release, still sinking it.
+local function MenuMouse(_, State, Input)
+	if not Menu then
+		if State ~= Enum.UserInputState.Begin then
+			ContextActionService:UnbindAction(MENU_MOUSE)
+			MouseBound = false
+			return Enum.ContextActionResult.Sink
+		end
+		ContextActionService:UnbindAction(MENU_MOUSE)
+		MouseBound = false
+		return Enum.ContextActionResult.Pass
+	end
+	if State == Enum.UserInputState.Begin then
+		MouseTookAt[Input.UserInputType] = os.clock()
+		if Input.UserInputType == Enum.UserInputType.MouseButton2 then
+			Close()
+		elseif Mode ~= "Tap" then
+			Choose(Hover)
+		end
+	end
+	return Enum.ContextActionResult.Sink
+end
+
+-- (fix round 1) a menu's mouse press a slot's label took (GUI input never reaches ContextActionService, so neither
+-- MENU_MOUSE nor a combat bind saw it): acted on here, a frame later, unless MENU_MOUSE already took it
+local function MenuMouseOnGui(Input)
+	local Was, Type, At = Menu, Input.UserInputType, os.clock()
+	task.defer(function()
+		local Took = MouseTookAt[Type]
+		if Took and math.abs(Took - At) < 0.05 then return end -- (MENU_MOUSE took this same press)
+		if not (IsOpen and Menu) or Menu ~= Was then return end -- (never a menu opened since)
+		if Type == Enum.UserInputType.MouseButton2 then
+			Close()
+		elseif Mode ~= "Tap" then
+			Choose(Hover)
+		end
+	end)
+end
+
 local function Open(NewMode, NewMenu)
 	if IsOpen then return false end
 	-- not over a menu, the dialogue box or a minigame
@@ -186,7 +249,12 @@ local function Open(NewMode, NewMenu)
 	SetHover(nil)
 	OpenedAt = os.clock()
 	if Menu then
-		Hint.Text = Mode == "Tap" and "Tap a choice. Tap here to close." or "Click a choice. Right click or Esc closes."
+		Hint.Text = Mode == "Tap" and MENU_HINT_TAP or MENU_HINT_CLICK
+		if not MouseBound then
+			ContextActionService:BindActionAtPriority(MENU_MOUSE, MenuMouse, false, Enum.ContextActionPriority.High.Value,
+				Enum.UserInputType.MouseButton1, Enum.UserInputType.MouseButton2)
+			MouseBound = true
+		end
 	else
 		Hint.Text = Mode == "Tap" and "Tap an emote. Tap here to close." or "Point and release H, or click. Scroll for more."
 	end
@@ -321,12 +389,19 @@ function EmoteWheelUI.Start()
 			SetHover(H)
 		end
 	end)
+	-- (fix round 1, M3) Esc: Roblox's own menu takes the key, so its opening closes a menu (OnPick(nil))
+	GuiService.MenuOpened:Connect(function() if Menu then Close() end end)
 	UserInputService.InputBegan:Connect(function(Input)
 		if not IsOpen then return end
+		if Menu then
+			-- (a menu's mouse is MENU_MOUSE's, or MenuMouseOnGui's when a label took the press; its Esc is MenuOpened's)
+			if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.MouseButton2 then
+				MenuMouseOnGui(Input)
+			end
+			return
+		end
 		if Input.UserInputType == Enum.UserInputType.MouseButton2 then
 			Close()
-		elseif Input.KeyCode == Enum.KeyCode.Escape and Menu then
-			Close() -- (Task 12) Esc closes a menu
 		elseif Input.UserInputType == Enum.UserInputType.MouseButton1 and Mode ~= "Tap" then
 			-- a click picks the emote (or menu item) the pointer is on (anywhere in its direction, not just its name)
 			Choose(Hover)

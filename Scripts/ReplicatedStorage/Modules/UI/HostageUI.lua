@@ -17,16 +17,25 @@
 --     BossBarBottom -- and the toast banner (HUD2.Notification), so neither covers them. Each bar's Fill attribute is
 --     the ratio it was last given (the client checks read it). The clones come from StarterGui's untouched Uis.
 --   * THE PLATE, for the hostage: a clone of Templates.NpcTemplate named HostagePlate reading "Held by <name>" (the
---     captor's display name; its own bar full), under the bars.
+--     captor's display name). (fix round 1, review M1) It is the stack's first row, above the bars (so it is never over
+--     the player's own head), sized from the boss bar (PLATE_W x PLATE_H of it); its name is one line (Head centred,
+--     scaled, never wrapped) and its own bar is hidden (a full red bar read as a health bar). The clone's aspect
+--     constraint and its Text label go; no art is added.
 --   * THE CAPTOR'S KEY (P7): while Holding, a ContextActionService bind on the takedown key (TakedownUI.Key(),
 --     Settings > Keybinds > Takedown, N by default; rebinds follow Keybinds.Changed) at High priority toggles the captor
---     menu: EmoteWheelUI.Menu("Hostage", Options, ...) with the Options of the last Notify (they come with each one; none
+--     menu. (fix round 1, review M7) The same bind also takes the gamepad button the takedown/hostage prompt itself
+--     answers to (TakedownUI's prompt leaves ProximityPrompt.GamepadKeyCode at its default, which TakedownUI.Offered
+--     relies on for an unbound key; GAMEPAD_KEY reads that default, no new choice), and the touch HOSTAGE button runs
+--     the same toggle, so a captor whose takedown key is unbound can still open it on a gamepad or a touch screen (a
+--     keyboard-only player with the key unbound gets no hostage prompt either, as for takedowns). The menu: EmoteWheelUI.Menu("Hostage", Options, ...) with the Options of the last Notify (they come with each one; none
 --     while Grabbing: nothing opens). It works in Combat Mode (the wheel's menu mode never closes for it, and never asks
 --     Emotes.Blocked). Picking Ransom opens a second wheel of its Tiers ("$" .. amount) and sends
 --     Request("Hostage", "Menu", "Ransom", index); any other pick sends Request("Hostage", "Menu", Id). Only the Id and
 --     a tier index ever go to the server (which range-checks the tier). A Free notify closes a menu of ours.
 --   * THE HOSTAGE'S STRUGGLE: while HeldBy, a ContextActionService bind on Keybinds.Get("Block") (F by default) at High
---     priority (so the held player's F never reaches Block) counts presses. They are flushed at most
+--     priority (so the held player's F never reaches Block) counts presses. (fix round 1, review M8) When the bind is
+--     made, a block the player was holding is let go (ClientActions "Block" false: ClientHandler's own release), since
+--     the bind will swallow that key's release. They are flushed at most
 --     Hostage.SendsPerSecond times a second (each send at least 1 / SendsPerSecond after the last) as
 --     Request("Hostage", "Struggle", n), n at most Hostage.MaxPressesPerSend (P26; presses beyond it before a send are
 --     dropped). The server stays authoritative (its own MaxPressesPerSecond, stamina, gain).
@@ -52,12 +61,16 @@ local HostageUI = {}
 HostageUI.Now = {State = "Free"}
 HostageUI._Sent = 0
 
+-- the texts this HUD draws (PROPOSAL, fix round 1 M4: invented here, not the spec's, except "Held by <name>", spec 8)
 local MENU_TITLE, TIERS_TITLE = "Hostage", "Ransom"
-local GAP = 6 -- pixels between the stacked bars (PROPOSAL; CombatLogUI's gap under the boss bar)
--- the held-by plate's size: half again the NpcTemplate's own 0.2 of the HUD's width, so its name reads (PROPOSAL; its
--- UIAspectRatioConstraint keeps the template's shape)
-local PLATE_SIZE = UDim2.fromScale(0.3, 0.035)
+local TEXT = {Holding = "Holding", Held = "Held", Struggle = "Struggle", Press = "Press %s", Seconds = "%d s",
+	Percent = "%d%%", HeldBy = "Held by %s", Tier = "$%s"}
+local GAP = 6 -- pixels between the stacked rows (PROPOSAL; CombatLogUI's gap under the boss bar)
+-- (fix round 1, M1) the held-by plate's size as shares of the boss bar's width and height (PROPOSAL)
+local PLATE_W, PLATE_H = 0.6, 0.42
 local MENU_ACTION, STRUGGLE_ACTION = "RenseiHostageMenu", "RenseiHostageStruggle"
+-- (fix round 1, M7) the gamepad button a ProximityPrompt answers to by default (TakedownUI's prompt keeps it)
+local GAMEPAD_KEY = Instance.new("ProximityPrompt").GamepadKeyCode
 
 local TimeBar, StruggleBar, Plate
 local Total, TotalFor = nil, nil -- the bar's full length in seconds, and the end time it was measured for
@@ -109,7 +122,7 @@ local function OnPick(Id)
 	if Id == "Ransom" then
 		local Items = {}
 		for I, Amount in ipairs(type(O.Tiers) == "table" and O.Tiers or {}) do
-			table.insert(Items, {Id = I, Text = "$" .. tostring(Amount)})
+			table.insert(Items, {Id = I, Text = TEXT.Tier:format(tostring(Amount))})
 		end
 		if #Items == 0 then return end
 		EmoteWheelUI.Menu(TIERS_TITLE, Items, function(Index)
@@ -160,18 +173,29 @@ function HostageUI.Press()
 end
 
 -- ===== the keys (bound only while they mean something) =====
-local function Bind(Want, Key, Action, Fn)
-	local Now = Want and Key ~= Enum.KeyCode.Unknown and Key or nil
+-- Keys: the KeyCodes to bind (Unknown ones skipped); MenuKey / StruggleKey keep the bound set's signature
+local function Bind(Want, Keys, Action, Fn)
+	local List, Names = {}, {}
+	if Want then
+		for _, K in ipairs(Keys) do
+			if K ~= Enum.KeyCode.Unknown and not table.find(List, K) then
+				table.insert(List, K)
+				table.insert(Names, K.Name)
+			end
+		end
+	end
+	local Now = #List > 0 and table.concat(Names, ",") or nil
 	local Was = Action == MENU_ACTION and MenuKey or StruggleKey
-	if Now == Was then return end
+	if Now == Was then return false end
 	if Was then ContextActionService:UnbindAction(Action) end
 	if Now then
 		ContextActionService:BindActionAtPriority(Action, function(_, State)
 			if State == Enum.UserInputState.Begin then Fn() end
 			return Enum.ContextActionResult.Sink
-		end, false, Enum.ContextActionPriority.High.Value, Now)
+		end, false, Enum.ContextActionPriority.High.Value, table.unpack(List))
 	end
 	if Action == MENU_ACTION then MenuKey = Now else StruggleKey = Now end
+	return Now ~= nil
 end
 
 -- ===== the bars and the plate =====
@@ -207,6 +231,17 @@ local function Build()
 		Plate = Npc:Clone()
 		Plate.Name = "HostagePlate"
 		Plate.Visible = false
+		-- (fix round 1, M1) one readable line: no aspect lock (sized from the boss bar instead), no bar, no level text
+		for _, X in ipairs(Plate:GetChildren()) do
+			if X:IsA("UIAspectRatioConstraint") then X:Destroy() end
+		end
+		if Plate:FindFirstChild("Bar") then Plate.Bar.Visible = false end
+		if Plate:FindFirstChild("Text") then Plate.Text.Visible = false end
+		local Head = Plate:FindFirstChild("Head")
+		if Head and Head:IsA("TextLabel") then
+			Head.AnchorPoint, Head.Position, Head.Size = Vector2.new(0.5, 0.5), UDim2.fromScale(0.5, 0.5), UDim2.fromScale(0.94, 0.8)
+			Head.TextScaled, Head.TextWrapped, Head.TextXAlignment = true, false, Enum.TextXAlignment.Center
+		end
 		Plate.Parent = HUD
 	else
 		warn("[HostageUI] no Templates.NpcTemplate to clone: the held-by plate won't show")
@@ -224,15 +259,18 @@ local function Place(ShowStruggle)
 	local Banner = Gui:FindFirstChild("HUD2") and Gui.HUD2:FindFirstChild("Notification")
 	if Banner and Banner:IsA("GuiObject") then Top = math.max(Top, Banner.AbsolutePosition.Y + Banner.AbsoluteSize.Y) end
 	local Y = Top + GAP - HUD.AbsolutePosition.Y
+	-- (fix round 1, M1) the hostage's plate first, above the bars
+	if Plate and ShowStruggle then
+		local H = math.floor(Boss.AbsoluteSize.Y * PLATE_H + 0.5)
+		Plate.AnchorPoint = Vector2.new(Boss.AnchorPoint.X, 0)
+		Plate.Size = UDim2.fromOffset(math.floor(Boss.AbsoluteSize.X * PLATE_W + 0.5), H)
+		Plate.Position = UDim2.new(Boss.Position.X.Scale, Boss.Position.X.Offset, 0, Y)
+		Y += H + GAP
+	end
 	for _, B in ipairs({TimeBar, ShowStruggle and StruggleBar or nil}) do
 		B.AnchorPoint, B.Size = Vector2.new(Boss.AnchorPoint.X, 0), Boss.Size
 		B.Position = UDim2.new(Boss.Position.X.Scale, Boss.Position.X.Offset, 0, Y)
 		Y += Boss.AbsoluteSize.Y + GAP
-	end
-	if Plate then
-		Plate.AnchorPoint, Plate.Size = Vector2.new(Boss.AnchorPoint.X, 0), PLATE_SIZE
-		-- (its name sits above its own bar: half a plate of room)
-		Plate.Position = UDim2.new(Boss.Position.X.Scale, Boss.Position.X.Offset, 0, Y + Plate.AbsoluteSize.Y)
 	end
 end
 
@@ -247,8 +285,11 @@ local function Draw()
 	local On = TakedownUI.HostagesOn() and C ~= nil
 	local Holding = On and C:GetAttribute("Holding") ~= nil
 	local Held = On and C:GetAttribute("HeldBy") ~= nil
-	Bind(Holding, TakedownUI.Key(), MENU_ACTION, HostageUI.ToggleMenu)
-	Bind(Held, Keybinds.Get("Block"), STRUGGLE_ACTION, HostageUI.Press)
+	Bind(Holding, {TakedownUI.Key(), GAMEPAD_KEY}, MENU_ACTION, HostageUI.ToggleMenu)
+	if Bind(Held, {Keybinds.Get("Block")}, STRUGGLE_ACTION, HostageUI.Press) and ClientActions.Has("Block") then
+		-- (fix round 1, M8) a block held as the hold began is let go: the bind swallows that key's release
+		ClientActions.Run("Block", false)
+	end
 	if not Holding and MenuOurs() then EmoteWheelUI.CloseMenu() end
 	local N = HostageUI.Now
 	local Live = (N.State == "Held" or N.State == "Grabbing") and (Holding or Held)
@@ -258,9 +299,9 @@ local function Draw()
 	if Ends ~= TotalFor then Total, TotalFor = math.max(Left, 1e-3), Ends end
 	Place(Held)
 	TimeBar.Visible = true
-	SetText(TimeBar, "Head", Holding and "Holding" or "Held")
+	SetText(TimeBar, "Head", Holding and TEXT.Holding or TEXT.Held)
 	SetText(TimeBar, "Text", DisplayOf(Holding and C:GetAttribute("Holding") or C:GetAttribute("HeldBy")))
-	SetText(TimeBar, "HP", ("%d s"):format(math.ceil(Left)))
+	SetText(TimeBar, "HP", TEXT.Seconds:format(math.ceil(Left)))
 	local Ratio = math.clamp(Left / Total, 0, 1)
 	if TimeBar:FindFirstChild("Bar") then Fill.Set(TimeBar.Bar, Ratio) end
 	TimeBar:SetAttribute("Fill", Ratio) -- (what Fill.Set was given: the client checks read it)
@@ -268,15 +309,13 @@ local function Draw()
 	if Plate then Plate.Visible = Held end
 	if Held then
 		local Bar = math.clamp(tonumber(C:GetAttribute("Struggle")) or 0, 0, 1)
-		SetText(StruggleBar, "Head", "Struggle")
-		SetText(StruggleBar, "Text", "Press " .. tostring(Keybinds.Keys.Block))
-		SetText(StruggleBar, "HP", ("%d%%"):format(math.floor(Bar * 100 + 0.5)))
+		SetText(StruggleBar, "Head", TEXT.Struggle)
+		SetText(StruggleBar, "Text", TEXT.Press:format(tostring(Keybinds.Keys.Block)))
+		SetText(StruggleBar, "HP", TEXT.Percent:format(math.floor(Bar * 100 + 0.5)))
 		if StruggleBar:FindFirstChild("Bar") then Fill.Set(StruggleBar.Bar, Bar) end
 		StruggleBar:SetAttribute("Fill", Bar)
 		if Plate then
-			SetText(Plate, "Head", "Held by " .. DisplayOf(C:GetAttribute("HeldBy")))
-			SetText(Plate, "Text", "")
-			if Plate:FindFirstChild("Bar") then Fill.Set(Plate.Bar, 1) end
+			SetText(Plate, "Head", TEXT.HeldBy:format(DisplayOf(C:GetAttribute("HeldBy"))))
 		end
 	end
 end
