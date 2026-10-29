@@ -149,5 +149,6 @@
   {"Label": "RenseiTests.Test_Settings", "Studio": "ServerStorage/RenseiTests/Test_Settings", "Class": "ModuleScript", "Repo": "Scripts/ServerStorage/RenseiTests/Test_Settings.lua", "Places": ["ye", "foundry"], "Create": true},
   {"Label": "RenseiServer.ProgressionService", "Studio": "ServerStorage/RenseiServer/ProgressionService", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/ProgressionService.lua", "Places": ["ye", "foundry"], "Create": false},
   {"Label": "RenseiServer.ItemService", "Studio": "ServerStorage/RenseiServer/ItemService", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/ItemService.lua", "Places": ["ye", "foundry"], "Create": false},
-  {"Label": "RenseiServer.CharacterHandler", "Studio": "ServerStorage/RenseiServer/CharacterHandler", "Class": "Script", "Repo": "Scripts/ServerScriptService/CharacterHandler.server.lua", "Places": ["ye", "foundry"], "Create": false}
+  {"Label": "RenseiServer.CharacterHandler", "Studio": "ServerStorage/RenseiServer/CharacterHandler", "Class": "Script", "Repo": "Scripts/ServerScriptService/CharacterHandler.server.lua", "Places": ["ye", "foundry"], "Create": false},
+  {"Label": "RenseiServer.RitualService", "Studio": "ServerStorage/RenseiServer/RitualService", "Class": "ModuleScript", "Repo": "Scripts/ServerScriptService/RitualService.lua", "Places": ["ye", "foundry"], "Create": false}
 ]}

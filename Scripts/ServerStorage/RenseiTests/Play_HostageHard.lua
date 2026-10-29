@@ -375,6 +375,52 @@ return {
 		T.Eq(#Inside, 0, "nobody perceives the player inside the case (" .. table.concat(Inside, ", ") .. ")")
 	end,
 
+	-- (Task 13 follow-up, the shared exclusion) a captor (Holding) or a hostage (HeldBy) can't take part in an Alchemic
+	-- Binding: RitualService's Busy refuses them, so BeginCircle (the caster's own entry point; Perform's target check
+	-- is the same Busy) answers "You can't draw a circle while held." The player is made an alchemist who has seen the
+	-- Gate in memory for the case (put back after; HostageKit.Guard: TestNoSave and the hook's snapshot). Control: with
+	-- neither attribute the refusal, if any, isn't the held one (a drawn circle is walked away from and fades).
+	RitualRefusesAPair = function(T)
+		local Rit = require(SSS.RitualService)
+		local Registry = require(game.ReplicatedStorage.Modules.Data.Rensei.Alchemy)
+		local Ritual = require(game.ReplicatedStorage.Modules.Data.Rensei.Ritual)
+		local HELD = "You can't draw a circle while held." -- RitualService's own line, written by hand
+		HK.Guard(function()
+			local D = require(SSS.ProgressionService).GetData(Player)
+			local Was = {Aff = D.Identity.Affinity, Trials = D.Gate.TrialsPassed, InCombat = C:GetAttribute("InCombat")}
+			local R = {}
+			local Ok, Err = pcall(function()
+				D.Identity.Affinity = Registry.Affinities[1]
+				D.Gate.TrialsPassed = math.max(D.Gate.TrialsPassed or 0, Ritual.CasterTrialsPassed)
+				C:SetAttribute("InCombat", nil)
+				C:SetAttribute("CombatMode", nil)
+				for _, A in ipairs({"Holding", "HeldBy", "Control"}) do
+					if A ~= "Control" then C:SetAttribute(A, "X") end
+					local Got
+					local Said = HK.Toasts(function() Got = Rit.BeginCircle(Player) end)
+					C:SetAttribute(A, nil)
+					R[A] = {Got = Got, Held = table.find(Said, HELD) ~= nil, Circle = Rit.CircleOf(Player) ~= nil, Said = table.concat(Said, " | ")}
+					if R[A].Circle then -- (the control only) walk away: the circle fades within half a second
+						C:PivotTo(C:GetPivot() + Vector3.new(0, 0, Ritual.CasterRange + 20))
+						WaitFor(3, function() return Rit.CircleOf(Player) == nil end)
+					end
+				end
+			end)
+			D.Identity.Affinity, D.Gate.TrialsPassed = Was.Aff, Was.Trials
+			C:SetAttribute("Holding", nil)
+			C:SetAttribute("HeldBy", nil)
+			C:SetAttribute("InCombat", Was.InCombat)
+			if not Ok then error(Err, 0) end
+			for _, A in ipairs({"Holding", "HeldBy"}) do
+				T.Eq(R[A].Got, false, A .. ": no circle drawn")
+				T.True(R[A].Held, A .. ": refused as held (" .. R[A].Said .. ")")
+				T.Eq(R[A].Circle, false, A .. ": no circle left")
+			end
+			T.Eq(R.Control.Held, false, "control: neither attribute, not refused as held (" .. R.Control.Said .. ")")
+			T.Eq(Rit.CircleOf(Player), nil, "control: no circle left behind")
+		end)
+	end,
+
 	-- ===== Task 6: the led pair policed (R1) =====
 	-- the captor's root moved 8 studs in one step (well over 2.05 a tick): put back within 1 stud of where it was within
 	-- 0.3 s, counted, and the hold is still on
