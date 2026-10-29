@@ -85,9 +85,12 @@ StationService.GateReach = 16 -- PROPOSAL: studs from a gate a Bribe / Search re
 StationService.GatePush = 4 -- PROPOSAL: studs the guard pushes someone back from the gate (as the conductor's DoorPush)
 StationService.GateTouchSlack = 3 -- PROPOSAL (hostages Task 13): a gate touch acts only on a root within the gate's
                                    -- half size plus this many studs across the gate and up and down...
-StationService.GateTouchDepth = 8 -- PROPOSAL (Task 13): ...and plus this many through it (along its LookVector): a
-                                  -- walker's touch arrives with the server's copy of the root up to 5.2 studs short of
-                                  -- the gate's middle (measured, Ye and Foundry), a stale one from a train car 15+ off
+StationService.GateTouchDepth = 8 -- PROPOSAL (Task 13): ...and plus this many through it on the PLATFORM side (past
+                                  -- the gate, along its LookVector): the stale touches came from train cars 15+ studs past
+-- (Task 13 fix round 1, review I1) on the HALL side (short of the gate) the allowance is StationService.GateReach (16,
+-- PROPOSAL): an approacher's touch reaches the server with its copy of the root short of the gate by the lag times the
+-- speed (5.2 studs measured at a walk; a 24-30 studs/s sprint is about 9), and a Wanted player sprinting at the gate
+-- must still be stopped there
 StationService.GateAskGap = 3 -- PROPOSAL: seconds between the guard's offers / refusals to one player (touches repeat)
 StationService.RefuseHeat = 10 -- brief ruling: Wanted 3+ at the gate, "resisting a checkpoint"
 StationService.RefuseHeatGap = 30 -- PROPOSAL: a refusal raises Heat at most once per 30 s per player
@@ -426,10 +429,13 @@ function StationService.GateTouch(P, Gate)
 	-- (hostages Task 13) only a root at the gate is stopped. The player's client owns the character, so a touch it saw
 	-- at the gate can reach the server after a server move (into a train car, say); acted on there, it threw the player
 	-- 20+ studs out of the car. Such a touch is ignored: nothing moves, no line, no Heat (the verdict is still returned).
+	-- (fix round 1, review I1) one-sided through the gate: the gate's local +Z is the hall side (its LookVector, -Z, points
+	-- onto the platform), where GateReach is allowed; past it, onto the platform, only GateTouchDepth
 	local L = Gate.CFrame:PointToObjectSpace(Root.Position)
 	local Slack = StationService.GateTouchSlack
+	local Through = L.Z >= 0 and math.max(StationService.GateReach, StationService.GateTouchDepth) or StationService.GateTouchDepth
 	if math.abs(L.X) > Gate.Size.X / 2 + Slack or math.abs(L.Y) > Gate.Size.Y / 2 + Slack
-		or math.abs(L.Z) > Gate.Size.Z / 2 + StationService.GateTouchDepth then
+		or math.abs(L.Z) > Gate.Size.Z / 2 + Through then
 		return Verdict
 	end
 	-- back to the hall side, GatePush clear of the gate

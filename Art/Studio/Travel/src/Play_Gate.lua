@@ -25,6 +25,14 @@ local function StowZone()
 		if d.Name:find("StowZone") and d:FindFirstAncestor("PlatformTrain") then return d end
 	end
 end
+-- (hostages Task 13 fix round 1, review m4) a case that ends with the player on the train: whether they are still aboard
+-- once put back where the case found them (Home), asked while the clock is still held, so a scheduled departure can't
+-- carry them into the next case
+local function OffTheTrain(P, Home)
+	P.Character:PivotTo(Home)
+	P.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
+	return table.find((require(SSS.StationService).Aboard(ROUTE)), P) ~= nil
+end
 local function TheGate()
 	return game:GetService("CollectionService"):GetTagged("RenseiStationGate")[1]
 end
@@ -100,14 +108,17 @@ return {
 		local P = game.Players:GetPlayers()[1]
 		SS.HoldClock = true -- a scheduled departure would take the stowaway on a 50 s ride
 		local Aboard, Stow
+		local Home = P.Character:GetPivot()
 		local Ok, Err = pcall(NoTickets, P, function()
 			local Zone = StowZone()
 			P.Character:PivotTo(Zone.CFrame)
 			task.wait(0.5)
 			Aboard, Stow = SS.Aboard(ROUTE)
 		end)
+		local LeftAboard = OffTheTrain(P, Home)
 		SS.HoldClock = false
 		T.True(Ok, tostring(Err))
+		T.Eq(LeftAboard, false, "put back off the train before the clock runs again")
 		T.True(table.find(Aboard, P) ~= nil and Stow[P] == true, "aboard as a stowaway")
 	end,
 
@@ -519,6 +530,60 @@ return {
 		T.Near(R.Quiet, 0, 0.01, "crouched and quiet behind him: no Heat")
 	end,
 
+	-- (hostages Task 13 fix round 1, review I1 and m2) the gate's own check for an approacher whose touch reaches the
+	-- server with its copy of the root still short of the gate on the hall side (a sprint at 24-30 studs/s, or lag):
+	-- Wanted 3, the root 6 and then 14 studs short (the second moving at 30 studs/s toward the platform) is refused there:
+	-- the guard's line, +10 State Heat, put GatePush clear on the hall side. 10 studs past the gate on the platform
+	-- side (where the stale touches came from) a touch is ignored: not moved, no Heat. The spots (6, 14, 10) and the
+	-- speed 30 are PROPOSAL test values; the expected numbers are written by hand (gate 1 stud thick, GatePush 4).
+	GateChecksAHallSideApproach = function(T)
+		local SS, HS = require(SSS.StationService), require(SSS.HeatService)
+		local P = game.Players:GetPlayers()[1]
+		local Gate = TheGate()
+		T.True(Gate ~= nil, "a RenseiStationGate")
+		local Root = P.Character.HumanoidRootPart
+		local Home = P.Character:GetPivot()
+		local N = Gate.CFrame.LookVector
+		local LINE = "Guard: \"Your face is on a poster. Not on my platform.\""
+		local function Touch(Side, Speed) -- the root Side studs along N from the gate's middle (negative: the hall side)
+			SS.ResetGate(P)
+			local Pos = (Gate.CFrame * CFrame.new(0, -0.5, 0)).Position + N * Side
+			P.Character:PivotTo(CFrame.lookAt(Pos, Pos + N))
+			Root.AssemblyLinearVelocity = N * Speed
+			local H0 = HS.Value(P, "State")
+			local V
+			local Said = Toasts(function() V = SS.GateTouch(P, Gate) end)
+			local Out = {V = V, Heat = HS.Value(P, "State") - H0, Side = HallSide(Gate, Root),
+				Moved = (Root.Position - Pos).Magnitude, Line = table.find(Said, LINE) ~= nil}
+			Root.AssemblyLinearVelocity = Vector3.zero
+			return Out
+		end
+		local R = {}
+		HS.Clear(P, "State")
+		HS.Add(P, "State", 125, "Lindenmoor") -- Wanted 3
+		local Ok, Err = pcall(function()
+			R.Near = Touch(-6, 0)
+			R.Sprint = Touch(-14, 30)
+			R.Past = Touch(10, 0)
+		end)
+		P.Character:PivotTo(Home)
+		Root.AssemblyLinearVelocity = Vector3.zero
+		HS.Clear(P, "State")
+		SS.ResetGate(P)
+		T.True(Ok, tostring(Err))
+		for _, K in ipairs({"Near", "Sprint"}) do
+			local X = R[K]
+			T.Eq(X.V, "Refuse", K .. ": refused")
+			T.True(X.Line, K .. ": the guard's line")
+			T.Near(X.Heat, 10, 0.5, K .. ": +10 State Heat")
+			T.Near(X.Side, -4.5, 0.6, K .. ": put 4 studs clear on the hall side (" .. X.Side .. ")")
+		end
+		T.Eq(R.Past.V, "Refuse", "past the gate: the verdict is still returned")
+		T.True(R.Past.Moved < 0.5, ("past the gate on the platform side: a touch is ignored (moved %.2f)"):format(R.Past.Moved))
+		T.Near(R.Past.Heat, 0, 0.01, "past the gate: no Heat")
+		T.Eq(R.Past.Line, false, "past the gate: no line")
+	end,
+
 	-- (hostages Task 13) a gate touch that reaches the server once the player is somewhere else (the client owns the
 	-- character, so a touch it saw at the gate can arrive after a server move) changes nothing: GateTouch, which the gate's
 	-- Touched handler calls, acts only on a root at the gate. Here the root is well inside the 3rd-class car with papers
@@ -544,6 +609,7 @@ return {
 			end
 			P.Character:PivotTo(Zone.CFrame)
 			task.wait(0.3)
+			Root.AssemblyLinearVelocity = Vector3.zero -- (fix round 1, review m1) no stale velocity: never "Leaving"
 			local Before = Root.Position
 			R.Far = (Before - Gate.Position).Magnitude
 			R.Verdict = SS.GateTouch(P, Gate)
@@ -562,6 +628,7 @@ return {
 		SS.ResetGate(P)
 		T.True(Ok, tostring(Err))
 		T.True(R.Far > 20, ("setup: the root is well inside the car, %.1f studs from the gate"):format(R.Far))
+		T.Eq(R.Verdict, "Bribe", "the verdict is still returned (not an early Leaving or Pass)")
 		T.True(R.Moved < 0.5, ("a touch from away from the gate doesn't push (moved %.2f studs)"):format(R.Moved))
 		T.Eq(R.AtGate, "Bribe", "control: at the gate, the same papers are offered a bribe")
 		T.True(R.Side <= -(Gate.Size.Z / 2 + SS.GatePush) + 0.5, "control: and pushed back to the hall side (" .. R.Side .. ")")
@@ -620,9 +687,7 @@ return {
 		end)
 		-- (hostages Task 13) the case ends off the train, with the clock still held: a scheduled departure must not carry
 		-- the player (still in the StowZone) into the next case
-		P.Character:PivotTo(Home)
-		P.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
-		R.LeftAboard = table.find((SS.Aboard(ROUTE)), P) ~= nil
+		R.LeftAboard = OffTheTrain(P, Home)
 		SS.HoldClock = false
 		D.Money = Money
 		HS.Clear(P, "State")
