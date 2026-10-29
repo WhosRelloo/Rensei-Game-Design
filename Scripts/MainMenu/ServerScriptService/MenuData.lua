@@ -9,10 +9,17 @@
 -- Migrations: ServerScriptService.ProfileMigrations (the same file in every place).
 -- A slot account that can't be read isn't cached (Account retries it), so a store hiccup never shows
 -- the default 2 slots in place of the ones owned.
+-- TestNoSave (Studio only, 2026-10-28; the same switch as Ye's DataManager): set ServerStorage's TestNoSave
+-- attribute to true in Edit before Play. Saves are then read with a plain GetAsync (no lock, no write) into
+-- ProfileService MOCK profiles (memory only), and the account record's writes (pick, star, codes, Studio test
+-- purchases) change only this server's copy. MenuServer sends its account writes through MenuData for this.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local ServerScriptService = game:GetService("ServerScriptService")
+local ServerStorage = game:GetService("ServerStorage")
+local RunService = game:GetService("RunService")
+local DataStoreService = game:GetService("DataStoreService")
 
 local ProfileService = require(script.ProfileService)
 local ProfileData = require(ReplicatedStorage.Modules.Data.ProfileData)
@@ -24,13 +31,58 @@ local ProfileGuard = require(ServerScriptService.ProfileGuard) -- keeps an open 
 
 local Store = ProfileService.GetProfileStore("PlayerData", ProfileData)
 
+-- IsStudio() first, the attribute second: a live server never reads TestNoSave. Decided once, at load.
+local NoSave = RunService:IsStudio() and ServerStorage:GetAttribute("TestNoSave") == true
+
 local Sessions = {} -- [Player] = the open slot's Profile
 local OpenSlot = {} -- [Player] = slot number of Sessions[Player]
 local Accounts = {} -- [Player] = SlotAccount record (cached)
 local Leaving = {} -- [Player] = true once released for a teleport (no "opened elsewhere" kick)
 local Fetching = {} -- [Player] = true while the slot account is being read
+local Seeded = {} -- TestNoSave: [Player][Slot] = true once that slot's mock exists (it's never re-copied from the real save)
 
 local MenuData = {}
+
+local function DeepCopy(T)
+	if type(T) ~= "table" then return T end
+	local C = {}
+	for K, V in pairs(T) do C[K] = DeepCopy(V) end
+	return C
+end
+
+-- TestNoSave: a slot's real save, read with a plain GetAsync (not ViewProfileAsync: in this ProfileService its view
+-- goes through UpdateAsync, a write). Returns ok, Data (nil = an empty slot).
+local function ReadReal(Key)
+	local Ok, Record = pcall(function() return DataStoreService:GetDataStore("PlayerData"):GetAsync(Key) end)
+	if not Ok then return false end
+	-- a deleted slot ("PROFILE_WIPED") or a GlobalUpdates-only stub is an empty slot to ProfileService too
+	if Record == "PROFILE_WIPED" or type(Record) ~= "table" or type(Record.Data) ~= "table" then return true, nil end
+	return true, Record.Data
+end
+
+-- TestNoSave: the slot's mock profile, copied from the real save the first time it's opened this session.
+-- Returns the profile, or nil and why (the session never falls back to the real store).
+local function LoadMock(Player, Slot, Key)
+	Seeded[Player] = Seeded[Player] or {}
+	local Data
+	if not Seeded[Player][Slot] then
+		local Ok, Real = ReadReal(Key)
+		if not Ok then return nil, "TestNoSave: couldn't read that slot. Nothing was saved." end
+		Data = Real
+	end
+	local Mock = Store.Mock:LoadProfileAsync(Key, "ForceLoad")
+	if not Mock then return nil, "TestNoSave: the test copy didn't load. Nothing was saved." end
+	if not Seeded[Player][Slot] then
+		if Data then Mock.Data = DeepCopy(Data) end -- (an empty slot keeps the template)
+		Seeded[Player][Slot] = true
+	end
+	return Mock
+end
+
+-- True only in a Studio session running TestNoSave: every profile and account change here is memory only.
+function MenuData.IsNoSave()
+	return NoSave
+end
 
 -- Read the slot account; cached only when the read worked.
 local function Fetch(Player)
@@ -42,18 +94,23 @@ local function Fetch(Player)
 end
 
 function MenuData.Start()
+	if NoSave then
+		ReplicatedStorage:SetAttribute("TestNoSave", true) -- tests and the client can see the mode
+		warn("[MenuData] TestNoSave: this Studio session will not save")
+	end
 	Players.PlayerAdded:Connect(Fetch)
 	for _, P in ipairs(Players:GetPlayers()) do task.spawn(Fetch, P) end
 	Players.PlayerRemoving:Connect(function(Player)
 		local Profile = Sessions[Player]
-		Sessions[Player], OpenSlot[Player], Accounts[Player], Leaving[Player], Fetching[Player] = nil, nil, nil, nil, nil
+		Sessions[Player], OpenSlot[Player], Accounts[Player], Leaving[Player], Fetching[Player], Seeded[Player] = nil, nil, nil, nil, nil, nil
 		if Profile then ProfileGuard.Final(Profile) Profile:Release() end
 	end)
 end
 
 -- The player's slot account (waits for it on join; a failed read is tried again). nil = unreadable.
+-- (TestNoSave: the copy in memory is the account, so Refresh keeps it.)
 function MenuData.Account(Player, Refresh)
-	if Refresh then Accounts[Player] = nil end
+	if Refresh and not NoSave then Accounts[Player] = nil end
 	local Deadline = os.clock() + 15
 	while not Accounts[Player] and Player.Parent and os.clock() < Deadline do
 		if not Fetching[Player] then task.spawn(Fetch, Player) end
@@ -62,7 +119,7 @@ function MenuData.Account(Player, Refresh)
 	return Accounts[Player]
 end
 
--- What each owned slot holds, for the slot screen: {Slot, Created, Name, Level, Origin, Clan}.
+-- What each owned slot holds, for the slot screen: {Slot, Created, Name, Level, Origin, Clan, Gender, Appearance, Region}.
 function MenuData.Summaries(Player)
 	local Account = MenuData.Account(Player)
 	if not Account then return nil end
@@ -71,18 +128,32 @@ function MenuData.Summaries(Player)
 		local Data
 		if OpenSlot[Player] == Slot and Sessions[Player] then
 			Data = Sessions[Player].Data
+		elseif NoSave then
+			local Key = Slots.Key(Player.UserId, Slot)
+			if Seeded[Player] and Seeded[Player][Slot] then
+				local Ok, Profile = pcall(function() return Store.Mock:ViewProfileAsync(Key) end)
+				Data = Ok and Profile and Profile.Data or nil
+			else
+				local _, Real = ReadReal(Key)
+				Data = Real
+			end
 		else
 			local Ok, Profile = pcall(function() return Store:ViewProfileAsync(Slots.Key(Player.UserId, Slot)) end)
 			Data = Ok and Profile and Profile.Data or nil
 		end
 		local I = Data and Data.Identity
+		local Created = I and I.CharacterCreated or false
 		table.insert(List, {
 			Slot = Slot,
-			Created = I and I.CharacterCreated or false,
+			Created = Created,
 			Name = I and I.Name or "",
 			Level = Data and Data.Level or 1,
 			Origin = I and I.Origin or "",
 			Clan = I and I.Clan or "",
+			Gender = I and I.Gender or "",
+			-- the painted menu dresses each slot's alcove figure and card bust in it (Customization.Clean's shape)
+			Appearance = Created and type(I.Appearance) == "table" and DeepCopy(I.Appearance) or nil,
+			Region = Data and type(Data.Travel) == "table" and Data.Travel.Region or "", -- where they were last
 		})
 	end
 	return List
@@ -93,14 +164,22 @@ function MenuData.Open(Player, Slot)
 	local Account = MenuData.Account(Player)
 	if not Account then return nil, "Still loading your account." end
 	if type(Slot) ~= "number" or Slot < 1 or Slot > Account.Owned or Slot ~= math.floor(Slot) then return nil, "You don't own that slot." end
+	-- (menu audit 2026-10-29) released for a teleport: picking another slot now would point the account at a slot
+	-- other than the one the next place was sent (Reload clears Leaving before it opens the slot again)
+	if Leaving[Player] then return nil, "You're on your way. One moment..." end
 	if OpenSlot[Player] == Slot and Sessions[Player] then return Sessions[Player] end
 	local Old = Sessions[Player]
 	Sessions[Player], OpenSlot[Player] = nil, nil
 	if Old then ProfileGuard.Final(Old) Old:Release() end
-	if not SlotAccount.Select(Player.UserId, Slot) then return nil, "Couldn't pick that slot. Try again." end
+	if not NoSave and not SlotAccount.Select(Player.UserId, Slot) then return nil, "Couldn't pick that slot. Try again." end
 	Account.Selected = Slot
-	local Profile = Store:LoadProfileAsync(Slots.Key(Player.UserId, Slot), "ForceLoad")
-	if not Profile then return nil, "That slot didn't load. Try again." end
+	local Profile, Why
+	if NoSave then
+		Profile, Why = LoadMock(Player, Slot, Slots.Key(Player.UserId, Slot))
+	else
+		Profile = Store:LoadProfileAsync(Slots.Key(Player.UserId, Slot), "ForceLoad")
+	end
+	if not Profile then return nil, Why or "That slot didn't load. Try again." end
 	ProfileMigrations.Migrate(Profile.Data)
 	Profile:Reconcile()
 	if not Player.Parent then Profile:Release() return nil end
@@ -122,17 +201,66 @@ function MenuData.Delete(Player, Slot)
 	local Account = MenuData.Account(Player)
 	if not Account then return false, "Still loading your account." end
 	if type(Slot) ~= "number" or Slot < 1 or Slot > Account.Owned or Slot ~= math.floor(Slot) then return false, "You don't own that slot." end
+	if Leaving[Player] then return false, "You're on your way. One moment..." end -- (as in Open)
 	if OpenSlot[Player] == Slot then
 		local Profile = Sessions[Player]
 		Sessions[Player], OpenSlot[Player] = nil, nil
 		if Profile then Profile:Release() end
 	end
-	local Ok, Err = pcall(function() return Store:WipeProfileAsync(Slots.Key(Player.UserId, Slot)) end)
+	local Ok, Err
+	if NoSave then
+		-- only the mock is wiped (and the slot then stays empty for the rest of the test)
+		Ok, Err = pcall(function() return Store.Mock:WipeProfileAsync(Slots.Key(Player.UserId, Slot)) end)
+		Seeded[Player] = Seeded[Player] or {}
+		Seeded[Player][Slot] = true
+	else
+		Ok, Err = pcall(function() return Store:WipeProfileAsync(Slots.Key(Player.UserId, Slot)) end)
+	end
 	if not Ok or Err == false then
 		warn("Slot delete failed:", Err)
 		return false, "Couldn't delete that slot. Try again."
 	end
 	return true
+end
+
+-- The account record's writes, for MenuServer (SlotAccount's own API, same results). TestNoSave: they change only
+-- this server's copy of the account, which MenuData.Account then keeps.
+function MenuData.SetFavorite(Player, Slot)
+	if not NoSave then return SlotAccount.SetFavorite(Player.UserId, Slot) end
+	local A = MenuData.Account(Player)
+	return A ~= nil and type(Slot) == "number" and Slot >= 0 and Slot <= A.Owned
+end
+
+function MenuData.Redeem(Player, Code)
+	if not NoSave then return SlotAccount.Redeem(Player.UserId, Code) end
+	local A = MenuData.Account(Player)
+	if not A then return nil end
+	if A.Codes[Code] then return "Used" end
+	A.Codes[Code] = os.time()
+	return "Ok"
+end
+
+function MenuData.Grant(UserId, PurchaseId)
+	if not NoSave then return SlotAccount.Grant(UserId, PurchaseId) end
+	local Player = Players:GetPlayerByUserId(UserId)
+	local A = Player and MenuData.Account(Player)
+	if not A then return nil end
+	if table.find(A.Receipts, PurchaseId) then return "Already" end
+	if A.Owned >= Slots.Max then return "Full" end
+	A.Owned += 1
+	table.insert(A.Receipts, PurchaseId)
+	return "Granted"
+end
+
+function MenuData.GrantPlus(UserId, PurchaseId)
+	if not NoSave then return SlotAccount.GrantPlus(UserId, PurchaseId) end
+	local Player = Players:GetPlayerByUserId(UserId)
+	local A = Player and MenuData.Account(Player)
+	if not A then return nil end
+	if table.find(A.Receipts, PurchaseId) then return "Already" end
+	A.Plus = true
+	table.insert(A.Receipts, PurchaseId)
+	return "Granted"
 end
 
 function MenuData.Get(Player)

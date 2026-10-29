@@ -3,7 +3,7 @@
 -- The client (StarterPlayerScripts.MenuClient) only sends choices; this script validates them
 -- against Modules.Data.Rensei.Customization / Clans, saves Identity once, and teleports.
 -- MenuRemote (RemoteFunction) calls:
---   "Slots"           -> {Owned, Max, Price, CanBuy, Favorite, List = {{Slot, Created, Name, Level, Origin, Clan}}}
+--   "Slots"           -> {Owned, Max, Price, CanBuy, Favorite, List = {{Slot, Created, Name, Level, Origin, Clan, Gender, Appearance, Region}}}
 --   "Favorite", Slot  -> ok   (stars a slot so it's listed first; the starred slot again = unstar)
 --   "Delete", Slot    -> ok, message   (wipes that slot's character; the slot stays owned)
 --   "Open", Slot      -> ok, message, State   (loads that save slot; State as below)
@@ -13,6 +13,8 @@
 --   "Redeem", Code    -> ok, message, Identity  (a ClanCodes code: rerolls for the open slot, once per account)
 --   "Create", Choice  -> ok, message   (Choice: Origin, FirstName, Gender, Weapon,
 --                                       Appearance = {Skin, Hair, HairIds, HairColor, Eyes, Brows, Mouth, Outfit})
+--   "Edit", Choice    -> ok, message   (a made character's look only: Choice.Appearance; the name, clan, nation,
+--                                       gender and weapon stay as they are. Owner 2026-10-28, the painted menu.)
 --   "Play"            -> ok, message   (teleports to the next place in the flow)
 --   "Plus"            -> {Owned, PassId, Looks}   (Creator Plus: owned? and the saved looks if so)
 --   "SaveLook", {Index, Look = {Origin, Gender, Appearance}} -> ok, message, Looks   (Creator Plus)
@@ -22,6 +24,7 @@
 -- Creator Plus: a custom skin colour and saved looks (2026-10-18). Sold as a Developer Product
 -- (CreatorPlus.ProductId, bought once, recorded on the account) or a Game Pass (CreatorPlus.PassId).
 -- The starter outfit is the nation's and the body follows the gender (owner 2026-10-15).
+-- Account writes (pick, star, codes, purchases) go through MenuData, which keeps them in memory under TestNoSave.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -36,7 +39,6 @@ local Places = require(ReplicatedStorage.Modules.Data.Rensei.Places)
 local Slots = require(ReplicatedStorage.Modules.Data.Rensei.Slots)
 local AppearanceService = require(ReplicatedStorage.Modules.AppearanceService)
 local MenuData = require(script.Parent.MenuData)
-local SlotAccount = require(script.Parent.SlotAccount)
 local ClanCodes = require(script.Parent.ClanCodes)
 local FlowTeleport = require(script.Parent.FlowTeleport)
 local LookPresets = require(script.Parent.LookPresets)
@@ -47,12 +49,34 @@ MenuData.Start()
 
 -- The place streams (StreamingEnabled) and nobody has a character, so stream the scenery around the
 -- dais to each player: the menu camera's background ("Map thing") would never load otherwise.
-local Dais = workspace:WaitForChild("MenuStage"):WaitForChild("Dais")
-local function Focus(Player) Player.ReplicationFocus = Dais end
+-- (bounded waits, menu audit 2026-10-29: a place without the old stage must still answer MenuRemote below)
+local OldStage = workspace:WaitForChild("MenuStage", 10)
+local Dais = OldStage and OldStage:WaitForChild("Dais", 10)
+local function Focus(Player) if Dais then Player.ReplicationFocus = Dais end end
 Players.PlayerAdded:Connect(Focus)
 for _, P in ipairs(Players:GetPlayers()) do Focus(P) end
 
 local Busy = {} -- [Player] = true while a call that writes is running
+
+-- Throttles (menu audit 2026-10-29). "Slots" views every owned slot, and in this ProfileService a view goes through
+-- UpdateAsync, which spends the server's shared DataStore budget: a list asked for again within SLOTS_REUSE seconds
+-- gets the one just built, and any write call (or a purchase) drops it. "Hair" builds and replicates a new accessory
+-- per unseen id: each player gets HAIR_NEW of those per HAIR_WINDOW seconds, and the cache stops growing at HAIR_CAP.
+local SLOTS_REUSE = 2
+local HAIR_NEW, HAIR_WINDOW, HAIR_CAP = 12, 60, 400
+local SlotCache = {} -- [Player] = {At, Info}
+local HairLog = {} -- [Player] = {os.clock() of each new id}
+local function HairAllowed(Player, Id)
+	local Cache = ReplicatedStorage:FindFirstChild("HairCache")
+	if Cache and Cache:FindFirstChild(tostring(Id)) then return true end -- (already built: free)
+	if Cache and #Cache:GetChildren() >= HAIR_CAP then return false, "Too many custom hairs on this server right now. Try a preset." end
+	local Log, Now = HairLog[Player] or {}, os.clock()
+	for I = #Log, 1, -1 do if Now - Log[I] > HAIR_WINDOW then table.remove(Log, I) end end
+	if #Log >= HAIR_NEW then return false, "Slow down a little: try that hair again in a minute." end
+	table.insert(Log, Now)
+	HairLog[Player] = Log
+	return true
+end
 
 -- Creator Plus ownership (cached per player; a purchase in this server sets it at once)
 local PlusOwned = {}
@@ -118,11 +142,18 @@ local function State(Player)
 end
 
 local function SlotList(Player)
+	local Hit = SlotCache[Player]
+	if Hit and os.clock() - Hit.At < SLOTS_REUSE then return Hit.Info end
 	local Account = MenuData.Account(Player)
 	local List = MenuData.Summaries(Player)
 	if not Account or not List then return nil end
-	return {Owned = Account.Owned, Max = Slots.Max, Price = Slots.Price, CanBuy = Slots.ProductId ~= 0,
+	for _, S in ipairs(List) do
+		if S.Appearance then S.Appearance = Customization.Clean(S.Origin, S.Appearance) end -- (as State sends it)
+	end
+	local Info = {Owned = Account.Owned, Max = Slots.Max, Price = Slots.Price, CanBuy = Slots.ProductId ~= 0,
 		Favorite = Account.Favorite or 0, List = List}
+	SlotCache[Player] = {At = os.clock(), Info = Info}
+	return Info
 end
 
 local function RollClan(Player)
@@ -148,7 +179,7 @@ local function Redeem(Player, Code)
 	local Def = ClanCodes[Code]
 	if Code == "" or not Def or (Def.StudioOnly and not RunService:IsStudio()) then return false, "That code doesn't exist." end
 	if Def.Expires and os.time() > Def.Expires then return false, "That code has expired." end
-	local Result = SlotAccount.Redeem(Player.UserId, Code)
+	local Result = MenuData.Redeem(Player, Code)
 	if Result == "Used" then return false, "You've already used that code." end
 	if Result ~= "Ok" then return false, "Couldn't check that code. Try again." end
 	local I = Profile.Data.Identity
@@ -216,6 +247,28 @@ local function Create(Player, Choice)
 	return true
 end
 
+-- A made character's new look (the painted menu's EDIT): appearance only, checked as Create checks it.
+local function Edit(Player, Choice)
+	local Profile = MenuData.Get(Player)
+	if not Profile then return false, "Pick a save slot first." end
+	if type(Choice) ~= "table" then return false, "Something went wrong." end
+	local Identity = Profile.Data.Identity
+	if not Identity.CharacterCreated then return false, "Create this character first." end
+	local Nation = Identity.Origin
+	local Look = Customization.Clean(Nation, Choice.Appearance)
+	Look.Body = Identity.Gender -- (the body follows the saved gender)
+	if Customization.IsCustomSkin(Look) and not OwnsPlus(Player) then
+		return false, "Custom skin colours are part of Creator Plus. Pick a skin swatch instead."
+	end
+	Look.Outfit = type(Identity.Appearance) == "table" and Identity.Appearance.Outfit or Customization.OutfitFor(Nation)
+	for _, Id in ipairs(Look.HairIds) do
+		if not AppearanceService.LoadHair(Id) then return false, "Hair ID " .. Id .. " didn't load. Clear it or try another." end
+	end
+	if MenuData.Get(Player) ~= Profile then return false, "Try again." end -- (the hair load yields)
+	Identity.Appearance = Look
+	return true
+end
+
 local function Play(Player)
 	local Profile = MenuData.Get(Player)
 	if not Profile then return false, "Pick a save slot first." end
@@ -245,11 +298,14 @@ ReplicatedStorage.Remotes.MenuRemote.OnServerInvoke = function(Player, Call, Arg
 	if Call == "Hair" then
 		local Id = Customization.ParseHairId(tostring(Arg))
 		if not Id then return false, "That isn't a Roblox ID." end
+		local Allowed, Wait = HairAllowed(Player, Id)
+		if not Allowed then return false, Wait end
 		local Template, Why = AppearanceService.LoadHair(Id)
 		return Template ~= nil, Why
 	end
 	if Busy[Player] then return false, "One moment..." end
 	Busy[Player] = true
+	SlotCache[Player] = nil -- (a write may change the list: the next "Slots" reads it again)
 	local Ok, A, B, C = pcall(function()
 		if Call == "Open" then
 			local Profile, Why = MenuData.Open(Player, Arg)
@@ -261,13 +317,20 @@ ReplicatedStorage.Remotes.MenuRemote.OnServerInvoke = function(Player, Call, Arg
 			local Account = MenuData.Account(Player)
 			if not Account then return false end
 			local Slot = Arg == Account.Favorite and 0 or Arg
-			if not SlotAccount.SetFavorite(Player.UserId, Slot) then return false, "Couldn't star that slot." end
+			if not MenuData.SetFavorite(Player, Slot) then return false, "Couldn't star that slot." end
 			Account.Favorite = Slot
 			return true
 		end
-		if Call == "Delete" then return MenuData.Delete(Player, Arg) end
+		if Call == "Delete" then
+			local Done, Why = MenuData.Delete(Player, Arg)
+			-- (an emptied slot keeps no star: the list would lead with a blank card)
+			local Account = Done and MenuData.Account(Player)
+			if Account and Account.Favorite == Arg and MenuData.SetFavorite(Player, 0) then Account.Favorite = 0 end
+			return Done, Why
+		end
 		if Call == "Redeem" then return Redeem(Player, Arg) end
 		if Call == "Create" then return Create(Player, Arg) end
+		if Call == "Edit" then return Edit(Player, Arg) end
 		if Call == "Play" then return Play(Player) end
 		if Call == "SaveLook" then
 			if type(Arg) ~= "table" then return false, "Something went wrong." end
@@ -277,6 +340,7 @@ ReplicatedStorage.Remotes.MenuRemote.OnServerInvoke = function(Player, Call, Arg
 		return false, "Unknown request."
 	end)
 	Busy[Player] = nil
+	SlotCache[Player] = nil
 	if not Ok then
 		warn("MenuRemote", Call, "failed:", A)
 		return false, "Something went wrong."
@@ -294,7 +358,7 @@ end
 local function ProcessReceipt(Info)
 	-- Creator Plus (the Developer Product): saved on the account before the purchase is granted
 	if CreatorPlus.ProductId ~= 0 and Info.ProductId == CreatorPlus.ProductId then
-		local Result = SlotAccount.GrantPlus(Info.PlayerId, Info.PurchaseId)
+		local Result = MenuData.GrantPlus(Info.PlayerId, Info.PurchaseId)
 		if not Result then return Enum.ProductPurchaseDecision.NotProcessedYet end
 		local Player = Players:GetPlayerByUserId(Info.PlayerId)
 		if Player then MenuData.Account(Player, true) end
@@ -338,11 +402,11 @@ local function ProcessReceipt(Info)
 		return Decision or Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	if Slots.ProductId == 0 or Info.ProductId ~= Slots.ProductId then return Enum.ProductPurchaseDecision.NotProcessedYet end
-	local Result = SlotAccount.Grant(Info.PlayerId, Info.PurchaseId)
+	local Result = MenuData.Grant(Info.PlayerId, Info.PurchaseId)
 	if not Result then return Enum.ProductPurchaseDecision.NotProcessedYet end
 	if Result == "Full" then warn("Slot purchase past the max for", Info.PlayerId, Info.PurchaseId) end
 	local Player = Players:GetPlayerByUserId(Info.PlayerId)
-	if Player then MenuData.Account(Player, true) end
+	if Player then SlotCache[Player] = nil MenuData.Account(Player, true) end
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end
 MarketplaceService.ProcessReceipt = ProcessReceipt
@@ -354,4 +418,4 @@ if game:GetService("RunService"):IsStudio() then
 	Hook.Parent = script
 end
 
-Players.PlayerRemoving:Connect(function(Player) Busy[Player] = nil PlusOwned[Player] = nil end)
+Players.PlayerRemoving:Connect(function(Player) Busy[Player] = nil PlusOwned[Player] = nil SlotCache[Player] = nil HairLog[Player] = nil end)

@@ -4,6 +4,10 @@
 -- Layout follows the owner's reference (deck slide 12, "Character Customization Menu SHOWCASE"):
 -- a slot screen, then one step at a time -- Facial Features, Traits, Weapon, Finalize. The frames,
 -- plates and buttons are the game's own UI kit (RSEI StarterGui.Uis; ids in KIT below).
+-- The painted menu (owner 2026-10-28; Documents/specs/2026-10-28-main-menu-painted-design.md): with Workspace.PaintedStage
+-- and Modules.Data.Rensei.MenuStage in the place, the menu stands in the painted foundry hall: each slot's character in
+-- its own alcove, the slot cards top right, and picking an empty slot (or EDIT on a made one) pans the camera into that
+-- alcove and opens the creator there (MenuPan). The hall's life is MenuBackdrop. Without them, the old dais menu runs.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,6 +23,19 @@ local Slots = require(ReplicatedStorage.Modules.Data.Rensei.Slots)
 local CreatorPlus = require(ReplicatedStorage.Modules.Data.Rensei.CreatorPlus)
 local Appearance = require(ReplicatedStorage.Modules.AppearanceService)
 local Remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("MenuRemote")
+local RenseiData = ReplicatedStorage.Modules.Data.Rensei
+if not game:IsLoaded() then game.Loaded:Wait() end -- (the first replication done, so a missing module really is missing)
+local StageMarkers = RenseiData:FindFirstChild("MenuStage")
+-- (persistent streaming sends the stage soon after joining, not at once: wait for it when its markers are here)
+local PaintedStage = StageMarkers and workspace:WaitForChild("PaintedStage", 30) or nil
+local Art = RenseiData:FindFirstChild("MenuArt") and require(RenseiData.MenuArt) or {} -- uploaded ids (0 = not yet)
+-- live, only once its art is uploaded (MenuArt's backdrop ids): a place published early keeps the old menu
+local Painted = PaintedStage ~= nil and StageMarkers ~= nil
+	and (RunService:IsStudio() or (type(Art.Backdrop) == "table" and (Art.Backdrop[1] or 0) ~= 0))
+local Markers = Painted and require(StageMarkers) or nil
+local MenuPan = require(script:WaitForChild("MenuPan"))
+local MenuBackdrop = Painted and require(script:WaitForChild("MenuBackdrop")) or nil
+local function V3(T) return Vector3.new(T[1], T[2], T[3]) end
 
 local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -38,7 +55,14 @@ local KIT = {
 	Knob = Asset(128415338450308), -- settings slider knob
 	Popup = Asset(113461270613481), -- party invite frame
 	Notice = Asset(77443838607606), -- notification bar
-	Close = Asset(74304540828981), -- round X
+	Close = Asset(74304540828981), -- round X (also: delete)
+	Add = Asset(95124452394131), -- round plus (HUD2.Infos.Search.AddButton)
+	Eye = Asset(123791308611610), -- round eye (Stats.Left.Head.EyeButton): edit a look
+	Box = Asset(82831116484275), -- quest task status box (Templates.QuestTask.Status): the favourite toggle
+	Tick = Asset(131162468888379), -- its checkmark (QuestTask.Status.Checkmark)
+	Chevron = Asset(93094632665405), -- quest header arrow, pointing up (Templates.QuestHeader.Arrows.Top)
+	BarFrame = Asset(115089601400579), -- level bar (Stats.MainFrame.LevelBar)
+	BarFill = Asset(120303756099496), -- its fill (LevelBar.Bar)
 	Frame = { -- item rarity frames
 		Common = Asset(107439985664209), Rare = Asset(103069874398717), Epic = Asset(135582023783036), Legendary = Asset(85590690711772),
 	},
@@ -60,6 +84,10 @@ local GOLD = Color3.fromRGB(230, 205, 120)
 local TEXT = Color3.fromRGB(225, 220, 210)
 local DIM = Color3.fromRGB(150, 142, 130)
 local LINE = Color3.fromRGB(90, 80, 62)
+local MIN_TEXT = 15 -- (owner 2026-10-28, the menu audit: no words smaller than this)
+-- the face tiles and swatches not picked: their grey frames dimmed, so the picked one's gold frame stands out (menu
+-- audit 2026-10-29: at full brightness the two frames barely differ, and the current pick was hard to see)
+local UNPICKED = Color3.fromRGB(135, 130, 124)
 local IDLE = "rbxassetid://99650759123617" -- RSEI Animations.Shared.Movement.Default.Idle
 local CLAP = "rbxassetid://115558611088872" -- RSEI Animations.Shared.Alchemy.Alchemy_Clap
 
@@ -75,6 +103,7 @@ local function Label(Text, Props)
 	local L = New("TextLabel", {BackgroundTransparency = 1, Text = Text, FontFace = FONT, TextColor3 = TEXT, TextSize = 18,
 		TextXAlignment = Enum.TextXAlignment.Left, Size = UDim2.new(1, 0, 0, 22), TextWrapped = true})
 	for K, V in pairs(Props or {}) do L[K] = V end
+	if not L.TextScaled and L.TextSize < MIN_TEXT then L.TextSize = MIN_TEXT end
 	return L
 end
 
@@ -91,13 +120,27 @@ local function Button(Text, Image, Props)
 	Label(Text, {Name = "Label", FontFace = FONT_B, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Center,
 		Size = UDim2.fromScale(1, 1), TextWrapped = false, Parent = B})
 	for K, V in pairs(Props or {}) do
-		if K == "TextSize" or K == "TextColor3" then B.Label[K] = V else B[K] = V end
+		if K == "TextSize" then B.Label.TextSize = math.max(V, MIN_TEXT)
+		elseif K == "TextColor3" then B.Label[K] = V else B[K] = V end
 	end
 	B.MouseEnter:Connect(function() if not B:GetAttribute("On") then B.ImageColor3 = Color3.fromRGB(255, 240, 210) B.Label.TextColor3 = GOLD end end)
 	B.MouseLeave:Connect(function() if not B:GetAttribute("On") then B.ImageColor3 = Color3.new(1, 1, 1) B.Label.TextColor3 = B:GetAttribute("Color") or TEXT end end)
 	return B
 end
 local function SetText(B, Text) B.Label.Text = Text end
+
+-- one of the kit's round icons as a button (gold on hover); Tick = the checkmark drawn in it (the favourite box)
+local function IconButton(Image, Props, Tick)
+	local B = New("ImageButton", {BackgroundTransparency = 1, Image = Image, ScaleType = Enum.ScaleType.Fit, AutoButtonColor = false})
+	for K, V in pairs(Props) do B[K] = V end
+	if Tick then
+		New("ImageLabel", {Name = "Tick", BackgroundTransparency = 1, Image = KIT.Tick, ScaleType = Enum.ScaleType.Fit, Size = UDim2.fromScale(0.8, 0.8),
+			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.55, 0.45), ZIndex = B.ZIndex + 1, Parent = B})
+	end
+	B.MouseEnter:Connect(function() B.ImageColor3 = Color3.fromRGB(255, 220, 150) end)
+	B.MouseLeave:Connect(function() B.ImageColor3 = Color3.new(1, 1, 1) end)
+	return B
+end
 
 local function SetOn(B, On)
 	B:SetAttribute("On", On)
@@ -136,26 +179,63 @@ pcall(function() game:GetService("TextChatService").ChatInputBarConfiguration.En
 local Gui = New("ScreenGui", {Name = "RenseiMenu", IgnoreGuiInset = true, ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 	Parent = Player:WaitForChild("PlayerGui")})
 local Scale = New("UIScale", {Parent = Gui})
+-- Phones (owner 2026-10-28: "build a phone/touch layout for the menu so text stays readable on small screens"): a short
+-- screen gets its own layout, PHONE_H layout pixels tall, instead of the 1100 x 720 one shrunk to fit (that halved every
+-- word: 15 px read as 8 on a phone). Relayout (near the end) moves and resizes the pieces for it. In Studio,
+-- ReplicatedStorage's MenuPhonePreview attribute (a Vector2, e.g. 844, 390) lays the menu out as that phone would,
+-- magnified to fill the viewport, for checking by eye; a live server never reads it.
+local PHONE_H = 430
+local Phone = false
+local Relayout -- (defined once the screens exist)
+local LayoutWidth = 0
+local function PhonePreview()
+	local Pv = RunService:IsStudio() and ReplicatedStorage:GetAttribute("MenuPhonePreview")
+	return typeof(Pv) == "Vector2" and Pv or nil
+end
 local function Rescale()
 	local V = Camera.ViewportSize
-	-- capped at 1 (2026-10-18): the art was drawn for this 1100 x 720 layout; scaling it up (1.5x at 1080p)
-	-- stretched the plates past their pixels and blurred them. Smaller screens still scale down.
-	Scale.Scale = math.clamp(math.min(V.Y / 720, V.X / 1100), 0.5, 1)
+	local Pv = PhonePreview()
+	local Was = Phone
+	Phone = Pv ~= nil or V.Y < 560
+	if Phone then
+		local Ref = Pv or V
+		Scale.Scale = V.Y / (Ref.Y / math.clamp(Ref.Y / PHONE_H, 0.8, 1)) -- (the phone's own layout height, filling this screen)
+	else
+		-- capped at 1 (2026-10-18): the art was drawn for this 1100 x 720 layout; scaling it up (1.5x at 1080p)
+		-- stretched the plates past their pixels and blurred them. Smaller screens still scale down.
+		Scale.Scale = math.clamp(math.min(V.Y / 720, V.X / 1100), 0.5, 1)
+	end
+	-- (a new layout when the kind of screen flips, or its width in layout pixels changes: narrow desktops too)
+	local Width = math.floor(V.X / Scale.Scale / 8)
+	if Relayout and (Phone ~= Was or Width ~= LayoutWidth) then LayoutWidth = Width Relayout() end
 end
 Camera:GetPropertyChangedSignal("ViewportSize"):Connect(Rescale)
+ReplicatedStorage:GetAttributeChangedSignal("MenuPhonePreview"):Connect(Rescale)
 Rescale()
 
 -- ===== Preview rig (idles; claps a transmutation now and then) =====
 local Rig = ReplicatedStorage:WaitForChild("PreviewRig"):Clone()
-local Stage = workspace:WaitForChild("MenuStage")
-local Dais = Stage:WaitForChild("Dais")
-local CamMark = Stage:WaitForChild("CameraMark") -- the menu's camera (owner 2026-10-15: trees + log behind the dais)
--- the rig starts facing that camera; drag to turn
-local ToCam = (CamMark.Position - Dais.Position) * Vector3.new(1, 0, 1)
-local Facing = math.atan2(-ToCam.Unit.X, -ToCam.Unit.Z)
+-- Spot = where the creator's rig stands: {Foot, Face = the flat direction to the camera}. The painted menu moves it to
+-- the picked slot's alcove (SetSpot); the old dais is the fallback.
+local Spot, CamFar, CamFarFov
+if Painted then
+	local M = Markers.menu_camera
+	CamFar, CamFarFov = CFrame.lookAt(V3(M.pos), V3(M.look)), M.fov
+	Spot = {Foot = V3(Markers.alcoves[1].foot), Face = V3(Markers.alcoves[1].face)}
+else
+	local Stage = workspace:WaitForChild("MenuStage")
+	local Dais = Stage:WaitForChild("Dais")
+	local CamMark = Stage:WaitForChild("CameraMark") -- the menu's camera (owner 2026-10-15: trees + log behind the dais)
+	CamFar, CamFarFov = CamMark.CFrame, Camera.FieldOfView
+	Spot = {Foot = Dais.Position + Vector3.new(0, Dais.Size.X / 2, 0), Face = ((CamMark.Position - Dais.Position) * Vector3.new(1, 0, 1)).Unit}
+end
+-- the rig starts facing that camera; drag to turn. (The painted menu keeps it out of sight until a slot is picked:
+-- the alcoves show each slot's own figure.)
+local Facing = math.atan2(-Spot.Face.X, -Spot.Face.Z)
+local RigShown = not Painted
 local function PlaceRig()
-	local Top = Dais.Position + Vector3.new(0, Dais.Size.X / 2, 0)
-	Rig.HumanoidRootPart.CFrame = CFrame.new(Top + Vector3.new(0, 3, 0)) * CFrame.Angles(0, Facing, 0)
+	local At = RigShown and Spot.Foot or Spot.Foot - Vector3.new(0, 400, 0)
+	Rig.HumanoidRootPart.CFrame = CFrame.new(At + Vector3.new(0, 3, 0)) * CFrame.Angles(0, Facing, 0)
 end
 Rig.Parent = workspace
 PlaceRig()
@@ -178,35 +258,58 @@ task.spawn(function()
 end)
 
 Camera.CameraType = Enum.CameraType.Scriptable
-local CamFar, CamNear = CamMark.CFrame, nil
-do -- the face close-up, from the same side as the menu camera
-	local Head = Dais.Position + Vector3.new(0, Dais.Size.X / 2 + 4.5, 0)
-	local Dir = ToCam.Unit
-	local Right = Dir:Cross(Vector3.yAxis)
-	CamNear = CFrame.lookAt(Head + Dir * 6.3 + Vector3.new(0, 0.1, 0) - Right * 1.6, Head - Right * 0.8 + Vector3.new(0, -0.6, 0))
-end
 -- creator views (owner 2026-10-18: "a face cam ... so players can see their character up close and full body"):
 -- FACE = a tight shot of the head, BODY = the whole character; the panel sits on the left, so both frame the
--- rig right of centre. CamNear (the old close-up) stays as a fallback.
-local CamFace, CamBody
-do
-	local Top = Dais.Position + Vector3.new(0, Dais.Size.X / 2, 0)
-	local Head = Top + Vector3.new(0, 4.5, 0)
-	local Mid = Top + Vector3.new(0, 3, 0)
-	local Dir = ToCam.Unit
+-- rig right of centre. CamNear (the old close-up) stays as a fallback. The painted menu has them per alcove (MenuStage).
+local CamNear, CamFace, CamBody, FovFace, FovBody
+local function SpotViews(Slot)
+	if Painted and Slot then
+		local A = Markers.alcoves[Slot]
+		CamBody, FovBody = CFrame.lookAt(V3(A.body.pos), V3(A.body.look)), A.body.fov
+		CamFace, FovFace = CFrame.lookAt(V3(A.face_view.pos), V3(A.face_view.look)), A.face_view.fov
+		CamNear = CamFace
+		return
+	end
+	local Top = Spot.Foot
+	local Head, Mid = Top + Vector3.new(0, 4.5, 0), Top + Vector3.new(0, 3, 0)
+	local Dir = Spot.Face
 	local Right = Dir:Cross(Vector3.yAxis)
+	CamNear = CFrame.lookAt(Head + Dir * 6.3 + Vector3.new(0, 0.1, 0) - Right * 1.6, Head - Right * 0.8 + Vector3.new(0, -0.6, 0))
 	CamFace = CFrame.lookAt(Head + Dir * 4.4 + Vector3.new(0, 0.15, 0) - Right * 1.1, Head - Right * 0.55 + Vector3.new(0, -0.15, 0))
 	CamBody = CFrame.lookAt(Mid + Dir * 11.5 + Vector3.new(0, 1.2, 0) - Right * 2.6, Mid - Right * 1.3 + Vector3.new(0, 0.3, 0))
+	FovFace, FovBody = CamFarFov, CamFarFov
+end
+SpotViews(nil)
+-- the painted menu: the creator's rig into a slot's alcove
+local function SetSpot(Slot)
+	local A = Markers.alcoves[Slot]
+	Spot = {Foot = V3(A.foot), Face = V3(A.face)}
+	Facing = math.atan2(-Spot.Face.X, -Spot.Face.Z)
+	SpotViews(Slot)
+	PlaceRig()
 end
 local View = nil -- nil = the step's default; "Face" / "Body" once the player picks one
-local CamTarget = CamFar
+local CamTarget, CamFov = CamFar, CamFarFov
 Camera.CFrame = CamFar
+Camera.FieldOfView = CamFarFov
+local Panning = false -- (MenuPan drives the camera while true)
 -- depth of field: the menu's scenic values on the title / slots, focused on the character while creating
 local DOF = game:GetService("Lighting"):FindFirstChildOfClass("DepthOfFieldEffect")
 local DOFBase = DOF and {FocusDistance = DOF.FocusDistance, InFocusRadius = DOF.InFocusRadius, NearIntensity = DOF.NearIntensity, FarIntensity = DOF.FarIntensity}
+if DOF and Painted then -- the painted hall: the alcoves sharp, the lantern and chains near the lens soft
+	DOFBase = {FocusDistance = (V3(Markers.alcoves[3].foot) - CamFar.Position).Magnitude, InFocusRadius = 20, NearIntensity = 0.35, FarIntensity = 0.18}
+end
 local Creating = false
 RunService.RenderStepped:Connect(function(Dt)
-	Camera.CFrame = Camera.CFrame:Lerp(CamTarget, math.clamp(Dt * 6, 0, 1))
+	if not Panning then
+		local Target = CamTarget
+		if Painted and CamTarget == CamFar then -- the menu view breathes (a slow sway, as in the preview)
+			local T = os.clock()
+			Target = CamFar * CFrame.new(0.09 * math.sin(T * math.pi / 4), 0.04 * math.sin(T * math.pi / 2), 0)
+		end
+		Camera.CFrame = Camera.CFrame:Lerp(Target, math.clamp(Dt * 6, 0, 1))
+		Camera.FieldOfView += (CamFov - Camera.FieldOfView) * math.clamp(Dt * 6, 0, 1)
+	end
 	if DOF and DOFBase then
 		local HeadPart = Rig:FindFirstChild("Head")
 		if Creating and HeadPart then
@@ -332,9 +435,20 @@ local Toast = Plate(KIT.Notice, {Size = UDim2.fromOffset(600, 48), AnchorPoint =
 local ToastText = Label("", {TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = GOLD, TextSize = 18, Size = UDim2.fromScale(1, 1),
 	ZIndex = 41, Parent = Toast})
 local ToastToken = 0
+local ToastLow = function() return false end -- (set by the painted menu: true while its slot cards fill the top right)
+-- top centre, or bottom centre above the tip line when the painted cards would be under it (menu audit 2026-10-29);
+-- the painted menu places it again when its cards come back while it shows
+local function PlaceToast()
+	if ToastLow() then
+		Toast.AnchorPoint, Toast.Position = Vector2.new(0.5, 1), UDim2.new(0.5, 0, 1, -46)
+	else
+		Toast.AnchorPoint, Toast.Position = Vector2.new(0.5, 0), UDim2.new(0.5, 0, 0, 18)
+	end
+end
 local function Say(Text)
 	ToastToken += 1
 	local T = ToastToken
+	PlaceToast()
 	ToastText.Text = Text
 	Toast.Visible = true
 	task.delay(4, function() if ToastToken == T then Toast.Visible = false end end)
@@ -356,18 +470,50 @@ end
 local MainMenu = New("Frame", {Name = "MainMenu", BackgroundTransparency = 1, Size = UDim2.new(0, 460, 1, 0), Position = UDim2.new(0, 70, 0, 0), Parent = Gui})
 -- the owner's Rensei logo (decal 108616489098661 -> its image)
 New("ImageLabel", {Name = "Logo", BackgroundTransparency = 1, Image = "rbxassetid://130654945285755", ScaleType = Enum.ScaleType.Fit,
-	Size = UDim2.new(0, 420, 0, 180), Position = UDim2.new(0, -10, 0.12, 0), Parent = MainMenu})
-local MenuButtons = New("Frame", {Name = "Buttons", BackgroundTransparency = 1, Size = UDim2.new(0, 300, 0, 200), Position = UDim2.new(0, 10, 0.5, 20), Parent = MainMenu})
+	Size = UDim2.new(0, 420, 0, 180), Position = UDim2.new(0, -10, 0.15, 12), Parent = MainMenu})
+-- (owner 2026-10-28: the logo and buttons sit lower, clear of Roblox's top bar)
+local MenuButtons = New("Frame", {Name = "Buttons", BackgroundTransparency = 1, Size = UDim2.new(0, 300, 0, 200), Position = UDim2.new(0, 10, 0.4, 40), Parent = MainMenu})
 List(MenuButtons, 10)
 local PlayBtn = Button("PLAY", KIT.Gold, {Name = "Play", TextSize = 26, Size = UDim2.new(1, 0, 0, 58), LayoutOrder = 1, Parent = MenuButtons})
 local IndexBtn = Button("CLAN INDEX", KIT.Plate, {Name = "Index", TextSize = 16, Size = UDim2.new(0.8, 0, 0, 40), LayoutOrder = 2, Parent = MenuButtons})
+-- the painted menu's own thin button frame once uploaded (9-slice on its 700 x 76 art), the kit's plates until then
+if Painted and Art.ButtonFrame and Art.ButtonFrame ~= 0 then
+	for _, B in ipairs({PlayBtn, IndexBtn}) do
+		B.Image = "rbxassetid://" .. Art.ButtonFrame
+		B.ScaleType, B.SliceCenter, B.SliceScale = Enum.ScaleType.Slice, Rect.new(60, 10, 640, 66), B.Size.Y.Offset / 76
+	end
+end
 local SubLine = Label("Pick a save slot to begin.", {TextColor3 = TEXT, LayoutOrder = 3, Size = UDim2.new(1, 0, 0, 44), Parent = MenuButtons})
 New("UIStroke", {Color = Color3.new(0, 0, 0), Thickness = 1.5, Transparency = 0.3, Parent = SubLine})
+
+-- the tip line (bottom left, the painted menu): each tip true of the game
+local TipLine
+if Painted then
+	local TIPS = {
+		{"[EQUIVALENT EXCHANGE]", "Nothing is made from nothing. Every transmutation is paid for, now or later."},
+		{"[WORD ON THE RAILS]", "Heat cools on its own, even while you're away. Lie low and the State forgets."},
+		{"[STATE NOTICE]", "Casting without a licence in front of the Authority is a crime."},
+	}
+	TipLine = Label("", {Name = "Tip", RichText = true, TextSize = 15, TextColor3 = Color3.fromRGB(200, 194, 184), TextWrapped = false,
+		AnchorPoint = Vector2.new(0, 1), Size = UDim2.new(1, -60, 0, 20), Position = UDim2.new(0, 26, 1, -16), ZIndex = 4, Parent = Gui})
+	New("UIStroke", {Color = Color3.new(0, 0, 0), Thickness = 1, Transparency = 0.4, Parent = TipLine})
+	task.spawn(function()
+		local I = 0
+		while TipLine.Parent do
+			I = I % #TIPS + 1
+			TipLine.Text = ("<font color='#c44634'>%s</font>  %s"):format(TIPS[I][1], TIPS[I][2])
+			TweenService:Create(TipLine, TweenInfo.new(0.6), {TextTransparency = 0}):Play()
+			task.wait(9)
+			TweenService:Create(TipLine, TweenInfo.new(0.6), {TextTransparency = 1}):Play()
+			task.wait(0.7)
+		end
+	end)
+end
 
 -- ===== Save slots =====
 local SlotScreen = New("Frame", {Name = "Slots", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Visible = false, ZIndex = 5, Parent = Gui})
 do
-	local T = Plate(KIT.Title, {Size = UDim2.fromOffset(280, 76), AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.12, 0), ZIndex = 6, Parent = SlotScreen})
+	local T = Plate(KIT.Title, {Name = "Title", Size = UDim2.fromOffset(280, 76), AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.12, 0), ZIndex = 6, Parent = SlotScreen})
 	Label("SAVE SLOTS", {FontFace = FONT_B, TextSize = 24, TextXAlignment = Enum.TextXAlignment.Center, Size = UDim2.fromScale(1, 1), ZIndex = 7, Parent = T})
 end
 local SlotRow = New("Frame", {Name = "Row", BackgroundTransparency = 1, Size = UDim2.new(1, -80, 0, 220), AnchorPoint = Vector2.new(0.5, 0.5),
@@ -394,8 +540,10 @@ local BackBtn = Button("BACK", KIT.Plate, {Name = "Back", TextSize = 16, Size = 
 -- turn buttons under the rig (while creating)
 local TurnBar = New("Frame", {Name = "Turn", BackgroundTransparency = 1, Size = UDim2.new(0, 300, 0, 40), AnchorPoint = Vector2.new(0.5, 1),
 	Position = UDim2.new(0.56, 0, 1, -40), Visible = false, Parent = Gui})
-for _, T in ipairs({{"TurnLeft", "<", 1, 0}, {"TurnRight", ">", -1, 1}}) do
-	local B = Button(T[2], KIT.Plate, {Name = T[1], TextSize = 22, Size = UDim2.new(0, 60, 1, 0), Position = UDim2.new(T[4], T[4] == 1 and -60 or 0, 0, 0), Parent = TurnBar})
+for _, T in ipairs({{"TurnLeft", -90, 1, 0}, {"TurnRight", 90, -1, 1}}) do
+	local B = Button("", KIT.Plate, {Name = T[1], Size = UDim2.new(0, 60, 1, 0), Position = UDim2.new(T[4], T[4] == 1 and -60 or 0, 0, 0), Parent = TurnBar})
+	New("ImageLabel", {Name = "Arrow", BackgroundTransparency = 1, Image = KIT.Chevron, ScaleType = Enum.ScaleType.Fit, Rotation = T[2],
+		Size = UDim2.fromOffset(24, 24), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Parent = B})
 	B.MouseButton1Down:Connect(function() Spin = T[3] end)
 	B.MouseButton1Up:Connect(function() Spin = 0 end)
 	B.MouseLeave:Connect(function() Spin = 0 end)
@@ -408,6 +556,7 @@ local ViewButtons = {}
 local function SetView(V)
 	View = V
 	CamTarget = (V == "Face" and CamFace) or CamBody
+	CamFov = (V == "Face" and FovFace) or FovBody
 	for Name, B in pairs(ViewButtons) do SetOn(B, Name == V) end
 end
 for I, V in ipairs({"Face", "Body"}) do
@@ -423,6 +572,11 @@ local Card = Plate(KIT.Frame.Common, {Name = "Summary", Size = UDim2.fromOffset(
 local CardBody = New("Frame", {BackgroundTransparency = 1, Size = UDim2.new(1, -70, 1, -70), Position = UDim2.fromOffset(35, 35), Parent = Card})
 List(CardBody, 5)
 
+local Editing = false -- the painted menu's EDIT: only the look (Facial, Traits without nation and gender), then SAVE LOOK
+-- (menu audit 2026-10-29) EDIT keeps the character's saved outfit (the server does too), so the preview must show that
+-- one, not the nation's starter outfit: Adopt records it, and the look tools dress the rig in OutfitNow()
+local EditOutfit = nil
+local function OutfitNow() return Editing and EditOutfit or Customization.OutfitFor(Choice.Origin) end
 local Steps = {
 	{Id = "Facial", Title = "FACIAL FEATURES", Tab = "FACE", Near = true},
 	{Id = "Traits", Title = "TRAITS", Tab = "TRAITS"},
@@ -491,17 +645,20 @@ local function Thumbs(Parent, Order, OrderList, Map, Field)
 			local On = Choice.Appearance[Field] == Id
 			T.Skin.BackgroundColor3 = Skin
 			T.Image = On and KIT.Frame.Legendary or KIT.Frame.Common
+			T.ImageColor3 = On and Color3.new(1, 1, 1) or UNPICKED
 		end
 	end
 end
 
 -- colour swatches
 local function Swatches(Parent, Order, OrderList, Colors, Field, OnPick)
-	local G = Grid(Parent, Order, UDim2.fromOffset(40, 40))
+	local G = Grid(Parent, Order, UDim2.fromOffset(46, 46))
 	local Tiles = {}
 	for I, Id in ipairs(OrderList) do
-		local T = New("TextButton", {Name = Id, Text = "", BackgroundColor3 = Colors[Id], AutoButtonColor = false, LayoutOrder = I, Parent = G},
-			{Corner(3), New("UIStroke", {Color = LINE, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border})})
+		local T = New("ImageButton", {Name = Id, BackgroundTransparency = 1, Image = KIT.Frame.Common, ScaleType = Enum.ScaleType.Stretch,
+			AutoButtonColor = false, LayoutOrder = I, Parent = G})
+		New("Frame", {Name = "Swatch", BackgroundColor3 = Colors[Id], BorderSizePixel = 0, Size = UDim2.fromScale(0.62, 0.62),
+			Position = UDim2.fromScale(0.19, 0.19), ZIndex = 0, Parent = T}, {Corner(3)})
 		Tiles[Id] = T
 		T.Activated:Connect(function()
 			Choice.Appearance[Field] = Id
@@ -513,8 +670,8 @@ local function Swatches(Parent, Order, OrderList, Colors, Field, OnPick)
 	return function()
 		for Id, T in pairs(Tiles) do
 			local On = Choice.Appearance[Field] == Id
-			T.UIStroke.Color = On and GOLD or LINE
-			T.UIStroke.Thickness = On and 3 or 1
+			T.Image = On and KIT.Frame.Legendary or KIT.Frame.Common
+			T.ImageColor3 = On and Color3.new(1, 1, 1) or UNPICKED
 		end
 	end
 end
@@ -629,8 +786,9 @@ local function ColorWheel(Parent, Order, Field, ColorOf)
 	-- the colour + the ID-hair option
 	local Side = New("Frame", {BackgroundTransparency = 1, Size = UDim2.new(1, -(R * 2 + 24), 1, 0), Position = UDim2.fromOffset(R * 2 + 20, 0), Parent = Row})
 	List(Side, 8)
-	local Chip = New("Frame", {Size = UDim2.fromOffset(64, 40), BorderSizePixel = 0, LayoutOrder = 1, Parent = Side}, {Corner(3),
-		New("UIStroke", {Color = GOLD, Thickness = 1, Transparency = 0.3})})
+	-- the picked colour, in the kit's item frame (as the swatches are)
+	local ChipFrame = Plate(KIT.Frame.Legendary, {Size = UDim2.fromOffset(58, 58), LayoutOrder = 1, Parent = Side})
+	local Chip = New("Frame", {BorderSizePixel = 0, Size = UDim2.fromScale(0.62, 0.62), Position = UDim2.fromScale(0.19, 0.19), ZIndex = 0, Parent = ChipFrame}, {Corner(3)})
 	local Hex = Label("", {TextColor3 = DIM, TextSize = 14, LayoutOrder = 2, Parent = Side})
 	local Own = Button("", KIT.Plate, {Name = "OwnColors", TextSize = 13, Size = UDim2.new(1, 0, 0, 34), LayoutOrder = 3, Visible = IsHair, Parent = Side})
 	Label(IsHair and "ID hairs: tinted with this colour, or kept in their own colours." or "Any skin colour. Pick a swatch above to go back to a preset.",
@@ -687,6 +845,7 @@ local function ColorWheel(Parent, Order, Field, ColorOf)
 end
 
 -- ===== 2. Traits =====
+local TraitsLocked = {}
 do
 	local P = Page("Traits")
 	Section(P, "NATION", 1)
@@ -735,6 +894,11 @@ do
 	Lock.Activated:Connect(function() if OpenLooks then OpenLooks() end end)
 	table.insert(Syncers, ColorWheel(P, 12, "Skin", Customization.SkinColorOf))
 	local SkinWheel = P:FindFirstChild("SkinWheel")
+	-- (Edit mode hides the nation and gender rows: a made character keeps both)
+	TraitsLocked = {}
+	for _, C in ipairs(P:GetChildren()) do
+		if C:IsA("GuiObject") and C.LayoutOrder >= 1 and C.LayoutOrder <= 5 then table.insert(TraitsLocked, C) end
+	end
 	table.insert(Syncers, function()
 		local Owned = Plus ~= nil and Plus.Owned == true
 		Lock.Visible = not Owned
@@ -759,16 +923,14 @@ do
 	local Kind = Label("", {TextColor3 = DIM, TextSize = 14, Size = UDim2.new(1, 0, 0, 16), LayoutOrder = 2, Parent = WCard})
 	local Desc = Label("", {TextSize = 15, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 3, Parent = WCard})
 	local function Bar(Order, Text)
-		local Row = New("Frame", {BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 18), LayoutOrder = Order, Parent = WCard})
+		local Row = New("Frame", {BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 20), LayoutOrder = Order, Parent = WCard})
 		Label(Text, {Size = UDim2.new(0.28, 0, 1, 0), TextColor3 = DIM, TextSize = 14, Parent = Row})
-		local Track = New("Frame", {BackgroundColor3 = Color3.fromRGB(20, 18, 16), BorderSizePixel = 0, Size = UDim2.new(0.44, 0, 0, 8),
-			Position = UDim2.new(0.28, 0, 0.5, -4), Parent = Row}, {Corner(4), New("UIStroke", {Color = LINE, Thickness = 1})})
-		local Fill = New("Frame", {BackgroundColor3 = GOLD, BackgroundTransparency = 0.1, BorderSizePixel = 0, Size = UDim2.new(0, 0, 0, 4),
-			Position = UDim2.new(0, 2, 0.5, -2), Parent = Track}, {Corner(2)})
+		local Track = Plate(KIT.BarFrame, {Size = UDim2.new(0.44, 0, 0, 14), Position = UDim2.new(0.28, 0, 0.5, -7), Parent = Row})
+		local Fill = Plate(KIT.BarFill, {Size = UDim2.new(0, 0, 1, -6), Position = UDim2.new(0, 3, 0, 3), ScaleType = Enum.ScaleType.Stretch, Parent = Track})
 		local Value = Label("", {Size = UDim2.new(0.28, -6, 1, 0), Position = UDim2.new(0.72, 6, 0, 0), TextSize = 14,
 			TextXAlignment = Enum.TextXAlignment.Right, Parent = Row})
 		return function(Frac, Txt)
-			TweenService:Create(Fill, TweenInfo.new(0.2), {Size = UDim2.new(math.clamp(Frac, 0.04, 1), -4, 0, 4)}):Play()
+			TweenService:Create(Fill, TweenInfo.new(0.2), {Size = UDim2.new(math.clamp(Frac, 0.04, 1), -6, 1, -6)}):Play()
 			Value.Text = Txt
 		end
 	end
@@ -870,7 +1032,8 @@ end
 local Shop = Modal("Rerolls", KIT.PanelTall, 400, 438, "CLAN REROLLS")
 local OpenShop
 do
-	local Body2 = New("Frame", {BackgroundTransparency = 1, Size = UDim2.new(1, -70, 1, -100), Position = UDim2.fromOffset(35, 60), ZIndex = 31, Parent = Shop})
+	local Body2 = New("ScrollingFrame", {BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, -70, 1, -100), Position = UDim2.fromOffset(35, 60), ZIndex = 31,
+		CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 3, ScrollBarImageColor3 = GOLD, Parent = Shop})
 	List(Body2, 8)
 	local Have = Label("", {FontFace = FONT_B, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 32, LayoutOrder = 1, Parent = Body2})
 	for I, Pack in ipairs(Clans.RerollPacks) do
@@ -896,9 +1059,13 @@ do
 	CodeHolder.ZIndex = 32 CodeBox.ZIndex = 33
 	local Redeem = Button("REDEEM", KIT.Plate, {Name = "Redeem", TextSize = 15, Size = UDim2.new(1, 0, 0, 38), LayoutOrder = 13, ZIndex = 32, Parent = Body2})
 	Redeem.Label.ZIndex = 33
+	local Redeeming = false
 	Redeem.Activated:Connect(function()
+		if Redeeming then return end -- (one request at a time: a second click would only get "One moment...")
+		Redeeming = true
 		SetText(Redeem, "...")
 		local Ok, Msg, Identity = Remote:InvokeServer("Redeem", CodeBox.Text)
+		Redeeming = false
 		SetText(Redeem, "REDEEM")
 		if Ok and Identity and Server then Server.Identity = Identity CodeBox.Text = "" end
 		Say(Msg or (Ok and "Code redeemed." or "That code didn't work."))
@@ -917,7 +1084,9 @@ end
 -- ===== Creator tools (owner 2026-10-18 QOL): undo / redo / random look / reset (free), saved looks (Creator Plus) =====
 local function LoadState(Data)
 	Data = DeepCopy(Data)
-	Choice.Origin, Choice.Gender, Choice.Appearance = Data.Origin, Data.Gender, Data.Appearance
+	if not Editing then Choice.Origin, Choice.Gender = Data.Origin, Data.Gender end -- (a made character's are fixed)
+	Choice.Appearance = Data.Appearance
+	if Editing then Choice.Appearance.Body = Choice.Gender Choice.Appearance.Outfit = OutfitNow() end
 	SyncAll()
 	Refresh()
 end
@@ -941,7 +1110,7 @@ local function RandomLook()
 	local L = Customization.RandomLook(Choice.Origin)
 	L.Body = Choice.Gender
 	L.Hair = RandomFrom(Customization.GenderHairs[Choice.Gender])
-	L.Outfit = Customization.OutfitFor(Choice.Origin)
+	L.Outfit = OutfitNow()
 	L.HairIds, L.HairOwnColors = Old.HairIds, Old.HairOwnColors
 	Choice.Appearance = L
 	SyncAll()
@@ -952,6 +1121,7 @@ local function ResetLook()
 	local D = Customization.Default(Choice.Origin)
 	D.Body = Choice.Gender
 	D.Hair = Customization.GenderHair[Choice.Gender] or D.Hair
+	D.Outfit = OutfitNow()
 	Choice.Appearance = D
 	SyncAll()
 	Refresh()
@@ -986,7 +1156,8 @@ end)
 -- Saved looks / the Creator Plus pitch
 local LooksPanel = Modal("Looks", KIT.PanelTall, 420, 470, "SAVED LOOKS")
 LooksPanel.AnchorPoint, LooksPanel.Position = Vector2.new(1, 0.5), UDim2.new(1, -30, 0.5, 0) -- right side: the character stays in view
-local LooksBody = New("Frame", {Name = "Body", BackgroundTransparency = 1, Size = UDim2.new(1, -70, 1, -100), Position = UDim2.fromOffset(35, 62), ZIndex = 31, Parent = LooksPanel})
+local LooksBody = New("ScrollingFrame", {Name = "Body", BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, -70, 1, -100), Position = UDim2.fromOffset(35, 62), ZIndex = 31,
+	CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 3, ScrollBarImageColor3 = GOLD, Parent = LooksPanel})
 List(LooksBody, 8)
 local function Z(G, N) -- the modal's layers (built after the ZIndex pass below)
 	G.ZIndex = N
@@ -1212,19 +1383,24 @@ for I, S in ipairs(Steps) do
 end
 
 function ShowStep(N)
-	Step = math.clamp(N, 1, #Steps)
+	local Last = Editing and 2 or #Steps -- (Edit: Facial and Traits only)
+	Step = math.clamp(N, 1, Last)
 	for I, S in ipairs(Steps) do
 		Pages[S.Id].Visible = I == Step
 		SetOn(TabButtons[I], I == Step)
+		TabButtons[I].Visible = I <= Last
 	end
-	Header.Text = Steps[Step].Title
+	for _, C in ipairs(TraitsLocked) do C.Visible = not Editing end
+	Header.Text = Editing and Step == 1 and "EDIT LOOK" or Steps[Step].Title
 	Body.CanvasPosition = Vector2.zero
 	SetText(BackBtn, Step == 1 and "SLOTS" or "BACK")
-	NextBtn.Visible = Step < #Steps
+	NextBtn.Visible = Step < Last or Editing
+	SetText(NextBtn, Editing and Step == Last and "SAVE LOOK" or "NEXT")
 	Card.Visible = Steps[Step].Id == "Finalize"
 	-- the step's default view (Facial = FACE, the rest = BODY) unless the player picked one
 	local Want = View or (Steps[Step].Near and "Face" or "Body")
 	CamTarget = Want == "Face" and CamFace or CamBody
+	CamFov = Want == "Face" and FovFace or FovBody
 	for Name, B in pairs(ViewButtons) do SetOn(B, Name == Want) end
 	SyncAll()
 end
@@ -1234,12 +1410,14 @@ local function ShowTitle()
 	Panel.Visible, TurnBar.Visible, Card.Visible, SlotScreen.Visible, Index.Visible, Shop.Visible = false, false, false, false, false, false
 	LooksPanel.Visible = false
 	MainMenu.Visible = true
-	CamTarget = CamFar
+	CamTarget, CamFov = CamFar, CamFarFov
 	Creating = false
 end
 local function ShowCreation()
 	MainMenu.Visible, SlotScreen.Visible = false, false
+	if TipLine then TipLine.Visible = false end
 	Panel.Visible, TurnBar.Visible = true, true
+	PlaceToast() -- (back to the top: the turn bar is at the bottom)
 	Creating = true
 	View = nil
 	ShowStep(1)
@@ -1248,10 +1426,18 @@ local function ShowCreation()
 	task.spawn(FetchPlus)
 end
 
+local Opening = false
+local Loading = false -- (the painted list is being fetched: its cards are about to be rebuilt, so clicks on them wait)
+local Saving = false -- (SAVE LOOK in flight)
+local Finishing = false -- (FINISH in flight)
+local Departing = false -- (Play went through live: the teleport is under way)
+
 local function Play()
+	if Departing then return false end
 	local Ok, Msg, Where = Remote:InvokeServer("Play")
 	if Msg then Say(Msg) end
 	if Ok and Where then SubLine.Text = "Heading to the " .. Where .. "..." end
+	Departing = Ok == true and not RunService:IsStudio() -- (live: the teleport is under way; the menu takes no more picks)
 	return Ok
 end
 
@@ -1259,9 +1445,12 @@ end
 local function Adopt(State)
 	Server = State
 	local I = State.Identity
+	EditOutfit = I.CharacterCreated and I.Appearance and I.Appearance.Outfit or nil
 	if I.CharacterCreated and I.Appearance then
 		Choice.Appearance = I.Appearance
 		Choice.Origin = I.Origin
+		Choice.Gender = I.Gender or Choice.Gender
+		Choice.FirstName = I.FirstName or ""
 		Appearance.Apply(Rig, I.Appearance, I.Name)
 	else
 		Choice = Fresh()
@@ -1287,13 +1476,10 @@ local function SlotCard(Order, Tier, Title, Lines, OnClick)
 end
 
 -- small round icon button in a slot card's corner (star / trash)
-local function CardIcon(Holder, Name, Glyph, Color, Right, OnClick)
-	local B = New("TextButton", {Name = Name, Text = Glyph, FontFace = Font.new("rbxasset://fonts/families/BuilderSans.json", Enum.FontWeight.Bold),
-		TextSize = 16, TextColor3 = Color, BackgroundColor3 = Color3.fromRGB(12, 11, 10), BackgroundTransparency = 0.15, AutoButtonColor = false,
-		Size = UDim2.fromOffset(24, 24), AnchorPoint = Vector2.new(Right and 1 or 0, 0), Position = UDim2.new(Right and 1 or 0, Right and -20 or 20, 0, 20),
-		ZIndex = 8, Parent = Holder}, {New("UICorner", {CornerRadius = UDim.new(1, 0)}), New("UIStroke", {Color = LINE, Thickness = 1})})
-	B.MouseEnter:Connect(function() B.UIStroke.Color = GOLD end)
-	B.MouseLeave:Connect(function() B.UIStroke.Color = LINE end)
+-- (Image = a kit icon; Ticked: the favourite box with its checkmark)
+local function CardIcon(Holder, Name, Image, Ticked, Right, OnClick)
+	local B = IconButton(Image, {Name = Name, Size = UDim2.fromOffset(26, 26), AnchorPoint = Vector2.new(Right and 1 or 0, 0),
+		Position = UDim2.new(Right and 1 or 0, Right and -18 or 18, 0, 18), ZIndex = 8, Parent = Holder}, Ticked)
 	B.Activated:Connect(OnClick)
 	return B
 end
@@ -1307,21 +1493,374 @@ local ConfirmYes = Button("DELETE", KIT.Red, {Name = "Yes", Size = UDim2.new(0.5
 local ConfirmNo = Button("CANCEL", KIT.Gold, {Name = "No", Size = UDim2.new(0.5, -40, 0, 40), Position = UDim2.new(0.5, 10, 1, -64), ZIndex = 21, Parent = Confirm})
 ConfirmYes.Label.ZIndex, ConfirmNo.Label.ZIndex = 22, 22
 local Pending = nil -- slot waiting for the confirm
-ConfirmNo.Activated:Connect(function() Pending = nil Confirm.Visible = false end)
+local Deleting = false
+ConfirmNo.Activated:Connect(function() if Deleting then return end Pending = nil Confirm.Visible = false end)
 ConfirmYes.Activated:Connect(function()
 	local Slot = Pending
-	if not Slot then return end
+	if not Slot or Deleting then return end
+	Deleting = true
 	SetText(ConfirmYes, "...")
 	local Ok, Msg = Remote:InvokeServer("Delete", Slot)
+	Deleting = false
 	SetText(ConfirmYes, "DELETE")
 	Pending = nil
 	Confirm.Visible = false
+	if Ok and Server and Server.Slot == Slot then Server = nil end -- (its pity, rolls and name were the deleted character's)
 	Say(Ok and "Slot " .. Slot .. " deleted." or (Msg or "Couldn't delete that slot."))
 	ShowSlots()
 end)
 
-local Opening = false
+
+-- ===== The painted menu: the alcoves, the slot cards, the pan =====
+local Backdrop = Painted and MenuBackdrop.Start(PaintedStage, Markers, Art) or nil
+local Figures = {} -- [slot] = the alcove's figure: a PreviewRig copy in that slot's look, or the plain grey blank
+local AlcoveSlot = nil -- the slot whose alcove the creator is in
+local RegionNames = (function()
+	local M = RenseiData:FindFirstChild("Regions")
+	local Ok, R = pcall(function() return M and require(M) end)
+	return Ok and type(R) == "table" and type(R.Regions) == "table" and R.Regions or {}
+end)()
+local RARITY_HEX = {}
+for Tier, C in pairs(Clans.TierColor or {}) do RARITY_HEX[Tier] = C:ToHex() end
+
+-- each alcove's own pieces (built per niche by build_stage.py): the gate, the lamp, the chalk circles
+local AlcoveParts = {}
+if Painted then
+	for I = 1, #Markers.alcoves do AlcoveParts[I] = {Gate = {}, Lights = {}, Circles = {}} end
+	for _, D in ipairs(PaintedStage:GetDescendants()) do
+		local N = D.Name
+		local G = N:match("^Gate(%d)_") or N:match("^Spike(%d)_") or N:match("^GateBar(%d)$")
+		local L = N:match("^Light_NicheLamp(%d)$") or N:match("^Light_NicheFill(%d)$")
+		local B = N:match("^Bulb(%d)$")
+		local C = N:match("^NicheCircle(%d)$") or N:match("^FootCircle(%d)$")
+		local A = AlcoveParts[tonumber(G or L or B or C or "") or 0]
+		if A then
+			if G then table.insert(A.Gate, D) elseif L then table.insert(A.Lights, D) elseif B then A.Bulb = D else table.insert(A.Circles, D) end
+		end
+	end
+end
+
+-- owned slots: gate open, lamp lit, chalk circles drawn; the rest stay dark behind their gates
+local function SetAlcoves(Owned)
+	for I, A in ipairs(AlcoveParts) do
+		local Open = I <= Owned
+		for _, P in ipairs(A.Gate) do
+			P.Transparency = Open and 1 or 0
+			for _, T in ipairs(P:GetChildren()) do if T:IsA("Decal") then T.Transparency = Open and 1 or 0 end end -- (Textures too)
+		end
+		for _, P in ipairs(A.Lights) do
+			for _, L in ipairs(P:GetChildren()) do if L:IsA("Light") then L.Enabled = Open end end
+		end
+		if A.Bulb then A.Bulb.Material = Open and Enum.Material.Neon or Enum.Material.Metal A.Bulb.Color = Open and Color3.fromRGB(255, 196, 130) or Color3.fromRGB(40, 36, 34) end
+		for _, P in ipairs(A.Circles) do
+			local Img = P:FindFirstChild("Image")
+			if Img then Img.Transparency = Open and 0 or 1 end
+		end
+	end
+end
+
+-- idle poses an R6 can hold (owner 2026-10-28: "cool idle poses that don't overlap into the buildings"): shoulder
+-- and neck offsets. Odd slots fold their arms, even slots stand at ease. No idle animation on these figures (Rensei's
+-- idle holds the arms in its own stance, which fights the pose): they breathe instead (Breathe, below).
+local function Pose(Fig, Kind)
+	local T = Fig:FindFirstChild("Torso")
+	local RSh, LSh, Neck = T and T:FindFirstChild("Right Shoulder"), T and T:FindFirstChild("Left Shoulder"), T and T:FindFirstChild("Neck")
+	if not (RSh and LSh and Neck) then return end
+	-- R turns the limb about its joint in the torso's own frame (+X right, +Y up, -Z forward)
+	local function Turn(Motor, R) Motor.C0 = CFrame.new(Motor.C0.Position) * R * Motor.C0.Rotation end
+	if Kind == "Crossed" then
+		-- both arms raised forward and turned in, so the forearms fold across the chest, the left over the right
+		Turn(RSh, CFrame.new(-0.25, -0.3, -0.45) * CFrame.Angles(0, math.rad(48), 0) * CFrame.Angles(math.rad(82), 0, 0))
+		Turn(LSh, CFrame.new(0.25, -0.05, -0.85) * CFrame.Angles(0, math.rad(-48), 0) * CFrame.Angles(math.rad(78), 0, 0))
+		Turn(Neck, CFrame.Angles(math.rad(-3), 0, math.rad(9))) -- head cocked
+	elseif Kind == "Rest" then
+		-- at ease: arms back and in, hands together behind, chin up
+		Turn(RSh, CFrame.new(0, 0, 0.12) * CFrame.Angles(0, 0, math.rad(-9)) * CFrame.Angles(math.rad(-20), 0, 0))
+		Turn(LSh, CFrame.new(0, 0, 0.12) * CFrame.Angles(0, 0, math.rad(9)) * CFrame.Angles(math.rad(-20), 0, 0))
+		Turn(Neck, CFrame.Angles(math.rad(7), 0, 0))
+	end
+end
+
+-- the alcove figures breathe: a slow rise of the chest and a drift of the head (their joints' Transform, every frame)
+local function Breathe()
+	local T = os.clock()
+	for Slot, Fig in pairs(Figures) do
+		local Root = Fig:FindFirstChild("HumanoidRootPart") and Fig.HumanoidRootPart:FindFirstChild("RootJoint")
+		local Neck = Fig:FindFirstChild("Torso") and Fig.Torso:FindFirstChild("Neck")
+		if Root then Root.Transform = CFrame.Angles(0.012 * math.sin(T * math.pi / 2 + Slot), 0, 0) * CFrame.new(0, 0, 0.03 * math.sin(T * math.pi / 2 + Slot)) end
+		if Neck then Neck.Transform = CFrame.Angles(0, 0, 0.035 * math.sin(T * math.pi / 4 + Slot * 2.3)) end
+	end
+end
+if Painted then RunService.RenderStepped:Connect(Breathe) end
+
+local function Figure(Slot, S)
+	if Figures[Slot] then Figures[Slot]:Destroy() end
+	local A = Markers.alcoves[Slot]
+	local Fig = ReplicatedStorage.PreviewRig:Clone()
+	Fig.Name = "Slot" .. Slot
+	local Face = V3(A.face)
+	Fig.HumanoidRootPart.Anchored = true
+	Fig.HumanoidRootPart.CFrame = CFrame.new(V3(A.foot) + Vector3.new(0, 3, 0)) * CFrame.Angles(0, math.atan2(-Face.X, -Face.Z), 0)
+	if S.Created and S.Appearance then
+		for _, Id in ipairs(S.Appearance.HairIds or {}) do task.spawn(function() Remote:InvokeServer("Hair", Id) end) end -- (into HairCache)
+		Fig.Parent = PaintedStage
+		Appearance.Apply(Fig, S.Appearance, S.Name)
+		Pose(Fig, Slot % 2 == 1 and "Crossed" or "Rest")
+	else
+		-- Roblox's plain grey figure: a character not made yet
+		local BC = Fig:FindFirstChildOfClass("BodyColors")
+		if BC then BC:Destroy() end
+		for _, C in ipairs(Fig:GetChildren()) do
+			if C:IsA("BasePart") and C.Name ~= "HumanoidRootPart" then C.Color = Color3.fromRGB(163, 162, 165) end
+			if C:IsA("Shirt") or C:IsA("Pants") or C:IsA("ShirtGraphic") or C:IsA("Accessory") or C:IsA("CharacterMesh") then C:Destroy() end
+		end
+		local F = Fig.Head:FindFirstChildOfClass("Decal")
+		if F then F:Destroy() end
+		Fig.Parent = PaintedStage
+	end
+	Figures[Slot] = Fig
+	return Fig
+end
+
+-- a card's bust: a live copy of the slot's figure in a ViewportFrame (rebuilt when its hair arrives)
+local function Bust(Parent, Fig)
+	local VPF = New("ViewportFrame", {BackgroundTransparency = 1, Size = UDim2.fromOffset(52, 52), Position = UDim2.fromOffset(16, 6),
+		Ambient = Color3.fromRGB(150, 130, 120), LightColor = Color3.fromRGB(255, 214, 170), LightDirection = Vector3.new(-0.4, -0.6, -1),
+		ZIndex = 8, Parent = Parent}, {New("UICorner", {CornerRadius = UDim.new(1, 0)})})
+	local WM = New("WorldModel", {Parent = VPF})
+	local Cam = New("Camera", {FieldOfView = 32, Parent = VPF})
+	VPF.CurrentCamera = Cam
+	local function Build()
+		WM:ClearAllChildren()
+		Fig.Archivable = true
+		local C = Fig:Clone()
+		for _, D in ipairs(C:GetDescendants()) do if D:IsA("Script") or D:IsA("LocalScript") then D:Destroy() end end
+		C.Parent = WM
+		local Head = C:FindFirstChild("Head")
+		if Head then
+			local Front = Head.CFrame.LookVector
+			Cam.CFrame = CFrame.lookAt(Head.Position + Front * 4.2 + Vector3.new(0, 0.1, 0), Head.Position - Vector3.new(0, 0.55, 0))
+		end
+	end
+	Build()
+	local Pending = false
+	Fig.ChildAdded:Connect(function(Ch)
+		if not Ch:IsA("Accessory") or Pending then return end
+		Pending = true
+		task.delay(0.4, function() Pending = false if VPF.Parent then Build() end end)
+	end)
+end
+
+local Grid = New("ScrollingFrame", {Name = "Grid", BackgroundTransparency = 1, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -26, 0, 28),
+	Size = UDim2.fromOffset(2 * 330 + 12, 3 * 74), Visible = false, ZIndex = 6, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	ScrollingDirection = Enum.ScrollingDirection.Y, ScrollBarThickness = 0, ScrollBarImageColor3 = GOLD, Parent = SlotScreen})
+local GridLayout = New("UIGridLayout", {CellSize = UDim2.fromOffset(330, 64), CellPadding = UDim2.fromOffset(12, 10), SortOrder = Enum.SortOrder.LayoutOrder, Parent = Grid})
+
+-- the painted card frames once uploaded (9-slice), the kit's rarity frames until then
+local function CardImage(Hover)
+	local Id = Hover and Art.CardFrameHover or Art.CardFrame
+	if Id and Id ~= 0 then return "rbxassetid://" .. Id, true end
+	return Hover and KIT.Frame.Legendary or KIT.Frame.Common, false
+end
+
+local function PaintedCard(Order, OnClick)
+	local Img, Sliced = CardImage(false)
+	local B = New("ImageButton", {Name = "Card" .. Order, BackgroundTransparency = 1, Image = Img, AutoButtonColor = false, LayoutOrder = Order, ZIndex = 6, Parent = Grid})
+	if Sliced then B.ScaleType, B.SliceCenter, B.SliceScale = Enum.ScaleType.Slice, Rect.new(60, 40, 800, 110), 64 / 150 else B.ScaleType = Enum.ScaleType.Stretch end
+	B.MouseEnter:Connect(function() B.Image = CardImage(true) end)
+	B.MouseLeave:Connect(function() B.Image = CardImage(false) end)
+	B.Activated:Connect(OnClick)
+	return B
+end
+
+local function CardText(B, Text, Props)
+	local L = Label(Text, {ZIndex = 8, Parent = B, TextWrapped = false, RichText = true, TextTruncate = Enum.TextTruncate.AtEnd})
+	for K, X in pairs(Props) do L[K] = X end
+	return L
+end
+
+-- a card's kit icon (bottom right, right to left): delete, edit, favourite
+local function SmallIcon(B, Name, Image, Index, OnClick, Ticked)
+	local Sz = Phone and 30 or 22 -- (big enough for a thumb on a phone)
+	local I = IconButton(Image, {Name = Name, Size = UDim2.fromOffset(Sz, Sz), AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -14 - (Index - 1) * (Sz + 4), 1, -4), ZIndex = 9, Parent = B}, Ticked)
+	I.Activated:Connect(OnClick)
+	return I
+end
+
+-- into a slot's alcove: the camera pans there (the reaction flaring), then the creator opens on that spot
+local function EnterCreator(Slot, Edit)
+	Editing = Edit
+	AlcoveSlot = Slot
+	MainMenu.Visible, SlotScreen.Visible = false, false
+	if TipLine then TipLine.Visible = false end
+	if Figures[Slot] then Figures[Slot].Parent = nil end
+	SetSpot(Slot)
+	RigShown = true
+	PlaceRig()
+	Refresh()
+	Panning = true
+	MenuPan.Run(Camera, Camera.CFrame, Camera.FieldOfView, CamBody, FovBody, MenuPan.Seconds, function(P)
+		if Backdrop then Backdrop:Surge(Slot, P) end
+	end)
+	Panning = false
+	if Backdrop then Backdrop:Surge(Slot, 0.35) Backdrop:Platform(false) end
+	CamTarget, CamFov = CamBody, FovBody
+	ShowCreation()
+end
+
+-- and back out to the menu view
+local Leaving = false
+local function LeaveCreator()
+	if Leaving then return end -- (BACK and a SAVE LOOK answer at once would run two pans that fight over the camera)
+	Leaving = true
+	Panel.Visible, TurnBar.Visible, Card.Visible, LooksPanel.Visible, Index.Visible, Shop.Visible = false, false, false, false, false, false
+	Creating = false
+	Panning = true
+	MenuPan.Run(Camera, Camera.CFrame, Camera.FieldOfView, CamFar, CamFarFov, 2.6)
+	Panning = false
+	if Backdrop then
+		if AlcoveSlot then Backdrop:Surge(AlcoveSlot, 0) end
+		Backdrop:Platform(true)
+	end
+	Editing, AlcoveSlot = false, nil
+	Leaving = false
+	ShowSlots()
+end
+
+local function SaveLook()
+	if Saving then return end
+	Saving = true
+	SetText(NextBtn, "...")
+	local Ok, Msg = Remote:InvokeServer("Edit", {Appearance = Choice.Appearance})
+	Saving = false
+	SetText(NextBtn, "SAVE LOOK")
+	if not Ok then Say(Msg or "Couldn't save that look.") return end
+	Say("Look saved.")
+	LeaveCreator()
+end
+
+local CardsBuild = 0
+ToastLow = function() return Painted and SlotScreen.Visible and Grid.Visible end
+local function ShowPainted()
+	Panel.Visible, TurnBar.Visible, Card.Visible, LooksPanel.Visible, Confirm.Visible = false, false, false, false, false
+	Index.Visible, Shop.Visible = false, false
+	Pending = nil
+	MainMenu.Visible, SlotScreen.Visible = true, true
+	if not Departing then SubLine.Text = "Pick a save slot to begin." end -- (a Studio no-teleport or a failed one left "Heading to...")
+	if TipLine then TipLine.Visible = true end
+	SlotScreen.Title.Visible, SlotRow.Visible, SlotBack.Visible = false, false, false
+	Grid.Visible = true
+	PlaceToast()
+	CamTarget, CamFov = CamFar, CamFarFov
+	Creating = false
+	RigShown = false
+	PlaceRig()
+	-- (a newer call wins: two at once, e.g. a layout change while the list loads, would otherwise both fill the grid)
+	CardsBuild += 1
+	local Build = CardsBuild
+	Loading = true
+	local Info = Remote:InvokeServer("Slots")
+	if Build ~= CardsBuild then return end
+	Loading = false
+	-- (left the cards while the list loaded, e.g. into an alcove: rebuilding the figures now would put one back over the rig)
+	if not SlotScreen.Visible or AlcoveSlot then return end
+	for _, C in ipairs(Grid:GetChildren()) do if C:IsA("GuiObject") then C:Destroy() end end
+	if not Info then Say("Couldn't load your save slots. Rejoin to try again.") return end
+	table.sort(Info.List, function(A, B)
+		if (A.Slot == Info.Favorite) ~= (B.Slot == Info.Favorite) then return A.Slot == Info.Favorite end
+		return A.Slot < B.Slot
+	end)
+	SetAlcoves(Info.Owned)
+	for Slot = Info.Owned + 1, #Markers.alcoves do
+		if Figures[Slot] then Figures[Slot]:Destroy() Figures[Slot] = nil end
+	end
+	local Empty = {}
+	for Order, S in ipairs(Info.List) do
+		local Fig = Figure(S.Slot, S)
+		local B
+		if S.Created then
+			B = PaintedCard(Order, function()
+				if Opening or Loading or Departing then return end
+				Opening = true
+				local Ok, Msg, State = Remote:InvokeServer("Open", S.Slot)
+				Opening = false
+				if not Ok then Say(Msg or "That slot didn't open.") return end
+				Adopt(State)
+				if State.Next == "Customize" then EnterCreator(S.Slot, false) return end
+				ShowTitle()
+				SubLine.Text = "Slot " .. S.Slot .. ": " .. State.Identity.Name
+				-- (the painted cards come back unless the teleport is under way: Studio, or a failed teleport)
+				if not Play() or RunService:IsStudio() then ShowSlots() end
+			end)
+			Bust(B, Fig)
+			local Clan = Clans.Roster[S.Clan]
+			local Tier = Clan and Clan.Rarity
+			local Region = RegionNames[S.Region] and RegionNames[S.Region].Name or (S.Region ~= "" and S.Region or "")
+			-- (menu audit 2026-10-29) each line has its own room, cut short rather than run into the next piece: the
+			-- name stops short of the region, and level, clan and nation share one line that stops short of the icons
+			-- (the nation used to sit right-aligned on that line, where a long clan name ran into it)
+			CardText(B, S.Name, {FontFace = FONT_B, TextSize = 17, TextColor3 = Color3.fromRGB(232, 226, 214),
+				Size = UDim2.new(0, Region ~= "" and 126 or 230, 0, 20), Position = UDim2.fromOffset(76, 10)})
+			local NationName = Customization.Nations[S.Origin] and Customization.Nations[S.Origin].Name or ""
+			CardText(B, ("Lv %d%s"):format(S.Level, Tier and (" · <font color='#%s'>%s</font>"):format(RARITY_HEX[Tier] or "e0d8c8", Clan.Name) or "")
+				.. (NationName ~= "" and (" · " .. NationName) or ""),
+				{TextSize = 15, TextColor3 = DIM, Size = UDim2.new(0, Phone and 138 or 162, 0, 18), Position = UDim2.fromOffset(76, 33)})
+			CardText(B, Region, {TextSize = 15, TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Right, Size = UDim2.new(0, 106, 0, 18), Position = UDim2.new(1, -120, 0, 8)})
+			local Fav = S.Slot == Info.Favorite
+			SmallIcon(B, "Trash", KIT.Close, 1, function()
+				if Loading or Departing then return end
+				Pending = S.Slot
+				ConfirmText.Text = ("Delete <b>%s</b> in slot %d?\nThis can't be undone."):format(S.Name, S.Slot)
+				Confirm.Visible = true
+			end)
+			SmallIcon(B, "Edit", KIT.Eye, 2, function()
+				if Opening or Loading or Departing then return end
+				Opening = true
+				local Ok, Msg, State = Remote:InvokeServer("Open", S.Slot)
+				Opening = false
+				if not Ok then Say(Msg or "That slot didn't open.") return end
+				Adopt(State)
+				EnterCreator(S.Slot, State.Identity.CharacterCreated == true)
+			end)
+			SmallIcon(B, "Star", KIT.Box, 3, function()
+				if Opening or Loading or Departing then return end
+				Opening = true
+				local Ok, Msg = Remote:InvokeServer("Favorite", S.Slot)
+				Opening = false
+				if not Ok then Say(Msg or "Couldn't star that slot.") end
+				ShowSlots()
+			end, Fav)
+		else
+			table.insert(Empty, S.Slot)
+			B = PaintedCard(Order, function()
+				if Opening or Loading or Departing then return end
+				Opening = true
+				local Ok, Msg, State = Remote:InvokeServer("Open", S.Slot)
+				Opening = false
+				if not Ok then Say(Msg or "That slot didn't open.") return end
+				Adopt(State)
+				EnterCreator(S.Slot, false)
+			end)
+			CardText(B, "CREATE CHARACTER", {FontFace = FONT_B, TextSize = 17, TextColor3 = TEXT, Size = UDim2.new(0, 220, 0, 22), Position = UDim2.fromOffset(28, 21)})
+			CardText(B, "Slot " .. S.Slot, {TextSize = 15, TextColor3 = DIM, TextXAlignment = Enum.TextXAlignment.Right, Size = UDim2.new(0, 80, 0, 18), Position = UDim2.new(1, -96, 0, 23)})
+		end
+	end
+	if Backdrop then Backdrop:SetAlcoves(Markers.alcoves, Empty) end
+	if Info.Owned < Info.Max then
+		local B = PaintedCard(99, function()
+			if not Info.CanBuy then Say("Slot purchases aren't set up yet.") return end
+			MarketplaceService:PromptProductPurchase(Player, Slots.ProductId)
+		end)
+		New("ImageLabel", {Name = "Add", BackgroundTransparency = 1, Image = KIT.Add, ScaleType = Enum.ScaleType.Fit, Size = UDim2.fromOffset(28, 28),
+			Position = UDim2.fromOffset(24, 18), ZIndex = 8, Parent = B})
+		CardText(B, "NEW SLOT", {FontFace = FONT_B, TextSize = 17, TextColor3 = DIM, Size = UDim2.new(0, 160, 0, 22), Position = UDim2.fromOffset(60, 21)})
+		CardText(B, ("R$ %d"):format(PriceOf(Slots.ProductId, Info.Price)), {FontFace = FONT_B, TextSize = 16, TextColor3 = GOLD,
+			TextXAlignment = Enum.TextXAlignment.Right, Size = UDim2.new(0, 90, 0, 20), Position = UDim2.new(1, -106, 0, 22)})
+	end
+end
 ShowSlots = function()
+	if Painted then ShowPainted() return end
 	MainMenu.Visible, Panel.Visible, TurnBar.Visible, Card.Visible = false, false, false, false
 	SlotScreen.Visible = true
 	Confirm.Visible = false
@@ -1358,12 +1897,12 @@ ShowSlots = function()
 		end)
 		SlotB.Name = "Slot" .. S.Slot
 		local Fav = S.Slot == Info.Favorite
-		CardIcon(SlotB, "Star", Fav and "★" or "☆", Fav and GOLD or DIM, false, function()
+		CardIcon(SlotB, "Star", KIT.Box, Fav, false, function()
 			local Ok, Msg = Remote:InvokeServer("Favorite", S.Slot)
 			if not Ok then Say(Msg or "Couldn't star that slot.") end
 			ShowSlots()
 		end)
-		CardIcon(SlotB, "Trash", "🗑", S.Created and Color3.fromRGB(220, 110, 100) or DIM, true, function()
+		CardIcon(SlotB, "Trash", KIT.Close, false, true, function()
 			if not S.Created then Say("That slot is already empty.") return end
 			Pending = S.Slot
 			ConfirmText.Text = ("Delete <b>%s</b> in slot %d?\nThis can't be undone."):format(S.Name, S.Slot)
@@ -1398,24 +1937,85 @@ MarketplaceService.PromptProductPurchaseFinished:Connect(function(UserId, Produc
 end)
 
 SlotBack.Activated:Connect(ShowTitle)
-BackBtn.Activated:Connect(function() if Step == 1 then ShowSlots() else ShowStep(Step - 1) end end)
-NextBtn.Activated:Connect(function() ShowStep(Step + 1) end)
-PlayBtn.Activated:Connect(ShowSlots)
+BackBtn.Activated:Connect(function()
+	if Saving or Finishing then return end -- (wait for the answer: it moves the screen itself)
+	if Step > 1 then ShowStep(Step - 1) return end
+	if Painted and AlcoveSlot then LeaveCreator() else ShowSlots() end
+end)
+NextBtn.Activated:Connect(function()
+	if Editing and Step == 2 then SaveLook() else ShowStep(Step + 1) end
+end)
+PlayBtn.Activated:Connect(function() if not Departing then ShowSlots() end end)
 IndexBtn.Activated:Connect(function() OpenIndex() end)
 
 FinishBtn.Activated:Connect(function()
+	if Finishing then return end -- (one request at a time: a second click would only get "already exists")
 	if Choice.FirstName == "" then Say("Give your character a first name.") return end
 	if not (Server and Clans.Roster[Server.Identity.Clan or ""]) then Say("Roll your clan first.") return end
+	Finishing = true
 	SetText(FinishBtn, "...")
 	local Ok, Msg = Remote:InvokeServer("Create", Choice)
 	SetText(FinishBtn, "FINISH")
-	if not Ok then Say(Msg or "Couldn't create the character.") return end
-	Adopt(Remote:InvokeServer("State"))
+	if not Ok then Finishing = false Say(Msg or "Couldn't create the character.") return end
+	local State = Remote:InvokeServer("State")
+	if State then Adopt(State) end
+	if Painted then
+		-- the painted menu: off to the next place, or (Studio, a failed teleport) the pan back out to the cards
+		local Went = Play()
+		Finishing = false
+		if not Went or RunService:IsStudio() then LeaveCreator() else ShowTitle() end
+		return
+	end
 	ShowTitle()
 	Play()
+	Finishing = false
 end)
+
+-- ===== Layout: the phone and desktop places of the pieces (Rescale decides which; the desktop values are the originals) =====
+local CardLayout = nil -- the layout the painted cards were built for ("phone", "column" or "grid")
+Relayout = function()
+	local P = Phone
+	local LW = Camera.ViewportSize.X / Scale.Scale -- (the screen's size in layout pixels)
+	local LH = Camera.ViewportSize.Y / Scale.Scale
+	-- (menu audit 2026-10-29) a narrow desktop (4:3, iPad) has no room for two card columns right of the logo: there the
+	-- two columns ran over the logo's right end, so the cards stack in one column instead
+	local Column = not P and LW < 1240
+	local Logo = MainMenu:FindFirstChild("Logo")
+	MainMenu.Size, MainMenu.Position = P and UDim2.new(0, 330, 1, 0) or UDim2.new(0, 460, 1, 0), P and UDim2.new(0, 34, 0, 0) or UDim2.new(0, 70, 0, 0)
+	if Logo then
+		-- (below Roblox's top bar either way)
+		Logo.Size, Logo.Position = P and UDim2.new(0, 300, 0, 128) or UDim2.new(0, 420, 0, 180), P and UDim2.new(0, -6, 0, 52) or UDim2.new(0, -10, 0.15, 12)
+	end
+	MenuButtons.Size, MenuButtons.Position = P and UDim2.new(0, 270, 0, 200) or UDim2.new(0, 300, 0, 200), P and UDim2.new(0, 8, 0, 192) or UDim2.new(0, 10, 0.4, 40)
+	-- the slot cards: one scrolling column on the right on a phone, two columns top right on a desktop
+	Grid.Size = P and UDim2.new(0, 340, 1, -86) or (Column and UDim2.fromOffset(340, math.min(6 * 74, LH - 140))) or UDim2.fromOffset(2 * 330 + 12, 3 * 74)
+	Grid.Position = P and UDim2.new(1, -12, 0, 22) or UDim2.new(1, -26, 0, 28)
+	GridLayout.CellSize = P and UDim2.fromOffset(330, 68) or UDim2.fromOffset(330, 64)
+	Grid.ScrollBarThickness = (P or Column) and 4 or 0
+	-- the creator: the panel full height and narrower, the turn bar and tools clear of it, the summary card above them
+	-- (on a phone the panel's title plate stays below Roblox's top bar, which sits over the top left there)
+	Panel.Size, Panel.Position = P and UDim2.new(0, 360, 1, -70) or UDim2.fromOffset(470, 540), P and UDim2.new(0, 10, 0.5, 28) or UDim2.new(0, 26, 0.5, 8)
+	TurnBar.Position = P and UDim2.new(1, -200, 1, -10) or UDim2.new(0.56, 0, 1, -40) -- (on a phone: from the right edge, clear of the panel)
+	Card.Size, Card.Position = P and UDim2.fromOffset(270, 270) or UDim2.fromOffset(340, 340), P and UDim2.new(1, -12, 0.42, 0) or UDim2.new(1, -30, 0.5, 0)
+	-- the windows: never taller than the screen (their contents scroll). On a phone they're 350 tall and sit a little
+	-- low, so the title plate over each one's top edge stays on screen and the close X clears Roblox's top bar.
+	Index.Size = P and UDim2.fromOffset(math.min(800, LW - 24), 350) or UDim2.fromOffset(800, 526)
+	Shop.Size = P and UDim2.fromOffset(400, 350) or UDim2.fromOffset(400, 438)
+	LooksPanel.Size = P and UDim2.fromOffset(400, 350) or UDim2.fromOffset(420, 470)
+	Index.Position, Shop.Position = UDim2.fromScale(0.5, P and 0.55 or 0.52), UDim2.fromScale(0.5, P and 0.55 or 0.52)
+	LooksPanel.Position = UDim2.new(1, -30, P and 0.55 or 0.5, 0)
+	Toast.Size = P and UDim2.fromOffset(560, 44) or UDim2.fromOffset(600, 48)
+	-- (the cards are built for their layout: rebuilt only when it changes, not on every resize)
+	local Cards = P and "phone" or (Column and "column" or "grid")
+	if Cards ~= CardLayout then
+		CardLayout = Cards
+		if Painted and SlotScreen.Visible and Grid.Visible then ShowSlots() end
+	end
+end
+Relayout()
 
 -- start
 ShowTitle()
+if Painted then ShowSlots() end -- (the painted menu shows the cards beside the title, as the reference does)
 SyncAll()
 Refresh()
