@@ -377,6 +377,22 @@ local function ProcessReceipt(Info)
 		local I = Profile.Data.Identity
 		local Legacy = type(I.RerollReceipts) == "table" and I.RerollReceipts or {}
 		if table.find(Legacy, Info.PurchaseId) then return Enum.ProductPurchaseDecision.PurchaseGranted end -- granted before
+		-- (2026-10-29) The account says which slot the purchase belongs to. The MetaTag below only guards the slot it was
+		-- given on: a retry while ANOTHER slot was open found no tag there and gave the rolls a second time. Now a retry
+		-- on another slot looks at the claimed slot's last save: the rolls there = done; that slot never saved them (and
+		-- isn't open anywhere) = the claim moves here and they're given here; can't tell yet = Roblox asks again later.
+		local Slot = MenuData.Slot(Player)
+		local Claimed = Slot and MenuData.ClaimReroll(Player, Info.PurchaseId, Slot)
+		if not Claimed then return Enum.ProductPurchaseDecision.NotProcessedYet end
+		if Claimed ~= Slot then
+			local Saved = MenuData.RerollSaved(Player, Claimed, Info.PurchaseId)
+			if Saved == true then return Enum.ProductPurchaseDecision.PurchaseGranted end
+			if Saved == nil or MenuData.ClaimReroll(Player, Info.PurchaseId, Slot, Claimed) ~= Slot then
+				return Enum.ProductPurchaseDecision.NotProcessedYet
+			end
+		end
+		-- (the store calls yield: the same slot must still be open to take the rolls)
+		if MenuData.Get(Player) ~= Profile or not Profile:IsActive() then return Enum.ProductPurchaseDecision.NotProcessedYet end
 		local Ids = Profile.MetaData.MetaTags.RerollPurchases
 		if type(Ids) ~= "table" then Ids = {} end
 		if not table.find(Ids, Info.PurchaseId) then

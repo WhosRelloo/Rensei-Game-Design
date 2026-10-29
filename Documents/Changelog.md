@@ -93,8 +93,22 @@ Nothing to post: no player-facing change.
   - the Clan Index on desktop and in a 568 × 320 phone preview;
   - no errors from the menu scripts.
 - **Records and final state:** the owner's account and slots 1–5 were byte-identical (length, hash, DataStore version) before and after both test runs. Studio == repo for the menu scripts afterwards, and TestNoSave is cleared.
+- **Reroll-pack receipts on the account** (owner: "Yes, fix the reroll-pack receipt risk: record reroll receipts on the account so a retry after switching slots can't grant twice"):
+  - **The risk:** a pack's purchase id was kept only in the MetaTags of the slot that got the rolls. If Roblox retried the receipt while another slot was open, that slot had no record of it, and the rolls were added a second time.
+  - **`SlotAccount.ClaimReroll`:** the account record now notes which slot each pack purchase belongs to, as `{Reroll = PurchaseId, Slot = n}` in its `Receipts` list. Older copies of SlotAccount keep that list as it is, and only the Main Menu writes the account. The first try claims the purchase for the open slot; a retry gets that slot back, whatever is open then.
+  - **`MenuServer.ProcessReceipt`:** a retry on a different slot reads the claimed slot's last save (`MenuData.RerollSaved`), and the existing per-slot MetaTag check still guards the claimed slot itself:
+    - the rolls are there: the purchase is done, and nothing is added;
+    - that slot never kept them (for example, it was deleted) and isn't open anywhere: the claim moves to the open slot, and the rolls go there once;
+    - the slot is still open somewhere, or can't be read: "not processed yet", and Roblox asks again later.
+  - The open slot is checked again after the store calls, since they yield.
+  - **Tested** (Play, TestNoSave proven first; through the Studio receipt hook, on test copies):
+    - a pack bought on slot 1: +1 roll, confirmed in 30 s;
+    - the same receipt again with slot 2 open: granted at once, slot 2 still 0 rolls, slot 1 still 1 (before this fix, slot 2 would have got the roll as well);
+    - a second purchase claimed for a test slot 3, which was then deleted, and the receipt retried with slot 2 open: the claim moved, slot 2 got +1 once;
+    - a further retry: nothing added.
+  - The "still open somewhere" answer wasn't exercised (it needs a second server). The owner's real records were byte-identical before and after, TestNoSave is cleared, and Studio == repo for SlotAccount, MenuData and MenuServer.
+  - **SlotAccount should be the same file in every place:** Ye's and the Tutorial's copies are now older. They only read the account, so nothing breaks, but sync them when convenient.
 - **Left for the owner (not changed):**
-  - **Reroll-pack receipts are recorded per slot.** If a grant isn't confirmed and the player switches slots before Roblox retries, the retry could add the rolls again. A fix belongs on the account record (SlotAccount), which other places share.
   - **A slot bought at the cap** (two devices at once) is reported granted with nothing given; the client hides NEW SLOT at the cap.
   - **TestNoSave stays opt-in, as approved.** A Studio Play without it saves for real.
   - **Portrait phones get the desktop layout.**

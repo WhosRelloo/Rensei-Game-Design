@@ -263,6 +263,30 @@ function MenuData.GrantPlus(UserId, PurchaseId)
 	return "Granted"
 end
 
+-- A reroll pack's claim on a save slot (SlotAccount.ClaimReroll, same results; TestNoSave: this server's copy).
+function MenuData.ClaimReroll(Player, PurchaseId, Slot, From)
+	if not NoSave then return SlotAccount.ClaimReroll(Player.UserId, PurchaseId, Slot, From) end
+	local A = MenuData.Account(Player)
+	if not A then return nil end
+	local Claim = SlotAccount.RerollClaim(A, PurchaseId)
+	if Claim and not (From and Claim.Slot == From) then return Claim.Slot end
+	if Claim then Claim.Slot = Slot else table.insert(A.Receipts, {Reroll = PurchaseId, Slot = Slot}) end
+	return Slot
+end
+
+-- Whether a slot's last save holds a reroll purchase (its profile's RerollPurchases MetaTag), for a purchase claimed
+-- by a slot that isn't open here: true / false, or nil while that slot is still open somewhere (its save isn't final)
+-- or can't be read.
+function MenuData.RerollSaved(Player, Slot, PurchaseId)
+	local Ok, View = pcall(function() return (NoSave and Store.Mock or Store):ViewProfileAsync(Slots.Key(Player.UserId, Slot)) end)
+	if not Ok then return nil end
+	local Meta = View and View.MetaData
+	if type(Meta) ~= "table" then return false end -- (an empty or deleted slot)
+	if Meta.ActiveSession ~= nil then return nil end
+	local Ids = type(Meta.MetaTags) == "table" and Meta.MetaTags.RerollPurchases
+	return type(Ids) == "table" and table.find(Ids, PurchaseId) ~= nil
+end
+
 function MenuData.Get(Player)
 	return Sessions[Player]
 end

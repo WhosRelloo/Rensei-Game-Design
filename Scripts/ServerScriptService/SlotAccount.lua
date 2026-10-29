@@ -22,7 +22,7 @@ local function Clean(A)
 		Owned = math.clamp(tonumber(A.Owned) or Slots.Free, Slots.Free, Slots.Max),
 		Selected = tonumber(A.Selected) or 1,
 		Favorite = tonumber(A.Favorite) or 0, -- starred slot, listed first on the slot screen; 0 = none
-		Receipts = type(A.Receipts) == "table" and A.Receipts or {}, -- recent purchase ids (no double grant)
+		Receipts = type(A.Receipts) == "table" and A.Receipts or {}, -- recent purchase ids (no double grant); reroll claims too
 		Codes = type(A.Codes) == "table" and A.Codes or {}, -- [CODE] = os.time() it was used (ClanCodes)
 		Plus = A.Plus == true, -- owns Creator Plus (the Developer Product, bought once per account)
 	}
@@ -116,6 +116,39 @@ function SlotAccount.Grant(UserId, PurchaseId)
 		end)
 	end)
 	return Ok and Result or nil
+end
+
+-- A reroll pack bought (ProcessReceipt): which save slot the purchase belongs to (2026-10-29). The rolls go on that
+-- slot's profile, so the account keeps one claim per purchase, {Reroll = PurchaseId, Slot = n}, in Receipts (older
+-- copies of this file keep Receipts as it is). The first try claims it for Slot; a retry gets that same slot back,
+-- whichever slot is open then. From: move the claim to Slot, but only while it still names From (the caller checked
+-- that slot never saved the rolls). Returns the claimed slot, or nil (store failed: retry later).
+function SlotAccount.ClaimReroll(UserId, PurchaseId, Slot, From)
+	if type(Slot) ~= "number" or Slot ~= math.floor(Slot) or Slot < 1 or Slot > Slots.Max then return nil end
+	local Result
+	local Ok = Retry(function()
+		Store:UpdateAsync("A" .. UserId, function(Raw)
+			local A = Clean(Raw)
+			local Claim = SlotAccount.RerollClaim(A, PurchaseId)
+			if Claim and not (From and Claim.Slot == From) then Result = Claim.Slot return nil end
+			if Claim then
+				Claim.Slot = Slot
+			else
+				table.insert(A.Receipts, {Reroll = PurchaseId, Slot = Slot})
+				while #A.Receipts > 40 do table.remove(A.Receipts, 1) end
+			end
+			Result = Slot
+			return A
+		end)
+	end)
+	return Ok and Result or nil
+end
+
+-- The claim entry for PurchaseId in an account record's Receipts, or nil.
+function SlotAccount.RerollClaim(A, PurchaseId)
+	for _, R in ipairs(A.Receipts) do
+		if type(R) == "table" and R.Reroll == PurchaseId then return R end
+	end
 end
 
 -- Creator Plus bought (ProcessReceipt). Returns "Granted" | "Already" | nil (store failed: retry later).
