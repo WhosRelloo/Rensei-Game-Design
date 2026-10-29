@@ -1065,9 +1065,10 @@ return {
 	end,
 
 	-- ===== Task 8: the captor menu's Release and Finish, and the deeds (texts written by hand from the brief) =====
-	-- only the captor of a Held session has options: Release, Finish, Ransom, in that order; Ransom locked ("They have no
-	-- party here" for a hostage alone, else "Not yet" until Task 11). The captor's Held notify carries them (UIService
-	-- .Notify watched, put back after), and its Free notify carries {} (the session over).
+	-- only the captor of a Held session has options: Release, Finish, Ransom, in that order; Ransom locked "They have no
+	-- party here" for a hostage alone, (Task 11) open with the level-20 tiers (50, 500, 1000, 2000, written by hand) once a
+	-- party member is present. The captor's Held notify carries them (UIService.Notify watched, put back after), and its
+	-- Free notify carries {} (the session over).
 	MenuOptionsShape = function(T)
 		HK.Guard(function()
 			local HS = Svc()
@@ -1092,7 +1093,8 @@ return {
 				T.Eq(O[3] and O[3].Why, "They have no party here", "a hostage alone: no party here")
 				local _, Friend = HK.StandIn(At(8, 0))
 				PL.Party = {Friend}
-				T.Eq(HS.MenuOptions(Player)[3].Why, "Not yet", "a hostage with a party: locked until Task 11")
+				T.Eq(HS.MenuOptions(Player)[3].Locked, false, "(Task 11) a hostage with a party member present: Ransom open")
+				T.Same(HS.MenuOptions(Player)[3].Tiers, {50, 500, 1000, 2000}, "(Task 11) the tiers at level 20")
 				T.Same(HS.MenuOptions(PL), {}, "the hostage has no menu")
 				local HeldNote = nil
 				for _, D in ipairs(Sent) do if D.State == "Held" then HeldNote = D end end
