@@ -87,9 +87,17 @@ function TravelService.UseTicket(Player, RouteId, ClassId)
 end
 
 -- (downed crawl fix round 2, 2026-10-27) a deliberate move of a player's character: DownedManager's crawl clamp starts
--- again from the new spot, else it would put a knocked player back where they were
+-- again from the new spot, else it would put a knocked player back where they were. (Hostages Task 10, Task 6 re-review
+-- m7) so does a led hostage pair's lead clamp (HostageService.Rebase, either side of the pair; false and nothing done
+-- when the character leads none), else the move ends the hold as a blink and leaves the hostage at the last lead. Both
+-- optional: a place without HostageService skips it.
 local function Rebased(C)
-	if C then pcall(function() require(game:GetService("ReplicatedStorage").Modules.Managers.DownedManager).RebaseCrawl(C) end) end
+	if not C then return end
+	pcall(function() require(game:GetService("ReplicatedStorage").Modules.Managers.DownedManager).RebaseCrawl(C) end)
+	pcall(function()
+		local HS = game:GetService("ServerScriptService"):FindFirstChild("HostageService")
+		if HS then require(HS).Rebase(C) end
+	end)
 end
 
 local function Spawn(Player, Point)
@@ -145,7 +153,11 @@ function TravelService.Depart(List, RouteId, ArriveAt, Opts)
 	local Rail = Travel.Routes[RouteId].Kind == "Rail"
 	local Going = {}
 	for _, P in ipairs(List) do
-		local T = P.Parent and not FlowTeleport.Busy(P) and not FlowTeleport.InGroup(P) and TravelData(P)
+		-- (hostages Task 10, ruling R5: journeys with a hostage are a follow-up plan) a captor (Holding) or a hostage
+		-- (HeldBy) is busy too: dropped, as the callers' other checks already drop them (defence in depth)
+		local C = P.Character
+		local Busy = C ~= nil and (C:GetAttribute("Holding") ~= nil or C:GetAttribute("HeldBy") ~= nil)
+		local T = P.Parent and not Busy and not FlowTeleport.Busy(P) and not FlowTeleport.InGroup(P) and TravelData(P)
 		if T then
 			T.Trip = {Route = RouteId, To = Dest, Arrive = ArriveAt or "Platform",
 				Class = Rail and not NoTicket[P] and TravelService.HasTicket(P, RouteId) or nil}

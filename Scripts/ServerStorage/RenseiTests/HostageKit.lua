@@ -36,6 +36,13 @@
 --     in a real game, with 0.3 s to settle (Play_TakedownHard's own Loose, for the hostage suites and client checks).
 --   * (Task 7) Kit.Grabbed(Opts) -> Rig, PL, S: a standing stand-in (Kit.StandIn(At(0, 0), Opts)) grabbed by the player
 --     from 3 studs straight behind it (TakedownKit.PutBehind), the session Grabbing, else an error.
+--   * (Task 10; Play_Hostage's Captive since Task 7, moved here so Play_HostageHard shares it) Kit.Captive(Opts) -> Cap,
+--     CapPL, S: the real player as the HOSTAGE: knocked at the kit's spot (PutPlayer anchors the root), a stand-in captor
+--     (Kit.StandIn(At(0, 3), Opts), facing -Z: the player 3 studs in front of it) binds them, Held within 2 s, else an
+--     error. The stand-in's root is anchored once the take has started (a rig just let go still settles, up to 0.85
+--     studs measured, near the bind's 1-stud slack).
+--   * (Task 10) Kit.Toasts(Body) -> {text}: the "Toast" texts UIService.Notify sends while Body runs (the real Notify
+--     still runs; put back after, even when Body fails, and Body's error re-raised).
 --   * Kit.Clean(): (Task 8 fix round 1) every release window dropped unpaid (HostageService._ClearPending); every
 --     session of the player and of each stand-in freed with "error"; HostageService.ClearStandIns;
 --     every stand-in's WCS character and rig destroyed; the player recovered if knocked; Holding, HeldBy, HostageUntil,
@@ -194,6 +201,35 @@ function Kit.Grabbed(Opts)
 	local S = HS().SessionOf(Player())
 	assert(S ~= nil and S.State == "Grabbing", "HostageKit.Grabbed: Grabbing (" .. tostring(S and S.State) .. ")")
 	return Rig, PL, S
+end
+
+function Kit.Captive(Opts)
+	local Cap, CapPL = Kit.StandIn(TakedownKit.At(0, 3), Opts)
+	TakedownKit.PutPlayer(TakedownKit.At(0, 0) + Vector3.new(0, 3, 0))
+	assert(Kit.KnockPlayer(), "HostageKit.Captive: the player is knocked")
+	local Ok, Why = HS().Take(CapPL, Player().Character)
+	Cap.HumanoidRootPart.Anchored = true
+	assert(Ok, "HostageKit.Captive: the stand-in's take starts (" .. tostring(Why) .. ")")
+	local Held = TakedownKit.WaitFor(2.0, function()
+		local S = HS().SessionOf(Player())
+		return S ~= nil and S.State == "Held"
+	end)
+	assert(Held, "HostageKit.Captive: Held within 2 s (" .. tostring(Kit.Result(Cap)) .. ")")
+	return Cap, CapPL, HS().SessionOf(Player())
+end
+
+function Kit.Toasts(Body)
+	local US = require(SSS.UIService)
+	local Real = US.Notify
+	local Got = {}
+	US.Notify = function(P, Kind, Data)
+		if Kind == "Toast" and type(Data) == "table" then table.insert(Got, Data.Text) end
+		return Real(P, Kind, Data)
+	end
+	local Ok, Err = pcall(Body)
+	US.Notify = Real
+	if not Ok then error(Err, 0) end
+	return Got
 end
 
 function Kit.Loose()

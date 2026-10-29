@@ -97,6 +97,10 @@ local PAPERS_FIRST = "Conductor: \"Papers first — see the gate guard.\"" -- fi
 local PAPERS_REFUSED = "Conductor: \"Your papers won't pass here.\"" -- final fix wave (review minor 1): Wanted 3+
 local HELD_REFUSED = "Conductor: \"Not like that. Nobody boards down, held or holding someone.\"" -- final fix wave (I2)
 local GATE_REFUSED = "Guard: \"Your face is on a poster. Not on my platform.\"" -- brief
+-- (hostages Task 10, ruling R5: journeys with a hostage are a follow-up plan) a captor at boarding (the spec's line) and
+-- at the papers gate (PROPOSAL)
+local HOSTAGE_REFUSED = "Conductor: \"You can't bring them aboard like that.\""
+local GATE_HOSTAGE = "Guard: \"Let them go first.\""
 
 local Remote, Event
 local Riding = {} -- [Player] = RouteId
@@ -115,12 +119,21 @@ local LastHeld = {} -- [Player] = os.clock() of the conductor's last "nobody boa
 local YardHome = setmetatable({}, {__mode = "k"}) -- [watchman Model] = the CFrame he was placed at (his post)
 local SeatTrains = setmetatable({}, {__mode = "k"}) -- [train Model or Seat] = true once set up
 local SEAT_TEXT = {ThirdClass = "3rd class", DiningCar = "Dining car", SecondClass = "2nd class", CabinCar = "Private cabin"}
-local DOWN = {"Knocked", "GrippedBy", "CarriedBy", "Gripping", "Carrying"} -- character attributes: can't sit down
+-- character attributes: can't sit down, nor board ((hostages Task 10) a captor, Holding, or a hostage, HeldBy)
+local DOWN = {"Knocked", "GrippedBy", "CarriedBy", "Gripping", "Carrying", "Holding", "HeldBy"}
 
 -- (downed crawl fix round 2, 2026-10-27) a deliberate move of a player's character: DownedManager's crawl clamp starts
--- again from the new spot, else it would put a knocked player back where they were
+-- again from the new spot, else it would put a knocked player back where they were. (Hostages Task 10, Task 6 re-review
+-- m7) so does a led hostage pair's lead clamp (HostageService.Rebase, either side of the pair; false and nothing done
+-- when the character leads none), else the move ends the hold as a blink and leaves the hostage at the last lead. Both
+-- optional: a place without HostageService skips it.
 local function Rebased(C)
-	if C then pcall(function() require(game:GetService("ReplicatedStorage").Modules.Managers.DownedManager).RebaseCrawl(C) end) end
+	if not C then return end
+	pcall(function() require(game:GetService("ReplicatedStorage").Modules.Managers.DownedManager).RebaseCrawl(C) end)
+	pcall(function()
+		local HS = game:GetService("ServerScriptService"):FindFirstChild("HostageService")
+		if HS then require(HS).Rebase(C) end
+	end)
 end
 
 local function Notify(P, Text) UIService.Notify(P, "Toast", {Text = Text}) end
@@ -328,7 +341,8 @@ function StationService.Aboard(RouteId)
 			local Hidden = not Papers and InStowZone(P, Train)
 			local Inside = Hidden or (Has and InTrain(Train, Root.Position) ~= nil)
 			if Inside and Held(P.Character) then
-				if not Hidden then Nag(LastHeld, P, HELD_REFUSED) end -- (a stowaway hides: nobody calls out to them)
+				-- (a stowaway hides: nobody calls out to them; (hostages Task 10) a captor hears the spec's line)
+				if not Hidden then Nag(LastHeld, P, P.Character:GetAttribute("Holding") and HOSTAGE_REFUSED or HELD_REFUSED) end
 			elseif Hidden then
 				table.insert(Out, P)
 				Stow[P] = true
@@ -401,7 +415,10 @@ end
 function StationService.GateTouch(P, Gate)
 	local Root = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
 	if not Root then return nil end
-	local Verdict = StationService.Gate(P)
+	-- (hostages Task 10, ruling R5) a captor is refused whatever their papers: pushed back like Wanted 3+, the guard's own
+	-- line, and no Heat (holding someone isn't resisting the checkpoint)
+	local Captor = P.Character:GetAttribute("Holding") ~= nil
+	local Verdict = Captor and "Refuse" or StationService.Gate(P)
 	if Verdict == "Pass" or (Verdict == "Bribe" and Cleared(P)) then return "Pass" end
 	local N = Gate.CFrame.LookVector
 	if Root.AssemblyLinearVelocity:Dot(N) < -1 then return "Leaving" end -- walking off the platform: never stopped
@@ -413,7 +430,9 @@ function StationService.GateTouch(P, Gate)
 	local Now = os.clock()
 	if LastGate[P] and Now - LastGate[P] < StationService.GateAskGap then return Verdict end
 	LastGate[P] = Now
-	if Verdict == "Bribe" then
+	if Captor then
+		Notify(P, GATE_HOSTAGE)
+	elseif Verdict == "Bribe" then
 		local RouteId = GateRoute(Gate)
 		local Cost = RouteId and Travel.Bribe(RouteId, "Third", StationService.Season()) or 0
 		if Event then Event:FireClient(P, "GateBribe", {Route = RouteId, Cost = Cost}) end

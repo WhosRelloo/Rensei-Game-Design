@@ -94,9 +94,17 @@ Commands.Respawn = {Target = true, Run = function(_, T)
 end}
 
 -- (downed crawl fix round 2, 2026-10-27) a deliberate move of a player's character: DownedManager's crawl clamp starts
--- again from the new spot, else it would put a knocked player back where they were
+-- again from the new spot, else it would put a knocked player back where they were. (Hostages Task 10, Task 6 re-review
+-- m7) so does a led hostage pair's lead clamp (HostageService.Rebase, either side of the pair; false and nothing done
+-- when the character leads none), else the move ends the hold as a blink and leaves the hostage at the last lead. Both
+-- optional: a place without HostageService skips it.
 local function Rebased(C)
-	if C then pcall(function() require(game:GetService("ReplicatedStorage").Modules.Managers.DownedManager).RebaseCrawl(C) end) end
+	if not C then return end
+	pcall(function() require(game:GetService("ReplicatedStorage").Modules.Managers.DownedManager).RebaseCrawl(C) end)
+	pcall(function()
+		local HS = game:GetService("ServerScriptService"):FindFirstChild("HostageService")
+		if HS then require(HS).Rebase(C) end
+	end)
 end
 
 Commands.Bring = {Target = true, Run = function(A, T)

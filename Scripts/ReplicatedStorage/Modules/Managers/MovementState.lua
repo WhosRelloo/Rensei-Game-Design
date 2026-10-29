@@ -26,8 +26,10 @@ local MovementState = {}
 
 -- kinds a client may request today (Ledge hang / Swim join with their phases)
 MovementState.Kinds = {Climb = true, WallRun = true, LedgeWalk = true}
--- character attributes that forbid traversal (DownedManager)
-MovementState.Blocking = {"Knocked", "GrippedBy", "Gripping", "Carrying", "CarriedBy"}
+-- character attributes that forbid traversal (DownedManager; (hostages Task 10) HostageService's captor Holding and
+-- hostage HeldBy: a captor's hands are full, a hostage can't climb, wall-run, ledge-walk or swim -- and every gate that
+-- asks Blocked (shooting mode, class skills, a style change, the swim state) refuses them too)
+MovementState.Blocking = {"Knocked", "GrippedBy", "Gripping", "Carrying", "CarriedBy", "Holding", "HeldBy"}
 
 function MovementState.Get(Character)
 	return Character and Character:GetAttribute("Traversal") or nil

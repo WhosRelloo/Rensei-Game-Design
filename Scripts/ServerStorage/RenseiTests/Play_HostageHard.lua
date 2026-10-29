@@ -17,6 +17,14 @@
 --   under a 25-stud drop in 0.1 s and far over a real 30-stud fall; RiseSlack 3.
 -- * Task 7 (pre-flight P5; Task 6 re-review m1): a grab's pair is policed as a hold's (GrabbingClamped); a "broken" or
 --   an "error" end puts the hostage back at the last checked spot at rest; a huge move is clamped before any ray.
+-- * Task 10 (spec §3, decision 14, ruling R5): a captor's hands are full (no heavy, cast, shooting mode, emote or item)
+--   and a hostage can't act (no traversal); the road, the train and the papers gate refuse a pair, and Depart drops a
+--   held player (pre-flight P27: TravelService.Arrive stubbed, only Going asserted, and only under TestNoSave). Task 6
+--   re-review m7: the gate's push carries the pair (its Rebased helper rebases the lead clamp); m2: a Rebase opens no
+--   window to walk through a wall. The stations are safe zones (a pair moved there ends "safe" at the next watch tick),
+--   so those cases answer HostageService.InSafeZone false while they run (put back after), and the papers verdict
+--   (StationService.Gate) "Pass" (Wanted 0, whatever the loaded profile's Heat). Written by hand: the gate is 1 stud
+--   thick and pushes 4 studs clear (StationService.GatePush), so the pushed root is at most -4.5 + 0.5 studs from it.
 local DM = require(game.ReplicatedStorage.Modules.Managers.DownedManager)
 local ServerStorage = game:GetService("ServerStorage")
 local SSS = game:GetService("ServerScriptService")
@@ -26,6 +34,10 @@ local HK = require(script.Parent.HostageKit)
 local Player = TK.Player()
 local C = Player.Character
 
+local GunKit = require(script.Parent.GunKit) -- (Task 10) Unequip: the player's own weapon put away before a test Revolver
+local WCS = require(game.ReplicatedStorage.Modules.Framework.WCS)
+local MovementState = require(game.ReplicatedStorage.Modules.Managers.MovementState)
+local CollectionService = game:GetService("CollectionService")
 local At, NEAR, Free, Behind, Calm = TK.At, TK.NEAR, TK.Free, TK.Behind, TK.Calm
 local WaitFor, Finished, Result = TK.WaitFor, TK.Finished, TK.Result
 
@@ -70,6 +82,36 @@ local function Fresh()
 end
 -- a TEMP anchored part (SmokeKit removes it after the case)
 local function Block(Size, At) return SmokeKit.TempPart({Name = "HostageHard_TEMP_Block", Size = Size, CFrame = At}) end
+-- (Task 10) the travel cases' routes (rail and road; both places sit on both) and the lines they expect, by hand
+local RAIL, ROAD = "LindenmoorFoundry", "RoadLindenmoorFoundry"
+local NO_ROAD = "You can't cross while you're down, held or holding someone."
+local NO_BOARD = "Conductor: \"You can't bring them aboard like that.\""
+local NO_GATE = "Guard: \"Let them go first.\""
+-- (Task 10) a deliberate server move of the led pair: the captor's root put at CF at rest, then HostageService.Rebase
+local function MovePair(T, CF)
+	CRoot().CFrame = CF
+	CRoot().AssemblyLinearVelocity = Vector3.zero
+	T.Eq(Svc().Rebase(C), true, "setup: the moved pair rebased")
+end
+-- (Task 10) Body with HostageService.InSafeZone answering false and StationService.Gate answering "Pass", both put back
+-- after (even when Body fails)
+local function AtStation(Body)
+	local HS, SS = Svc(), require(SSS.StationService)
+	local RealSafe, RealGate = HS.InSafeZone, SS.Gate
+	HS.InSafeZone = function() return false end
+	SS.Gate = function() return "Pass" end
+	local Ok, Err = pcall(Body)
+	HS.InSafeZone, SS.Gate = RealSafe, RealGate
+	if not Ok then error(Err, 0) end
+end
+local function TheGate() return CollectionService:GetTagged("RenseiStationGate")[1] end
+local function HallSide(Gate) return (CRoot().Position - Gate.Position):Dot(Gate.CFrame.LookVector) end
+local function BoardZone() -- a 3rd-class BoardZone inside the platform train (as Play_Station's Zone finds one)
+	for _, D in ipairs(workspace:GetDescendants()) do
+		if D.Name:find("BoardZone") and D:GetAttribute("CarKind") == "ThirdClass" and D:FindFirstAncestor("PlatformTrain") then return D end
+	end
+end
+
 -- Held, the player's client owning the pair (its root let go); the counter starts at 0
 local function Led(T)
 	local Rig, PL, S = HK.Held()
@@ -649,6 +691,295 @@ return {
 			local Back = WaitFor(0.3, function() return Dist(CRoot().Position, P0) <= 1 and Clamped() >= 1 end)
 			T.True(Back, "put back within 0.3 s (" .. F2(Dist(CRoot().Position, P0)) .. " studs off)")
 			T.True(On(S), "the hold is still on (" .. tostring(HK.Result()) .. ")")
+		end)
+	end,
+
+	-- ===== Task 10: hands full; a hostage can't act =====
+
+	-- the player's own WCS Heavy started on the server while Holding: no CombatAttack within 0.3 s. The control runs FIRST,
+	-- free (it starts), and plays out before the hold. Heavy is a holdable skill: started by the server it stays active
+	-- until it is ended (a key release, here Heavy:End()), and a Start while active does nothing (the RED session,
+	-- 2026-10-28, saw a control after the refused start do nothing for that reason)
+	CaptorNoHeavy = function(T)
+		HK.Guard(function()
+			local AR = require(game.ReplicatedStorage.Modules.Managers.AttackRunner)
+			local WC = WCS.Character.GetCharacterFromInstance(C)
+			local Heavy = WC and WC:GetSkillFromString("Heavy")
+			T.True(Heavy ~= nil, "setup: the player's Heavy skill")
+			local function Idle() return C:GetAttribute("CombatState") == nil and not AR.IsRunning(C) end
+			local function Release() -- (the key let go)
+				if Heavy:GetState().IsActive then Heavy:End() end
+				return WaitFor(1, function() return not Heavy:GetState().IsActive end)
+			end
+			local Ok, Err = pcall(function()
+				T.True(WaitFor(3, Idle) and Release(), "setup: the Heavy is idle")
+				TK.PutPlayer(At(20, 20) + Vector3.new(0, 3, 0)) -- (clear of the stand-in made below)
+				C:SetAttribute("HeavyReadyAt", nil)
+				Heavy:Start()
+				T.True(WaitFor(0.3, function() return C:GetAttribute("CombatAttack") ~= nil end), "control: free, the heavy starts")
+				T.True(WaitFor(5, Idle) and Release(), "control: it plays out")
+				task.wait(0.5) -- (the client's side of it ends too)
+				HK.Held()
+				C:SetAttribute("HeavyReadyAt", nil)
+				Heavy:Start()
+				local Started = WaitFor(0.3, function() return C:GetAttribute("CombatAttack") ~= nil end)
+				T.True(not Started, "no heavy while Holding (" .. tostring(C:GetAttribute("CombatAttack")) .. ")")
+				WaitFor(5, Idle)
+			end)
+			if Heavy and Heavy:GetState().IsActive then Heavy:End() end -- (never left held down)
+			C:SetAttribute("HeavyReadyAt", nil)
+			C:SetAttribute("HeavyCooldown", nil)
+			if not Ok then error(Err, 0) end
+		end)
+	end,
+
+	-- the cast gate (AlchemyService.CanAct, the seam _CanAct) is false while Holding; true after Free
+	CaptorNoAlchemy = function(T)
+		HK.Guard(function()
+			local AS = require(SSS.AlchemyService)
+			T.True(type(AS._CanAct) == "function", "the AlchemyService._CanAct seam")
+			local CanAct = AS._CanAct or function() return "no seam" end
+			HK.Held()
+			local WC = WCS.Character.GetCharacterFromInstance(C)
+			T.Eq(CanAct(C, WC), false, "no cast while Holding")
+			Svc().Free(Player, "a")
+			T.Eq(CanAct(C, WC), true, "control: Free, free to cast")
+		end)
+	end,
+
+	-- a Revolver drawn in Combat Mode and ShootingMode set by the test: a hold ends the mode within 0.3 s of Held.
+	-- Control: set again after Free, it stays (0.3 s)
+	CaptorNoShoot = function(T)
+		HK.Guard(function()
+			local WM = require(game.ReplicatedStorage.Modules.Managers.WeaponManager)
+			GunKit.Unequip(Player)
+			C:SetAttribute("CombatMode", true)
+			local Gun = WM.Give(C, "Revolver")
+			local Ok, Err = pcall(function()
+				T.True(Gun ~= nil, "setup: the test's Revolver given")
+				GunKit.Settle()
+				C:SetAttribute("ShootingMode", true)
+				task.wait(0.1)
+				T.Eq(C:GetAttribute("ShootingMode"), true, "setup: shooting mode on, the gun drawn")
+				HK.Held()
+				T.True(WaitFor(0.3, function() return C:GetAttribute("ShootingMode") == nil end),
+					"shooting mode ended within 0.3 s of Held (" .. tostring(C:GetAttribute("ShootingMode")) .. ")")
+				Svc().Free(Player, "a")
+				C:SetAttribute("ShootingMode", true)
+				task.wait(0.3)
+				T.Eq(C:GetAttribute("ShootingMode"), true, "control: set again after Free, it stays")
+			end)
+			C:SetAttribute("ShootingMode", nil)
+			if Gun then
+				Gun:Destroy() -- (the test's own Revolver, never the player's item; its deferred detach runs now)
+				task.wait()
+			end
+			if not Ok then error(Err, 0) end
+		end)
+	end,
+
+	-- Emotes.Blocked: the captor "Your hands are full", the stand-in hostage "Not while held"; the captor freed isn't
+	CaptorNoEmote = function(T)
+		HK.Guard(function()
+			local Emotes = require(game.ReplicatedStorage.Modules.Data.Rensei.Emotes)
+			local Rig = HK.Held()
+			C:SetAttribute("CombatMode", nil)
+			C:SetAttribute("InCombat", nil)
+			T.Eq(Emotes.Blocked(C), "Your hands are full", "the captor")
+			T.Eq(Emotes.Blocked(Rig), "Not while held", "the hostage")
+			Svc().Free(Player, "a")
+			T.True(Emotes.Blocked(C) ~= "Your hands are full", "control: freed (" .. tostring(Emotes.Blocked(C)) .. ")")
+		end)
+	end,
+
+	-- a captor's held item (a TEMP Apple Tool, two Apples given to the mock bag) isn't used while Holding; after Free it is
+	CaptorNoItem = function(T)
+		HK.Guard(function()
+			local IS = require(SSS.ItemService)
+			local H = C.Humanoid
+			HK.Held()
+			local Tool = Instance.new("Tool")
+			Tool.Name = "Apple" -- (ItemData's healing consumable in both places)
+			Tool.RequiresHandle = false
+			local R = {}
+			local Ok, Err = pcall(function()
+				Tool.Parent = C
+				C:SetAttribute("CombatMode", nil)
+				C:SetAttribute("ItemUseReadyAt", nil)
+				T.True(IS.Give(Player, "Apple", 2), "setup: two Apples in the mock profile's bag")
+				H.Health = H.MaxHealth - 20
+				IS.Use(Player, Tool)
+				R.Held = C:GetAttribute("ItemUseReadyAt")
+				Svc().Free(Player, "a")
+				C:SetAttribute("ItemUseReadyAt", nil)
+				IS.Use(Player, Tool)
+				R.Free = C:GetAttribute("ItemUseReadyAt")
+			end)
+			C:SetAttribute("ItemUseReadyAt", nil)
+			Tool:Destroy()
+			if not Ok then error(Err, 0) end
+			T.Eq(R.Held, nil, "no item used while Holding")
+			T.True(R.Free ~= nil, "control: Free, the Apple is used")
+		end)
+	end,
+
+	-- the real player as the hostage: MovementState.Blocked is "HeldBy" (no climb, wall run, ledge walk or swim), the
+	-- stand-in captor's is "Holding"; freed, nothing blocks the player
+	HeldNoTraversal = function(T)
+		HK.Guard(function()
+			local Cap = HK.Captive()
+			T.Eq(MovementState.Blocked(C), "HeldBy", "the hostage")
+			T.Eq(MovementState.Blocked(Cap), "Holding", "the stand-in captor")
+			Svc().Free(Player, "a")
+			T.Eq(MovementState.Blocked(C), nil, "control: freed")
+		end)
+	end,
+
+	-- ===== Task 10: travel refuses a pair (ruling R5) =====
+
+	-- the road's refusal (RoadService.Unfit, the seam _Unfit) for the captor and, as the hostage, for the player. Control:
+	-- freed, nothing refuses
+	NoRoadCrossing = function(T)
+		local RS = require(SSS.RoadService)
+		T.True(type(RS._Unfit) == "function", "the RoadService._Unfit seam")
+		local Unfit = RS._Unfit or function() return "no seam" end
+		HK.Guard(function()
+			HK.Held()
+			T.Eq(Unfit(Player, ROAD), NO_ROAD, "the captor")
+			Svc().Free(Player, "a")
+			T.Eq(Unfit(Player, ROAD), nil, "control: freed")
+		end)
+		HK.Guard(function()
+			HK.Captive()
+			T.Eq(Unfit(Player, ROAD), NO_ROAD, "the hostage")
+		end)
+	end,
+
+	-- the pair moved inside the platform train's 3rd-class car (the root anchored), a 3rd-class ticket held (one added,
+	-- burnt after): StationService.Aboard leaves the captor out and the conductor's line is the hostage one. Control: Free,
+	-- aboard. Scheduled departures held (HoldClock) while it runs.
+	NoBoarding = function(T)
+		HK.Guard(function()
+			local SS, TS = require(SSS.StationService), require(SSS.TravelService)
+			local Zone = BoardZone()
+			T.True(Zone ~= nil, "setup: a 3rd-class BoardZone in the platform train")
+			local R = {}
+			SS.HoldClock = true
+			local Added = TS.AddTicket(Player, RAIL, "Third")
+			local Ok, Err = pcall(AtStation, function()
+				T.True(Added, "setup: a 3rd-class ticket")
+				HK.Held()
+				MovePair(T, Zone.CFrame)
+				SS.ResetGate(Player)
+				local Got = HK.Toasts(function() R.In = table.find((SS.Aboard(RAIL)), Player) ~= nil end)
+				R.Last = Got[#Got]
+				Svc().Free(Player, "a")
+				SS.ResetGate(Player)
+				R.Control = table.find((SS.Aboard(RAIL)), Player) ~= nil
+			end)
+			SS.HoldClock = false
+			SS.ResetGate(Player)
+			if Added then TS.UseTicket(Player, RAIL, "Third") end
+			if not Ok then error(Err, 0) end
+			T.Eq(R.In, false, "the captor isn't aboard")
+			T.Eq(R.Last, NO_BOARD, "the conductor's line")
+			T.Eq(R.Control, true, "control: freed, aboard")
+		end)
+	end,
+
+	-- the captor (the client owning the pair) moved up to the papers gate at Wanted 0: GateTouch is "Refuse", no Heat, and
+	-- 0.3 s later the captor is on the hall side (pushed clear) with the hold still on and the stand-in in front (pre-flight
+	-- P6 / Task 6 re-review m7: the push rebases the pair; without it the clamp puts the root back, or the hold ends).
+	-- Control: freed, the same touch is "Pass".
+	GateRefusesCaptor = function(T)
+		HK.Guard(function()
+			local SS, HeatS = require(SSS.StationService), require(SSS.HeatService)
+			local Gate = TheGate()
+			T.True(Gate ~= nil, "setup: a RenseiStationGate")
+			local R = {}
+			local Ok, Err = pcall(AtStation, function()
+				local Rig, _, S = HK.Held()
+				HK.Loose()
+				local N = Gate.CFrame.LookVector
+				local Spot = (Gate.CFrame * CFrame.new(0, -0.5, 1.7)).Position -- (1.7 studs hall-side of its middle)
+				local Heat0 = HeatS.Value(Player, "State")
+				R.Toasts = HK.Toasts(function()
+					MovePair(T, CFrame.lookAt(Spot, Spot + N)) -- (facing the platform: the stand-in 1.5 studs nearer it)
+					task.wait(0.3)
+					Fresh() -- (1.5 studs back in honest steps: the lead's time is fresh, so the push is measured against a tick)
+					CRoot().AssemblyLinearVelocity = Vector3.zero
+					SS.ResetGate(Player)
+					R.Verdict = SS.GateTouch(Player, Gate)
+					task.wait(0.3)
+				end)
+				R.Heat = HeatS.Value(Player, "State") - Heat0
+				R.Side = HallSide(Gate)
+				R.On, R.Result = On(S), HK.Result()
+				R.Gap = Dist(Rig.HumanoidRootPart.Position, (CRoot().CFrame * OFFSET).Position)
+				Svc().Free(Player, "a")
+				SS.ResetGate(Player)
+				CRoot().CFrame = CFrame.lookAt(Spot, Spot + N)
+				CRoot().AssemblyLinearVelocity = Vector3.zero
+				task.wait(0.1)
+				R.Control = SS.GateTouch(Player, Gate)
+			end)
+			SS.ResetGate(Player)
+			if not Ok then error(Err, 0) end
+			T.Eq(R.Verdict, "Refuse", "a captor is refused at Wanted 0")
+			T.Near(R.Heat, 0, 0.01, "no Heat")
+			T.True(table.find(R.Toasts, NO_GATE) ~= nil, "the guard's line")
+			T.True(R.Side <= -4.0, "pushed to the hall side (" .. F2(R.Side) .. ")")
+			T.True(R.On, "the hold is still on after the push (" .. tostring(R.Result) .. ")")
+			T.True(R.Gap <= 1.5, "the stand-in came with the pair (" .. F2(R.Gap) .. " studs off)")
+			T.Eq(R.Control, "Pass", "control: freed, Wanted 0 walks through")
+		end)
+	end,
+
+	-- (pre-flight P27) TravelService.Depart({Player}, the road) while Held, in Studio (loopback), with TravelService.Arrive
+	-- stubbed (put back after) so no loopback arrival runs: Going is empty. Control: freed, Going is {Player}. The Trip
+	-- Depart writes on the mock profile is put back. Refused outside TestNoSave: Depart writes the save.
+	DepartDropsHeld = function(T)
+		local DataManager = require(SSS.CharacterHandler.DataManager)
+		assert(DataManager.IsNoSave() == true, "DepartDropsHeld runs only under TestNoSave: TravelService.Depart writes the save")
+		HK.Guard(function()
+			local TS = require(SSS.TravelService)
+			local D = require(SSS.ProgressionService).GetData(Player)
+			local TripWas = D.Travel and D.Travel.Trip
+			local RealArrive = TS.Arrive
+			local R = {}
+			HK.Held()
+			local Ok, Err = pcall(function()
+				TS.Arrive = function() end
+				R.Mode, R.Went = TS.Depart({Player}, ROAD, "RoadStart")
+				Svc().Free(Player, "a")
+				R.CMode, R.CWent = TS.Depart({Player}, ROAD, "RoadStart")
+				task.wait(0.1) -- (the loopback's spawned Arrive calls, stubbed)
+			end)
+			TS.Arrive = RealArrive
+			if D.Travel then D.Travel.Trip = TripWas end
+			if not Ok then error(Err, 0) end
+			T.Eq(R.Mode, "loopback", "Studio loops back")
+			T.Eq(#(R.Went or {}), 0, "a captor isn't Going")
+			T.Eq(#(R.CWent or {}), 1, "control: freed, Going")
+		end)
+	end,
+
+	-- (Task 6 re-review m2) a Rebase opens no window to walk through a wall: 0.2 s after a Rebase (inside its echo grace),
+	-- the captor's root stepped 3.5 studs (within a led walk's allowance by then) through a TEMP wall 2 studs off ends up
+	-- back on this side 0.6 s later, the stand-in too
+	RebaseOpensNoWallWindow = function(T)
+		HK.Guard(function()
+			local Rig = Led(T)
+			local Good = CRoot().CFrame
+			Block(Vector3.new(0.4, 12, 12), CFrame.new(Good.Position + Vector3.new(2, 0, 0)))
+			T.Eq(Svc().Rebase(C), true, "setup: rebased where it stands")
+			task.wait(0.2)
+			CRoot().CFrame = Good + Vector3.new(3.5, 0, 0)
+			task.wait(0.6)
+			local CX = CRoot().Position.X - Good.Position.X
+			local HX = Rig.HumanoidRootPart.Position.X - Good.Position.X
+			T.True(CX < 2, "the captor isn't past the wall (" .. F2(CX) .. " studs along, " .. tostring(HK.Result()) .. ")")
+			T.True(HX < 2, "nor the stand-in (" .. F2(HX) .. ")")
 		end)
 	end,
 }

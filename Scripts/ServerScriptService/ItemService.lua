@@ -108,6 +108,9 @@ function ItemService.Use(Player, Tool)
 	local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
 	if not Humanoid or Humanoid.Health <= 0 or Tool.Parent ~= Character then return end
 	if Character:GetAttribute("Knocked") or Character:GetAttribute("CombatMode") then return end
+	-- (hostages Task 10) a captor's hands are full and a hostage can't use items (HostageService also puts a hostage's
+	-- drawn tool away every watch tick)
+	if Character:GetAttribute("Holding") or Character:GetAttribute("HeldBy") then return end
 	local Info = ItemData[Tool.Name]
 	-- transmutation chalk: starts a circle (RitualService checks everything; the chalk is spent per attempt there)
 	if Info and Info.Ritual then

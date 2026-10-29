@@ -18,6 +18,7 @@ local Climbing = require(States.Climbing)
 return function(Player)
 	local Character = Player.Character
 	if not Character or Character:GetAttribute("CombatMode") ~= true then return end
+	if Character:GetAttribute("Holding") or Character:GetAttribute("HeldBy") then return end -- (hostages Task 10)
 	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
 	if not Humanoid or Humanoid.Health <= 0 then return end
 	local Weapon = WeaponManager.Def(Character)

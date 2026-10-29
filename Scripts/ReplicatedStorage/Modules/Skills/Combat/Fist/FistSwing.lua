@@ -89,6 +89,7 @@ function FistSwing:OnStartServer()
 	-- Uppercut (Ctrl + LMB): the server queued it (Requests.Uppercut).
 	if Character:GetAttribute("UppercutQueued") then
 		Character:SetAttribute("UppercutQueued", nil)
+		if Character:GetAttribute("Holding") then return end -- (hostages Task 10) a captor's hands are full: lights only
 		if not Ready(Character, "UppercutReadyAt", Tuning.Uppercut, "UppercutCooldown") then return end
 		SwingVFX.new(Character):Start(Players:GetPlayers())
 		AttackRunner.Run(self.Character, Tuning.Uppercut, "Uppercut", {

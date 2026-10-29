@@ -294,6 +294,13 @@ function Crouch:OnEndClient()
 		Humanoid.WalkSpeed = require(ReplicatedStorage.Modules.Managers.DownedManager).KnockedSpeed(Character)
 		return
 	end
+	-- (hostages Task 10, a client courtesy) a captor stands up at the lead's walk (the server locked it at LeadSpeed, no
+	-- jump; its lead clamp is the authority), never at the default walk
+	if Character:GetAttribute("Holding") then
+		Humanoid.JumpHeight = 0
+		Humanoid.WalkSpeed = require(ReplicatedStorage.Modules.Data.Rensei.Hostage).LeadSpeed
+		return
+	end
 	Humanoid.JumpHeight = DefaultJH
 	if Flow then
 		-- the sprint that ran under the slide keeps its speed and run animation; else one starts now

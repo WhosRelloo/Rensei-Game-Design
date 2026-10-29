@@ -60,6 +60,9 @@ local function Latch(Character, Victim, Latched, StunFor)
 	local VS = WCS.Character.GetCharacterFromInstance(Victim)
 	if VS and StunFor > 0 then Stun.new(VS):Start(StunFor) end -- no acting (or blocking) between the hits
 	if Latched[Victim] then return end
+	-- (hostages Task 10, Task 6 re-review m7) a led hostage pair (either side) is never welded to the attacker or moved:
+	-- the pair's lead clamp would read it as a blink, and the hostage would be left behind
+	if Victim:GetAttribute("Holding") or Victim:GetAttribute("HeldBy") then return end
 	local Offset = CFrame.new(0, 0, -LATCH_OFFSET) * CFrame.Angles(0, math.pi, 0)
 	-- never through a wall: if the spot in front is blocked, latch where they are
 	local Params = RaycastParams.new()
@@ -97,6 +100,7 @@ end
 local function Hold(Character, Victim, Grab)
 	local Root, VRoot = Character:FindFirstChild("HumanoidRootPart"), Victim:FindFirstChild("HumanoidRootPart")
 	if not Root or not VRoot or VRoot.Anchored then return end
+	if Victim:GetAttribute("Holding") or Victim:GetAttribute("HeldBy") then return end -- (hostages Task 10, as Latch)
 	local Target = Root.CFrame * CFrame.new(0, 0, -2.6) * CFrame.Angles(0, math.pi, 0)
 	local Params = RaycastParams.new()
 	Params.FilterType = Enum.RaycastFilterType.Exclude
@@ -112,6 +116,7 @@ return function(Player, Slot)
 	if type(Slot) ~= "number" or Slot % 1 ~= 0 or Slot < 1 or Slot > ClassSkills.Slots then return end
 	local Profile = DataManager:GetProfile(Player)
 	local Character = Player.Character
+	if Character and (Character:GetAttribute("Holding") or Character:GetAttribute("HeldBy")) then return end -- (hostages Task 10)
 	if not Profile or not Character or Character:GetAttribute("CombatMode") ~= true then return end
 	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
 	if not Humanoid or Humanoid.Health <= 0 then return end

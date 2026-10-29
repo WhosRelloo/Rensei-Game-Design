@@ -100,6 +100,13 @@ function Block:OnStartServer(Fresh)
 	local Character = self.Character.Instance
 	local Humanoid = Character.Humanoid
 	Fresh = Fresh == true
+	-- (hostages Task 10) a captor's hands are full and a hostage can't fight: no guard and no parry (not even the
+	-- stunned hostage's hit-parry: F is the struggle key). The skill is ended from another thread (ending it inside its
+	-- own start thread would cancel the thread running this).
+	if Character:GetAttribute("Holding") or Character:GetAttribute("HeldBy") then
+		task.defer(function() if self:GetState().IsActive then self:Stop() end end)
+		return
+	end
 
 	-- a whiffed parry: no guard and no parry until it ends; still holding, the guard comes up then
 	if (Character:GetAttribute("ParryWhiffUntil") or 0) > workspace:GetServerTimeNow() then

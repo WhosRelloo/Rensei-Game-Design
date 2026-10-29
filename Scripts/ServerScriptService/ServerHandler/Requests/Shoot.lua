@@ -62,7 +62,9 @@ local function Watch(Character)
 			Character:SetAttribute("ShootingMode", nil)
 		end
 	end
-	for _, A in ipairs({"CombatMode", "Weapon", "WeaponDrawn", "Knocked", "GrippedBy", "CarriedBy", "Carrying", "Gripping", "Traversal"}) do
+	-- (Holding / HeldBy: hostages Task 10, so the check runs when a hold starts; MovementState.Blocked refuses both)
+	for _, A in ipairs({"CombatMode", "Weapon", "WeaponDrawn", "Knocked", "GrippedBy", "CarriedBy", "Carrying", "Gripping", "Traversal",
+		"Holding", "HeldBy"}) do
 		Character:GetAttributeChangedSignal(A):Connect(Check)
 	end
 	local Humanoid = Character:WaitForChild("Humanoid", 10)

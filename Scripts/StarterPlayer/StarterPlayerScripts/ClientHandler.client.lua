@@ -202,15 +202,17 @@ local function AlchemyInput(Key, Began)
 	return true
 end
 
--- a takedown in progress (assassinations final fix F2): B and V aren't sent (the server refuses them too)
-local function TakingDown()
-	return Character ~= nil and Character:GetAttribute("TakingDown") ~= nil
+-- a takedown in progress (assassinations final fix F2), or (hostages Task 10) holding a hostage or held as one: B and V
+-- aren't sent (the server refuses them too)
+local function Busy()
+	return Character ~= nil and (Character:GetAttribute("TakingDown") ~= nil or Character:GetAttribute("Holding") ~= nil
+		or Character:GetAttribute("HeldBy") ~= nil)
 end
 
 -- V: Carry a knocked target in range, else the alchemy Ultimate (the server decides).
 local function CarryInput(Began)
 	if Began then
-		if not Knocked() and not TakingDown() then RequestRemote:FireServer("Downed", "Carry", Camera.CFrame.LookVector) end
+		if not Knocked() and not Busy() then RequestRemote:FireServer("Downed", "Carry", Camera.CFrame.LookVector) end
 	else
 		-- letting go of V ends a held clap if V started the Ultimate
 		RequestRemote:FireServer("Alchemy", "V", AlchemyAim(), "End")
@@ -275,7 +277,7 @@ for _, Key in ipairs({"Z", "X", "C"}) do
 end
 ClientActions.Register("AlchemyV", CarryInput)
 ClientActions.Register("Grip", function(Began)
-	if Began and not Knocked() and not TakingDown() then RequestRemote:FireServer("Downed", "Grip") end
+	if Began and not Knocked() and not Busy() then RequestRemote:FireServer("Downed", "Grip") end
 end)
 
 for Key, Skill in pairs(Controls) do
@@ -368,7 +370,7 @@ ContextActionService:BindAction("RenseiCarry", function(_, State)
 	return Enum.ContextActionResult.Pass
 end, false, Enum.KeyCode.V)
 ContextActionService:BindAction("RenseiGrip", function(_, State)
-	if State == Enum.UserInputState.Begin and not Knocked() then
+	if State == Enum.UserInputState.Begin and not Knocked() and not Busy() then -- (Busy: hostages Task 10, finding H22)
 		ReplicatedStorage.Remotes.RequestRemote:FireServer("Downed", "Grip")
 	end
 	return Enum.ContextActionResult.Pass

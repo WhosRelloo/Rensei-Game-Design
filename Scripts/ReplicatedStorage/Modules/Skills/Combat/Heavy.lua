@@ -132,6 +132,8 @@ end
 
 function Heavy:OnStartServer()
 	local Character = self.Character
+	-- (hostages Task 10) a captor's hands are full: no heavy, not even a queued one
+	if Character.Instance:GetAttribute("Holding") then return end
 	local Humanoid = Character.Humanoid
 	local Root = Character.Instance.HumanoidRootPart
 

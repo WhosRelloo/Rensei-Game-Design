@@ -83,8 +83,9 @@ RoadService.Force = nil -- Studio tests only: true / false forces the next encou
 RoadService.Calm = false -- Studio tests only: true = no encounter rolls unless forced (a live server ignores it)
 
 local DIED = "You came to back in town. The crossing will have to wait."
--- the downed / grip / carry attributes DownedManager sets on a character: nobody escapes those by road
-local HELD = {"Knocked", "GrippedBy", "CarriedBy", "Gripping", "Carrying"}
+-- the downed / grip / carry attributes DownedManager sets on a character: nobody escapes those by road; (hostages Task
+-- 10, ruling R5: journeys with a hostage are a follow-up plan) nor a captor (Holding) or a hostage (HeldBy)
+local HELD = {"Knocked", "GrippedBy", "CarriedBy", "Gripping", "Carrying", "Holding", "HeldBy"}
 
 local Event -- Remotes.TravelEvent (made by StationService)
 local Crossing = {} -- [Player] = the token of the crossing that has them (until it ends)
@@ -119,9 +120,17 @@ local function Wanted(P)
 end
 
 -- (downed crawl fix round 2, 2026-10-27) a deliberate move of a player's character: DownedManager's crawl clamp starts
--- again from the new spot, else it would put a knocked player back where they were
+-- again from the new spot, else it would put a knocked player back where they were. (Hostages Task 10, Task 6 re-review
+-- m7) so does a led hostage pair's lead clamp (HostageService.Rebase, either side of the pair; false and nothing done
+-- when the character leads none), else the move ends the hold as a blink and leaves the hostage at the last lead. Both
+-- optional: a place without HostageService skips it.
 local function Rebased(C)
-	if C then pcall(function() require(game:GetService("ReplicatedStorage").Modules.Managers.DownedManager).RebaseCrawl(C) end) end
+	if not C then return end
+	pcall(function() require(game:GetService("ReplicatedStorage").Modules.Managers.DownedManager).RebaseCrawl(C) end)
+	pcall(function()
+		local HS = game:GetService("ServerScriptService"):FindFirstChild("HostageService")
+		if HS then require(HS).Rebase(C) end
+	end)
 end
 
 local function Held(C)
@@ -243,6 +252,7 @@ local function Unfit(P, RouteId)
 	if not Can then return Why end
 	return nil
 end
+RoadService._Unfit = Unfit -- (hostages Task 10) test seam: the crossing's refusal, unchanged
 
 -- who crosses with P: P, plus each party member walking the same passage within GatherRadius who is fit to go.
 -- Returns the group and the members left behind ({Player, why}).

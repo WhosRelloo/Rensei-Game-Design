@@ -42,7 +42,8 @@ function Emotes.Blocked(Character)
 	if not Humanoid or Humanoid.Health <= 0 then return "" end
 	if Character:GetAttribute("CombatMode") or Character:GetAttribute("InCombat") then return "Not in combat" end
 	if Character:GetAttribute("Knocked") or Character:GetAttribute("CarriedBy") or Character:GetAttribute("GrippedBy") then return "Not while down" end
-	if Character:GetAttribute("Carrying") or Character:GetAttribute("Gripping") then return "Your hands are full" end
+	if Character:GetAttribute("HeldBy") then return "Not while held" end -- (hostages Task 10)
+	if Character:GetAttribute("Carrying") or Character:GetAttribute("Gripping") or Character:GetAttribute("Holding") then return "Your hands are full" end -- (Holding: hostages Task 10)
 	if Character:GetAttribute("CombatState") ~= nil then return "Not while attacking" end
 	if Humanoid.FloorMaterial == Enum.Material.Air then return "Not in the air" end
 	return nil

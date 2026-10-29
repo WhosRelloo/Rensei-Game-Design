@@ -134,22 +134,8 @@ end
 local function RM() return require(game.ReplicatedStorage.Modules.Managers.ResourceManager) end
 local function FullStamina(Character) RM().Set(Character, "Stamina", RM().Max(Character, "Stamina")) end
 -- (Task 7) the real player as the HOSTAGE: knocked at the spot, a stand-in captor 3 studs off (facing it) binds them,
--- Held within 2 s. The player's root stays anchored (PutPlayer), and the stand-in captor's root is anchored once the
--- take has started: a rig just let go still settles (measured up to 0.85 studs, near the bind's 1-stud slack), which
--- interrupted the bind in two of the first GREEN run's cases.
-local function Captive(T, Opts)
-	local Cap, CapPL = HK.StandIn(At(0, 3), Opts) -- (facing -Z: the player at the spot is 3 studs in front of it)
-	TK.PutPlayer(At(0, 0) + Vector3.new(0, 3, 0))
-	T.True(HK.KnockPlayer(), "setup: the player is knocked")
-	local Ok, Why = Svc().Take(CapPL, C)
-	Cap.HumanoidRootPart.Anchored = true
-	T.Eq(Ok, true, "setup: the stand-in's take starts (" .. tostring(Why) .. ")")
-	T.True(WaitFor(2.0, function()
-		local S = Svc().SessionOf(Player)
-		return S ~= nil and S.State == "Held"
-	end), "setup: Held within 2 s (" .. tostring(HK.Result(Cap)) .. ")")
-	return Cap, CapPL, Svc().SessionOf(Player)
-end
+-- Held within 2 s (HostageKit.Captive since Task 10, shared with Play_HostageHard; a failed setup errors there)
+local function Captive(_, Opts) return HK.Captive(Opts) end
 -- a free pair: no weld, no hold marks, no lock entry on either (a stand-in still knocked keeps its knock's own lock)
 local function AllLetGo(T, Rig, What)
 	T.Eq(Weld(), nil, What .. ": no weld on the player's root")

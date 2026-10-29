@@ -194,11 +194,13 @@ end
 local function CanAct(Character, WC)
 	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
 	if not Humanoid or Humanoid.Health <= 0 or not WC then return false end
-	if DownedManager.IsKnocked(Character) or Character:GetAttribute("Carrying") or Character:GetAttribute("Gripping") then
+	if DownedManager.IsKnocked(Character) or Character:GetAttribute("Carrying") or Character:GetAttribute("Gripping")
+		or Character:GetAttribute("Holding") or Character:GetAttribute("HeldBy") then -- (Holding / HeldBy: hostages Task 10)
 		return false
 	end
 	return not AttackRunner.IsRunning(Character) and not WC:HasStatusEffects({Stun, Attacking, Blocking, Climbing})
 end
+AlchemyService._CanAct = CanAct -- (hostages Task 10) test seam: the cast gate itself, unchanged
 
 -- Where the cast goes: the client's camera direction, clamped -- at most AimMaxYaw away from where
 -- you face (else straight ahead) and AimMaxPitch up / down. Anything malformed = straight ahead.

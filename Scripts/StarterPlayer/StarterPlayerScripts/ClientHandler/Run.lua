@@ -73,6 +73,9 @@ function Run:OnStartClient()
 	if CharacterState:HasStatusEffects({Stun,Climbing,Attacking}) then
 		return
 	end
+	-- (hostages Task 10, a client courtesy: the server's lead clamp is the authority) a captor walks the hostage at
+	-- LeadSpeed and a hostage doesn't move: no sprint for either
+	if Character:GetAttribute("Holding") or Character:GetAttribute("HeldBy") then return end
 	-- already sprinting (Shift pressed while Auto Sprint runs, or during a slide): keep that sprint
 	if Run:IsActive() then return end
 	-- an ended sprint whose Heartbeat hasn't cleaned up yet hands over to this one (it stops silently)

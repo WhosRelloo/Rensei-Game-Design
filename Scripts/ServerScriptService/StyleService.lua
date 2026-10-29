@@ -60,7 +60,8 @@ function StyleService.Select(Player, Id)
 	if Character:GetAttribute("Style") == Id then return true end
 	-- no switching to dodge a recovery, a stun or a fight: out of combat and free to act only (PROPOSAL)
 	if Character:GetAttribute("InCombat") then return false, "Catch your breath first: no switching styles mid-fight." end
-	if Character:GetAttribute("Knocked") or Character:GetAttribute("Carrying") or Character:GetAttribute("Gripping") then return false end
+	if Character:GetAttribute("Knocked") or Character:GetAttribute("Carrying") or Character:GetAttribute("Gripping")
+		or Character:GetAttribute("Holding") or Character:GetAttribute("HeldBy") then return false end -- (Holding / HeldBy: hostages Task 10)
 	if MovementState.Blocked(Character) or MovementState.Get(Character) then return false end
 	local WC = WCS.Character.GetCharacterFromInstance(Character)
 	if not WC or AttackRunner.IsRunning(Character) or WC:HasStatusEffects({Stun, Attacking, Blocking, Climbing}) then
