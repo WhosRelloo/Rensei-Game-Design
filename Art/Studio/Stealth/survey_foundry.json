@@ -1,0 +1,134 @@
+{
+  "Kit": {
+    "Note": "TakedownKit.Spot() = Vector3(SpotX, SpotY, SpotZ), read from the place's own TakedownKit source (SURVEY table, SPOT_Y)",
+    "Path": "ServerStorage.RenseiTests.TakedownKit",
+    "SpotX": -680,
+    "SpotY": 3000,
+    "SpotZ": 392
+  },
+  "Mover": {
+    "Class": "ModuleScript",
+    "Path": "ServerStorage.RenseiServer.TownsfolkService.Mover",
+    "Required": true,
+    "typeof_Handle": "function",
+    "typeof_Place": "function",
+    "typeof_PlanPath": "function",
+    "typeof_Stop": "function",
+    "typeof_WalkTo": "function"
+  },
+  "Place": {
+    "PlaceId": 109591196441030
+  },
+  "Remotes": {
+    "GuardSightExists": false,
+    "RemotesFolder": true,
+    "TownsfolkSay": true,
+    "TownsfolkSayClass": "RemoteEvent",
+    "UnreliableRemoteEventMakes": true,
+    "UnreliableRemoteEventResult": "UnreliableRemoteEvent"
+  },
+  "Speech": {
+    "Note": "SayRadius read as a literal from the Studio source of TownsfolkService (the module is not required in Edit)",
+    "SayRadiusFromSource": 100,
+    "TownsfolkServicePath": "ServerStorage.RenseiServer.TownsfolkService"
+  },
+  "StealthUI": {
+    "Class": "ModuleScript",
+    "InSyncManifest": false,
+    "Length": 5669,
+    "MatchesRepo": true,
+    "NormHash": "5669:304646218:465576623",
+    "RepoNormHash": "5669:304646218:465576623",
+    "StudioPath": "ReplicatedStorage.Modules.UI.StealthUI"
+  },
+  "Tags": {
+    "LookoutAttributeCount": 0,
+    "NetAttributeCount": 0,
+    "NetRouteLookoutAttributes": [
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.Foundry.Markers.Markers_Foundry.RenseiMarker0",
+        "Route": "LindenmoorFoundry"
+      },
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.Foundry.Markers.Markers_Foundry.RenseiMarker6",
+        "Route": "RoadLindenmoorFoundry"
+      },
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.Foundry.Markers.Markers_Foundry.RenseiMarker3",
+        "Route": "LindenmoorFoundry"
+      },
+      {
+        "Class": "Model",
+        "Path": "Workspace.World.Map.Foundry.Travel.Station.RideTrain",
+        "Route": "LindenmoorFoundry"
+      },
+      {
+        "Class": "Model",
+        "Path": "Workspace.World.Map.Foundry.Travel.Station.PlatformTrain",
+        "Route": "LindenmoorFoundry"
+      },
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.Foundry.Travel.Station.StationGate.StationGate",
+        "Route": "LindenmoorFoundry"
+      },
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.Foundry.Travel.SouthRoad.Passage",
+        "Route": "RoadLindenmoorFoundry"
+      },
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.Foundry.Travel.SouthRoad.Passage",
+        "Route": "RoadLindenmoorFoundry"
+      },
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.Foundry.Travel.SouthRoad.Passage",
+        "Route": "RoadLindenmoorFoundry"
+      },
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.Foundry.Travel.SouthRoad.Encounter1",
+        "Route": "RoadLindenmoorFoundry"
+      },
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.Foundry.Travel.SouthRoad.Encounter3",
+        "Route": "RoadLindenmoorFoundry"
+      },
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.Foundry.Travel.SouthRoad.Encounter2",
+        "Route": "RoadLindenmoorFoundry"
+      },
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.Foundry.Travel.SouthRoad.Passage",
+        "Route": "RoadLindenmoorFoundry"
+      },
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.Foundry.Travel.SouthRoad.Passage",
+        "Route": "RoadLindenmoorFoundry"
+      },
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.Foundry.Travel.SouthRoad.Threshold",
+        "Route": "RoadLindenmoorFoundry"
+      }
+    ],
+    "Note": "Net/Route/Lookout attributes found are the travel system's own Route attribute (Passage, Threshold, Encounter parts, markers, station models), none on a RenseiEnemySpawn part and none Net or Lookout; no RenseiPatrolRoute or RenseiBarracks tag",
+    "RenseiBarracks": [],
+    "RenseiEnemySpawnByType": {
+      "Grunt": 4,
+      "WardAlchemist": 1
+    },
+    "RenseiEnemySpawnTotal": 5,
+    "RenseiPatrolRoute": [],
+    "RouteAttributeOnEnemySpawnCount": 0
+  }
+}

@@ -1,0 +1,432 @@
+{
+  "Kit": {
+    "Note": "TakedownKit.Spot() = Vector3(SpotX, SpotY, SpotZ), read from the place's own TakedownKit source (SURVEY table, SPOT_Y)",
+    "Path": "ServerStorage.RenseiTests.TakedownKit",
+    "SpotX": -32,
+    "SpotY": 3000,
+    "SpotZ": -700
+  },
+  "Mover": {
+    "Class": "ModuleScript",
+    "Path": "ServerStorage.RenseiServer.TownsfolkService.Mover",
+    "Required": true,
+    "typeof_Handle": "function",
+    "typeof_Place": "function",
+    "typeof_PlanPath": "function",
+    "typeof_Stop": "function",
+    "typeof_WalkTo": "function"
+  },
+  "Place": {
+    "PlaceId": 106992859583940
+  },
+  "Probe": {
+    "Diagnostic": {
+      "Reading": "With Brain's home pull in place the walk never arrives in 6 s (6.66 and 3.00 studs short in two runs; the rig oscillates 9-10 studs out; Replans 0, Yields 0, Detours 0, Why nil). With the pull removed it arrives in 2.83 s at WalkSpeed 8 and AutoRotate false. So the Mover walks a WCS enemy rig; what fails is two walkers at once (Mover steering vs Brain's idle MoveTo). Task 4's idle hook has to stop Brain's walk-home while the Mover walks, or the fallback applies. The controller rules.",
+      "Runs": [
+        {
+          "AutoRotateDuring": false,
+          "Detours": 0,
+          "DistToGoalFlat": 3.003335952758789,
+          "HomeFlatDistToSpot": 0,
+          "HomeType": "Instance",
+          "MinDistSeen": 2.7343368530273438,
+          "Replans": 0,
+          "Seconds": 6.01,
+          "Status": "walking",
+          "Variant": "BrainPullsHome(as probe)",
+          "WalkSpeed": 8,
+          "WaypointCount": 2,
+          "Yields": 0
+        },
+        {
+          "AutoRotateDuring": true,
+          "Detours": 0,
+          "DistToGoalFlat": 0,
+          "HomeFlatDistToSpot": 0,
+          "HomeType": "Instance",
+          "MinDistSeen": 0,
+          "Replans": 0,
+          "Result": "arrived",
+          "Seconds": 2.83,
+          "Status": "arrived",
+          "Variant": "HomeSetToGoal(no pull)",
+          "WalkSpeed": 8,
+          "WaypointCount": 2,
+          "Yields": 0
+        }
+      ],
+      "What": "A second Play-only run, same session, after the official probe (no game code touched): the same 16-stud walk twice. Run 1 is the probe's own conditions; run 2 sets the rig's EnemyService record Home to the goal, so Brain's no-target walk-home (Humanoid:MoveTo(E.Home.Position) every 0.1 s) agrees with the Mover instead of pulling against it."
+    },
+    "Item1_SpawnFree": {
+      "AIPassive": true,
+      "Anchored": false,
+      "AutoRotate": true,
+      "Class": "Grunt",
+      "DefWalkSpeed": 14,
+      "InEnemyActive": true,
+      "Name": "Bandit",
+      "RootY_minus_SpotY": 3,
+      "Tracks": true
+    },
+    "Item2_MoverWalkTo": {
+      "DistMoved": 9.34213638305664,
+      "DistToGoalFlat": 6.657863616943359,
+      "HandleStatus": "walking",
+      "ResultWithin6s": false,
+      "Samples": [
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 16,
+          "t": 0.26,
+          "vel": 0,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 15.78,
+          "t": 0.51,
+          "vel": 3.61,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 14.43,
+          "t": 0.76,
+          "vel": 6.9,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 12.42,
+          "t": 1.03,
+          "vel": 7.86,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 10.65,
+          "t": 1.28,
+          "vel": 7.96,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 9.32,
+          "t": 1.54,
+          "vel": 7.99,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 10.4,
+          "t": 1.81,
+          "vel": 4.36,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 10.53,
+          "t": 2.08,
+          "vel": 7.92,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 9.91,
+          "t": 2.34,
+          "vel": 7.99,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 7.77,
+          "t": 2.61,
+          "vel": 7.99,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 9.09,
+          "t": 2.88,
+          "vel": 7.99,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 8.94,
+          "t": 3.14,
+          "vel": 7.99,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 8.65,
+          "t": 3.39,
+          "vel": 6.84,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 7.44,
+          "t": 3.66,
+          "vel": 7.99,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 8.56,
+          "t": 3.91,
+          "vel": 4.36,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 9.01,
+          "t": 4.18,
+          "vel": 7.92,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 8.62,
+          "t": 4.43,
+          "vel": 7.99,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 6.7,
+          "t": 4.69,
+          "vel": 8,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 7.63,
+          "t": 4.96,
+          "vel": 7.92,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 7.24,
+          "t": 5.23,
+          "vel": 7.92,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 5.85,
+          "t": 5.49,
+          "vel": 8,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 6.77,
+          "t": 5.76,
+          "vel": 7.92,
+          "walk": 8
+        },
+        {
+          "anchored": false,
+          "auto": false,
+          "dist": 6.65,
+          "t": 6.03,
+          "vel": 7.99,
+          "walk": 8
+        }
+      ],
+      "Seconds": 6.03,
+      "Verdict": "FAIL: no OnDone result within 6 s; ended 6.66 studs (flat) short of the goal; Humanoid.WalkSpeed held at 8 throughout; AutoRotate false while walking",
+      "WalkSpeedAtEnd": 8,
+      "Waypoints": 2
+    },
+    "Item3_StopThenMoveTo": {
+      "AfterStop": {
+        "Anchored": false,
+        "AutoRotate": true,
+        "HandleNil": true,
+        "OwnerAuto": false,
+        "OwnerPlayer": "server",
+        "WalkSpeed": 8
+      },
+      "AutoRotate": true,
+      "AutoRotateTrue": true,
+      "Moved": 9.127492904663086,
+      "MovedMoreThan4In2s": true,
+      "Note": "Brain (no target) also walks the rig to its Home (the spawn mark, at Spot) with Humanoid:MoveTo, so a move toward Spot cannot tell Brain's walk from this MoveTo; the rig moving at all proves the body is free",
+      "Samples": [
+        {
+          "moved": 3.44,
+          "t": 0.26,
+          "vel": 13.99,
+          "walk": 14
+        },
+        {
+          "moved": 7.17,
+          "t": 0.53,
+          "vel": 14,
+          "walk": 14
+        },
+        {
+          "moved": 9.12,
+          "t": 0.79,
+          "vel": 0,
+          "walk": 14
+        },
+        {
+          "moved": 9.12,
+          "t": 1.06,
+          "vel": 0,
+          "walk": 14
+        },
+        {
+          "moved": 9.12,
+          "t": 1.33,
+          "vel": 0,
+          "walk": 14
+        },
+        {
+          "moved": 9.12,
+          "t": 1.58,
+          "vel": 0,
+          "walk": 14
+        },
+        {
+          "moved": 9.12,
+          "t": 1.84,
+          "vel": 0,
+          "walk": 14
+        },
+        {
+          "moved": 9.12,
+          "t": 2.11,
+          "vel": 0,
+          "walk": 14
+        }
+      ],
+      "Verdict": "PASS: moved 9.13 studs in 2 s (it arrived at Spot, 9 studs away); AutoRotate true",
+      "WalkSpeed": 14
+    },
+    "Item4_AlarmTarget": {
+      "AIPassiveStillSet": true,
+      "FinalTargetName": "WhosRello",
+      "Phase": "Alert",
+      "TargetIsCharacter": true,
+      "Verdict": "PASS: Active[Rig].Target == the player's Character within 2 s; AIPassive still set"
+    },
+    "Items2to4AllHold": false,
+    "Session": "Ye:stealth1 under TestNoSave; IsNoSave true; run through LMRunSuite as ServerStorage.RenseiTests.StealthProbe_TEMP (removed)",
+    "Suite": "PASS 0 / FAIL 1 (the failing assertion is item 2)"
+  },
+  "Remotes": {
+    "GuardSightExists": false,
+    "RemotesFolder": true,
+    "TownsfolkSay": true,
+    "TownsfolkSayClass": "RemoteEvent",
+    "UnreliableRemoteEventMakes": true,
+    "UnreliableRemoteEventResult": "UnreliableRemoteEvent"
+  },
+  "Speech": {
+    "Note": "SayRadius read as a literal from the Studio source of TownsfolkService (the module is not required in Edit)",
+    "SayRadiusFromSource": 100,
+    "TownsfolkServicePath": "ServerStorage.RenseiServer.TownsfolkService"
+  },
+  "StealthUI": {
+    "Class": "ModuleScript",
+    "InSyncManifest": false,
+    "Length": 5669,
+    "MatchesRepo": true,
+    "NormHash": "5669:304646218:465576623",
+    "RepoNormHash": "5669:304646218:465576623",
+    "StudioPath": "ReplicatedStorage.Modules.UI.StealthUI"
+  },
+  "Tags": {
+    "LookoutAttributeCount": 0,
+    "NetAttributeCount": 0,
+    "NetRouteLookoutAttributes": [
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.LindenmoorExpansion.Markers.Markers_Expansion.RenseiMarker0",
+        "Route": "RoadLindenmoorFoundry"
+      },
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.LindenmoorExpansion.Travel.Road_RoadLindenmoorFoundry.Passage",
+        "Route": "RoadLindenmoorFoundry"
+      },
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.LindenmoorExpansion.Travel.Road_RoadLindenmoorFoundry.Passage",
+        "Route": "RoadLindenmoorFoundry"
+      },
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.LindenmoorExpansion.Travel.Road_RoadLindenmoorFoundry.Threshold",
+        "Route": "RoadLindenmoorFoundry"
+      },
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.LindenmoorExpansion.Travel.Road_RoadLindenmoorFoundry.Encounter1",
+        "Route": "RoadLindenmoorFoundry"
+      },
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.LindenmoorExpansion.Travel.Road_RoadLindenmoorFoundry.Encounter3",
+        "Route": "RoadLindenmoorFoundry"
+      },
+      {
+        "Class": "Part",
+        "Path": "Workspace.World.Map.LindenmoorExpansion.Travel.Road_RoadLindenmoorFoundry.Encounter2",
+        "Route": "RoadLindenmoorFoundry"
+      },
+      {
+        "Class": "Model",
+        "Path": "Workspace.World.Map.Lindenmoor.Station.RideTrain",
+        "Route": "LindenmoorFoundry"
+      },
+      {
+        "Class": "Model",
+        "Path": "Workspace.World.Map.Lindenmoor.Station.PlatformTrain",
+        "Route": "LindenmoorFoundry"
+      }
+    ],
+    "Note": "Net/Route/Lookout attributes found are the travel system's own Route attribute (Passage, Threshold, Encounter parts, markers, station models), none on a RenseiEnemySpawn part and none Net or Lookout; no RenseiPatrolRoute or RenseiBarracks tag",
+    "RenseiBarracks": [],
+    "RenseiEnemySpawnByType": {
+      "AditScavenger": 2,
+      "Elite": 1,
+      "FieldAlchemist": 1,
+      "FrostAlchemist": 1,
+      "GaleAlchemist": 1,
+      "Grunt": 8,
+      "StoneAlchemist": 1
+    },
+    "RenseiEnemySpawnTotal": 15,
+    "RenseiPatrolRoute": [],
+    "RouteAttributeOnEnemySpawnCount": 0
+  }
+}
