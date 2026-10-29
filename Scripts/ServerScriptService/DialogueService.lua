@@ -89,6 +89,14 @@ local function Fighting(Player)
 	return Character ~= nil and (Character:GetAttribute("InCombat") == true or Character:GetAttribute("CombatMode") == true)
 end
 
+-- (hostages Task 11 fix round 1, review I1) a conversation that replaces an open Ask answers that Ask with nil first,
+-- as Ask itself does: its OnAnswer's documented "another conversation replaced it" (the Alchemic Binding's consent, a
+-- ransom demand's popup), so the asker never later closes the conversation that replaced it
+local function AnswerReplaced(Player)
+	local Old = Sessions[Player]
+	if Old and Old.Inline and Old.Inline.OnAnswer and not Old.Answered then task.spawn(Old.Inline.OnAnswer, nil) end
+end
+
 function DialogueService.Open(Player, Model)
 	if Fighting(Player) then
 		UIService.Notify(Player, "Toast", {Text = "You can't do that in combat"})
@@ -97,6 +105,7 @@ function DialogueService.Open(Player, Model)
 	local Id = Model:GetAttribute("DialogueId")
 	local Def = Definitions[Id]
 	if not Def or not Def.Nodes or not Def.Nodes[Def.Start or "start"] then return false end
+	AnswerReplaced(Player)
 	Sessions[Player] = {Id = Id, Node = StartNode(Player, Def), Model = Model}
 	QuestService.Signal(Player, "Talk", Id)
 	Show(Player, Sessions[Player])
@@ -111,6 +120,7 @@ function DialogueService.Say(Player, Model, Speaker, Text)
 		return false
 	end
 	local Session = {Inline = {Speaker = Speaker, Text = Text}, Model = Model}
+	AnswerReplaced(Player)
 	Sessions[Player] = Session
 	Show(Player, Session)
 	return true

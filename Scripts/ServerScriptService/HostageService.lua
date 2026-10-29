@@ -249,21 +249,29 @@
 --       whole number from RansomMin to RansomCap; "self" when Payer is Captor; "gone" unless both are present with a
 --       profile; "travelling" while either real player is mid-teleport (FlowTeleport.Busy / InGroup: their saves may be
 --       released; an error asking is "travelling" too); "afford" when the debit fails; then the credit of
---       Hostage.Net(Amount), and if it fails the payer is refunded the whole Amount in the same step ("gone"). Every call
+--       Hostage.Net(Amount), and if it fails (or anything after the debit throws: "error", fix round 1 m1) the payer is
+--       refunded the whole Amount in the same step ("gone"). Every call
 --       prints ONE audit line (pre-flight P14): the demand Id, payer and captor UserIds, amount, net and the result.
 --     - THE DEMAND, Menu(Captor, "Ransom", TierIndex): needs Ransom open (above) and TierIndex an integer within
 --       #RansomTiers(level). S.Demand = {Id (a GUID), Amount (that tier), Until (os.clock() + RansomWait), Asked
 --       ({[Key] = {PL, Popup, Answered}}), Paid = false}; S.Asked = true (one per session). Each asked member: a real
 --       player gets DialogueService.Ask(Member, their own character, the captor's name, "<Captor> holds <Hostage>. Pay
 --       $<n>?", {"Pay", "Refuse"}), whose answer runs Answer; a stand-in (tests) is answered through
---       HostageService._Answer(S, PL, Index) (read only while SeamOpen), the same Answer.
+--       HostageService._Answer(S, PL, Index) (read only while SeamOpen), the same Answer. (Fix round 1, review I2) a
+--       real member is asked only while free (present, a live current character, neither InCombat nor CombatMode, no
+--       DialogueService conversation open): one who isn't is asked later by Tick, so no conversation of theirs is
+--       clobbered; each popup is on their CURRENT character.
 --     - Answer(S, Member, Index): nothing when stale (S.Over, no demand, another demand's Id, already paid), when Member
---       wasn't asked (pre-flight P14) or has already answered. Pay (1): Paid = true FIRST, then Transfer; on failure Paid
---       = false, the payer told why, and counted as a refusal; on success Release(S, "ransomed") FIRST, then
+--       wasn't asked (pre-flight P14) or has already answered. (Fix round 1, review I2) a nil answer -- a popup a fight,
+--       another conversation (DialogueService.Open / Say answer a replaced popup with nil, review I1), a respawn or
+--       leaving closed -- is "not now": the popup is marked gone and the member stays unanswered. Pay (1): Paid = true
+--       FIRST, then Transfer (in a pcall: one that throws ends the demand unpaid, never left paid, review m1); on
+--       failure Paid = false, the payer told why, and counted as a refusal; on success Release(S, "ransomed") FIRST, then
 --       paid_ransom (payer) and took_ransom (captor, witnessed) each in its own pcall (P14: a throwing Record never
---       leaves a paid hostage held). Refuse, a closed popup (nil) or any other index: a refusal. Everyone refused: the
---       captor is told "Nobody will pay." and the demand ends.
---     - Tick: at Until with nothing paid, the captor is told "Nobody paid." and the demand ends; the hold goes on.
+--       leaves a paid hostage held). Refuse (2): a refusal. Everyone refused: the captor is told "Nobody will pay." and
+--       the demand ends.
+--     - Tick: at Until with nothing paid, the captor is told "Nobody paid." and the demand ends; the hold goes on. Else
+--       each real member unanswered with no popup up is asked (again) once free.
 --     - A demand that ends (refused, timed out) or is voided (Release step 1) closes every popup still unanswered
 --       (DialogueService.Close; P14).
 -- * THE TURN-IN (Task 11, ruling R7, pre-flight P12 / P13). Desks() -> {Model}: the models in workspace with a DialogueId
@@ -1420,14 +1428,17 @@ local function DoTransfer(Payer, Captor, Amount)
 	end
 	if Moving(Payer) or Moving(Captor) then return false, "travelling" end
 	if not Apply(HostageService._Spend, Payer, Amount) then return false, "afford" end
-	local Net = Hostage.Net(Amount)
-	if not Apply(HostageService._Grant, Captor, Net) then
-		if not Apply(HostageService._Grant, Payer, Amount) then -- refunded in the same step
-			warn(("HostageService: a ransom REFUND FAILED: payer %s, $%d"):format(tostring(Payer.UserId), Amount))
-		end
-		return false, "gone"
+	-- (fix round 1, review m1) the debit happened: whatever follows, the payer is refunded unless the credit went through
+	local CreditOk, Net = pcall(function()
+		local N = Hostage.Net(Amount)
+		return Apply(HostageService._Grant, Captor, N) and N or nil
+	end)
+	if CreditOk and Net then return true, Net end
+	if not CreditOk then warn("HostageService: the ransom credit threw:", Net) end
+	if not Apply(HostageService._Grant, Payer, Amount) then -- refunded in the same step
+		warn(("HostageService: a ransom REFUND FAILED: payer %s, $%d"):format(tostring(Payer.UserId), Amount))
 	end
-	return true, Net
+	return false, CreditOk and "gone" or "error"
 end
 
 local function Uid(PL)
@@ -1468,8 +1479,9 @@ local TRANSFER_WHY = {
 	travelling = "Not while travelling.",
 }
 
--- the demand ends (refused by all, timed out) or is voided (Release): gone first, so the answers its closing popups
--- send are stale, then every popup still open closed (pre-flight P14)
+-- the demand ends (refused by all, timed out, a transfer that threw) or is voided (Release): gone first, so the answers
+-- its closing popups send are stale, then every popup still open closed (pre-flight P14). (Fix round 1, review I1:
+-- DialogueService.Open / Say answer a replaced popup with nil, so E.Popup is true only for a live ransom popup.)
 local function EndDemand(S)
 	local D = S.Demand
 	if not D then return end
@@ -1490,10 +1502,21 @@ local function Answer(S, Id, Member, Index)
 	if S.Over or not D or Id == nil or D.Id ~= Id or D.Paid then return false end
 	local E = Member ~= nil and Member.UserId ~= nil and D.Asked[Key(Member)] or nil
 	if not E or E.PL ~= Member or E.Answered then return false end -- (only an asked member, once: P14)
+	-- (fix round 1, review I2) only Pay (1) and Refuse (2) answer; nil (a popup closed by a fight, another conversation,
+	-- a respawn, leaving) is "not now", and the member is asked again once free (DemandTick)
+	if Index ~= 1 and Index ~= 2 then return false end
 	E.Answered = true
 	if Index == 1 then
 		D.Paid = true -- (first: a second answer in the same frame finds it paid)
-		local Ok, NetOrWhy = HostageService.Transfer(Member, S.Captor, D.Amount, D.Id)
+		local CallOk, Ok, NetOrWhy = pcall(HostageService.Transfer, Member, S.Captor, D.Amount, D.Id)
+		if not CallOk then
+			-- (fix round 1, review m1) never left "paid": the demand ends unpaid (the money steps refund themselves)
+			warn("HostageService: the ransom transfer threw; the demand ends unpaid:", Ok)
+			D.Paid = false
+			Toast(Member, "The ransom didn't go through.") -- PROPOSAL (text)
+			EndDemand(S)
+			return false
+		end
 		if Ok then
 			Release(S, "ransomed") -- (first: a throwing Record can't leave a paid hostage held, P14)
 			Step("recording paid_ransom", Record, Member, "paid_ransom", {})
@@ -1505,7 +1528,7 @@ local function Answer(S, Id, Member, Index)
 		D.Paid = false
 		Toast(Member, TRANSFER_WHY[NetOrWhy] or "The ransom didn't go through.") -- PROPOSAL (text)
 	end
-	-- a refusal (Refuse, a closed popup, a failed payment): when nobody is left to answer, the demand ends
+	-- a refusal (Refuse, a failed payment): when nobody is left to answer, the demand ends
 	for _, X in pairs(D.Asked) do
 		if not X.Answered then return false end
 	end
@@ -1520,12 +1543,51 @@ function HostageService._Answer(S, PL, Index)
 	return Answer(S, S.Demand and S.Demand.Id, PL, Index)
 end
 
--- Tick: a demand past its Until, nothing paid, ends; the hold goes on
+-- (fix round 1, review I2) a real member free for a popup now: present, a live current character, not fighting
+-- (DialogueService's own test: InCombat or CombatMode) and no conversation open
+local function CanAsk(M)
+	if not IsPlayer(M) or M.Parent ~= Players then return false end
+	local C = Char(M)
+	if not (C and Alive(C)) then return false end
+	if C:GetAttribute("InCombat") == true or C:GetAttribute("CombatMode") == true then return false end
+	local Ok, Open = pcall(function() return require(ServerScriptService.DialogueService).IsOpen(M) end)
+	return Ok and Open == false
+end
+
+-- the popup for one asked member, on their CURRENT character (DialogueService's range check holds after a respawn).
+-- Its nil answer only marks the popup gone; an answer of an older popup of theirs changes nothing.
+local function AskMember(S, D, E)
+	local M = E.PL
+	E.Asks = (E.Asks or 0) + 1
+	local N = E.Asks
+	E.Popup = true
+	local Ok, Err = pcall(function()
+		require(ServerScriptService.DialogueService).Ask(M, Char(M), D.Speaker, D.Text, {"Pay", "Refuse"}, function(Index)
+			if E.Asks ~= N then return end
+			E.Popup = false
+			if Index == nil then return end -- "not now": asked again once free
+			Answer(S, D.Id, M, Index)
+		end)
+	end)
+	if not Ok then
+		warn("HostageService: couldn't ask", M.Name, Err)
+		E.Popup = false
+	end
+end
+
+-- Tick: a demand past its Until, nothing paid, ends (the hold goes on); else (fix round 1, review I2) each real member
+-- not yet answered and with no popup up is asked once they are free
 function DemandTick(S)
 	local D = S.Demand
-	if D and not D.Paid and os.clock() >= D.Until then
+	if not D or D.Paid then return end
+	if os.clock() >= D.Until then
 		Toast(S.Captor, "Nobody paid.")
 		EndDemand(S)
+		return
+	end
+	for _, E in pairs(D.Asked) do
+		if S.Demand ~= D then return end
+		if not E.Answered and not E.Popup and CanAsk(E.PL) then AskMember(S, D, E) end
 	end
 end
 
@@ -1538,27 +1600,17 @@ local function MenuRansom(S, TierIndex)
 	end
 	local Members = Payers(S)
 	if #Members == 0 then return false end
+	local CaptorName = S.Captor.DisplayName or S.Captor.Name
 	local D = {Id = HttpService:GenerateGUID(false), Amount = Tiers[TierIndex], Until = os.clock() + Hostage.RansomWait,
-		Asked = {}, Paid = false}
+		Asked = {}, Paid = false, Speaker = CaptorName}
+	D.Text = ("%s holds %s. Pay $%d?"):format(CaptorName, S.Hostage.DisplayName or S.Hostage.Name, D.Amount)
 	S.Demand, S.Asked = D, true
 	for _, M in ipairs(Members) do D.Asked[Key(M)] = {PL = M, Popup = false, Answered = false} end
-	local CaptorName = S.Captor.DisplayName or S.Captor.Name
-	local Text = ("%s holds %s. Pay $%d?"):format(CaptorName, S.Hostage.DisplayName or S.Hostage.Name, D.Amount)
+	-- (fix round 1, review I2) a member fighting or already in a conversation isn't asked now (no conversation of
+	-- theirs is clobbered); DemandTick asks them once free
 	for _, M in ipairs(Members) do
 		local E = D.Asked[Key(M)]
-		if IsPlayer(M) then
-			E.Popup = true
-			local Ok, Err = pcall(function()
-				require(ServerScriptService.DialogueService).Ask(M, Char(M), CaptorName, Text, {"Pay", "Refuse"}, function(Index)
-					E.Popup = false
-					Answer(S, D.Id, M, Index)
-				end)
-			end)
-			if not Ok then
-				warn("HostageService: couldn't ask", M.Name, Err)
-				E.Popup = false
-			end
-		end
+		if S.Demand == D and CanAsk(M) then AskMember(S, D, E) end
 	end
 	return true
 end
@@ -1639,8 +1691,8 @@ local function MenuTurnIn(S)
 	local Said = nil
 	local Ok, Err = pcall(function()
 		if HeatService.Wanted(H, J) <= Heat.FineMaxWanted then
-			local _, Msg = HeatService.Fine(H, J) -- (its own rule: the cost, the money, the Heat cleared)
-			Said = Msg
+			local Fined, Msg = HeatService.Fine(H, J) -- (its own rule: the cost, the money, the Heat cleared)
+			if Fined then Said = Msg end -- (fix round 1, review m3: a refusal isn't shown; the Heat is cleared below)
 		else
 			-- (P13, the spec literally) past a desk fine: the same fine (HeatService.Fine's cost, which it refuses above
 			-- FineMaxWanted) charged when it can be paid
