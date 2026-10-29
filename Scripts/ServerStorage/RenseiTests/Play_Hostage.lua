@@ -56,6 +56,11 @@
 --   again, witnessed; an NPC in front holds its attack (CombatDirector.CanStrike, HostageService.LineBlocked);
 --   a lethal front hit knocks the hostage and ends the hold "knocked" (decision 5). HostageNotShieldedFromCaptor is a
 --   regression guard: the hostage never has Holding, so the redirect can't be reached by construction (pre-flight D5).
+-- * Task 9 fix round 1 (review I1-I6, concern 3): a guard (a law-faction NPC, never a townsperson) that rescues raises
+--   the captor's Heat once by took_hostage's Crime 30 and records no deed; a gun shot from behind rescues (WeaponManager
+--   .Fire); an NPC in front circles to the captor's flank and its hit rescues; one swing through the real
+--   HitboxManager.Sweep hits the hostage once; the Task 8 release window sees a knock through a shield; the HitListeners
+--   hear a shielded hit as a hit on the hostage; a HostageService error in DamageManager or CombatDirector is warned.
 local SSS = game:GetService("ServerScriptService")
 local CollectionService = game:GetService("CollectionService")
 local DM = require(game.ReplicatedStorage.Modules.Managers.DownedManager)
@@ -285,6 +290,24 @@ local function LoneGrunt(Angle, Dist)
 end
 -- the player's hitstun, if a case's hit gave one, waited out so the next case doesn't start stunned
 local function Unstunned() WaitFor(2, function() return not Stunned(C) end) end
+-- (fix round 1, I2) a second stand-in armed with a revolver (WeaponManager.Give), in Combat Mode, placed by Attacker
+local function Gunman(Angle, Dist)
+	local Rig = Attacker(Angle, Dist)
+	local WM = require(game.ReplicatedStorage.Modules.Managers.WeaponManager)
+	assert(WM.Give(Rig, "Revolver"), "setup: a revolver")
+	Rig:SetAttribute("CombatMode", true)
+	Rig:SetAttribute("PhysicalMultiplier", 1)
+	if (Rig:GetAttribute("Ammo") or 0) <= 0 then Rig:SetAttribute("Ammo", 6) end
+	return Rig
+end
+-- one Guns_Shot1 at the point, as GunKit.Shot fires it: WeaponManager.SetAim, then WeaponManager.Fire with the held gun's
+-- numbers. Returns Fire's {Victim, Result} pairs.
+local function Shoot(Shooter, AtPoint)
+	local WM = require(game.ReplicatedStorage.Modules.Managers.WeaponManager)
+	local Tuning = require(game.ReplicatedStorage.Modules.Data.Rensei.TuningConfig)
+	WM.SetAim(Shooter, (AtPoint - Shooter.HumanoidRootPart.Position).Unit)
+	return WM.Fire(Shooter, "Guns_Shot1", WM.Resolve(Shooter, Tuning.Weapons.Guns.Shots[1]))
+end
 
 return {
 	-- the seam is shut when the no-save switch isn't on (HostageService._NoSave swapped, pre-flight P24; put back after)
@@ -1549,7 +1572,15 @@ return {
 			local Rig = Held(T)
 			local HP0, Mine0 = Rig.Humanoid.Health, C.Humanoid.Health
 			local Shield0 = DeedCount("used_human_shield")
-			T.Eq(Hit(C, Rig), "Hit", "the captor's hit lands")
+			-- (fix round 1) the player's own damage multipliers pinned to 1 for the hit (Guard's level 20 raises them), put back
+			local PM, AM = C:GetAttribute("PhysicalMultiplier"), C:GetAttribute("AttackMult")
+			C:SetAttribute("PhysicalMultiplier", 1)
+			C:SetAttribute("AttackMult", nil)
+			local HitOk, Got = pcall(Hit, C, Rig)
+			C:SetAttribute("PhysicalMultiplier", PM)
+			C:SetAttribute("AttackMult", AM)
+			if not HitOk then error(Got, 0) end
+			T.Eq(Got, "Hit", "the captor's hit lands")
 			T.Near(HP0 - Rig.Humanoid.Health, 10, 1, "the hostage takes it")
 			T.True(C.Humanoid.Health >= Mine0 - 0.01, "the captor takes nothing")
 			task.wait(0.3)
@@ -1558,31 +1589,220 @@ return {
 		end) end)
 	end,
 
-	-- (the guards ruling, spec §4) a guard -- an NPC of a State or Militia law faction, PROPOSAL; no guards spawn yet -- that
-	-- frees a hostage records the taking again, witnessed (the captor's Heat rises through the existing path); an NPC of
-	-- no law faction rescues the same way and records nothing (the control)
+	-- (fix round 1, ruling I1; spec §4) a guard -- a law-faction NPC, never a townsperson (PROPOSAL; no guards spawn yet)
+	-- -- that frees a hostage raises the captor's Heat once by took_hostage's Crime, through Rensei.Heat.Raised and
+	-- HeatService.Add (the guard is the one who heard it): no deed is recorded, so no Count, no Conduct and no daily cap
+	-- slot. Written by hand: Crime 30, in this place's law (TakedownKit.LAW: Ye Militia / Townsfolk on Lindenmoor, the
+	-- Foundry State / Authority). Controls: an NPC of no law faction, and a townsperson (Faction Townsfolk, a
+	-- TownsfolkId), both rescue and add no Heat.
 	GuardRescueIsWitnessed = function(T)
-		HK.Guard(function() KeepHeat(function()
-			Held(T)
-			local Took0 = DeedCount("took_hostage")
+		local function Case(What, MakeRescuer, Heat)
+			HK.Guard(function() KeepHeat(function() TK.AtHour(12, function()
+				Held(T)
+				local J = TK.LAW.J
+				local M = require(SSS.ProgressionService).GetData(Player).Morality
+				local Took0, Heat0 = DeedCount("took_hostage"), HeatSvc().Value(Player, J)
+				local Mercy0, Order0 = M.Conduct.Mercy or 0, M.Conduct.Order or 0
+				local Rescuer = MakeRescuer()
+				T.Eq(Hit(Rescuer, C), "Hit", What .. ": the rear hit lands")
+				T.True(Ended("Bind:rescued", 0.2), What .. ": rescued (" .. tostring(HK.Result()) .. ")")
+				task.wait(0.3)
+				T.Near(HeatSvc().Value(Player, J) - Heat0, Heat, 0.05, What .. ": " .. J .. " Heat raised by " .. Heat)
+				T.Eq(DeedCount("took_hostage") - Took0, 0, What .. ": no deed recorded again")
+				T.Near(M.Conduct.Mercy or 0, Mercy0, 1e-6, What .. ": Mercy unchanged")
+				T.Near(M.Conduct.Order or 0, Order0, 1e-6, What .. ": Order unchanged")
+				Unstunned()
+			end) end) end)
+		end
+		Case("a guard", function()
 			local Grunt = LoneGrunt(180, 4)
-			Grunt:SetAttribute("Faction", "Authority") -- (written by hand: the State's law faction)
-			T.Eq(Hit(Grunt, C), "Hit", "the guard's rear hit lands")
-			T.True(Ended("Bind:rescued", 0.2), "rescued (" .. tostring(HK.Result()) .. ")")
-			task.wait(0.3)
-			T.Eq(DeedCount("took_hostage") - Took0, 1, "took_hostage recorded again, witnessed")
-			Unstunned()
-		end) end)
-		HK.Guard(function() KeepHeat(function()
-			Held(T)
-			local Took0 = DeedCount("took_hostage")
+			Grunt:SetAttribute("Faction", TK.LAW.Faction) -- (this place's law faction)
+			return Grunt
+		end, 30)
+		Case("a lawless NPC", function()
 			local Grunt = LoneGrunt(180, 4)
 			Grunt:SetAttribute("Faction", nil)
-			T.Eq(Hit(Grunt, C), "Hit", "the lawless NPC's rear hit lands")
+			return Grunt
+		end, 0)
+		Case("a townsperson", function()
+			local _, Folk = TK.Folk("Rescuer", AroundPlayer(180, 4) - Vector3.new(0, 3, 0))
+			Folk.HumanoidRootPart.Anchored = true
+			Folk:PivotTo(AroundPlayer(180, 4))
+			Folk:SetAttribute("Faction", "Townsfolk") -- (the Militia's law faction, on a townsperson: still no guard)
+			return Folk
+		end, 0)
+	end,
+
+	-- (fix round 1, ruling I2) a gun shot through WeaponManager.Fire: from behind it hits the captor and frees the
+	-- hostage
+	GunRearShotRescues = function(T)
+		HK.Guard(function() KeepHeat(function()
+			local Rig = Held(T)
+			local Shooter = Gunman(180, 6)
+			local Mine0 = C.Humanoid.Health
+			local Results = Shoot(Shooter, C.HumanoidRootPart.Position)
+			T.True(#Results == 1 and Results[1].Victim == C, "the shot hits the captor (" .. tostring(Results[1] and Results[1].Victim) .. ")")
+			T.True(C.Humanoid.Health < Mine0, "the captor lost health")
 			T.True(Ended("Bind:rescued", 0.2), "rescued (" .. tostring(HK.Result()) .. ")")
-			task.wait(0.3)
-			T.Eq(DeedCount("took_hostage") - Took0, 0, "nothing more recorded")
+			AllLetGo(T, Rig, "shot rescue")
 			Unstunned()
+		end) end)
+	end,
+
+	-- (a guard: passes before the fix too) from the front the nearest body is the hostage: it takes the shot, nobody is
+	-- freed
+	GunFrontShotNoRescue = function(T)
+		HK.Guard(function() KeepHeat(function()
+			local Rig = Held(T)
+			local Shooter = Gunman(0, 6)
+			local HP0 = Rig.Humanoid.Health
+			local Results = Shoot(Shooter, C.HumanoidRootPart.Position)
+			T.True(#Results == 1 and Results[1].Victim == Rig, "the front shot hits the hostage (" .. tostring(Results[1] and Results[1].Victim) .. ")")
+			T.True(Rig.Humanoid.Health < HP0, "the hostage lost health")
+			task.wait(0.2)
+			T.True(IsHeld(), "still Held")
+		end) end)
+	end,
+
+	-- (fix round 1, ruling I3; spec §3: "they circle for an angle instead") a squad Grunt alarmed on the captor, 6 studs in
+	-- front of the held pair, walks round to the captor's flank and lands a hit there that frees the hostage, within 10 s
+	-- (PROPOSAL); at that moment it stands outside the 70-degree shield arc
+	NpcCirclesForAngle = function(T)
+		HK.Guard(function() KeepHeat(function()
+			local PS = require(SSS.PerceptionService)
+			Held(T)
+			local Grunt = TK.Spawn("Grunt", At(30, 0))
+			Grunt:PivotTo(AroundPlayer(0, 6))
+			Grunt:SetAttribute("AIPassive", nil)
+			TK.Free(Grunt)
+			local Angle = nil
+			local Ok, Err = pcall(function()
+				local T0 = os.clock()
+				while os.clock() - T0 < 10 and HK.Result() == nil do
+					PS.Alarm(Grunt, Player)
+					task.wait(0.1)
+				end
+				local CR, GR = C.HumanoidRootPart, Grunt.HumanoidRootPart
+				local L, D = Vector3.new(CR.CFrame.LookVector.X, 0, CR.CFrame.LookVector.Z), GR.Position - CR.Position
+				D = Vector3.new(D.X, 0, D.Z)
+				Angle = math.deg(math.acos(math.clamp(L.Unit:Dot(D.Unit), -1, 1)))
+			end)
+			Grunt:SetAttribute("AIPassive", true)
+			Grunt.HumanoidRootPart.Anchored = true
+			if not Ok then error(Err, 0) end
+			T.Eq(HK.Result(), "Bind:rescued", "the Grunt's hit freed the hostage within 10 s")
+			T.True(Angle ~= nil and Angle > 70, "from outside the shield arc (" .. tostring(Angle) .. " degrees)")
+			Unstunned()
+		end) end)
+	end,
+
+	-- (fix round 1, ruling I4) one swing through the real HitboxManager.Sweep from in front: its box holds both the
+	-- hostage and the captor, and the hostage is hit once. Written by hand: Light1 deals 17 (TuningConfig.Light.Hits[1]).
+	OneSwingOneHit = function(T)
+		HK.Guard(function() KeepHeat(function()
+			local Rig = Held(T)
+			local Atk = Attacker(0, 4)
+			local HP0, Mine0 = Rig.Humanoid.Health, C.Humanoid.Health
+			local HB = require(game.ReplicatedStorage.Modules.Managers.HitboxManager)
+			local Results = HB.Sweep(Atk, "Light1", 0.08)
+			local Seen = {}
+			for _, R in ipairs(Results) do Seen[R.Victim] = R.Result end
+			T.True(Seen[Rig] ~= nil and Seen[C] ~= nil, "setup: the swing's box held both (" .. #Results .. " victims)")
+			T.Near(HP0 - Rig.Humanoid.Health, 17, 2, "the hostage was hit once")
+			T.True(C.Humanoid.Health >= Mine0 - 0.01, "the captor lost nothing")
+			task.wait(0.6)
+		end) end)
+	end,
+
+	-- (fix round 1, ruling I5) the Task 8 release window sees a knock through a shield: the ex-captor (the player) releases
+	-- B, a stand-in A takes B, and the player's lethal front hit on A knocks B through A's shield -> harm by the captor's
+	-- side, no released_hostage. Control (a guard: passes before the fix too): the same knock by a third stand-in leaves
+	-- the payout (+1).
+	ShieldKnockCancelsPayout = function(T)
+		local function Case(ByPlayer)
+			HK.Guard(function() KeepHeat(function() WithGrace(5, function()
+				local HS = Svc()
+				local Rig, PL = Held(T)
+				local Released0 = DeedCount("released_hostage")
+				T.Eq(HS.Menu(Player, "Release"), true, "setup: released")
+				HS.Forget(PL, {ImmuneUntil = true})
+				local Pos = Rig.HumanoidRootPart.Position - Vector3.new(0, 3, 3)
+				local A, APL = HK.StandIn(CFrame.lookAt(Pos, Pos + Vector3.zAxis))
+				DM.Knock(Rig)
+				local Ok, Why = HS.Take(APL, Rig)
+				A.HumanoidRootPart.Anchored = true
+				T.Eq(Ok, true, "setup: A's take starts (" .. tostring(Why) .. ")")
+				T.True(WaitFor(2.5, function() local S = HS.SessionOf(APL) return S ~= nil and S.State == "Held" end),
+					"setup: A holds B (" .. tostring(HK.Result(A)) .. ")")
+				local Hitter = C
+				if not ByPlayer then
+					local AR = A.HumanoidRootPart
+					local At4 = AR.Position + Vector3.new(AR.CFrame.LookVector.X, 0, AR.CFrame.LookVector.Z).Unit * 4
+					Hitter = HK.StandIn(CFrame.lookAt(At4 - Vector3.new(0, 3, 0), AR.Position - Vector3.new(0, 3, 0)))
+					Hitter.HumanoidRootPart.Anchored = true
+					Hitter:PivotTo(CFrame.lookAt(At4, AR.Position))
+				end
+				Hit(Hitter, A, {Damage = Rig.Humanoid.Health + 50, StunTime = 0})
+				T.True(DM.IsKnocked(Rig), "setup: B knocked through A's shield")
+				task.wait(5.5)
+				if ByPlayer then
+					T.Eq(DeedCount("released_hostage") - Released0, 0, "the ex-captor's shield knock is harm: no payout")
+				else
+					T.Eq(DeedCount("released_hostage") - Released0, 1, "a third party's shield knock leaves the payout")
+				end
+			end) end) end)
+		end
+		Case(true)
+		Case(false)
+	end,
+
+	-- (fix round 1, review concern 3) the HitListeners hear a shielded hit as a hit on the hostage it landed on, and a rear
+	-- hit as a hit on the captor
+	ShieldListenersSeeHostage = function(T)
+		HK.Guard(function() KeepHeat(function()
+			local Rig = Held(T)
+			local Front, Rear = Attacker(0, 4), Attacker(150, 4)
+			local Heard = {}
+			local Listeners = require(SSS.ProgressionService).HitListeners
+			local function L(A, V) Heard[A] = V end
+			table.insert(Listeners, L)
+			local Ok, Err = pcall(function()
+				Hit(Front, C)
+				T.Eq(Heard[Front], Rig, "the front hit is heard as a hit on the hostage")
+				Hit(Rear, C)
+				T.Eq(Heard[Rear], C, "the rear hit is heard as a hit on the captor")
+			end)
+			table.remove(Listeners, table.find(Listeners, L))
+			if not Ok then error(Err, 0) end
+		end) end)
+	end,
+
+	-- (fix round 1, ruling I6) a HostageService error in the shared damage and AI paths is warned, not swallowed, and the
+	-- old behaviour stays: the hit lands on the captor, the NPC may strike
+	HostageErrorsAreLogged = function(T)
+		HK.Guard(function() KeepHeat(function()
+			local HS, CD = Svc(), require(SSS.CombatDirector)
+			Held(T)
+			local Atk = Attacker(0, 4)
+			local Grunt = LoneGrunt(0, 5)
+			local Logged = {}
+			local Conn = game:GetService("LogService").MessageOut:Connect(function(Msg) table.insert(Logged, Msg) end)
+			local function Saw(Text) for _, M in ipairs(Logged) do if M:find(Text, 1, true) then return true end end return false end
+			local Ok, Err = pcall(function()
+				local Mine0 = C.Humanoid.Health
+				Swap(HS, "Shield", function() error("hostage test: Shield") end, function()
+					Hit(Atk, C)
+					T.True(C.Humanoid.Health < Mine0, "a failed Shield: the hit lands on the captor")
+				end)
+				Swap(HS, "LineBlocked", function() error("hostage test: LineBlocked") end, function()
+					T.Eq(CD.CanStrike(Grunt, C), true, "a failed LineBlocked: the NPC may strike")
+				end)
+				task.wait(0.2)
+				T.True(Saw("hostage test: Shield"), "the Shield error was warned")
+				T.True(Saw("hostage test: LineBlocked"), "the LineBlocked error was warned")
+			end)
+			Conn:Disconnect()
+			if not Ok then error(Err, 0) end
 		end) end)
 	end,
 }

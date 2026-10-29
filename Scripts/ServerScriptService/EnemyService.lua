@@ -62,6 +62,23 @@ local CombatDirector = require(game:GetService("ServerScriptService"):WaitForChi
 local PerceptionService = require(game:GetService("ServerScriptService").PerceptionService)
 local Perception = require(ReplicatedStorage.Modules.Data.Rensei.Perception)
 local Takedown = require(ReplicatedStorage.Modules.Data.Rensei.Takedown)
+local Hostage = require(ReplicatedStorage.Modules.Data.Rensei.Hostage) -- (hostages Task 9 fix round 1: the shield arc)
+
+-- (hostages Task 9 fix round 1, review I3; spec §3: NPCs facing a human shield "circle for an angle instead") the unit
+-- direction from the target's root toward where a holder whose line runs through a held hostage should stand: round the
+-- target on the side it is already on, at most FLANK_STEP further than now each brain tick, until FLANK_PAST beyond the
+-- shield arc. PROPOSAL numbers.
+local FLANK_STEP = math.rad(60)
+local FLANK_PAST = math.rad(20)
+local function Flank(TRoot, FromTarget)
+	local Look = Vector3.new(TRoot.CFrame.LookVector.X, 0, TRoot.CFrame.LookVector.Z)
+	if Look.Magnitude < 0.1 then return FromTarget end
+	Look = Look.Unit
+	local Side = Look:Cross(FromTarget).Y >= 0 and 1 or -1
+	local Now = math.acos(math.clamp(Look:Dot(FromTarget), -1, 1))
+	local Want = math.min(Now + FLANK_STEP, math.rad(Hostage.ShieldArc) + FLANK_PAST)
+	return CFrame.fromAxisAngle(Vector3.yAxis, Side * Want):VectorToWorldSpace(Look)
+end
 
 local SPAWN_TAG = "RenseiEnemySpawn"
 local function Alchemy() return require(game:GetService("ServerScriptService").AlchemyService) end -- (lazy: it requires us)
@@ -393,11 +410,15 @@ local function Brain(E)
 			continue
 		end
 		-- crowding only steers: in range and ready, the enemy attacks even with an ally beside it
-		if Dist > Range or (Push.Magnitude > 1 and not ReadyToAttack) then
+		-- (hostages Task 9 fix round 1) a hostage held in front of the target blocks the line: circle to its flank instead
+		local Blocked = CombatDirector.LineBlocked(Rig, Target)
+		if Dist > Range or Blocked or (Push.Magnitude > 1 and not ReadyToAttack) then
 			local FromTarget = Flat(Root.Position - TRoot.Position)
 			FromTarget = FromTarget.Magnitude > 0.1 and FromTarget.Unit or Vector3.new(1, 0, 0)
 			local Approach = TRoot.Position + FromTarget * (Range - 1.5)
-			if Push.Magnitude > 0 then
+			if Blocked then
+				Approach = TRoot.Position + Flank(TRoot, FromTarget) * (Range - 1.5)
+			elseif Push.Magnitude > 0 then
 				-- step around the target (along the circle), away from the ally that's too close
 				local Tangent = Vector3.new(-FromTarget.Z, 0, FromTarget.X)
 				local Side = Tangent:Dot(Push) >= 0 and 1 or -1
@@ -406,7 +427,8 @@ local function Brain(E)
 			end
 			Humanoid:MoveTo(Approach)
 			SetWalking(true)
-			if Dist <= Range then Face(Target) end
+			-- (hostages Task 9 fix round 1) not while circling: Face writes the root's CFrame, which stops the walk there
+			if Dist <= Range and not Blocked then Face(Target) end
 		else
 			Humanoid:MoveTo(Root.Position)
 			SetWalking(false)

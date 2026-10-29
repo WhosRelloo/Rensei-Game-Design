@@ -54,6 +54,17 @@ local function Director()
 	return DirectorModule or nil
 end
 
+-- (hostages Task 9 fix round 1, review I6) a HostageService error in the hit path is warned (at most once per
+-- WARN_EVERY seconds, PROPOSAL: the hit path runs every swing), never swallowed; the hit then lands as it would without it
+local WARN_EVERY = 5
+local WarnedAt = {}
+local function HostageWarn(Msg)
+	local Key = Msg:match("^(%S+)") or Msg
+	if os.clock() - (WarnedAt[Key] or -math.huge) < WARN_EVERY then return end
+	WarnedAt[Key] = os.clock()
+	warn("DamageManager: " .. Msg)
+end
+
 local StateModules = {}
 
 -- loop through movesetmodules and require them
@@ -133,10 +144,22 @@ return function(Character,Victim,SkillInfo)
 		local SSS = game:GetService("ServerScriptService")
 		local HS = SSS:FindFirstChild("HostageService")
 		if HS and Victim:GetAttribute("Holding") then
-			local Ok, To = pcall(function() return require(HS).Shield(Character, Victim) end)
-			if Ok and typeof(To) == "Instance" then
+			local Ok, To, Absorbed = pcall(function() return require(HS).Shield(Character, Victim) end)
+			if not Ok then
+				HostageWarn("HostageService.Shield failed: " .. tostring(To)) -- (fix round 1, I6: the hit lands as before)
+			elseif typeof(To) == "Instance" then
+				-- (fix round 1, I4) this swing already landed on the hostage: one swing, one hit
+				if Absorbed == true then return "IFramed" end
 				ShieldHit = To ~= Victim
 				Victim = To
+			end
+		elseif HS and Victim:GetAttribute("HeldBy") then
+			-- (fix round 1, I4) a direct hit on a held hostage that the same swing already landed through the shield
+			local Ok, Lands = pcall(function() return require(HS).DirectHit(Character, Victim) end)
+			if not Ok then
+				HostageWarn("HostageService.DirectHit failed: " .. tostring(Lands))
+			elseif Lands == false then
+				return "IFramed"
 			end
 		end
 	end

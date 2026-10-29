@@ -609,6 +609,16 @@ if IsServer then
 			end
 			local Result = DamageManager(Character, Victim, Info)
 			table.insert(Results, {Victim = Victim, Result = Result})
+			-- (hostages Task 9 fix round 1, ruling I2) a shot that hit a captor from behind or the side frees the hostage:
+			-- HostageService.Rescue, the melee hits' own check (guns record no hit, so only this one listener is told; the
+			-- gun's other behaviour is unchanged). Victim is still the one the shot hit: a front shot hits the hostage first.
+			if Result == "Hit" and IsServer and Victim:GetAttribute("Holding") then
+				local HS = game:GetService("ServerScriptService"):FindFirstChild("HostageService")
+				if HS then
+					local Ok, Err = pcall(function() require(HS).Rescue(Character, Victim, Result) end)
+					if not Ok then warn("WeaponManager: HostageService.Rescue failed: " .. tostring(Err)) end
+				end
+			end
 			-- a GuardBroken shot shows as a Hit (gun rework Ruling 9 -- PROPOSAL: the guard broke, so the shot landed)
 			Shown = ((Result == "Hit" or Result == "GuardBroken") and "Hit")
 				or ((Result == "Blocked" or Result == "Shielded" or Result == "Countered") and "Blocked") or "Miss"

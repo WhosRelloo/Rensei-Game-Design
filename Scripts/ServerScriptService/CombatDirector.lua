@@ -32,7 +32,8 @@
 -- MaxMembers wait on the outer Reserve ring.
 --
 -- HUMAN SHIELD (hostages Task 9): CanStrike is false while the line to the target runs through a hostage the target
--- holds in front of it (HostageService.LineBlocked), so a holder in front holds its attack.
+-- holds in front of it (LineBlocked -> HostageService.LineBlocked), so a holder in front holds its attack, and
+-- EnemyService circles it round to the captor's flank (fix round 1, spec §3).
 --
 -- DEBUG (Studio only): TuningConfig.Squad.Debug or workspace attribute SquadDebug = true draws slot markers and
 -- role labels. Every member always carries attributes SquadEncounter / SquadRole / SquadReason.
@@ -181,16 +182,25 @@ function CombatDirector.Holds(Rig, Target)
 end
 
 -- (hostages Task 9, spec §3) the line from Rig to Target runs through a hostage: HostageService.LineBlocked, looked up
--- at call time (HostageService requires EnemyService, which requires this module), in a pcall
-local function LineBlocked(Rig, Target)
+-- at call time (HostageService requires EnemyService, which requires this module), in a pcall. (Fix round 1, review I6)
+-- an error is warned, at most once per LINE_WARN_EVERY seconds (PROPOSAL: it is asked every brain tick), and the line
+-- counts as clear, as before. (I3) Public: EnemyService circles a holder whose line is blocked.
+local LINE_WARN_EVERY = 5
+local LineWarnedAt = -math.huge
+function CombatDirector.LineBlocked(Rig, Target)
 	local HS = Target ~= nil and game:GetService("ServerScriptService"):FindFirstChild("HostageService")
 	if not HS then return false end
 	local Ok, Blocked = pcall(function() return require(HS).LineBlocked(Rig, Target) end)
+	if not Ok and os.clock() - LineWarnedAt >= LINE_WARN_EVERY then
+		LineWarnedAt = os.clock()
+		warn("CombatDirector: HostageService.LineBlocked failed: " .. tostring(Blocked))
+	end
 	return Ok and Blocked == true
 end
+local LineBlocked = CombatDirector.LineBlocked
 
 -- the holder may start a hit (past its commit delay); never through a hostage held in front of its target (the human
--- shield: it holds its attack, and the tenure handoff gives the turn to a member that isn't in front)
+-- shield: it holds its attack while EnemyService circles it to the captor's flank)
 function CombatDirector.CanStrike(Rig, Target)
 	if not CombatDirector.Holds(Rig, Target) then return false end
 	if LineBlocked(Rig, Target) then return false end

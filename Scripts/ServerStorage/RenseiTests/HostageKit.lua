@@ -17,7 +17,8 @@
 --         ProgressionService.Sync, so the level gates pass against a default stand-in whatever the owner's real level.
 --     Afterwards (even when Body failed): Kit.Clean, then the player's Holding / HeldBy cleared, a knock a case left on
 --     the player ended (DownedManager.Recover), and the player's Health, KnockedTime, SecondWindUsed and SecondWindActive
---     put back as they were; each step in its own pcall. Re-raises Body's error.
+--     (Task 9 fix round 1, review m7: and CombatMode, InCombat, CombatBy, CombatUntil and LastHitAt) put back as they
+--     were; each step in its own pcall. Re-raises Body's error.
 --   * Kit._NoSave: the function Guard asks besides DataManager.IsNoSave itself. A test swaps it (and puts it back) to
 --     prove the refusal, so the data layer itself is never touched (as pre-flight P24 rules for HostageService).
 --   * (Task 5) Kit.StandIn(At, Opts) -> Rig, PL: a stand-in player (the stand-in seam, HostageService.StandIn): a clone
@@ -56,7 +57,10 @@ Kit._NoSave = DataManager.IsNoSave
 Kit.DEEDS = {"took_hostage", "attempted_hostage", "released_hostage", "killed_hostage", "used_human_shield",
 	"paid_ransom", "took_ransom", "turned_in_fugitive", "executed_bandit"}
 
-local PUT_BACK = {"KnockedTime", "SecondWindUsed", "SecondWindActive"} -- the player's knock attributes a case may set
+-- the player's knock attributes a case may set, and (hostages Task 9 fix round 1, review m7) the combat marks a landed
+-- hit leaves on them (WorldService's CombatMode / InCombat / CombatBy / CombatUntil, DamageManager's LastHitAt)
+local PUT_BACK = {"KnockedTime", "SecondWindUsed", "SecondWindActive", "CombatMode", "InCombat", "CombatBy", "CombatUntil",
+	"LastHitAt"}
 -- the hostage attributes cleared on the player after every case
 local CLEARED = {"Holding", "HeldBy", "HostageUntil", "Struggle", "GrabImmuneUntil", "LastHostageResult", "HostageClamped"}
 local LEVEL, STRENGTH = 20, 5 -- written by hand (P1 / P2): the default stand-in's level and both sides' Strength

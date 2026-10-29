@@ -198,24 +198,34 @@
 --   character's root within Hostage.ShieldArc of the captor root's look (Hostage.InFront), and only for the captor of a
 --   HELD session (HeldSessionOf: the Holding attribute, PlayerOf -- never an NPC's -- and that PL's own session), never
 --   for an attacker who is either of the pair. The server decides who a hit lands on; no client says.
---     - Shield(Attacker, Victim) -> Model: the DamageManager function asks it first, after its IFramed checks (enemy
---       vs enemy, townsfolk, the squad token, all still judged against the captor) and before any victim state is
+--     - Shield(Attacker, Victim) -> Model, Absorbed: the DamageManager function asks it first, after its IFramed checks
+--       (enemy vs enemy, townsfolk, the squad token, all still judged against the captor) and before any victim state is
 --       read. A hit from the front lands on the hostage (alive and not knocked) instead; the first such redirect of a
 --       hold records used_human_shield (witnessed, on its own thread), once per hold (S.Shielded). DamageManager
 --       treats a hit it redirected as damage only on the welded hostage (no hitstun, knockback or flinch: the pair's
 --       physics is the captor client's, and the held pose stays). A lethal one knocks the hostage, and Broken ends the
 --       hold "knocked" (decision 5).
+--     - ONE SWING, ONE HIT (fix round 1, review I4): a front box holds both of the pair, so one swing reaches the hostage
+--       directly and again through the captor. Each landing on a hostage is noted (StruckBy: the attacker and its
+--       AttackRunner.StrikeId, or, for an attack with none, SAME_SWING seconds); the second of one swing lands nothing
+--       (Shield's Absorbed, or DirectHit false for a direct hit on a HeldBy victim): DamageManager returns "IFramed".
+--     - HitVictim(Attacker, Victim) (fix round 1, I5 / concern 3): ProgressionService.RecordHit asks it, so a hit the
+--       shield redirected reaches every HitListener as a hit on the hostage (the callers name the captor): the Task 8
+--       release window sees a knock through a shield; combat marks and training name the one hit.
 --     - LineBlocked(Rig, Target) -> bool: CombatDirector.CanStrike is false while it is true, so an NPC in front holds
---       its attack; the squad's tenure handoff then gives the turn to a member that isn't in front.
---     - The rescue (OnRescueHit, a ProgressionService.HitListeners entry; the melee pipeline -- HitboxManager.Hitbox /
---       Sweep, AlchemyService's hits -- calls RecordHit with the DamageManager function's result, after it, so the
---       listener sees a hit that landed): "Hit" on a captor by anyone but the pair, from outside the front arc ->
---       Release "rescued"; "Parried" or "PerfectParried" of the captor's own attack -> Release "parried". A front hit
---       (the one the shield took) is never a rescue: RecordHit names the captor, and the same InFront answers no. A
---       knocked captor is already "knocked" (Broken). Guns record no hit (WeaponManager.Fire), so a shot is shielded but
---       never rescues. A GUARD (IsGuard, PROPOSAL: an NPC of the State's or the Militia's law faction, Rensei.Heat.Law;
---       none spawn yet) that rescues records took_hostage again for the captor, witnessed (the guards ruling, spec §4:
---       the captor's Heat rises through the existing witness path).
+--       its attack; (fix round 1, I3) EnemyService circles the token holder round to the captor's flank instead
+--       (spec §3: "they circle for an angle"), and its attack there is a rescue.
+--     - Rescue(Attacker, Victim, Result) (OnRescueHit, a ProgressionService.HitListeners entry; the melee pipeline --
+--       HitboxManager.Hitbox / Sweep, AlchemyService's hits -- calls RecordHit with the DamageManager function's result,
+--       after it, so the listener sees a hit that landed; fix round 1, I2: WeaponManager.Fire calls Rescue itself for a
+--       shot, guns recording no hit): "Hit" on a captor by anyone but the pair, from outside the front arc -> Release
+--       "rescued"; "Parried" or "PerfectParried" of the captor's own attack by anyone but the hostage -> Release
+--       "parried". A front hit is never a rescue: it is heard on the hostage (HitVictim), and the same InFront answers
+--       no. A knocked captor is already "knocked" (Broken). A GUARD (GuardFaction, PROPOSAL: a law-faction NPC as the
+--       takedowns name one -- Takedown.IsLawFaction of its Faction, else its perception faction -- never a townsperson;
+--       none spawn yet) that rescues raises the captor's Heat ONCE by took_hostage's Crime through Rensei.Heat.Raised
+--       (heard by the guard's faction where the captor stands) and HeatService.Add; no deed is recorded (fix round 1,
+--       ruling I1: no Count, Conduct or cap slot).
 -- * Free(PL, Outcome) -> bool: that PL's session (either side) released. SessionOf(PL) -> S | nil. Forget(PL, Only):
 --   the PL's cooldown (NextAt), immunity (ImmuneUntil), re-take times (Taken) and (Task 7) struggle messages and rate
 --   window (Sends) forgotten; Only (a set, e.g. {ImmuneUntil = true}) forgets just those. Released: listeners (S, Outcome).
@@ -225,7 +235,7 @@
 -- pair back; tests and logs). Hostage's character: HeldBy (the captor's name),
 -- HostageUntil, Struggle (Task 7), GrabImmuneUntil (server time). Read: Knocked, KnockedUntil, GrippedBy, Gripping,
 -- CarriedBy, Carrying, TakenDownBy, TakingDown, Traversal, SecondWindActive, EnemyType, TownsfolkId, DialogueId,
--- Faction (Task 9: a rescuing NPC's, IsGuard).
+-- Faction (Task 9: a rescuing NPC's, GuardFaction).
 -- Session times (NextAt, ImmuneUntil, Taken, S.T0, S.Until) are os.clock(); the attributes are server time.
 
 local Players = game:GetService("Players")
@@ -240,6 +250,8 @@ local Rensei = Modules.Data.Rensei
 local Hostage = require(Rensei.Hostage)
 local Regions = require(Rensei.Regions)
 local Heat = require(Rensei.Heat)
+local Deeds = require(Rensei.Deeds) -- (Task 9 fix round 1: a guard's Heat is took_hostage's Crime)
+local Takedown = require(Rensei.Takedown) -- (Task 9 fix round 1: IsLawFaction, a guard's faction)
 local WCS = require(Modules.Framework.WCS)
 local Stun = require(Modules.Skills.States.Stun)
 local AttackRunner = require(Modules.Managers.AttackRunner)
@@ -1431,6 +1443,16 @@ end
 -- the PlayerRemoving handler (a test seam): every session of that PL released as "left" (its cooldown, immunity and
 -- re-take times are kept: a rejoin doesn't reset them)
 -- ===== the human shield and the rescue (Task 9, spec §3 / §4; see THE HUMAN SHIELD AND THE RESCUE in the header) =====
+-- (fix round 1, review I4) PROPOSAL: seconds within which a second landing of the same attacker on the same hostage is
+-- the same swing when the attack has no AttackRunner strike id (a one-frame HitboxManager.Hitbox / Radius, a cast): three
+-- server frames, below the shortest gap between two strikes of one attack (Shadow Step's 0.08 s)
+local SAME_SWING = 0.05
+-- (fix round 1, review I5 / concern 3) PROPOSAL: seconds a redirect is remembered for the RecordHit that follows it (the
+-- pipeline calls RecordHit in the same step, right after the DamageManager function)
+local REDIRECT_FOR = 0.1
+local StruckBy = setmetatable({}, {__mode = "k"}) -- [hostage character] = {By, Strike, At}: the last landing on it
+local Redirected = setmetatable({}, {__mode = "k"}) -- [attacker] = {From (captor), To (hostage), At}: its last redirect
+
 -- the Held session whose captor's character is M, or nil (PlayerOf first: never an NPC's, the PvP rule)
 local function HeldSessionOf(M)
 	if typeof(M) ~= "Instance" or not M:GetAttribute("Holding") then return nil end
@@ -1451,27 +1473,74 @@ local function InFrontOf(S, Other)
 	return At ~= nil and Hostage.InFront(CR.CFrame.LookVector, At - CR.Position)
 end
 
--- (the guards ruling, spec §4: "a guard who frees a hostage records it as witnessed") PROPOSAL: a guard is an NPC whose
--- Faction is the State's or the Militia's law faction (Rensei.Heat.Law). No law guards spawn yet (audit H14).
-local function IsGuard(M)
-	if typeof(M) ~= "Instance" or not M:IsA("Model") or not IsNpc(M) then return false end
-	local F = M:GetAttribute("Faction")
-	return F ~= nil and (F == Heat.Law.State or F == Heat.Law.Militia)
+-- (fix round 1, ruling I1) a guard is a law-faction NPC, as the takedowns name one (TakedownService's FactionOf and
+-- Takedown.IsLawFaction: its Faction attribute, else its perception faction, the State's or the Militia's law), and
+-- never a townsperson (a TownsfolkId). Returns its faction, or nil. No law guards spawn yet (audit H14).
+local function GuardFaction(M)
+	if typeof(M) ~= "Instance" or not M:IsA("Model") or not IsNpc(M) or M:GetAttribute("TownsfolkId") ~= nil then return nil end
+	local PS = require(ServerScriptService.PerceptionService).Npcs[M]
+	local F = M:GetAttribute("Faction") or (PS and PS.Faction) or nil
+	return Takedown.IsLawFaction(F) and F or nil
 end
 
--- DamageManager (server only, its first step after the IFramed checks): who a hit on Victim lands on. The hostage when
--- Victim is the captor of a Held session, the hostage is up (alive, not knocked), the attacker is neither of the pair,
--- and it stands in the captor's front arc; otherwise Victim. The first redirect of a hold records used_human_shield
--- (witnessed), once per hold.
+-- (fix round 1, ruling I1) a guard freed the captor's hostage: the captor's Heat raised ONCE by the taking's Crime, by the
+-- existing rule (Rensei.Heat.Raised: where the captor stands, heard by the guard's faction; HeatService.Add, with the
+-- deed's HeatCap; TakedownService's found-guard Heat has the same shape), and no deed recorded -- no Count, no Conduct, no daily cap slot, no toast, no rumour
+local function GuardHeat(S, Faction)
+	if not (IsPlayer(S.Captor) and S.Captor.Parent == Players) then return end
+	local Def = Deeds.took_hostage
+	local Region = require(ServerScriptService.MoralityService).RegionOf(S.CC)
+	local HeatService = require(ServerScriptService.HeatService)
+	for _, X in ipairs(Heat.Raised(Regions.Regions[Region], {Faction}, Def)) do
+		HeatService.Add(S.Captor, X.J, X.Amount, Region, Def.HeatCap)
+	end
+end
+
+-- (fix round 1, review I4) true when this landing on the hostage HC is the attacker's second of one swing (the same
+-- AttackRunner strike, or without one, within SAME_SWING): the swing already landed on it. Else it is noted as the last.
+local function SameSwing(HC, Attacker)
+	local Id = AttackRunner.StrikeId(Attacker)
+	local Now = os.clock()
+	local Last = StruckBy[HC]
+	if Last and Last.By == Attacker and Last.Strike == Id and (Id ~= nil or Now - Last.At < SAME_SWING) then return true end
+	StruckBy[HC] = {By = Attacker, Strike = Id, At = Now}
+	return false
+end
+
+-- DamageManager (server only, its first step after the IFramed checks): who a hit on Victim lands on -> Model, Absorbed.
+-- The hostage when Victim is the captor of a Held session, the hostage is up (alive, not knocked), the attacker is
+-- neither of the pair, and it stands in the captor's front arc; otherwise Victim. Absorbed (fix round 1, I4) is true when
+-- that swing already landed on the hostage (one swing, one hit): DamageManager then lands nothing. The first redirect of
+-- a hold records used_human_shield (witnessed), once per hold. (I5) The redirect is remembered for HitVictim.
 function HostageService.Shield(Attacker, Victim)
+	Redirected[Attacker] = nil
 	local S = HeldSessionOf(Victim)
-	if not S or Attacker == S.HC or Attacker == S.CC then return Victim end
-	if not Alive(S.HC) or DownedManager.IsKnocked(S.HC) or not InFrontOf(S, Attacker) then return Victim end
+	if not S or Attacker == S.HC or Attacker == S.CC then return Victim, false end
+	if not Alive(S.HC) or DownedManager.IsKnocked(S.HC) or not InFrontOf(S, Attacker) then return Victim, false end
+	Redirected[Attacker] = {From = Victim, To = S.HC, At = os.clock()}
+	if SameSwing(S.HC, Attacker) then return S.HC, true end
 	if not S.Shielded then
 		S.Shielded = true
 		task.spawn(Record, S.Captor, "used_human_shield", {Witness = true}) -- (never delays the hit)
 	end
-	return S.HC
+	return S.HC, false
+end
+
+-- (fix round 1, review I4) DamageManager, for a victim with HeldBy hit directly: false when that swing already landed on
+-- it through the shield (or directly), so it lands once
+function HostageService.DirectHit(Attacker, Victim)
+	if typeof(Victim) ~= "Instance" or not Victim:GetAttribute("HeldBy") then return true end
+	return not SameSwing(Victim, Attacker)
+end
+
+-- (fix round 1, review I5 / concern 3) ProgressionService.RecordHit: the character a hit really landed on. A hit the
+-- shield redirected is reported by its caller on the captor; this gives the hostage instead (once: the note is used up),
+-- so every HitListener -- the Task 8 release window, the combat marks, training, encounters -- hears the real victim.
+function HostageService.HitVictim(Attacker, Victim)
+	local R = typeof(Attacker) == "Instance" and Redirected[Attacker]
+	if not R or R.From ~= Victim or os.clock() - R.At > REDIRECT_FOR then return Victim end
+	Redirected[Attacker] = nil
+	return R.To
 end
 
 -- CombatDirector.CanStrike: Rig's line to Target runs through a hostage (Target is the captor of a Held session and Rig,
@@ -1482,27 +1551,29 @@ function HostageService.LineBlocked(Rig, Target)
 	return InFrontOf(S, Rig)
 end
 
--- ProgressionService.HitListeners (the pipeline calls RecordHit after the DamageManager function, so the hit has
--- landed): a landed hit on a captor from behind or the side by anyone but the pair -> "rescued"; a parry of the
--- captor's attack -> "parried". Through the one Release. A guard that did it records the taking again, witnessed.
-local function OnRescueHit(Attacker, Victim, Result)
+-- the rescue (a ProgressionService.HitListeners entry; fix round 1, ruling I2: WeaponManager.Fire calls it for a shot):
+-- a landed hit on a captor from behind or the side by anyone but the pair -> "rescued"; a parry of the captor's attack
+-- by anyone but the hostage -> "parried". Through the one Release. A guard that did it raises the captor's Heat once.
+-- A hit the shield redirected reaches the listeners as a hit on the hostage (HitVictim), which holds nobody.
+function HostageService.Rescue(Attacker, Victim, Result)
 	local S, Rescuer, Outcome
 	if Result == "Hit" then
 		S = HeldSessionOf(Victim)
-		if not S or Attacker == S.HC or Attacker == S.CC or InFrontOf(S, Attacker) then return end
+		if not S or Attacker == S.HC or Attacker == S.CC or InFrontOf(S, Attacker) then return false end
 		Rescuer, Outcome = Attacker, "rescued"
 	elseif Result == "Parried" or Result == "PerfectParried" then
 		S = HeldSessionOf(Attacker)
-		if not S or Victim == S.CC then return end
+		if not S or Victim == S.CC or Victim == S.HC then return false end
 		Rescuer, Outcome = Victim, "parried"
 	else
-		return
+		return false
 	end
-	if not Release(S, Outcome) then return end
-	if IsGuard(Rescuer) and IsPlayer(S.Captor) and S.Captor.Parent == Players then
-		Record(S.Captor, "took_hostage", {Witness = true})
-	end
+	if not Release(S, Outcome) then return false end
+	local Faction = GuardFaction(Rescuer)
+	if Faction then Step("the guard's Heat", GuardHeat, S, Faction) end
+	return true
 end
+local function OnRescueHit(Attacker, Victim, Result) HostageService.Rescue(Attacker, Victim, Result) end
 
 function HostageService._Left(PL)
 	Each(function(S)

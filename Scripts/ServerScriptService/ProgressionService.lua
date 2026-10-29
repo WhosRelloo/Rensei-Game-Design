@@ -226,7 +226,23 @@ end
 -- Called by the combat pipeline with the resolved outcome of every hit.
 ProgressionService.HitListeners = {}
 
+-- (hostages Task 9 fix round 1, review concern 3 / I5) the character a hit really landed on: a hit the human shield
+-- redirected onto a hostage is reported here, by its caller, on the captor. HostageService.HitVictim (looked up at call
+-- time, in a pcall; an error is warned and the caller's victim kept) gives the hostage, so every listener and the
+-- training below name the one that was hit.
+local function HitVictim(Attacker, Victim)
+	local HS = Victim ~= nil and ServerScriptService:FindFirstChild("HostageService")
+	if not HS then return Victim end
+	local Ok, Real = pcall(function() return require(HS).HitVictim(Attacker, Victim) end)
+	if not Ok then
+		warn("ProgressionService: HostageService.HitVictim failed: " .. tostring(Real))
+		return Victim
+	end
+	return typeof(Real) == "Instance" and Real or Victim
+end
+
 function ProgressionService.RecordHit(Attacker, Victim, Result)
+	Victim = HitVictim(Attacker, Victim)
 	local AttackerPlayer = Players:GetPlayerFromCharacter(Attacker)
 	local VictimPlayer = Players:GetPlayerFromCharacter(Victim)
 	for _, Listener in ipairs(ProgressionService.HitListeners) do

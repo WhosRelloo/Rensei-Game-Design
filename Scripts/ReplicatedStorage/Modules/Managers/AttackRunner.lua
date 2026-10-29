@@ -33,6 +33,10 @@ AttackRunner.CrouchStuns = setmetatable({}, {__mode = "k"})
 
 -- (a plain table: a weak-keyed one can drop a live Instance key; Finish always clears the entry)
 local Runs = {} -- [Character] = token of the current run
+-- (hostages Task 9 fix round 1) [Character] = the id of the strike (one hitbox sweep) running now, nil between them:
+-- HostageService lands one swing on a hostage once, though the box holds both of a held pair
+local Strikes = setmetatable({}, {__mode = "k"})
+local StrikeSeq = 0
 
 local function Stunned(WCSCharacter)
 	return WCSCharacter:HasStatusEffects({Stun})
@@ -246,10 +250,14 @@ function RunBody(WCSCharacter, Def, SkillName, Opts)
 	if Opts.OnActive then task.spawn(Opts.OnActive, Character) end
 	local Results = {}
 	local function Strike(Name, Duration)
+		StrikeSeq += 1
+		local Id = StrikeSeq
+		Strikes[Character] = Id
 		-- pcall: a failing strike must not leave the attacker stuck in this attack's state
 		local Ok, Got = pcall(function()
 			return Opts.Strike and Opts.Strike(Character, Name, Def) or HitboxManager.Sweep(Character, Name, Duration)
 		end)
+		if Strikes[Character] == Id then Strikes[Character] = nil end
 		if not Ok then
 			warn("AttackRunner strike", Name, "failed:", Got)
 			return
@@ -317,6 +325,9 @@ function AttackRunner.Feint(Character)
 	Character:SetAttribute("FeintRequested", true)
 	return true
 end
+
+-- (hostages Task 9 fix round 1) the id of the character's strike running now (one hitbox sweep of an attack), or nil
+function AttackRunner.StrikeId(Character) return Strikes[Character] end
 
 function AttackRunner.IsRunning(Character)
 	return Runs[Character] ~= nil
