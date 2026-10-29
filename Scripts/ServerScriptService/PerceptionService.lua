@@ -37,6 +37,17 @@
 -- (taken out of the world) is never looked for, and a body's per-finder fill forgets finders that are gone (weak keys).
 -- Bodies come from TakedownService's kills and from every finished grip on an NPC (owner 2026-10-27: "Gripped bodies
 -- can be used as clues too"; DownedManager.Finish registers both).
+-- Stealth missions Plan 1 Task 3 (2026-10-29): hooks for GuardService, so it can listen without this service knowing about
+-- guards; with no listener and the default PickLookers everything behaves exactly as before. Listeners are lists of
+-- functions, each run in a pcall: PhaseChanged (Rig, New, Old) after any phase change, LostSight (Rig, Where) when an Alert
+-- NPC begins searching for a focus it lost -- both deferred (task.defer), so a listener never runs inside Decide's loop over
+-- the NPCs -- and Heard (Hearers, Position, Kind, Source) once per Hear that someone heard. PickLookers(Hearers, Position, Kind)
+-- picks which of a sound's hearers go to look (default: all of them, today's rule; GuardService replaces it; a PickLookers
+-- that errors falls back to all); Hear still returns the count of all hearers. Look(Rig, Where) sends a calm NPC to look at a
+-- spot (refused when untracked, Alert, dead, Knocked or TakenDownBy). Floor(Rig, Until) keeps an NPC at Cautious or above
+-- until that perception time (every place that sets CautiousUntil takes the later of its own and the floor; Reset clears it).
+-- Now() is the perception time. Register sets the rig attribute PerceptionType (the NPC's perception type) for the client's
+-- cone range.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -69,11 +80,27 @@ local function Alive(Model)
 	return H ~= nil and H.Health > 0
 end
 
+-- (stealth missions Plan 1 Task 3, 2026-10-29) hooks for GuardService: listeners, Look, Floor, Now, PickLookers
+PerceptionService.PhaseChanged = {} -- (Rig, New, Old), deferred, each in a pcall
+PerceptionService.LostSight = {} -- (Rig, Where): an Alert NPC began searching for the focus it lost, deferred
+PerceptionService.Heard = {} -- (Hearers, Position, Kind, Source): a sound someone heard
+local function Fire(List, ...)
+	for _, Fn in ipairs(List) do
+		local Ok, Err = pcall(Fn, ...)
+		if not Ok then warn("PerceptionService listener:", Err) end
+	end
+end
+-- the hearers of a sound that go to look; the default keeps the old rule (all of them). GuardService replaces it.
+function PerceptionService.PickLookers(Hearers) return Hearers end
+function PerceptionService.Now() return Clock end
+
 local function SetPhase(S, Phase)
 	if S.Phase == Phase then return end
+	local Old = S.Phase
 	S.Phase = Phase
 	S.Since = Now()
 	S.Rig:SetAttribute("Awareness", Phase)
+	if #PerceptionService.PhaseChanged > 0 then task.defer(Fire, PerceptionService.PhaseChanged, S.Rig, Phase, Old) end
 end
 
 function PerceptionService.Register(Rig, Info)
@@ -87,6 +114,7 @@ function PerceptionService.Register(Rig, Info)
 	}
 	Npcs[Rig] = S
 	Rig:SetAttribute("Awareness", "Unaware")
+	Rig:SetAttribute("PerceptionType", S.Type) -- (stealth Plan 1 Task 3) the client reads it for the cone's range
 	Rig.Destroying:Once(function() Npcs[Rig] = nil end)
 	return S
 end
@@ -163,13 +191,17 @@ local function Decide(S, Best, BestPlayer, T)
 		local Seen = S.Focus and S.Seen[S.Focus]
 		if Seen and T - Seen <= P.Memory then S.SearchUntil = nil return end
 		if not S.SearchUntil then
+			local Lost = S.Focus ~= nil -- (stealth Plan 1 Task 3) it lost a focus: LostSight, below
 			S.SearchUntil = T + P.SearchTime
 			S.LastKnown = (S.Focus and S.Spot[S.Focus]) or S.LastKnown
 			if S.Focus then Call(S, S.Focus, S.LastKnown) end -- (the focus may have left mid-fight: nobody to call about)
+			if Lost and S.LastKnown and #PerceptionService.LostSight > 0 then
+				task.defer(Fire, PerceptionService.LostSight, S.Rig, S.LastKnown)
+			end
 		elseif T >= S.SearchUntil then
 			for K in pairs(S.Aware) do S.Aware[K] = 0 end
 			S.Focus, S.SearchUntil, S.LastKnown = nil, nil, nil
-			S.CautiousUntil = T + P.CautiousTime
+			S.CautiousUntil = math.max(T + P.CautiousTime, S.FloorUntil or 0) -- (stealth Plan 1 Task 3) the floor can hold it longer
 			SetPhase(S, "Cautious")
 		end
 		return
@@ -385,7 +417,7 @@ function PerceptionService.Lose(Rig, Home, Range)
 	if typeof(Home) == "Vector3" and type(Range) == "number" then S.Leash = {Home = Home, Range = Range} end
 	for K in pairs(S.Aware) do S.Aware[K] = 0 end
 	S.Focus, S.SearchUntil, S.LastKnown = nil, nil, nil
-	S.CautiousUntil = Now() + P.CautiousTime
+	S.CautiousUntil = math.max(Now() + P.CautiousTime, S.FloorUntil or 0) -- (stealth Plan 1 Task 3) the floor can hold it longer
 	SetPhase(S, "Cautious")
 end
 
@@ -397,6 +429,7 @@ function PerceptionService.Reset(Rig)
 	S.Pending = {}
 	S.Focus, S.SearchUntil, S.LastKnown, S.Leash = nil, nil, nil, nil
 	S.InvestigateUntil, S.CautiousUntil = 0, 0
+	S.FloorUntil = nil -- (stealth Plan 1 Task 3) a reset is a fresh NPC
 	SetPhase(S, "Unaware")
 end
 
@@ -450,9 +483,11 @@ PerceptionService.Walls = Walls
 -- a sound (NoiseService) of Radius at Position: NPCs that hear it through the walls between (each takes
 -- P.WallCut off the radius), x1.3 while Cautious and x2 for Agents hearing alchemy, go to look at the spot.
 -- Source (optional): the character that made it (never blocks its own sound). Returns how many heard it.
+-- (stealth Plan 1 Task 3) PickLookers chooses which of the hearers go to look (default: all of them); the Heard listeners
+-- are told of every hearer; the return value stays the count of all hearers.
 function PerceptionService.Hear(Position, Radius, Kind, Source)
 	local T = Now()
-	local Heard = 0
+	local Hearers = {}
 	for Rig, S in pairs(Npcs) do
 		local Head = Rig:FindFirstChild("Head")
 		if Head and S.Phase ~= "Alert" and Rig ~= Source and Alive(Rig) and not Rig:GetAttribute("Knocked") and not Rig:GetAttribute("TakenDownBy") then
@@ -461,14 +496,43 @@ function PerceptionService.Hear(Position, Radius, Kind, Source)
 			local Dist = (Head.Position - Position).Magnitude
 			if Dist <= Reach then
 				local N = Walls(Position, Head.Position, {Rig, Source})
-				if Dist <= P.Muffled(Reach, N) then
-					Investigate(S, Position, T)
-					Heard += 1
-				end
+				if Dist <= P.Muffled(Reach, N) then table.insert(Hearers, Rig) end
 			end
 		end
 	end
-	return Heard
+	if #Hearers == 0 then return 0 end
+	local Ok, Pick = pcall(PerceptionService.PickLookers, Hearers, Position, Kind)
+	if not Ok then
+		warn("PerceptionService PickLookers:", Pick)
+		Pick = Hearers
+	end
+	if type(Pick) ~= "table" then Pick = Hearers end
+	for _, Rig in ipairs(Pick) do
+		local S = Npcs[Rig]
+		if S then Investigate(S, Position, T) end
+	end
+	Fire(PerceptionService.Heard, Hearers, Position, Kind, Source)
+	return #Hearers
+end
+
+-- (stealth Plan 1 Task 3) Rig goes to look at Where: Suspicious, as if it had heard something there. Refused (false) when
+-- nothing tracks it, it is Alert, dead, Knocked or being taken down.
+function PerceptionService.Look(Rig, Where)
+	local S = Npcs[Rig]
+	if not S or typeof(Where) ~= "Vector3" or S.Phase == "Alert" or not Alive(Rig)
+		or Rig:GetAttribute("Knocked") or Rig:GetAttribute("TakenDownBy") then return false end
+	Investigate(S, Where, Now())
+	return true
+end
+
+-- (stealth Plan 1 Task 3) until Until (perception time) Rig never drops below Cautious: an Unaware NPC is Cautious at once,
+-- and every place that sets CautiousUntil takes the later of its own and the floor.
+function PerceptionService.Floor(Rig, Until)
+	local S = Npcs[Rig]
+	if not S or type(Until) ~= "number" then return end
+	S.FloorUntil = math.max(S.FloorUntil or 0, Until)
+	S.CautiousUntil = math.max(S.CautiousUntil, S.FloorUntil)
+	if S.Phase == "Unaware" then SetPhase(S, "Cautious") end
 end
 
 -- NPCs that saw this player within the last Memory seconds: the witnesses of whatever the player does
