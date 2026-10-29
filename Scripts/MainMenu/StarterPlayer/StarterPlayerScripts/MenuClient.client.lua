@@ -176,13 +176,38 @@ pcall(function() game:GetService("TextChatService").ChatInputBarConfiguration.En
 local Gui = New("ScreenGui", {Name = "RenseiMenu", IgnoreGuiInset = true, ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 	Parent = Player:WaitForChild("PlayerGui")})
 local Scale = New("UIScale", {Parent = Gui})
+-- Phones (owner 2026-10-28: "build a phone/touch layout for the menu so text stays readable on small screens"): a short
+-- screen gets its own layout, PHONE_H layout pixels tall, instead of the 1100 x 720 one shrunk to fit (that halved every
+-- word: 15 px read as 8 on a phone). Relayout (near the end) moves and resizes the pieces for it. In Studio,
+-- ReplicatedStorage's MenuPhonePreview attribute (a Vector2, e.g. 844, 390) lays the menu out as that phone would,
+-- magnified to fill the viewport, for checking by eye; a live server never reads it.
+local PHONE_H = 430
+local Phone = false
+local Relayout -- (defined once the screens exist)
+local LayoutWidth = 0
+local function PhonePreview()
+	local Pv = RunService:IsStudio() and ReplicatedStorage:GetAttribute("MenuPhonePreview")
+	return typeof(Pv) == "Vector2" and Pv or nil
+end
 local function Rescale()
 	local V = Camera.ViewportSize
-	-- capped at 1 (2026-10-18): the art was drawn for this 1100 x 720 layout; scaling it up (1.5x at 1080p)
-	-- stretched the plates past their pixels and blurred them. Smaller screens still scale down.
-	Scale.Scale = math.clamp(math.min(V.Y / 720, V.X / 1100), 0.5, 1)
+	local Pv = PhonePreview()
+	local Was = Phone
+	Phone = Pv ~= nil or V.Y < 560
+	if Phone then
+		local Ref = Pv or V
+		Scale.Scale = V.Y / (Ref.Y / math.clamp(Ref.Y / PHONE_H, 0.8, 1)) -- (the phone's own layout height, filling this screen)
+	else
+		-- capped at 1 (2026-10-18): the art was drawn for this 1100 x 720 layout; scaling it up (1.5x at 1080p)
+		-- stretched the plates past their pixels and blurred them. Smaller screens still scale down.
+		Scale.Scale = math.clamp(math.min(V.Y / 720, V.X / 1100), 0.5, 1)
+	end
+	-- (a new layout when the kind of screen flips, or a phone's width in layout pixels changes)
+	local Width = math.floor(V.X / Scale.Scale / 8)
+	if Relayout and (Phone ~= Was or (Phone and Width ~= LayoutWidth)) then LayoutWidth = Width Relayout() end
 end
 Camera:GetPropertyChangedSignal("ViewportSize"):Connect(Rescale)
+ReplicatedStorage:GetAttributeChangedSignal("MenuPhonePreview"):Connect(Rescale)
 Rescale()
 
 -- ===== Preview rig (idles; claps a transmutation now and then) =====
@@ -986,7 +1011,8 @@ end
 local Shop = Modal("Rerolls", KIT.PanelTall, 400, 438, "CLAN REROLLS")
 local OpenShop
 do
-	local Body2 = New("Frame", {BackgroundTransparency = 1, Size = UDim2.new(1, -70, 1, -100), Position = UDim2.fromOffset(35, 60), ZIndex = 31, Parent = Shop})
+	local Body2 = New("ScrollingFrame", {BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, -70, 1, -100), Position = UDim2.fromOffset(35, 60), ZIndex = 31,
+		CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 3, ScrollBarImageColor3 = GOLD, Parent = Shop})
 	List(Body2, 8)
 	local Have = Label("", {FontFace = FONT_B, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 32, LayoutOrder = 1, Parent = Body2})
 	for I, Pack in ipairs(Clans.RerollPacks) do
@@ -1104,7 +1130,8 @@ end)
 -- Saved looks / the Creator Plus pitch
 local LooksPanel = Modal("Looks", KIT.PanelTall, 420, 470, "SAVED LOOKS")
 LooksPanel.AnchorPoint, LooksPanel.Position = Vector2.new(1, 0.5), UDim2.new(1, -30, 0.5, 0) -- right side: the character stays in view
-local LooksBody = New("Frame", {Name = "Body", BackgroundTransparency = 1, Size = UDim2.new(1, -70, 1, -100), Position = UDim2.fromOffset(35, 62), ZIndex = 31, Parent = LooksPanel})
+local LooksBody = New("ScrollingFrame", {Name = "Body", BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, -70, 1, -100), Position = UDim2.fromOffset(35, 62), ZIndex = 31,
+	CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 3, ScrollBarImageColor3 = GOLD, Parent = LooksPanel})
 List(LooksBody, 8)
 local function Z(G, N) -- the modal's layers (built after the ZIndex pass below)
 	G.ZIndex = N
@@ -1585,9 +1612,10 @@ local function Bust(Parent, Fig)
 	end)
 end
 
-local Grid = New("Frame", {Name = "Grid", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -26, 0, 28),
-	Size = UDim2.fromOffset(2 * 330 + 12, 3 * 74), Visible = false, ZIndex = 6, Parent = SlotScreen})
-New("UIGridLayout", {CellSize = UDim2.fromOffset(330, 64), CellPadding = UDim2.fromOffset(12, 10), SortOrder = Enum.SortOrder.LayoutOrder, Parent = Grid})
+local Grid = New("ScrollingFrame", {Name = "Grid", BackgroundTransparency = 1, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -26, 0, 28),
+	Size = UDim2.fromOffset(2 * 330 + 12, 3 * 74), Visible = false, ZIndex = 6, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	ScrollingDirection = Enum.ScrollingDirection.Y, ScrollBarThickness = 0, ScrollBarImageColor3 = GOLD, Parent = SlotScreen})
+local GridLayout = New("UIGridLayout", {CellSize = UDim2.fromOffset(330, 64), CellPadding = UDim2.fromOffset(12, 10), SortOrder = Enum.SortOrder.LayoutOrder, Parent = Grid})
 
 -- the painted card frames once uploaded (9-slice), the kit's rarity frames until then
 local function CardImage(Hover)
@@ -1614,8 +1642,9 @@ end
 
 -- a card's kit icon (bottom right, right to left): delete, edit, favourite
 local function SmallIcon(B, Name, Image, Index, OnClick, Ticked)
-	local I = IconButton(Image, {Name = Name, Size = UDim2.fromOffset(22, 22), AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -14 - (Index - 1) * 25, 1, -4), ZIndex = 9, Parent = B}, Ticked)
+	local Sz = Phone and 30 or 22 -- (big enough for a thumb on a phone)
+	local I = IconButton(Image, {Name = Name, Size = UDim2.fromOffset(Sz, Sz), AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -14 - (Index - 1) * (Sz + 4), 1, -4), ZIndex = 9, Parent = B}, Ticked)
 	I.Activated:Connect(OnClick)
 	return I
 end
@@ -1662,6 +1691,7 @@ local function SaveLook()
 	LeaveCreator()
 end
 
+local CardsBuild = 0
 local function ShowPainted()
 	Panel.Visible, TurnBar.Visible, Card.Visible, LooksPanel.Visible, Confirm.Visible = false, false, false, false, false
 	MainMenu.Visible, SlotScreen.Visible = true, true
@@ -1672,8 +1702,12 @@ local function ShowPainted()
 	Creating = false
 	RigShown = false
 	PlaceRig()
-	for _, C in ipairs(Grid:GetChildren()) do if C:IsA("GuiObject") then C:Destroy() end end
+	-- (a newer call wins: two at once, e.g. a layout change while the list loads, would otherwise both fill the grid)
+	CardsBuild += 1
+	local Build = CardsBuild
 	local Info = Remote:InvokeServer("Slots")
+	if Build ~= CardsBuild then return end
+	for _, C in ipairs(Grid:GetChildren()) do if C:IsA("GuiObject") then C:Destroy() end end
 	if not Info then Say("Couldn't load your save slots. Rejoin to try again.") return end
 	table.sort(Info.List, function(A, B)
 		if (A.Slot == Info.Favorite) ~= (B.Slot == Info.Favorite) then return A.Slot == Info.Favorite end
@@ -1704,12 +1738,16 @@ local function ShowPainted()
 			local Clan = Clans.Roster[S.Clan]
 			local Tier = Clan and Clan.Rarity
 			CardText(B, S.Name, {FontFace = FONT_B, TextSize = 17, TextColor3 = Color3.fromRGB(232, 226, 214), Size = UDim2.new(0, 170, 0, 20), Position = UDim2.fromOffset(76, 10)})
-			CardText(B, ("Lv %d%s"):format(S.Level, Tier and (" · <font color='#%s'>%s</font>"):format(RARITY_HEX[Tier] or "e0d8c8", Clan.Name) or ""),
-				{TextSize = 15, TextColor3 = DIM, Size = UDim2.new(0, 160, 0, 18), Position = UDim2.fromOffset(76, 33)})
+			local NationName = Customization.Nations[S.Origin] and Customization.Nations[S.Origin].Name or ""
+			CardText(B, ("Lv %d%s"):format(S.Level, Tier and (" · <font color='#%s'>%s</font>"):format(RARITY_HEX[Tier] or "e0d8c8", Clan.Name) or "")
+				.. (Phone and NationName ~= "" and (" · " .. NationName) or ""), -- (on a phone the nation shares this line: the icons are bigger)
+				{TextSize = 15, TextColor3 = DIM, Size = UDim2.new(0, Phone and 150 or 160, 0, 18), Position = UDim2.fromOffset(76, 33)})
 			local Region = RegionNames[S.Region] and RegionNames[S.Region].Name or (S.Region ~= "" and S.Region or "")
 			CardText(B, Region, {TextSize = 15, TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Right, Size = UDim2.new(0, 110, 0, 18), Position = UDim2.new(1, -124, 0, 8)})
-			CardText(B, Customization.Nations[S.Origin] and Customization.Nations[S.Origin].Name or "", {TextSize = 15, TextColor3 = DIM,
-				TextXAlignment = Enum.TextXAlignment.Right, Size = UDim2.new(0, 84, 0, 18), Position = UDim2.new(1, -176, 0, 33)})
+			if not Phone then
+				CardText(B, NationName, {TextSize = 15, TextColor3 = DIM,
+					TextXAlignment = Enum.TextXAlignment.Right, Size = UDim2.new(0, 84, 0, 18), Position = UDim2.new(1, -176, 0, 33)})
+			end
 			local Fav = S.Slot == Info.Favorite
 			SmallIcon(B, "Trash", KIT.Close, 1, function()
 				Pending = S.Slot
@@ -1858,6 +1896,35 @@ FinishBtn.Activated:Connect(function()
 	Play()
 	if Painted and RunService:IsStudio() then AlcoveSlot = nil ShowSlots() end -- (Studio doesn't teleport: back to the cards)
 end)
+
+-- ===== Layout: the phone and desktop places of the pieces (Rescale decides which; the desktop values are the originals) =====
+Relayout = function()
+	local P = Phone
+	local Logo = MainMenu:FindFirstChild("Logo")
+	MainMenu.Size, MainMenu.Position = P and UDim2.new(0, 330, 1, 0) or UDim2.new(0, 460, 1, 0), P and UDim2.new(0, 34, 0, 0) or UDim2.new(0, 70, 0, 0)
+	if Logo then
+		-- (below Roblox's top bar either way)
+		Logo.Size, Logo.Position = P and UDim2.new(0, 300, 0, 128) or UDim2.new(0, 420, 0, 180), P and UDim2.new(0, -6, 0, 52) or UDim2.new(0, -10, 0.15, 12)
+	end
+	MenuButtons.Size, MenuButtons.Position = P and UDim2.new(0, 270, 0, 200) or UDim2.new(0, 300, 0, 200), P and UDim2.new(0, 8, 0, 192) or UDim2.new(0, 10, 0.4, 40)
+	-- the slot cards: one scrolling column on the right on a phone, two columns top right on a desktop
+	Grid.Size, Grid.Position = P and UDim2.new(0, 340, 1, -86) or UDim2.fromOffset(2 * 330 + 12, 3 * 74), P and UDim2.new(1, -12, 0, 22) or UDim2.new(1, -26, 0, 28)
+	GridLayout.CellSize = P and UDim2.fromOffset(330, 68) or UDim2.fromOffset(330, 64)
+	Grid.ScrollBarThickness = P and 4 or 0
+	-- the creator: the panel full height and narrower, the turn bar and tools clear of it, the summary card above them
+	-- (on a phone the panel's title plate stays below Roblox's top bar, which sits over the top left there)
+	Panel.Size, Panel.Position = P and UDim2.new(0, 360, 1, -70) or UDim2.fromOffset(470, 540), P and UDim2.new(0, 10, 0.5, 28) or UDim2.new(0, 26, 0.5, 8)
+	TurnBar.Position = P and UDim2.new(1, -200, 1, -10) or UDim2.new(0.56, 0, 1, -40) -- (on a phone: from the right edge, clear of the panel)
+	Card.Size, Card.Position = P and UDim2.fromOffset(270, 270) or UDim2.fromOffset(340, 340), P and UDim2.new(1, -12, 0.42, 0) or UDim2.new(1, -30, 0.5, 0)
+	-- the windows: never taller than the screen (their contents scroll)
+	local LW = Camera.ViewportSize.X / Scale.Scale -- (the screen's width in layout pixels)
+	Index.Size = P and UDim2.fromOffset(math.min(800, LW - 24), 410) or UDim2.fromOffset(800, 526)
+	Shop.Size = P and UDim2.fromOffset(400, 410) or UDim2.fromOffset(400, 438)
+	LooksPanel.Size = P and UDim2.fromOffset(400, 410) or UDim2.fromOffset(420, 470)
+	Toast.Size = P and UDim2.fromOffset(560, 44) or UDim2.fromOffset(600, 48)
+	if Painted and SlotScreen.Visible and Grid.Visible then ShowSlots() end -- (the cards are built for the layout)
+end
+Relayout()
 
 -- start
 ShowTitle()
