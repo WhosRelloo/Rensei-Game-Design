@@ -84,19 +84,25 @@ local SPAWN_TAG = "RenseiEnemySpawn"
 local function Alchemy() return require(game:GetService("ServerScriptService").AlchemyService) end -- (lazy: it requires us)
 -- (stealth Plan 1 Task 4) GuardService, required on first use: it requires this service (Task 5), as PerceptionService
 -- reaches SwimService. If it can't load, every enemy is no guard (a stub answers), so enemies without a net are untouched.
+-- (Task 4 fix round 1, ruling T4-own) a miss isn't cached: the next call tries again (RenseiBoot may move the module in
+-- after the first enemy spawned), with one warn in all.
 local GuardMod = nil
+local GuardWarned = false
 local NO_GUARDS = {Guards = {}, Idle = function() return nil end, Interrupt = function() end,
 	Track = function() return nil end, RouteFor = function() return nil end}
 local function Guard()
-	if not GuardMod then
-		local M = game:GetService("ServerScriptService"):FindFirstChild("GuardService")
-		local Ok, G = pcall(function() return M and require(M) end)
-		if Ok and G then GuardMod = G else
-			GuardMod = NO_GUARDS
-			warn("EnemyService: GuardService didn't load, no enemy is a guard:", Ok and "missing" or G)
-		end
+	if GuardMod then return GuardMod end
+	local M = game:GetService("ServerScriptService"):FindFirstChild("GuardService")
+	local Ok, G = pcall(function() return M and require(M) end)
+	if Ok and G then
+		GuardMod = G
+		return G
 	end
-	return GuardMod
+	if not GuardWarned then
+		GuardWarned = true
+		warn("EnemyService: GuardService didn't load, no enemy is a guard for now:", Ok and "missing" or G)
+	end
+	return NO_GUARDS
 end
 local SightParams = RaycastParams.new()
 SightParams.FilterType = Enum.RaycastFilterType.Include
@@ -373,7 +379,10 @@ local function Brain(E)
 				continue
 			end
 			local Routine = Guard().Idle(Rig) -- (stealth Plan 1 Task 4) a guard on a net keeps its routine; nil = not a guard
-			if Routine then SetWalking(Routine == "walking") continue end
+			-- (Task 4 fix round 1, controller ruling T4-walk, against the plan's literal SetWalking(Routine == "walking")):
+			-- the Mover plays its own walk track on a routine walk (Mover.lua Animate), so this one stays off; two tracks
+			-- blended out of phase, and this one kept playing through the arrival turn
+			if Routine then SetWalking(false) continue end
 			-- leash: walk home and recover
 			local Home = E.Home.Position
 			if Flat(Home - Root.Position).Magnitude > 4 then

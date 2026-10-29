@@ -17,10 +17,22 @@
 --   * SpawnWithNetIsTracked: EnemyService.Spawn of a RenseiEnemySpawn part with a Net tracks the rig there, its post at
 --     the part; a mark that isn't a RenseiEnemySpawn part is no guard, Net or not.
 --   * BanditUnchanged (the control): a plain Grunt walks home with Humanoid:MoveTo as today; the Mover never touches it.
+-- Fix round 1 (the Task 4 review's I1 and the controller's rulings T4-heal / T4-own):
+--   * ArrivalKnockStillFights / ArrivalTakedownStillFights: a knock, or a takedown that saves the root's anchor and gives
+--     it back (as TakedownService.Hold and its release do), landing in the Mover's arrival turn: once it's over and the
+--     guard is alarmed, its root is free and it fights the player.
+--   * HoldStopsTheWalk: Knocked, TakenDownBy, GrippedBy or CarriedBy appearing mid-walk stops the routine walk at once.
+--   * PostGuardHeals / PatrolHealsAtAPoint: standing calm (Unaware, then Cautious) at its post, or paused at a patrol
+--     point, a hurt guard heals to full. AlertGuardDoesntHeal (the control): an Alert guard (a search, nobody to fight)
+--     standing at its post doesn't.
+--   * TrackOwnsTheBody: Track gives the body's network ownership to the server.
+--   * ResetKeepsWorldNets: Reset untracks only GuardKit's test nets (prefix "GuardKit_"); a world net and its guard stay.
+--   * LookoutResumesSmoothly: a look-out held still for 1 s mid-sweep sweeps on from its own facing (no jump).
 -- Every expected number is written here by hand (never read from Rensei.Guard).
 local SSS = game:GetService("ServerScriptService")
 local CollectionService = game:GetService("CollectionService")
 local LogService = game:GetService("LogService")
+local RunService = game:GetService("RunService")
 local PS = require(SSS.PerceptionService)
 local ES = require(SSS.EnemyService)
 local Mover = require(SSS.TownsfolkService.Mover)
@@ -61,6 +73,39 @@ local function AlarmMidLeg(T, Case)
 	Kit.Run(0.4)
 	task.wait(0.5)
 	return Rig, G, Route
+end
+
+-- (fix round 1) a post guard at the spot, put 8 studs ahead of its post: it walks back facing away from the post's way,
+-- so its arrival turn is a half turn (about 0.6 s). Caught, frame by frame, in that turn (the Mover's Mode "arrive").
+local function InArrivalTurn(T, Case)
+	Kit.PutPlayer(Kit.AWAY)
+	local Rig, G = GK.Guardsman("StateGuard", Kit.At(0, 0), {Net = GK.Net(Case)})
+	T.True(G ~= nil, "setup: tracked")
+	local Root = Rig.HumanoidRootPart
+	task.wait(0.5)
+	Rig:PivotTo(G.Post * CFrame.new(0, 0, -8))
+	local Caught = false
+	local T0 = os.clock()
+	while os.clock() - T0 < 8 do
+		local H = Mover.Handle(Rig)
+		if H and H.Mode == "arrive" then Caught = true break end
+		RunService.Heartbeat:Wait()
+	end
+	T.True(Caught, "setup: caught in the Mover's arrival turn")
+	T.Eq(Root.Anchored, true, "setup: the arrival turn holds the root anchored")
+	return Rig, G, Root
+end
+
+-- (fix round 1) after a hold in the arrival turn: alarmed by the player (AWAY), the guard's root is free and it fights
+local function FightsAfter(T, Rig, Root)
+	task.wait(0.3)
+	PS.Alarm(Rig, Kit.Player())
+	Kit.Run(0.4)
+	task.wait(0.5)
+	T.Eq(PS.PhaseOf(Rig), "Alert", "setup: Alert")
+	T.Eq(Root.Anchored, false, "its root is free (it isn't left rooted)")
+	T.Eq(ES.Active[Rig].Target, Kit.Player().Character, "the Brain fights the player")
+	T.Eq(Mover.Handle(Rig), nil, "no Mover walk on it")
 end
 
 -- a box of Kit.Walls round a spot on the floor (4 sides and a roof): nothing walks in
@@ -208,7 +253,9 @@ return {
 		end)
 	end,
 
-	-- each route point sealed in a box (an arrival would reset the count: Fails counts failed legs IN A ROW), so every leg fails
+	-- each route point sealed in a box (an arrival would reset the count: Fails counts failed legs IN A ROW), so every leg fails.
+	-- (A deviation from the brief, which sealed point 2 only: with one point reachable its arrival resets Fails and 3 in a
+	-- row never comes. The controller accepted it in fix round 1, ruling T4-legs.)
 	FailedLegsStop = function(T)
 		local GS = Need(T, "FailedLegsStop", {"Reset"})
 		GK.Guard(function()
@@ -321,6 +368,182 @@ return {
 			end)
 			T.True(not MoverSeen, "the Mover never walked it")
 			T.Eq(GS.Guards[Rig], nil, "still no guard")
+		end)
+	end,
+
+	-- ===== fix round 1 =====
+	-- a knock in the arrival turn (the review's I1): the turn's anchor must not outlive it
+	ArrivalKnockStillFights = function(T)
+		local GS = Need(T, "ArrivalKnockStillFights", {"Interrupt", "Idle"})
+		GK.Guard(function()
+			local Rig, G, Root = InArrivalTurn(T, "ArrKnock")
+			Rig:SetAttribute("Knocked", true)
+			task.wait(1.2) -- (past the turn's end)
+			Rig:SetAttribute("Knocked", nil)
+			FightsAfter(T, Rig, Root)
+			T.True(GS.Guards[Rig] == G, "still a guard")
+		end)
+	end,
+
+	-- a takedown in the arrival turn that ends with the victim alive: TakedownService.Request marks it, Hold saves the
+	-- root's anchor (true, in the turn) and frees it for the weld, the release gives the saved anchor back
+	ArrivalTakedownStillFights = function(T)
+		local GS = Need(T, "ArrivalTakedownStillFights", {"Interrupt", "Idle"})
+		GK.Guard(function()
+			local Rig, G, Root = InArrivalTurn(T, "ArrTakedown")
+			Rig:SetAttribute("TakenDownBy", Kit.Player().Name)
+			local Saved = Root.Anchored
+			Root.Anchored = false
+			T.Eq(Saved, true, "setup: the saved anchor is the turn's")
+			task.wait(1.2)
+			Rig:SetAttribute("TakenDownBy", nil)
+			Root.Anchored = Saved
+			FightsAfter(T, Rig, Root)
+			T.True(GS.Guards[Rig] == G, "still a guard")
+		end)
+	end,
+
+	-- each hold, appearing mid-walk, stops the routine walk at once (not merely suspends it)
+	HoldStopsTheWalk = function(T)
+		local GS = Need(T, "HoldStopsTheWalk", {"Interrupt"})
+		GK.Guard(function()
+			local Rig, G = GK.Guardsman("StateGuard", Kit.At(0, 0), {Net = GK.Net("Hold")})
+			T.True(G ~= nil and GS.Guards[Rig] == G, "setup: tracked")
+			task.wait(0.5)
+			for _, A in ipairs({"Knocked", "TakenDownBy", "GrippedBy", "CarriedBy"}) do
+				Rig:PivotTo(G.Post * CFrame.new(12, 0, 0))
+				T.True(Kit.WaitFor(5, function()
+					local H = Mover.Handle(Rig)
+					return H ~= nil and H.Status == "walking" and H.Mode ~= "arrive" and G.Walk == H
+				end), A .. ": setup: walking back with the Mover")
+				Rig:SetAttribute(A, A == "Knocked" and true or Kit.Player().Name)
+				local Stopped = Kit.WaitFor(0.3, function() return Mover.Handle(Rig) == nil end)
+				Rig:SetAttribute(A, nil)
+				T.True(Stopped, A .. ": the routine walk stopped at once")
+				T.Eq(G.Walk, nil, A .. ": no routine walk on the guard")
+				task.wait(0.3)
+			end
+		end)
+	end,
+
+	PostGuardHeals = function(T)
+		local GS = Need(T, "PostGuardHeals", {"Idle"})
+		GK.Guard(function()
+			local Rig, G = GK.Guardsman("StateGuard", Kit.At(0, 0), {Net = GK.Net("Heal")})
+			T.True(G ~= nil and GS.Guards[Rig] == G, "setup: tracked")
+			local Hum = Rig.Humanoid
+			task.wait(0.5)
+			T.Eq(PS.PhaseOf(Rig), "Unaware", "setup: Unaware")
+			Hum.Health = Hum.MaxHealth / 2
+			T.True(Kit.WaitFor(2, function() return Hum.Health >= Hum.MaxHealth end),
+				("Unaware at its post: healed to full within 2 s, got %.0f of %.0f"):format(Hum.Health, Hum.MaxHealth))
+			PS.Lose(Rig)
+			T.Eq(PS.PhaseOf(Rig), "Cautious", "setup: Cautious")
+			Hum.Health = Hum.MaxHealth / 2
+			T.True(Kit.WaitFor(2, function() return Hum.Health >= Hum.MaxHealth end),
+				("Cautious at its post: healed to full within 2 s, got %.0f of %.0f"):format(Hum.Health, Hum.MaxHealth))
+			T.True(Flat(Rig.HumanoidRootPart.Position - G.Post.Position).Magnitude <= 3, "it stood at its post")
+		end)
+	end,
+
+	-- the control: Alert (a search raised far beyond its leash, so nobody to fight and no goal to walk to: its routine
+	-- answers), standing at its post, it stays hurt
+	AlertGuardDoesntHeal = function(T)
+		local GS = Need(T, "AlertGuardDoesntHeal", {"Idle"})
+		GK.Guard(function()
+			local Rig, G = GK.Guardsman("StateGuard", Kit.At(0, 0), {Net = GK.Net("NoHeal")})
+			T.True(G ~= nil and GS.Guards[Rig] == G, "setup: tracked")
+			local Hum, Root = Rig.Humanoid, Rig.HumanoidRootPart
+			task.wait(0.5)
+			PS.Raise(Rig, Root.Position + Vector3.new(400, 0, 0))
+			T.Eq(PS.PhaseOf(Rig), "Alert", "setup: Alert")
+			T.Eq(PS.Target(Rig), nil, "setup: nobody to fight")
+			Hum.Health = Hum.MaxHealth / 2
+			local Half = Hum.Health
+			task.wait(2)
+			T.Eq(PS.PhaseOf(Rig), "Alert", "still Alert")
+			T.True(Flat(Root.Position - G.Post.Position).Magnitude <= 3, "it stood at its post")
+			T.True(Hum.Health <= Half + 0.01, ("an Alert guard doesn't heal: %.0f, was %.0f"):format(Hum.Health, Half))
+		end)
+	end,
+
+	-- spawned on point 1 of a 2-point route (its first leg ends at once there, then the 3 s pause): healed in the pause
+	PatrolHealsAtAPoint = function(T)
+		local GS = Need(T, "PatrolHealsAtAPoint", {"Idle"})
+		GK.Guard(function()
+			local Route = GK.Route({Vector3.new(-14, 0, 0), Vector3.new(14, 0, 0)})
+			local Rig, G = GK.Guardsman("StateGuard", Kit.At(-14, 0), {Net = GK.Net("PatrolHeal"), Route = Route})
+			T.True(G ~= nil and GS.Guards[Rig] == G, "setup: tracked")
+			local Hum, Root = Rig.Humanoid, Rig.HumanoidRootPart
+			Hum.Health = Hum.MaxHealth / 2
+			local Where = nil
+			T.True(Kit.WaitFor(6, function()
+				if Hum.Health >= Hum.MaxHealth then Where = Root.Position return true end
+				return false
+			end), ("healed to full within 6 s, got %.0f of %.0f"):format(Hum.Health, Hum.MaxHealth))
+			local Near = Where and math.min(Flat(Where - Route[1].Position).Magnitude, Flat(Where - Route[2].Position).Magnitude)
+			T.True(Near ~= nil and Near <= 3, "healed at a patrol point, " .. tostring(Near) .. " studs off")
+		end)
+	end,
+
+	TrackOwnsTheBody = function(T)
+		local GS = Need(T, "TrackOwnsTheBody", {"Track"})
+		GK.Guard(function()
+			local Rig, G = GK.Guardsman("StateGuard", Kit.At(0, 0), {Net = GK.Net("Owner")})
+			T.True(G ~= nil and GS.Guards[Rig] == G, "setup: tracked")
+			local Root = Rig.HumanoidRootPart
+			T.Eq(Root:GetNetworkOwnershipAuto(), false, "its ownership isn't automatic")
+			T.Eq(Root:GetNetworkOwner(), nil, "the server owns the body")
+		end)
+	end,
+
+	ResetKeepsWorldNets = function(T)
+		local GS = Need(T, "ResetKeepsWorldNets", {"Reset", "Nets"})
+		GK.Guard(function()
+			T.Eq(GS.TEST_NET, "GuardKit_", "Reset's test-net prefix")
+			T.Eq(GK.Net("Prefix"):sub(1, 9), "GuardKit_", "GuardKit.Net's names carry it")
+			local World = ("PlayGuardWorld_%d"):format(math.random(1e6)) -- (not a test net: this case untracks it itself)
+			local WRig, WG = GK.Guardsman("StateGuard", Kit.At(-10, 0), {Net = World})
+			local TRig, TG = GK.Guardsman("StateGuard", Kit.At(10, 0), {Net = GK.Net("Reset")})
+			local Ok, Err = pcall(function()
+				T.True(WG ~= nil and TG ~= nil, "setup: both tracked")
+				local TName = TG.Net.Name
+				GS.Reset()
+				T.True(GS.Guards[WRig] == WG, "a world net's guard stays tracked")
+				T.True(GS.Nets[World] ~= nil and GS.Nets[World].Guards[WRig] == WG, "and its net stays, with it on it")
+				T.Eq(GS.Guards[TRig], nil, "a test net's guard is untracked")
+				T.Eq(GS.Nets[TName], nil, "and its net is cleared")
+			end)
+			pcall(GS.Untrack, WRig, "test")
+			if GS.Nets then GS.Nets[World] = nil end
+			if not Ok then error(Err, 0) end
+		end)
+	end,
+
+	-- held still 1 s mid-sweep (a knock: the Brain skips the routine), the look-out sweeps on from its own facing: no jump
+	-- bigger than a sweep step (30 deg/s, a step per 0.1 s Brain tick: 3 deg; the old resume jumped 0.5 s of sweep, 15)
+	LookoutResumesSmoothly = function(T)
+		local GS = Need(T, "LookoutResumesSmoothly", {"Idle"})
+		GK.Guard(function()
+			local Rig, G = GK.Guardsman("StateSentry", Kit.At(0, 0), {Net = GK.Net("Resume"), Lookout = true})
+			T.True(G ~= nil and GS.Guards[Rig] == G, "setup: tracked")
+			local Root = Rig.HumanoidRootPart
+			task.wait(0.6) -- (inside the sweep's first rising stretch, 0 -> +45 over 1.5 s)
+			Rig:SetAttribute("Knocked", true)
+			task.wait(1)
+			local Before = Yaw(Root.CFrame.LookVector)
+			Rig:SetAttribute("Knocked", nil)
+			local Prev, Jump = Before, 0
+			local T0 = os.clock()
+			while os.clock() - T0 < 1.5 do
+				RunService.Heartbeat:Wait()
+				local Y = Yaw(Root.CFrame.LookVector)
+				Jump = math.max(Jump, math.abs(Turn(Y, Prev)))
+				Prev = Y
+			end
+			T.True(math.abs(Turn(Before, Yaw(G.Post.LookVector))) > 5, "setup: held mid-sweep, off the post's facing")
+			T.True(Jump <= 8, ("no jump on resuming: the biggest step was %.1f deg"):format(Jump))
+			T.True(math.abs(Turn(Prev, Before)) > 5, "and it sweeps on")
 		end)
 	end,
 }

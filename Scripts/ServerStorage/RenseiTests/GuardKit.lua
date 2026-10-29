@@ -6,7 +6,9 @@
 --     clock moves only when a case steps it) and, in its clean-up (even when Body fails), GuardService.Reset() and
 --     SetAuto(true), before the kit removes the rigs.
 --   * GuardKit.Service(): GuardService, or an error naming it when it doesn't exist.
---   * GuardKit.Net(Name): a fresh radio net name, unique per case (and per call).
+--   * GuardKit.Net(Name): a fresh radio net name, unique per case (and per call). Every one starts "GuardKit_"
+--     (GuardKit.NET_PREFIX), the prefix GuardService.Reset clears (its TEST_NET; fix round 1): a net named otherwise
+--     survives Reset, so a case using one untracks its guards itself.
 --   * GuardKit.Guardsman(Type, At, Info) -> Rig, G: TakedownKit.Spawn (passive, on the floor at At), Kit.Free (its root
 --     unanchored, so it can walk), then GuardService.Track(Rig, Info).
 --   * GuardKit.Route(Offsets): standing CFrames (a root 3 studs above the kit floor) at Kit.Spot() + each offset (a
@@ -40,10 +42,11 @@ function GuardKit.Guard(Body)
 	end)
 end
 
+GuardKit.NET_PREFIX = "GuardKit_" -- (fix round 1) GuardService.TEST_NET: keep the two in step
 local Seq = 0
 function GuardKit.Net(Name)
 	Seq += 1
-	return ("GuardKit_%s_%d_%d"):format(tostring(Name), Seq, math.random(1e6))
+	return ("%s%s_%d_%d"):format(GuardKit.NET_PREFIX, tostring(Name), Seq, math.random(1e6))
 end
 
 function GuardKit.Guardsman(Type, At, Info)
