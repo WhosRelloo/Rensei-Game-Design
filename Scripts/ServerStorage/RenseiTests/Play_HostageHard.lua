@@ -64,6 +64,25 @@ local function KnockPlayer(ByDamage)
 	return DM.IsKnocked(C)
 end
 
+-- (Task 13 fix round 1) Body run with the player an alchemist who has seen the Gate, in memory (the first path,
+-- Gate.TrialsPassed at least Ritual.CasterTrialsPassed), not fighting; the profile and the attributes put back after.
+-- Returns pcall's results. Only inside HostageKit.Guard (TestNoSave and the hook's snapshot).
+local function RitualAlchemist(Body)
+	local Registry = require(game.ReplicatedStorage.Modules.Data.Rensei.Alchemy)
+	local Ritual = require(game.ReplicatedStorage.Modules.Data.Rensei.Ritual)
+	local D = require(SSS.ProgressionService).GetData(Player)
+	local Was = {Aff = D.Identity.Affinity, Trials = D.Gate.TrialsPassed, InCombat = C:GetAttribute("InCombat")}
+	D.Identity.Affinity = Registry.Affinities[1]
+	D.Gate.TrialsPassed = math.max(D.Gate.TrialsPassed or 0, Ritual.CasterTrialsPassed)
+	C:SetAttribute("InCombat", nil)
+	C:SetAttribute("CombatMode", nil)
+	local Ok, Err = pcall(Body)
+	D.Identity.Affinity, D.Gate.TrialsPassed = Was.Aff, Was.Trials
+	for _, A in ipairs({"Holding", "HeldBy", "TakingDown"}) do C:SetAttribute(A, nil) end
+	C:SetAttribute("InCombat", Was.InCombat)
+	return Ok, Err
+end
+
 -- (Task 6) the led pair: the hostage service, the player's root, the clamp's counter, the hold's state
 local OFFSET = CFrame.new(0, 0, -1.5) -- written by hand: the hostage's root 1.5 studs in front of the captor's
 local function Svc()
@@ -337,15 +356,18 @@ return {
 	-- The watcher is reset and the player put back after.
 	GuardForgetsRealSightings = function(T)
 		local PS = require(SSS.PerceptionService)
+		local HeatS = require(SSS.HeatService)
 		local Home = C:GetPivot()
+		local Heat0 = HeatS.Value(Player, "State") -- (fix round 1, review m6) a yard watchman may raise State Heat
 		local W
 		local function Sees()
 			for _, S in ipairs(PS.Perceived(Player)) do if S.Rig == W then return true end end
 			return false
 		end
-		local Inside
+		local Inside = {} -- (fix round 1, review m6) stays a table if Guard refuses before the case runs
 		local Ok, Err = pcall(function()
-			-- the first watcher that sees the player from a few studs in front (a crate or a wall can block one)
+			-- the first watcher that sees the player from a few studs in front (a crate or a wall can block one); the
+			-- distances are PROPOSAL test spots
 			for _, M in ipairs(CollectionService:GetTagged("RenseiWatcher")) do
 				if M:IsDescendantOf(workspace) and PS.Tracks(M) and M:FindFirstChild("Head") and M:FindFirstChild("HumanoidRootPart") then
 					W = M
@@ -371,53 +393,103 @@ return {
 		PS.Reset(W)
 		C:PivotTo(Home)
 		C.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
+		-- (fix round 1, review m6) any State Heat the watcher's own checks raised while it watched is taken back
+		local Raised = HeatS.Value(Player, "State") - Heat0
+		if Raised > 0 then HeatS.Reduce(Player, "State", Raised) end
 		T.True(Ok, tostring(Err))
 		T.Eq(#Inside, 0, "nobody perceives the player inside the case (" .. table.concat(Inside, ", ") .. ")")
 	end,
 
-	-- (Task 13 follow-up, the shared exclusion) a captor (Holding) or a hostage (HeldBy) can't take part in an Alchemic
-	-- Binding: RitualService's Busy refuses them, so BeginCircle (the caster's own entry point; Perform's target check
-	-- is the same Busy) answers "You can't draw a circle while held." The player is made an alchemist who has seen the
-	-- Gate in memory for the case (put back after; HostageKit.Guard: TestNoSave and the hook's snapshot). Control: with
-	-- neither attribute the refusal, if any, isn't the held one (a drawn circle is walked away from and fades).
+	-- (Task 13 follow-up, the shared exclusion; fix round 1, review m3/m7) a captor (Holding), a hostage (HeldBy) or a
+	-- player choking an NPC (TakingDown) can't take part in an Alchemic Binding: RitualService's Busy refuses them, so
+	-- BeginCircle (the caster's own entry point) answers "You can't draw a circle while holding someone." / "... while
+	-- held." / "... while taking someone down." The player is made an alchemist who has seen the Gate in memory for the
+	-- case (RitualAlchemist, put back after; HostageKit.Guard: TestNoSave and the hook's snapshot). Control: with none of
+	-- them the refusal, if any, is none of those (a drawn circle is walked away from and fades).
 	RitualRefusesAPair = function(T)
 		local Rit = require(SSS.RitualService)
-		local Registry = require(game.ReplicatedStorage.Modules.Data.Rensei.Alchemy)
 		local Ritual = require(game.ReplicatedStorage.Modules.Data.Rensei.Ritual)
-		local HELD = "You can't draw a circle while held." -- RitualService's own line, written by hand
+		local LINES = { -- RitualService's own lines, written by hand
+			Holding = "You can't draw a circle while holding someone.",
+			HeldBy = "You can't draw a circle while held.",
+			TakingDown = "You can't draw a circle while taking someone down.",
+		}
 		HK.Guard(function()
-			local D = require(SSS.ProgressionService).GetData(Player)
-			local Was = {Aff = D.Identity.Affinity, Trials = D.Gate.TrialsPassed, InCombat = C:GetAttribute("InCombat")}
 			local R = {}
-			local Ok, Err = pcall(function()
-				D.Identity.Affinity = Registry.Affinities[1]
-				D.Gate.TrialsPassed = math.max(D.Gate.TrialsPassed or 0, Ritual.CasterTrialsPassed)
-				C:SetAttribute("InCombat", nil)
-				C:SetAttribute("CombatMode", nil)
-				for _, A in ipairs({"Holding", "HeldBy", "Control"}) do
+			local Ok, Err = RitualAlchemist(function()
+				for _, A in ipairs({"Holding", "HeldBy", "TakingDown", "Control"}) do
 					if A ~= "Control" then C:SetAttribute(A, "X") end
 					local Got
 					local Said = HK.Toasts(function() Got = Rit.BeginCircle(Player) end)
 					C:SetAttribute(A, nil)
-					R[A] = {Got = Got, Held = table.find(Said, HELD) ~= nil, Circle = Rit.CircleOf(Player) ~= nil, Said = table.concat(Said, " | ")}
+					local Busy = false
+					for _, L in pairs(LINES) do if table.find(Said, L) then Busy = true end end
+					R[A] = {Got = Got, Line = LINES[A] ~= nil and table.find(Said, LINES[A]) ~= nil, Busy = Busy,
+						Circle = Rit.CircleOf(Player) ~= nil, Said = table.concat(Said, " | ")}
 					if R[A].Circle then -- (the control only) walk away: the circle fades within half a second
-						C:PivotTo(C:GetPivot() + Vector3.new(0, 0, Ritual.CasterRange + 20))
+						C:PivotTo(C:GetPivot() + Vector3.new(0, 0, Ritual.CasterRange + 20)) -- (PROPOSAL: well out of range)
 						WaitFor(3, function() return Rit.CircleOf(Player) == nil end)
 					end
 				end
 			end)
-			D.Identity.Affinity, D.Gate.TrialsPassed = Was.Aff, Was.Trials
-			C:SetAttribute("Holding", nil)
-			C:SetAttribute("HeldBy", nil)
-			C:SetAttribute("InCombat", Was.InCombat)
 			if not Ok then error(Err, 0) end
-			for _, A in ipairs({"Holding", "HeldBy"}) do
+			for _, A in ipairs({"Holding", "HeldBy", "TakingDown"}) do
 				T.Eq(R[A].Got, false, A .. ": no circle drawn")
-				T.True(R[A].Held, A .. ": refused as held (" .. R[A].Said .. ")")
+				T.True(R[A].Line, A .. ": refused with its own line (" .. R[A].Said .. ")")
 				T.Eq(R[A].Circle, false, A .. ": no circle left")
 			end
-			T.Eq(R.Control.Held, false, "control: neither attribute, not refused as held (" .. R.Control.Said .. ")")
+			T.Eq(R.Control.Busy, false, "control: none of them, not refused as busy (" .. R.Control.Said .. ")")
 			T.Eq(Rit.CircleOf(Player), nil, "control: no circle left behind")
+		end)
+	end,
+
+	-- (fix round 1, review m3) Perform refuses the same three: a real circle is drawn and inscribed (BeginCircle,
+	-- Inscribe), then the marked caster holds Perform: "You can't perform it while ...", and the circle stays Ready
+	-- (nobody is asked to consent). Perform's TARGET check is the same Busy on the target's character ("<Name> is ...").
+	-- Studio Play has one Player and Perform takes its target from Players:GetPlayers(), so that branch can't be driven
+	-- here: RitualService.Busy (a read-only test seam, the one function both branches call) is asked directly for a marked
+	-- character instead. The circle is walked away from after (it fades).
+	RitualPerformRefusesAPair = function(T)
+		local Rit = require(SSS.RitualService)
+		local Ritual = require(game.ReplicatedStorage.Modules.Data.Rensei.Ritual)
+		local WORD = {Holding = "holding someone", HeldBy = "held", TakingDown = "taking someone down"} -- written by hand
+		HK.Guard(function()
+			local R = {Perform = {}, Target = {}}
+			local Ok, Err = RitualAlchemist(function()
+				T.True(type(Rit.Busy) == "function", "RitualService.Busy (the test seam) exists")
+				for A in pairs(WORD) do
+					C:SetAttribute(A, "X")
+					R.Target[A] = Rit.Busy(C)
+					C:SetAttribute(A, nil)
+				end
+				R.Free = Rit.Busy(C)
+				T.True(Rit.BeginCircle(Player), "setup: a circle is drawn (an alchemist with chalk, on the ground)")
+				local Circle = Rit.CircleOf(Player)
+				for K = 1, Ritual.Marks do
+					local Mark = Circle.Model:FindFirstChild("Mark" .. K)
+					C:PivotTo(CFrame.new(Mark.Position + Vector3.new(0, 3, 0)))
+					task.wait(0.1)
+					Rit.Inscribe(Player, Circle, K)
+				end
+				T.Eq(Circle.Phase, "Ready", "setup: every mark inscribed")
+				for A in pairs(WORD) do
+					C:SetAttribute(A, "X")
+					R.Perform[A] = HK.Toasts(function() Rit.PerformBy(Player, Circle) end)
+					C:SetAttribute(A, nil)
+				end
+				R.Phase = Circle.Phase
+				C:PivotTo(C:GetPivot() + Vector3.new(0, 0, Ritual.CasterRange + 20)) -- (PROPOSAL: well out of range)
+				R.Gone = WaitFor(3, function() return Rit.CircleOf(Player) == nil end)
+			end)
+			if not Ok then error(Err, 0) end
+			for A, W in pairs(WORD) do
+				T.Eq(R.Target[A], W, A .. ": the target check's answer")
+				T.True(table.find(R.Perform[A], "You can't perform it while " .. W .. ".") ~= nil,
+					A .. ": Perform refused the caster (" .. table.concat(R.Perform[A], " | ") .. ")")
+			end
+			T.Eq(R.Free, nil, "control: an unmarked character isn't busy")
+			T.Eq(R.Phase, "Ready", "nothing went on to consent")
+			T.True(R.Gone, "the circle faded once walked away from")
 		end)
 	end,
 

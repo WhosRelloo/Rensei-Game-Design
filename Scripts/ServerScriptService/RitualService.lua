@@ -32,6 +32,7 @@ local ProgressionService = require(ServerScriptService.ProgressionService)
 local UIService = require(ServerScriptService.UIService)
 local DataManager = require(ServerScriptService.CharacterHandler.DataManager)
 local DownedManager = require(ReplicatedStorage.Modules.Managers.DownedManager)
+local MovementState = require(ReplicatedStorage.Modules.Managers.MovementState) -- (hostages Task 13) the shared list
 
 local RitualService = {}
 local Circles = {} -- [Caster] = circle
@@ -62,10 +63,15 @@ local function Busy(C)
 	if C:GetAttribute("InCombat") or C:GetAttribute("CombatMode") then return "fighting" end
 	if C:GetAttribute("InGate") then return "at the Gate" end
 	if DownedManager.IsKnocked(C) then return "knocked down" end
-	-- (hostages Task 13, the shared exclusion) a captor (Holding) or a hostage (HeldBy) takes part in no binding either
-	for _, A in ipairs({"GrippedBy", "CarriedBy", "Gripping", "Carrying", "Holding", "HeldBy"}) do
-		if C:GetAttribute(A) then return "held" end
-	end
+	-- (hostages Task 13, the shared exclusion; fix round 1, review m3/m7) DownedManager's and HostageService's
+	-- attributes through the one shared list (MovementState.Blocking: Knocked, gripped, carried, gripping, carrying,
+	-- Holding, HeldBy), so a captor or a hostage takes part in no binding either; a captor is "holding someone". A player
+	-- choking an NPC (TakedownService's TakingDown, which the list doesn't hold: it doesn't stop traversal) can't either.
+	local Blocked = MovementState.Blocked(C)
+	if Blocked == "Knocked" then return "knocked down" end
+	if Blocked == "Holding" then return "holding someone" end
+	if Blocked then return "held" end
+	if C:GetAttribute("TakingDown") then return "taking someone down" end
 	if C:GetAttribute("Traversal") == "Swim" then return "swimming" end
 	return nil
 end
@@ -195,6 +201,10 @@ local function RemoveArmor(Character)
 	Character:SetAttribute("ArmorResist", nil)
 end
 RitualService.ApplyArmor, RitualService.RemoveArmor = ApplyArmor, RemoveArmor
+
+-- (hostages Task 13 fix round 1) tests: what stops this character taking part (nil = nothing): the check Perform makes
+-- of both the caster and the target, and BeginCircle of the caster. Read-only.
+RitualService.Busy = Busy
 
 function RitualService.Bound(Player)
 	local D = Data(Player)
