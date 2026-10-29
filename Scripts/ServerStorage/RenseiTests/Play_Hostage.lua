@@ -46,6 +46,16 @@
 --   captor's own grip that kills the still-knocked hostage inside it is killed_hostage, once.
 -- * Task 8 fix round 3 (re-review N1): a harmed window whose hostage is still knocked at its end stays open until the
 --   knock ends, so a late knock finished after the window is still killed_hostage; _PendingCount checks nothing is left.
+-- * Task 9: the human shield and the rescue. The attacker is a SECOND stand-in (a third "player"), so CombatDirector's
+--   token gate on enemy hits never drops a hit before the redirect. A hit is the melee pipeline's own two steps, in its
+--   order (HitboxManager.Hitbox / Sweep, AlchemyService): the DamageManager function, then ProgressionService.RecordHit
+--   with its result (Hit, below). Written by hand: ShieldArc 70 degrees either side of the captor's front (60 in it, 90
+--   out), a 10-damage hit with no stun, the attacker 4 studs from the captor's root. A front hit lands on the hostage
+--   (used_human_shield once per hold); a rear or side hit, or a parry of the captor's attack, frees the hostage
+--   ("rescued" / "parried"); a guard (an NPC of a State or Militia law faction, PROPOSAL) that rescues records the taking
+--   again, witnessed; an NPC in front holds its attack (CombatDirector.CanStrike, HostageService.LineBlocked);
+--   a lethal front hit knocks the hostage and ends the hold "knocked" (decision 5). HostageNotShieldedFromCaptor is a
+--   regression guard: the hostage never has Holding, so the redirect can't be reached by construction (pre-flight D5).
 local SSS = game:GetService("ServerScriptService")
 local CollectionService = game:GetService("CollectionService")
 local DM = require(game.ReplicatedStorage.Modules.Managers.DownedManager)
@@ -240,6 +250,41 @@ local function Find(Got, Deed)
 	for _, X in ipairs(Got) do if X.Deed == Deed then Rec = X end end
 	return Rec
 end
+
+-- ===== Task 9 helpers =====
+local function Ten() return {Damage = 10, StunTime = 0} end -- (written by hand: 10 damage, no hitstun on anyone)
+-- a hit as the melee pipeline lands it (HitboxManager.Hitbox / Sweep): the DamageManager function first, then
+-- ProgressionService.RecordHit with its result, so the HitListeners see the hit after it landed. Returns the result.
+local function Hit(Attacker, Victim, Info)
+	local Result = require(game.ReplicatedStorage.Modules.Managers.DamageManager)(Attacker, Victim, Info or Ten())
+	require(SSS.ProgressionService).RecordHit(Attacker, Victim, Result)
+	return Result
+end
+-- where a rig's root goes: Dist studs from the player's root, Angle degrees round from the player's front (0 in front,
+-- 90 its side, 180 behind), facing the player
+local function AroundPlayer(Angle, Dist)
+	local CR = C.HumanoidRootPart
+	local Look = Vector3.new(CR.CFrame.LookVector.X, 0, CR.CFrame.LookVector.Z).Unit
+	local Pos = CR.Position + CFrame.fromAxisAngle(Vector3.yAxis, math.rad(Angle)):VectorToWorldSpace(Look) * Dist
+	return CFrame.lookAt(Pos, Vector3.new(CR.Position.X, Pos.Y, CR.Position.Z))
+end
+-- a second stand-in (a third "player") as the attacker, placed by AroundPlayer, its root anchored there
+local function Attacker(Angle, Dist)
+	local Where = AroundPlayer(Angle, Dist)
+	local Rig = HK.StandIn(Where - Vector3.new(0, 3, 0))
+	Rig.HumanoidRootPart.Anchored = true
+	Rig:PivotTo(Where)
+	return Rig
+end
+-- a kit Grunt taken out of the squads (CombatDirector.Unregister: Holds is unrestricted for it), placed by AroundPlayer
+local function LoneGrunt(Angle, Dist)
+	local Grunt = TK.Spawn("Grunt", At(30, 0))
+	require(SSS.CombatDirector).Unregister(Grunt)
+	Grunt:PivotTo(AroundPlayer(Angle, Dist))
+	return Grunt
+end
+-- the player's hitstun, if a case's hit gave one, waited out so the next case doesn't start stunned
+local function Unstunned() WaitFor(2, function() return not Stunned(C) end) end
 
 return {
 	-- the seam is shut when the no-save switch isn't on (HostageService._NoSave swapped, pre-flight P24; put back after)
@@ -1375,5 +1420,169 @@ return {
 			for _, R in ipairs(Morality.Rumours or {}) do if R.Deed == "took_hostage" then Rumour = R end end
 			T.True(Rumour ~= nil, "a rumour of it started")
 		end)
+	end,
+
+	-- ===== Task 9: the human shield and the rescue =====
+	-- a hit from 4 studs in front of the captor lands on the hostage, not the captor: used_human_shield once per hold
+	FrontHitLandsOnHostage = function(T)
+		HK.Guard(function() KeepHeat(function()
+			local Rig = Held(T)
+			local Atk = Attacker(0, 4)
+			local HP0, Mine0 = Rig.Humanoid.Health, C.Humanoid.Health
+			local Shield0 = DeedCount("used_human_shield")
+			T.Eq(Hit(Atk, C), "Hit", "the front hit lands")
+			T.Near(HP0 - Rig.Humanoid.Health, 10, 1, "the hostage lost about 10")
+			T.True(C.Humanoid.Health >= Mine0 - 0.01, "the captor lost nothing (" .. Mine0 .. " -> " .. C.Humanoid.Health .. ")")
+			task.wait(0.3) -- (the deed is recorded on its own thread)
+			T.Eq(DeedCount("used_human_shield") - Shield0, 1, "used_human_shield +1")
+			T.True(IsHeld(), "still Held: a front hit frees nobody")
+			T.Eq(Hit(Atk, C), "Hit", "a second front hit lands")
+			T.Near(HP0 - Rig.Humanoid.Health, 20, 2, "on the hostage again")
+			T.True(C.Humanoid.Health >= Mine0 - 0.01, "the captor still lost nothing")
+			task.wait(0.3)
+			T.Eq(DeedCount("used_human_shield") - Shield0, 1, "still +1 in total (once per hold)")
+			T.True(IsHeld(), "still Held")
+		end) end)
+	end,
+
+	-- a hit from 4 studs behind lands on the captor and frees the hostage at once; a player's rescue records nothing more
+	RearHitRescues = function(T)
+		HK.Guard(function() KeepHeat(function()
+			local Rig = Held(T)
+			local Atk = Attacker(180, 4)
+			local HP0, Mine0 = Rig.Humanoid.Health, C.Humanoid.Health
+			local Shield0, Took0 = DeedCount("used_human_shield"), DeedCount("took_hostage")
+			T.Eq(Hit(Atk, C), "Hit", "the rear hit lands")
+			T.True(Ended("Bind:rescued", 0.2), "rescued within 0.2 s (" .. tostring(HK.Result()) .. ")")
+			T.True(C.Humanoid.Health < Mine0 - 5, "the captor took the hit (" .. Mine0 .. " -> " .. C.Humanoid.Health .. ")")
+			T.Near(Rig.Humanoid.Health, HP0, 0.5, "the hostage took nothing")
+			AllLetGo(T, Rig, "rescued")
+			task.wait(0.3)
+			T.Eq(DeedCount("used_human_shield") - Shield0, 0, "no shield deed")
+			T.Eq(DeedCount("took_hostage") - Took0, 0, "a player's rescue records nothing more of the taking")
+		end) end)
+	end,
+
+	-- the shield arc's edge: 60 degrees off the front is inside it (the hostage takes the hit, nobody is freed); 90
+	-- degrees, the captor's side, is outside it (rescued)
+	SideHitRescues = function(T)
+		HK.Guard(function() KeepHeat(function()
+			local Rig = Held(T)
+			local Near = Attacker(60, 4)
+			local HP0 = Rig.Humanoid.Health
+			T.Eq(Hit(Near, C), "Hit", "the 60-degree hit lands")
+			T.Near(HP0 - Rig.Humanoid.Health, 10, 1, "on the hostage (inside the shield arc)")
+			task.wait(0.2)
+			T.True(IsHeld(), "still Held")
+			local Side = Attacker(90, 4)
+			T.Eq(Hit(Side, C), "Hit", "the side hit lands")
+			T.True(Ended("Bind:rescued", 0.2), "rescued within 0.2 s (" .. tostring(HK.Result()) .. ")")
+			AllLetGo(T, Rig, "rescued")
+		end) end)
+	end,
+
+	-- a parry of the captor's attack frees the hostage ("parried"); the captor parrying someone else's frees nobody
+	ParryRescues = function(T)
+		HK.Guard(function()
+			local Rig = Held(T)
+			local Atk = Attacker(0, 4)
+			require(SSS.ProgressionService).RecordHit(Atk, C, "Parried")
+			task.wait(0.2)
+			T.True(IsHeld(), "the captor parrying the attacker frees nobody")
+			require(SSS.ProgressionService).RecordHit(C, Atk, "Parried")
+			T.True(Ended("Bind:parried", 0.2), "parried within 0.2 s (" .. tostring(HK.Result()) .. ")")
+			AllLetGo(T, Rig, "parried")
+		end)
+		HK.Guard(function()
+			local Rig = Held(T)
+			local Atk = Attacker(0, 4)
+			require(SSS.ProgressionService).RecordHit(C, Atk, "PerfectParried")
+			T.True(Ended("Bind:parried", 0.2), "a perfect parry too (" .. tostring(HK.Result()) .. ")")
+			AllLetGo(T, Rig, "perfect parry")
+		end)
+	end,
+
+	-- an NPC whose line to the captor runs through the hostage holds its attack: LineBlocked true and CanStrike false 5
+	-- studs in front; behind, both flip; after the release, in front again, it may strike (the control)
+	NpcHoldsInFront = function(T)
+		HK.Guard(function()
+			local CD = require(SSS.CombatDirector)
+			local HS = Svc()
+			TK.PutPlayer(FRONT)
+			local Grunt = LoneGrunt(0, 5)
+			T.Eq(CD.CanStrike(Grunt, C), true, "setup: the lone Grunt may strike the player before the take")
+			local Rig = Held(T)
+			Grunt:PivotTo(AroundPlayer(0, 5))
+			T.Eq(CD.CanStrike(Grunt, C), false, "5 studs in front: the Grunt holds its attack")
+			T.Eq(HS.LineBlocked(Grunt, C), true, "5 studs in front: the line is blocked")
+			Grunt:PivotTo(AroundPlayer(180, 5))
+			T.Eq(HS.LineBlocked(Grunt, C), false, "behind: the line is clear")
+			T.Eq(CD.CanStrike(Grunt, C), true, "behind: the Grunt may strike")
+			T.Eq(HS.LineBlocked(Grunt, Rig), false, "the hostage itself is never a blocked target")
+			T.True(HS.Free(Player, "a"), "setup: freed")
+			Grunt:PivotTo(AroundPlayer(0, 5))
+			T.Eq(HS.LineBlocked(Grunt, C), false, "after the release, in front: the line is clear")
+			T.Eq(CD.CanStrike(Grunt, C), true, "after the release, in front: the Grunt may strike (the control)")
+		end)
+	end,
+
+	-- (decision 5) a front hit for more than the hostage's health knocks the hostage, not the captor; the hold ends
+	-- "knocked"
+	ShieldHitKnocksHostage = function(T)
+		HK.Guard(function() KeepHeat(function()
+			local Rig = Held(T)
+			local Atk = Attacker(0, 4)
+			local Mine0 = C.Humanoid.Health
+			Hit(Atk, C, {Damage = Rig.Humanoid.Health + 50, StunTime = 0})
+			T.True(DM.IsKnocked(Rig), "the hostage is knocked")
+			T.Eq(DM.IsKnocked(C), false, "the captor isn't")
+			T.True(C.Humanoid.Health >= Mine0 - 0.01, "the captor lost nothing")
+			T.True(Ended("Bind:knocked", 0.5), "the hold ends knocked (" .. tostring(HK.Result()) .. ")")
+			AllLetGo(T, Rig, "knocked")
+		end) end)
+	end,
+
+	-- (a regression guard, pre-flight D5) the captor's own hit on its hostage isn't redirected nor blocked: the hostage
+	-- takes it, the captor nothing, no shield deed, still Held
+	HostageNotShieldedFromCaptor = function(T)
+		HK.Guard(function() KeepHeat(function()
+			local Rig = Held(T)
+			local HP0, Mine0 = Rig.Humanoid.Health, C.Humanoid.Health
+			local Shield0 = DeedCount("used_human_shield")
+			T.Eq(Hit(C, Rig), "Hit", "the captor's hit lands")
+			T.Near(HP0 - Rig.Humanoid.Health, 10, 1, "the hostage takes it")
+			T.True(C.Humanoid.Health >= Mine0 - 0.01, "the captor takes nothing")
+			task.wait(0.3)
+			T.Eq(DeedCount("used_human_shield") - Shield0, 0, "no shield deed")
+			T.True(IsHeld(), "still Held")
+		end) end)
+	end,
+
+	-- (the guards ruling, spec §4) a guard -- an NPC of a State or Militia law faction, PROPOSAL; no guards spawn yet -- that
+	-- frees a hostage records the taking again, witnessed (the captor's Heat rises through the existing path); an NPC of
+	-- no law faction rescues the same way and records nothing (the control)
+	GuardRescueIsWitnessed = function(T)
+		HK.Guard(function() KeepHeat(function()
+			Held(T)
+			local Took0 = DeedCount("took_hostage")
+			local Grunt = LoneGrunt(180, 4)
+			Grunt:SetAttribute("Faction", "Authority") -- (written by hand: the State's law faction)
+			T.Eq(Hit(Grunt, C), "Hit", "the guard's rear hit lands")
+			T.True(Ended("Bind:rescued", 0.2), "rescued (" .. tostring(HK.Result()) .. ")")
+			task.wait(0.3)
+			T.Eq(DeedCount("took_hostage") - Took0, 1, "took_hostage recorded again, witnessed")
+			Unstunned()
+		end) end)
+		HK.Guard(function() KeepHeat(function()
+			Held(T)
+			local Took0 = DeedCount("took_hostage")
+			local Grunt = LoneGrunt(180, 4)
+			Grunt:SetAttribute("Faction", nil)
+			T.Eq(Hit(Grunt, C), "Hit", "the lawless NPC's rear hit lands")
+			T.True(Ended("Bind:rescued", 0.2), "rescued (" .. tostring(HK.Result()) .. ")")
+			task.wait(0.3)
+			T.Eq(DeedCount("took_hostage") - Took0, 0, "nothing more recorded")
+			Unstunned()
+		end) end)
 	end,
 }

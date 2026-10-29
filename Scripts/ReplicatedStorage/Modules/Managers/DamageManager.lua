@@ -127,6 +127,22 @@ return function(Character,Victim,SkillInfo)
 		local D = Director()
 		if D and not D.MayHit(Character, Victim) then return "IFramed" end
 	end
+	-- hostages (Task 9): a hit from in front of a captor lands on the hostage (the human shield)
+	local ShieldHit = false
+	do
+		local SSS = game:GetService("ServerScriptService")
+		local HS = SSS:FindFirstChild("HostageService")
+		if HS and Victim:GetAttribute("Holding") then
+			local Ok, To = pcall(function() return require(HS).Shield(Character, Victim) end)
+			if Ok and typeof(To) == "Instance" then
+				ShieldHit = To ~= Victim
+				Victim = To
+			end
+		end
+	end
+	-- the hostage it now lands on gets the same first checks (knocked, god mode, a WCS character)
+	if ShieldHit and (DownedManager.IsKnocked(Victim) or Victim:GetAttribute("AdminGod")
+		or not WCS.Character.GetCharacterFromInstance(Victim)) then return "IFramed" end
 	local Player = Players:GetPlayerFromCharacter(Character)
 	local VictimPlayer = Players:GetPlayerFromCharacter(Victim)
 	local CharacterState = WCS.Character.GetCharacterFromInstance(Character)
@@ -295,7 +311,9 @@ return function(Character,Victim,SkillInfo)
 		end
 		Damage *= math.max(0.5, SkillMods.Mult(Victim, "DamageTaken")) -- Iron Skin / Fortitude
 		-- Hyper armour (e.g. greatsword heavy windup): the hit lands but does not stun or move.
-		local Armored = Victim:GetAttribute("HyperArmor") ~= nil
+		-- (hostages Task 9) so does a shield hit on the welded hostage: the pair's physics is the captor client's, and a
+		-- flinch would stop the held pose
+		local Armored = Victim:GetAttribute("HyperArmor") ~= nil or ShieldHit
 		local VelocityType = not Armored and SkillInfo.VelocityType or nil
 		
 		if VictimState:HasStatusEffects({StateModules["Blocking"]}) then

@@ -31,6 +31,9 @@
 -- Members keep their slot unless another is SlotHysteresis degrees better (no jitter). Members beyond
 -- MaxMembers wait on the outer Reserve ring.
 --
+-- HUMAN SHIELD (hostages Task 9): CanStrike is false while the line to the target runs through a hostage the target
+-- holds in front of it (HostageService.LineBlocked), so a holder in front holds its attack.
+--
 -- DEBUG (Studio only): TuningConfig.Squad.Debug or workspace attribute SquadDebug = true draws slot markers and
 -- role labels. Every member always carries attributes SquadEncounter / SquadRole / SquadReason.
 local Players = game:GetService("Players")
@@ -177,9 +180,20 @@ function CombatDirector.Holds(Rig, Target)
 	return Enc ~= nil and Enc.Holder == Rig and (Target == nil or Enc.Target == Target)
 end
 
--- the holder may start a hit (past its commit delay)
+-- (hostages Task 9, spec §3) the line from Rig to Target runs through a hostage: HostageService.LineBlocked, looked up
+-- at call time (HostageService requires EnemyService, which requires this module), in a pcall
+local function LineBlocked(Rig, Target)
+	local HS = Target ~= nil and game:GetService("ServerScriptService"):FindFirstChild("HostageService")
+	if not HS then return false end
+	local Ok, Blocked = pcall(function() return require(HS).LineBlocked(Rig, Target) end)
+	return Ok and Blocked == true
+end
+
+-- the holder may start a hit (past its commit delay); never through a hostage held in front of its target (the human
+-- shield: it holds its attack, and the tenure handoff gives the turn to a member that isn't in front)
 function CombatDirector.CanStrike(Rig, Target)
 	if not CombatDirector.Holds(Rig, Target) then return false end
+	if LineBlocked(Rig, Target) then return false end
 	local M = Members[Rig]
 	return not M or not M.Encounter or Now() >= M.Encounter.GrantedAt + Cfg.CommitDelay
 end
