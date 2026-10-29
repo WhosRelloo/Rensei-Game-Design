@@ -15,5 +15,5 @@ return {
 		Iron = {color = 81990938494202, normal = 125384580996481, roughness = 99507047705406, metalness = 99107904417368},
 		RustIron = {color = 75709332655179, normal = 122386389536556, roughness = 71543219595519, metalness = 137215265213083},
 	},
-	Ambience = 0, -- the 60 s loop (menu_ambience.py --loop): ambience_loop60.wav
+	Ambience = 89670897735814, -- the 60 s loop (menu_ambience.py --loop): ambience_loop60.wav, uploaded by the owner
 }
