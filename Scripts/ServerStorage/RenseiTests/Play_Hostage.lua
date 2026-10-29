@@ -36,6 +36,12 @@
 --   step perception themselves (TakedownKit.Run) and put the player's Heat back after (KeepHeat). Written by hand:
 --   took_hostage's Crime 30 heard at once in Ye (net +15 after a release; 0 in the Foundry, see the case), GripTime
 --   2 s, the option texts.
+-- * Task 8 fix round 1 (rulings I1 / I2): a menu Release pays out (released_hostage, the Heat halved) only after the
+--   release window (HostageService._ReleaseGrace shortens it here; Kit.Clean drops any window left): release then the
+--   ex-captor's knocking hit then B inside it is a kill (killed_hostage, no Mercy, no halving); a third party's hit
+--   changes nothing; the ex-captor's party counts as the ex-captor. Finish is refused mid-attack, and a grip that
+--   fails at once gives the knock back. A "hit" is DownedManager.Damage then ProgressionService.RecordHit (KnockingHit),
+--   the pipeline's own two steps.
 local SSS = game:GetService("ServerScriptService")
 local CollectionService = game:GetService("CollectionService")
 local DM = require(game.ReplicatedStorage.Modules.Managers.DownedManager)
@@ -169,7 +175,7 @@ end
 -- KeepHeat: Got lists what MoralityService.Recorded saw for the player (a listener added here, removed after), the save's
 -- rumours are emptied for the case and put back after (an older rumour can't stand in), and Heat0 is the player's
 -- Heat in this place's jurisdiction (TakedownKit.LAW) just before the take.
-local function Witnessed(T, Body)
+local function Witnessed(T, Body, Opts)
 	local MS = require(SSS.MoralityService)
 	local TS = require(SSS.TownsfolkService)
 	local Morality = require(SSS.ProgressionService).GetData(Player).Morality
@@ -186,6 +192,8 @@ local function Witnessed(T, Body)
 		T.True(WaitFor(3, function() return TS.State(Id) == "AtPost" end),
 			"setup: the townsperson is calm at its post (" .. tostring(TS.State(Id)) .. ")")
 		TK.Run(1)
+		-- (fix round 1, review m1) Heat already there before the take, so a halving of all Heat can't pass for half the take's
+		if Opts and Opts.Seed then HeatSvc().Add(Player, TK.LAW.J, Opts.Seed) end
 		local Heat0 = HeatSvc().Value(Player, TK.LAW.J)
 		T.Eq(Svc().Take(Player, Rig), true, "setup: the take starts")
 		local T0 = os.clock()
@@ -198,6 +206,30 @@ local function Witnessed(T, Body)
 	if I then table.remove(MS.Recorded, I) end
 	Morality.Rumours = Rumours
 	if not Ok then error(Err, 0) end
+end
+-- (fix round 1) Body with HostageService's release window shortened to Seconds (the _ReleaseGrace seam, read only while
+-- the stand-in seam is open), put back after, failed or not
+local function WithGrace(Seconds, Body)
+	local HS = Svc()
+	HS._ReleaseGrace = Seconds
+	local Ok, Err = pcall(Body)
+	HS._ReleaseGrace = nil
+	if not Ok then error(Err, 0) end
+end
+-- (fix round 1) Body with Module[Field] swapped for Fn, put back after, failed or not
+local function Swap(Module, Field, Fn, Body)
+	local Real = Module[Field]
+	Module[Field] = Fn
+	local Ok, Err = pcall(Body, Real)
+	Module[Field] = Real
+	if not Ok then error(Err, 0) end
+end
+-- (fix round 1) the combat pipeline's landed hit on Victim by Attacker that knocks it: DownedManager.Damage of all its
+-- health (a knockable rig is knocked at 1 HP), then ProgressionService.RecordHit's listeners with "Hit", as DamageManager
+-- and the hitbox do for a real swing
+local function KnockingHit(Attacker, Victim)
+	DM.Damage(Victim, Victim.Humanoid.Health)
+	require(SSS.ProgressionService).RecordHit(Attacker, Victim, "Hit")
 end
 local function Find(Got, Deed)
 	local Rec = nil
@@ -1019,10 +1051,11 @@ return {
 		end)
 	end,
 
-	-- Release: the hold ends "released", the Mercy deed released_hostage +1; nobody saw the take, so it raised no Heat
-	-- and the release changes none (Heat_<J>, rounded to 0.1 on the attribute)
+	-- Release: the hold ends "released" at once; (fix round 1, ruling I1) the Mercy deed released_hostage +1 only once the
+	-- release window (shortened to 1 s here) has run out with the player unharmed; nobody saw the take, so it raised no
+	-- Heat and the release changes none (Heat_<J>, rounded to 0.1 on the attribute)
 	MenuRelease = function(T)
-		HK.Guard(function()
+		HK.Guard(function() WithGrace(1, function()
 			local HS, J = Svc(), TK.LAW.J
 			local Attr0, Heat0 = Player:GetAttribute("Heat_" .. J), HeatSvc().Value(Player, J)
 			local Rig = Held(T)
@@ -1030,12 +1063,15 @@ return {
 			T.Eq(HS.Menu(Player, "Release"), true, "the choice acted")
 			T.Eq(HK.Result(), "Bind:released", "LastHostageResult")
 			AllLetGo(T, Rig, "released")
-			T.Eq(DeedCount("released_hostage") - Released0, 1, "released_hostage +1")
+			T.Eq(DeedCount("released_hostage") - Released0, 0, "nothing paid while the window runs")
+			T.Eq(HS.Menu(Player, "Release"), false, "a second Release: no session, ignored")
+			T.True(WaitFor(1.5, function() return DeedCount("released_hostage") - Released0 == 1 end),
+				"the window ran out unharmed: released_hostage +1")
 			task.wait(0.3)
+			T.Eq(DeedCount("released_hostage") - Released0, 1, "paid once")
 			T.Near(HeatSvc().Value(Player, J), Heat0, 0.05, J .. " Heat unchanged")
 			T.Near(Player:GetAttribute("Heat_" .. J) or 0, Attr0 or 0, 0.1, "the Heat_" .. J .. " attribute unchanged")
-			T.Eq(HS.Menu(Player, "Release"), false, "a second Release: no session, ignored")
-		end)
+		end) end)
 	end,
 
 	-- (ruling on spec §3, "its Heat is only half that of the original crime") a witnessed take raises took_hostage's Crime
@@ -1044,9 +1080,13 @@ return {
 	-- (Militia), where the Townsfolk are, so a townsperson's word raises Militia 30 at once (net +15 after the release);
 	-- the Foundry is State land without the Authority among its factions, so a townsperson's word raises no State Heat at
 	-- once (the law hears it only when word reaches it), and the release has nothing to halve (net 0).
+	-- (fix round 1) 20 Heat is there before the take (review m1: half of ALL the Heat would read 25, not 15, above Heat0),
+	-- and nothing is halved until the release window (1 s here) has run out
 	MenuReleaseHalvesHeat = function(T)
-		local RAISED, NET = table.unpack(({[106992859583940] = {30, 15}, [109591196441030] = {0, 0}})[game.PlaceId])
-		Witnessed(T, function(_, _, _, _, Heat0)
+		local Numbers = ({[106992859583940] = {30, 15}, [109591196441030] = {0, 0}})[game.PlaceId]
+		if not Numbers then error("MenuReleaseHalvesHeat: no hand-written numbers for place " .. tostring(game.PlaceId), 0) end
+		local RAISED, NET = Numbers[1], Numbers[2]
+		WithGrace(1, function() Witnessed(T, function(_, _, _, _, Heat0)
 			local J = TK.LAW.J
 			local Others = {}
 			for _, K in ipairs({"State", "Militia", "Circle"}) do
@@ -1055,11 +1095,68 @@ return {
 			T.Near(HeatSvc().Value(Player, J) - Heat0, RAISED, 0.5, ("the witnessed take raised %s Heat %d"):format(J, RAISED))
 			local Released0 = DeedCount("released_hostage")
 			T.Eq(Svc().Menu(Player, "Release"), true, "the choice acted")
-			task.wait(0.3)
-			T.Eq(DeedCount("released_hostage") - Released0, 1, "released_hostage +1")
+			task.wait(0.2)
+			T.Near(HeatSvc().Value(Player, J) - Heat0, RAISED, 0.5, "nothing halved while the window runs")
+			T.True(WaitFor(1.5, function() return DeedCount("released_hostage") - Released0 == 1 end), "released_hostage +1")
+			task.wait(0.2)
 			T.Near(HeatSvc().Value(Player, J) - Heat0, NET, 0.5, ("released unharmed: half of it taken back (net +%d)"):format(NET))
 			for K, V in pairs(Others) do T.Near(HeatSvc().Value(Player, K), V, 0.05, K .. " Heat unchanged") end
-		end)
+		end, {Seed = 20}) end)
+	end,
+
+	-- (fix round 1, ruling I1) release, then the ex-captor's knocking hit, then B (DownedManager.Request "Grip") inside the
+	-- window (3 s here): the grip's finish records killed_hostage, as Finish would; at the window's end no Mercy and no
+	-- Heat halving (the Heat after the kill is the Heat after the window)
+	ReleaseThenKillIsAKill = function(T)
+		WithGrace(3, function() Witnessed(T, function(Rig)
+			local J = TK.LAW.J
+			local Released0, Killed0 = DeedCount("released_hostage"), DeedCount("killed_hostage")
+			local T0 = os.clock()
+			T.Eq(Svc().Menu(Player, "Release"), true, "the choice acted")
+			KnockingHit(C, Rig)
+			T.True(DM.IsKnocked(Rig), "setup: the player's hit knocked the released stand-in")
+			T.Eq(DM.Request(C, "Grip"), "Gripped", "B: the player's grip finished it")
+			T.True(Rig.Humanoid.Health <= 0, "dead")
+			T.True(os.clock() - T0 < 3, "setup: all inside the window")
+			T.True(WaitFor(0.5, function() return DeedCount("killed_hostage") - Killed0 == 1 end), "killed_hostage +1")
+			local Heat1 = HeatSvc().Value(Player, J)
+			task.wait(math.max(0, 3.5 - (os.clock() - T0)))
+			T.Eq(DeedCount("released_hostage") - Released0, 0, "no Mercy")
+			T.Eq(DeedCount("killed_hostage") - Killed0, 1, "killed once")
+			T.Near(HeatSvc().Value(Player, J), Heat1, 0.5, "no Heat halving at the window's end")
+		end) end)
+	end,
+
+	-- (fix round 1, ruling I1) someone else knocking the released player in the window changes nothing: paid at its end
+	ThirdPartyHarmStillPays = function(T)
+		HK.Guard(function() WithGrace(1, function()
+			local Rig = Held(T)
+			local Other = HK.StandIn(At(6, 0))
+			local Released0 = DeedCount("released_hostage")
+			T.Eq(Svc().Menu(Player, "Release"), true, "the choice acted")
+			KnockingHit(Other, Rig)
+			T.True(DM.IsKnocked(Rig), "setup: a third party's hit knocked the released stand-in")
+			T.True(WaitFor(1.5, function() return DeedCount("released_hostage") - Released0 == 1 end),
+				"released_hostage +1 at the window's end")
+		end) end)
+	end,
+
+	-- (fix round 1, ruling I1) the ex-captor's party counts as the ex-captor: a party member's knocking hit in the window
+	-- (HostageService._PartyOf stubbed, put back after) means no Mercy at its end
+	PartyKnockCancelsPayout = function(T)
+		HK.Guard(function() WithGrace(1, function()
+			local HS = Svc()
+			local Rig = Held(T)
+			local Friend, FriendPL = HK.StandIn(At(6, 0))
+			local Released0 = DeedCount("released_hostage")
+			Swap(HS, "_PartyOf", function(PL) if PL == Player then return {FriendPL} end return nil end, function()
+				T.Eq(HS.Menu(Player, "Release"), true, "the choice acted")
+				KnockingHit(Friend, Rig)
+				T.True(DM.IsKnocked(Rig), "setup: the party member's hit knocked the released stand-in")
+				task.wait(1.5)
+				T.Eq(DeedCount("released_hostage") - Released0, 0, "no Mercy")
+			end)
+		end) end)
 	end,
 
 	-- (the release Heat's own seam) HeatService.Reduce takes Heat off one jurisdiction only, returns what it took, never
@@ -1093,7 +1190,7 @@ return {
 	-- Grip (GrippedBy / Gripping); while it runs the grip's marks keep a take off both (guards: Task 4's exclusion); dead
 	-- within GripTime 2 + 1 s; killed_hostage +1
 	MenuFinish = function(T)
-		HK.Guard(function()
+		HK.Guard(function() KeepHeat(function()
 			local HS = Svc()
 			local Rig = Held(T)
 			local H = Rig.Humanoid
@@ -1113,6 +1210,42 @@ return {
 			T.True(WaitFor(3, function() return H.Health <= 0 end), "dead within GripTime 2 + 1 s")
 			T.True(WaitFor(0.5, function() return DeedCount("killed_hostage") - Killed0 == 1 end), "killed_hostage +1")
 			T.Eq(C:GetAttribute("Gripping"), nil, "the grip is over")
+		end) end)
+	end,
+
+	-- (fix round 1, I2) a captor mid-attack can't Finish (AttackRunner.IsRunning swapped to say so, put back after): the
+	-- choice is ignored before any Release or knock, still Held
+	FinishRefusedMidAttack = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local Rig = Held(T)
+			local AR = require(game.ReplicatedStorage.Modules.Managers.AttackRunner)
+			Swap(AR, "IsRunning", function(Ch) return Ch == C end, function()
+				T.Eq(HS.Menu(Player, "Finish"), false, "a Finish mid-attack is ignored")
+			end)
+			T.True(IsHeld(), "still Held")
+			T.Eq(DM.IsKnocked(Rig), false, "never knocked")
+			T.Eq(Rig:GetAttribute("HeldBy"), Player.Name, "still held by the player")
+		end)
+	end,
+
+	-- (fix round 1, I2) a grip that fails at once (DownedManager.Grip swapped to return false, put back after) gives the
+	-- knock back: the released stand-in isn't left freshly knocked, its HP kept, and nothing is recorded
+	FinishGripFailsUndoesKnock = function(T)
+		HK.Guard(function()
+			local HS = Svc()
+			local Rig = Held(T)
+			local HP0 = Rig.Humanoid.Health
+			local Killed0 = DeedCount("killed_hostage")
+			Swap(DM, "Grip", function() return false end, function()
+				T.Eq(HS.Menu(Player, "Finish"), true, "the choice acted")
+				T.Eq(HK.Result(), "Bind:finished", "LastHostageResult")
+			end)
+			task.wait(0.2)
+			T.Eq(DM.IsKnocked(Rig), false, "the knock was given back")
+			T.True(Rig.Humanoid.Health > 0, "alive")
+			T.Near(Rig.Humanoid.Health, HP0, 0.5, "its HP kept")
+			T.Eq(DeedCount("killed_hostage") - Killed0, 0, "killed_hostage unchanged")
 		end)
 	end,
 
@@ -1120,7 +1253,7 @@ return {
 	-- left alive and knocked, and killed_hostage doesn't move. First, a captor already stunned can't Finish (the grip
 	-- would fail at once): ignored, still Held.
 	FinishCancelledByStun = function(T)
-		HK.Guard(function()
+		HK.Guard(function() KeepHeat(function()
 			local HS = Svc()
 			local Rig = Held(T)
 			local Killed0 = DeedCount("killed_hostage")
@@ -1143,7 +1276,7 @@ return {
 			end)
 			WaitFor(2, function() return not Stunned(C) end)
 			if not Ok then error(Err, 0) end
-		end)
+		end) end)
 	end,
 
 	-- only the captor of a Held session chooses: the hostage's own Release or Finish, an unknown or non-string choice,

@@ -172,17 +172,25 @@
 --   it): every choice re-checks that the caller is the captor of a Held session (a hostage, a grab, a released or
 --   unknown session, a non-string or unknown choice: ignored). Arg is unused by Release and Finish (review M7's range
 --   check belongs to Task 11's ransom tier).
---     - "Release": Release(S, "released"), then released_hostage recorded (witnessed), then THE RELEASE HEAT (ruling,
---       spec §3 "its Heat is only half that of the original crime"): the took_hostage Heat this hold raised at the take
---       (S.TookHeat: per jurisdiction, HeatService.Value just after Announce's Record less just before -- Morality's
---       Recorded listeners, HeatService's among them, run in that same step) is halved, HeatService.Reduce(J,
---       raised / 2). Heat that word of the taking raises later (a rumour's arrival elsewhere) isn't touched;
---     - "Finish" (not while the captor is stunned: a grip would fail at once, so the hold goes on): Release(S,
---       "finished") (no "free" toast); DownedManager.Knock(HC) (the hostage's HP kept: Knock only sets the state); then,
---       on its own thread, the NORMAL GRIP, DownedManager.Grip(CC, HC): its styles, its stun cancel (a rescue that stuns
---       the captor mid-grip leaves the hostage knocked and alive), the ragdoll, its listeners. Done -> killed_hostage
---       recorded (witnessed). The grip's own marks (Gripping / GrippedBy) keep every take, grip, carry and takedown off
---       both of them while it runs (Task 4's exclusion, both ways).
+--     - "Release": Release(S, "released") at once; what it earns waits (fix round 1, controller ruling I1): a RELEASE
+--       WINDOW of Hostage.ReleaseGrace (30 s; HostageService._ReleaseGrace shortens it in tests, read only while
+--       SeamOpen). If the released player is knocked (a landed hit, ProgressionService.HitListeners) or gripped by the
+--       ex-captor or their party inside it, nothing is paid; a grip of theirs that finishes (DownedManager.Listeners)
+--       records killed_hostage, as Finish would. Someone else hurting them changes nothing. Taken again by the captor's
+--       side, the window ends unpaid (the new hold has its own deeds). Either side leaving, or a shutdown, ends it unpaid
+--       (a captor who left has no profile to record on). When it runs out unharmed: released_hostage recorded
+--       (witnessed), then THE RELEASE HEAT (ruling, spec §3 "its Heat is only half that of the original crime"): the
+--       took_hostage Heat this hold raised at the take (S.TookHeat: per jurisdiction, HeatService.Value just after
+--       Announce's Record less just before -- Morality's Recorded listeners, HeatService's among them, run in that same
+--       step) is halved, HeatService.Reduce(J, raised / 2). Heat that word of the taking raises later isn't touched;
+--     - "Finish" (refused while the captor is stunned or attacking -- Grip's own conditions, fix round 1 I2 -- so the
+--       hold goes on, and otherwise Release, the knock and the grip's marks run with no yield): Release(S, "finished")
+--       (no "free" toast); DownedManager.Knock(HC) (the hostage's HP kept: Knock only sets the state); then, on its own
+--       thread, the NORMAL GRIP, DownedManager.Grip(CC, HC): its styles, its stun cancel (a rescue that stuns the captor
+--       mid-grip leaves the hostage knocked and alive), the ragdoll, its listeners. Done -> killed_hostage recorded
+--       (witnessed). A grip that fails otherwise gives the knock back (EndKnock at the hostage's own HP). The grip's own
+--       marks (Gripping / GrippedBy) keep every take, grip, carry and takedown off both of them while it runs (Task 4's
+--       exclusion, both ways).
 -- * Free(PL, Outcome) -> bool: that PL's session (either side) released. SessionOf(PL) -> S | nil. Forget(PL, Only):
 --   the PL's cooldown (NextAt), immunity (ImmuneUntil), re-take times (Taken) and (Task 7) struggle messages and rate
 --   window (Sends) forgotten; Only (a set, e.g. {ImmuneUntil = true}) forgets just those. Released: listeners (S, Outcome).
@@ -245,6 +253,8 @@ local MAX_RAY = 1000
 -- (Task 7, Task 6 re-review m1) the ends after which the hostage is put back at the lead's last checked spot (Settle):
 -- a blink, a weld the captor's side broke, and an error (the server no longer knows what the client did last)
 local PUT_BACK_ENDS = {teleport = true, broken = true, error = true}
+-- (Task 8 fix round 1) PROPOSAL: seconds a release window waits, at its end, for a grip still running on the released player
+local GRIP_WAIT = 10
 
 local StandIns = {} -- [Model] = PL (tests only; read only while SeamOpen)
 local ByCaptor = {} -- [Key] = S
@@ -254,6 +264,8 @@ local ImmuneUntil = {} -- [Key] = os.clock() until which this PL can't be taken
 local Taken = {} -- [hostage Key] = {os.clock() of each hold, any captor} (R8: memory only, no save field)
 local Sends = {} -- (Task 7, pre-flight P9) [Key] = Struggle messages received from this PL (Task 12's tests read it)
 local Presses = {} -- (Task 7) [Key] = {os.clock() of each counted struggle press in the last second}
+local Pending = {} -- (Task 8 fix round 1) [P] = true: the release windows running (see the captor menu, below)
+local CaptorSide, EndPending -- (fix round 1; defined with the release windows)
 
 -- ===== the player-like helpers (the only places that tell a Player from a stand-in) =====
 local function Hum(M) return M and M:FindFirstChildOfClass("Humanoid") end
@@ -1172,6 +1184,11 @@ function HostageService.Take(Captor, TargetModel)
 		Kind = Kind, State = "Binding", T0 = os.clock(), Until = nil, Struggle = 0, Over = false, Conns = {}, Saved = {}}
 	ByCaptor[Key(Captor)] = S
 	ByHostage[Key(Target)] = S
+	-- (Task 8 fix round 1) taken again by the captor's side inside a release window: that window ends unpaid (the new
+	-- hold has its own deeds)
+	for P in pairs(Pending) do
+		if P.HC == TargetModel and CaptorSide(P, CC) then EndPending(P) end
+	end
 	Connect(S)
 	if Kind == "Grab" then
 		-- (Task 7) the grab is welded in this same step: no bind time
@@ -1224,33 +1241,121 @@ function HostageService.MenuOptions(Captor)
 	}
 end
 
--- release unharmed: the Mercy deed, then the took_hostage Heat this hold raised halved (the ruling on spec §3)
-local function MenuRelease(S)
-	local Took = S.TookHeat or {}
-	if not Release(S, "released") then return false end
-	Record(S.Captor, "released_hostage", {Witness = true})
-	if IsPlayer(S.Captor) then
-		for J, Raised in pairs(Took) do
-			Step("halving the taking's Heat", function()
-				require(ServerScriptService.HeatService).Reduce(S.Captor, J, Raised / 2)
-			end)
+-- ===== a release's unharmed window (Task 8 fix round 1, controller ruling I1) =====
+-- A menu Release pays out (released_hostage, the took_hostage Heat halved) only after ReleaseGrace seconds in which the
+-- released player was neither knocked (a landed hit that left them knocked) nor gripped by the ex-captor or their party.
+-- A grip by them that finishes inside the window (or that started inside it and is still running at its end) records
+-- killed_hostage, as Finish would, and nothing else. Someone else hurting the released player changes nothing. Each
+-- window is a P in Pending: {Captor, Hostage, HC, TookHeat, Ends (os.clock()), Harmed (nil or why), Over, Conns}.
+HostageService._ReleaseGrace = nil -- (tests only, read while SeamOpen) a shorter window in seconds
+
+local function GraceTime()
+	local X = HostageService._ReleaseGrace
+	if SeamOpen() and type(X) == "number" and X > 0 and X < math.huge then return X end
+	return Hostage.ReleaseGrace
+end
+
+-- is this character (or character name) the ex-captor's or one of their party's (never the released player's own)
+function CaptorSide(P, Who)
+	if Who == nil then return false end
+	for _, X in ipairs(HostageService.PartyOf(P.Captor)) do
+		local XC = X ~= P.Hostage and Char(X)
+		if XC and (XC == Who or (type(Who) == "string" and XC.Name == Who)) then return true end
+	end
+	return false
+end
+
+function EndPending(P)
+	if P.Over then return end
+	P.Over = true
+	Pending[P] = nil
+	for _, Conn in ipairs(P.Conns) do Conn:Disconnect() end
+	table.clear(P.Conns)
+end
+
+-- the window ran out unharmed: the Mercy deed, then the took_hostage Heat this hold raised halved (the ruling on spec
+-- section 3). A captor who has left gets nothing (no profile to record on); nor does a stand-in (Record does nothing).
+local function PayRelease(P)
+	EndPending(P)
+	if not (IsPlayer(P.Captor) and P.Captor.Parent == Players) then return end
+	Record(P.Captor, "released_hostage", {Witness = true})
+	for J, Raised in pairs(P.TookHeat) do
+		Step("halving the taking's Heat", function()
+			require(ServerScriptService.HeatService).Reduce(P.Captor, J, Raised / 2)
+		end)
+	end
+end
+
+-- ProgressionService.HitListeners: a landed hit by the captor's side that left a released player knocked in their window
+local function OnHit(Attacker, Victim, Result)
+	if Result ~= "Hit" then return end
+	for P in pairs(Pending) do
+		if not P.Over and P.HC == Victim and DownedManager.IsKnocked(Victim) and CaptorSide(P, Attacker) then
+			P.Harmed = P.Harmed or "knocked"
 		end
 	end
+end
+
+-- DownedManager.Listeners: a grip finished someone; a released player killed by the captor's side in their window
+local function OnGrip(Kind, Gripper, Target)
+	if Kind ~= "Grip" then return end
+	for P in pairs(Pending) do
+		if not P.Over and P.HC == Target and CaptorSide(P, Gripper) then
+			EndPending(P)
+			if IsPlayer(P.Captor) and P.Captor.Parent == Players then Record(P.Captor, "killed_hostage", {Witness = true}) end
+		end
+	end
+end
+
+local function StartPending(S)
+	local P = {Captor = S.Captor, Hostage = S.Hostage, HC = S.HC, TookHeat = S.TookHeat or {}, Ends = os.clock() + GraceTime(),
+		Harmed = nil, Over = false, Conns = {}}
+	Pending[P] = true
+	table.insert(P.Conns, P.HC:GetAttributeChangedSignal("GrippedBy"):Connect(function()
+		if not P.Over and os.clock() < P.Ends and CaptorSide(P, P.HC:GetAttribute("GrippedBy")) then
+			P.Harmed = P.Harmed or "gripped"
+		end
+	end))
+	task.delay(P.Ends - os.clock(), function()
+		-- a grip running at the window's end is waited out (its own finish decides a kill); then paid unless harmed
+		local T0 = os.clock()
+		while not P.Over and P.HC.Parent and P.HC:GetAttribute("GrippedBy") and os.clock() - T0 < GRIP_WAIT do task.wait(0.1) end
+		if P.Over then return end
+		if P.Harmed then EndPending(P) else PayRelease(P) end
+	end)
+end
+
+-- (tests only) every release window dropped, nothing paid (HostageKit.Clean)
+function HostageService._ClearPending()
+	for P in pairs(Pending) do EndPending(P) end
+end
+
+-- release: the hold ends at once; what it earns waits for the window
+local function MenuRelease(S)
+	if not Release(S, "released") then return false end
+	StartPending(S)
 	return true
 end
 
--- finish them: the hold let go, the hostage knocked (its HP kept), then the normal Grip on its own thread
+-- finish them: refused while the captor is stunned or attacking (Grip's own conditions: it would fail at once, or wait
+-- with the hostage knocked and free -- fix round 1, I2), so Release, the knock and the grip's marks run with no yield;
+-- the hold let go, the hostage knocked (its HP kept), then the normal Grip on its own thread. A grip that fails other
+-- than by being cancelled (a stun, a dead side) gives the knock back (EndKnock at the hostage's own HP): no free knock.
 local function MenuFinish(S)
 	local Captor, CC, HC = S.Captor, S.CC, S.HC
-	if Stunned(CC) then return false end -- (a stunned captor's grip would fail at once: the hold goes on)
+	if Stunned(CC) or AttackRunner.IsRunning(CC) then return false end
 	if not Release(S, "finished") then return false end
 	if not (Alive(CC) and Alive(HC)) then return true end
 	Step("knocking the hostage", DownedManager.Knock, HC)
 	if not DownedManager.IsKnocked(HC) then return true end
 	task.spawn(function()
 		local Ok, Done = pcall(DownedManager.Grip, CC, HC)
-		if not Ok then warn("HostageService: the finishing grip failed:", Done) return end
-		if Done == true then Record(Captor, "killed_hostage", {Witness = true}) end
+		if not Ok then warn("HostageService: the finishing grip failed:", Done) end
+		if Ok and Done == true then
+			Record(Captor, "killed_hostage", {Witness = true})
+		elseif Alive(CC) and Alive(HC) and not Stunned(CC) and not HC:GetAttribute("GrippedBy") then
+			Step("giving the knock back", DownedManager.EndKnock, HC, 0)
+		end
 	end)
 	return true
 end
@@ -1270,11 +1375,17 @@ function HostageService._Left(PL)
 	Each(function(S)
 		if S.Captor == PL or S.Hostage == PL then Release(S, "left") end
 	end)
+	-- (fix round 1) a release window of either side ends with nothing paid: a captor who left has no profile to record
+	-- on (and can't log off to keep a payout coming), and a released player who left can no longer be spared or harmed
+	for P in pairs(Pending) do
+		if P.Captor == PL or P.Hostage == PL then EndPending(P) end
+	end
 end
 
 -- the BindToClose handler (a test seam): every session released as "shutdown"
 function HostageService._Shutdown()
 	Each(function(S) Release(S, "shutdown") end)
+	HostageService._ClearPending() -- (fix round 1) release windows end unpaid
 end
 
 local Started = false
@@ -1283,6 +1394,9 @@ function HostageService.Start()
 	Started = true
 	Players.PlayerRemoving:Connect(HostageService._Left)
 	game:BindToClose(HostageService._Shutdown)
+	-- (fix round 1) what a release window watches: landed hits and finished grips
+	table.insert(require(ServerScriptService.ProgressionService).HitListeners, OnHit)
+	table.insert(DownedManager.Listeners, OnGrip)
 end
 
 return HostageService

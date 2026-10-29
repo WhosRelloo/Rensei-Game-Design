@@ -35,7 +35,8 @@
 --     in a real game, with 0.3 s to settle (Play_TakedownHard's own Loose, for the hostage suites and client checks).
 --   * (Task 7) Kit.Grabbed(Opts) -> Rig, PL, S: a standing stand-in (Kit.StandIn(At(0, 0), Opts)) grabbed by the player
 --     from 3 studs straight behind it (TakedownKit.PutBehind), the session Grabbing, else an error.
---   * Kit.Clean(): every session of the player and of each stand-in freed with "error"; HostageService.ClearStandIns;
+--   * Kit.Clean(): (Task 8 fix round 1) every release window dropped unpaid (HostageService._ClearPending); every
+--     session of the player and of each stand-in freed with "error"; HostageService.ClearStandIns;
 --     every stand-in's WCS character and rig destroyed; the player recovered if knocked; Holding, HeldBy, HostageUntil,
 --     Struggle, GrabImmuneUntil, LastHostageResult and HostageClamped cleared on the player; HostageService.Forget for
 --     the player and every stand-in (cooldown, immunity and re-take times). (Guard, after it, puts back the player's
@@ -206,6 +207,8 @@ function Kit.Clean()
 		Service = {Free = function() end, Forget = function() end, ClearStandIns = function() end}
 	end
 	local Steps = {
+		-- (hostages Task 8 fix round 1) every release window dropped unpaid, so none pays out into a later case
+		function() if Service._ClearPending then Service._ClearPending() end end,
 		function() Service.Free(P, "error") end,
 		function() for _, E in ipairs(Made) do if E.PL then Service.Free(E.PL, "error") end end end,
 		function() for _, E in ipairs(Made) do if E.PL then Service.Forget(E.PL) end end end,

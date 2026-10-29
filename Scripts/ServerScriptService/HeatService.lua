@@ -81,6 +81,7 @@ end
 -- region windows (Add's per-hour caps) are left as they are. HostageService: a hostage released unharmed halves the
 -- Heat its taking raised.
 function HeatService.Reduce(Player, J, Amount)
+	if typeof(Player) ~= "Instance" or not Player:IsA("Player") then return 0 end -- (fix round 1, review m5)
 	local H = HeatTable(Player)
 	if not H or not Heat.Law[J] or type(Amount) ~= "number" or Amount ~= Amount or Amount <= 0 or Amount == math.huge then
 		return 0

@@ -28,6 +28,9 @@ Hostage.MaxGap = 15 -- never a target this many levels below the captor
 Hostage.Cooldown = 4 -- seconds between a captor's takes
 Hostage.RefusedCooldown = 0.5
 Hostage.ImmuneAfter = 5 -- grab immunity after any release (spec §4)
+-- (Task 8 fix round 1, controller ruling I1) a menu release pays out (released_hostage, the Heat halved) only once the
+-- released player has stayed unharmed by the ex-captor and their party this long
+Hostage.ReleaseGrace = 30 -- seconds (PROPOSAL)
 -- holding
 Hostage.LeadSpeed = 12 -- the captor's walk while holding (Carry is 11)
 Hostage.Offset = CFrame.new(0, 0, -1.5) -- the hostage's root in the captor's root space: in front, same facing
