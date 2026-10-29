@@ -83,6 +83,11 @@ StationService.SitPointLift = 1.5 -- PROPOSAL: the prompt sits this far above th
 StationService.GateClearFor = 600 -- brief: a paid bribe or a search clears the gate for 10 minutes
 StationService.GateReach = 16 -- PROPOSAL: studs from a gate a Bribe / Search request may come from
 StationService.GatePush = 4 -- PROPOSAL: studs the guard pushes someone back from the gate (as the conductor's DoorPush)
+StationService.GateTouchSlack = 3 -- PROPOSAL (hostages Task 13): a gate touch acts only on a root within the gate's
+                                   -- half size plus this many studs across the gate and up and down...
+StationService.GateTouchDepth = 8 -- PROPOSAL (Task 13): ...and plus this many through it (along its LookVector): a
+                                  -- walker's touch arrives with the server's copy of the root up to 5.2 studs short of
+                                  -- the gate's middle (measured, Ye and Foundry), a stale one from a train car 15+ off
 StationService.GateAskGap = 3 -- PROPOSAL: seconds between the guard's offers / refusals to one player (touches repeat)
 StationService.RefuseHeat = 10 -- brief ruling: Wanted 3+ at the gate, "resisting a checkpoint"
 StationService.RefuseHeatGap = 30 -- PROPOSAL: a refusal raises Heat at most once per 30 s per player
@@ -404,7 +409,8 @@ local function NearGate(P)
 	return nil
 end
 
--- someone touched the gate (the part's LookVector points onto the platform). Returns the verdict it acted on.
+-- someone touched the gate (the part's LookVector points onto the platform). Returns the verdict it acted on (or, for a
+-- touch from a root no longer at the gate, the verdict it ignored).
 function StationService.GateTouch(P, Gate)
 	local Root = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
 	if not Root then return nil end
@@ -417,6 +423,15 @@ function StationService.GateTouch(P, Gate)
 	if Verdict == "Pass" or (Verdict == "Bribe" and Cleared(P)) then return "Pass" end
 	local N = Gate.CFrame.LookVector
 	if Root.AssemblyLinearVelocity:Dot(N) < -1 then return "Leaving" end -- walking off the platform: never stopped
+	-- (hostages Task 13) only a root at the gate is stopped. The player's client owns the character, so a touch it saw
+	-- at the gate can reach the server after a server move (into a train car, say); acted on there, it threw the player
+	-- 20+ studs out of the car. Such a touch is ignored: nothing moves, no line, no Heat (the verdict is still returned).
+	local L = Gate.CFrame:PointToObjectSpace(Root.Position)
+	local Slack = StationService.GateTouchSlack
+	if math.abs(L.X) > Gate.Size.X / 2 + Slack or math.abs(L.Y) > Gate.Size.Y / 2 + Slack
+		or math.abs(L.Z) > Gate.Size.Z / 2 + StationService.GateTouchDepth then
+		return Verdict
+	end
 	-- back to the hall side, GatePush clear of the gate
 	local Side = (Root.Position - Gate.Position):Dot(N)
 	Root.CFrame += N * -(Side + Gate.Size.Z / 2 + StationService.GatePush)

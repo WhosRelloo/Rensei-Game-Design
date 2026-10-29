@@ -519,6 +519,54 @@ return {
 		T.Near(R.Quiet, 0, 0.01, "crouched and quiet behind him: no Heat")
 	end,
 
+	-- (hostages Task 13) a gate touch that reaches the server once the player is somewhere else (the client owns the
+	-- character, so a touch it saw at the gate can arrive after a server move) changes nothing: GateTouch, which the gate's
+	-- Touched handler calls, acts only on a root at the gate. Here the root is well inside the 3rd-class car with papers
+	-- the gate would push back (Wanted 1, uncleared). Control: the same papers at the gate are pushed to the hall side.
+	StaleGateTouchLeavesABoardedPlayer = function(T)
+		local SS, HS, TS = require(SSS.StationService), require(SSS.HeatService), require(SSS.TravelService)
+		local P = game.Players:GetPlayers()[1]
+		local Gate = TheGate()
+		T.True(Gate ~= nil, "a RenseiStationGate")
+		local Root = P.Character.HumanoidRootPart
+		local Home = P.Character:GetPivot()
+		local R = {}
+		SS.HoldClock = true
+		local Ok, Err = pcall(NoTickets, P, function()
+			TS.AddTicket(P, ROUTE, "Third")
+			HS.Clear(P, "State")
+			HS.Add(P, "State", 25, "Lindenmoor") -- Wanted 1, not cleared
+			P:SetAttribute("GateCleared", nil)
+			SS.ResetGate(P)
+			local Zone
+			for _, d in ipairs(workspace:GetDescendants()) do
+				if d.Name:find("BoardZone") and d:GetAttribute("CarKind") == "ThirdClass" and d:FindFirstAncestor("PlatformTrain") then Zone = d break end
+			end
+			P.Character:PivotTo(Zone.CFrame)
+			task.wait(0.3)
+			local Before = Root.Position
+			R.Far = (Before - Gate.Position).Magnitude
+			R.Verdict = SS.GateTouch(P, Gate)
+			R.Moved = (Root.Position - Before).Magnitude
+			SS.ResetGate(P)
+			P.Character:PivotTo(Gate.CFrame * CFrame.new(0, -0.5, 0.2)) -- the control: just past the gate's middle
+			task.wait(0.1)
+			R.AtGate = SS.GateTouch(P, Gate)
+			R.Side = HallSide(Gate, Root)
+		end)
+		P.Character:PivotTo(Home)
+		Root.AssemblyLinearVelocity = Vector3.zero
+		SS.HoldClock = false
+		HS.Clear(P, "State")
+		P:SetAttribute("GateCleared", nil)
+		SS.ResetGate(P)
+		T.True(Ok, tostring(Err))
+		T.True(R.Far > 20, ("setup: the root is well inside the car, %.1f studs from the gate"):format(R.Far))
+		T.True(R.Moved < 0.5, ("a touch from away from the gate doesn't push (moved %.2f studs)"):format(R.Moved))
+		T.Eq(R.AtGate, "Bribe", "control: at the gate, the same papers are offered a bribe")
+		T.True(R.Side <= -(Gate.Size.Z / 2 + SS.GatePush) + 0.5, "control: and pushed back to the hall side (" .. R.Side .. ")")
+	end,
+
 	-- fix round 1 (the papers check is binding): a ticket holder whose papers aren't in order isn't boarded, wherever
 	-- they got on; once cleared they are. Hidden in the StowZone, they ride as a stowaway.
 	PapersAreCheckedAtBoarding = function(T)
@@ -527,6 +575,7 @@ return {
 		local D = PS.GetData(P)
 		local Money = D.Money
 		local R = {}
+		local Home = P.Character:GetPivot() -- (hostages Task 13) where the case found the player, for the put-back
 		SS.HoldClock = true
 		local Ok, Err = pcall(NoTickets, P, function()
 			TS.AddTicket(P, ROUTE, "Third")
@@ -569,12 +618,18 @@ return {
 			A, Stow = SS.Aboard(ROUTE)
 			R.Stowed = table.find(A, P) ~= nil and Stow[P] == true
 		end)
+		-- (hostages Task 13) the case ends off the train, with the clock still held: a scheduled departure must not carry
+		-- the player (still in the StowZone) into the next case
+		P.Character:PivotTo(Home)
+		P.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
+		R.LeftAboard = table.find((SS.Aboard(ROUTE)), P) ~= nil
 		SS.HoldClock = false
 		D.Money = Money
 		HS.Clear(P, "State")
 		P:SetAttribute("GateCleared", nil)
 		SS.ResetGate(P)
 		T.True(Ok, tostring(Err))
+		T.Eq(R.LeftAboard, false, "put back off the train before the clock runs again")
 		T.Eq(R.Uncleared, false, "Wanted 1, uncleared, inside the train: not aboard")
 		T.True(table.find(R.Toasts, "Conductor: \"Papers first — see the gate guard.\"") ~= nil, "told to see the gate guard")
 		T.Eq(R.Paid, true, "paid the guard")
